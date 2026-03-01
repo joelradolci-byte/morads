@@ -44,8 +44,8 @@ export async function POST(req: Request) {
       line_items,
       mode,
       customer_email: email,
-      success_url: `http://localhost:3000?pago=exito`,
-      cancel_url: `http://localhost:3000?pago=cancelado`,
+      success_url: "https://morads-3wm7.vercel.app/?success=true",
+      cancel_url: "https://morads-3wm7.vercel.app/?canceled=true",
     });
 
     // Le devolvemos a tu web el link seguro de pago
