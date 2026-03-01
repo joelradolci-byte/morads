@@ -10,7 +10,7 @@ export async function POST(req: Request) {
   try {
     const { email, tipo } = await req.json();
 
-    let line_items = [];
+    let line_items: any[] = [];
     let mode: "payment" | "subscription" = "payment";
 
     // 🛒 OPCIÓN 1: Compra por impulso (1 Reporte)
