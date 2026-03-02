@@ -6,7 +6,7 @@ import { createClient } from "@supabase/supabase-js";
 import { 
   Target, Users, Building2, MessageSquare, LogOut, ChevronDown, 
   Zap, AlertTriangle, CheckCircle2, CreditCard, Settings, 
-  Search, Filter, ArrowRight 
+  Search, ArrowRight, ArrowLeft, TrendingUp, TrendingDown 
 } from 'lucide-react';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -24,12 +24,14 @@ function AuditorDashboard() {
   const [loading, setLoading] = useState(false);
 
   const [idioma, setIdioma] = useState<"es" | "en">("es");
-  const [vista, setVista] = useState<"nueva" | "historial" | "perfil" | "feedback">("nueva");
+  // NUEVA VISTA AGREGADA: reporte_lectura
+  const [vista, setVista] = useState<"nueva" | "historial" | "perfil" | "feedback" | "reporte_lectura">("nueva");
   const [historial, setHistorial] = useState<any[]>([]);
   const [cargandoHistorial, setCargandoHistorial] = useState(false);
   
-  // NUEVO ESTADO: Para filtrar la tabla de clientes
+  // ESTADOS DEL PANEL DE CLIENTES
   const [filtroEstado, setFiltroEstado] = useState<"todos" | "critico" | "atencion" | "optimo">("todos");
+  const [busqueda, setBusqueda] = useState(""); // Buscador en tiempo real
   
   const [mostrarPagos, setMostrarPagos] = useState(false);
   const [perfil, setPerfil] = useState<any>(null);
@@ -82,7 +84,6 @@ function AuditorDashboard() {
     if (vista === "historial") cargarHistorial();
   }, [vista, session, reporte]);
 
-  // FUNCIONES RECUPERADAS Y ASEGURADAS
   const subirLogo = async (event: any) => {
     try {
       setUploading(true);
@@ -152,19 +153,20 @@ function AuditorDashboard() {
     setLoading(false);
   };
 
-  // FUNCIONES DE LÓGICA PARA LA TABLA DE CLIENTES
   const getEstadoData = (score: number) => {
     if (score < 50) return { label: "Crítico", color: "text-red-400", bg: "bg-red-500/10", border: "border-red-500/20", icon: AlertTriangle };
     if (score < 80) return { label: "Atención", color: "text-yellow-400", bg: "bg-yellow-500/10", border: "border-yellow-500/20", icon: Zap };
     return { label: "Óptimo", color: "text-green-400", bg: "bg-green-500/10", border: "border-green-500/20", icon: CheckCircle2 };
   };
 
+  // Lógica combinada: Filtro por estado + Búsqueda por nombre
   const clientesFiltrados = historial.filter(item => {
-    if (filtroEstado === "todos") return true;
-    if (filtroEstado === "critico") return item.score < 50;
-    if (filtroEstado === "atencion") return item.score >= 50 && item.score < 80;
-    if (filtroEstado === "optimo") return item.score >= 80;
-    return true;
+    const coincideFiltro = filtroEstado === "todos" || 
+                           (filtroEstado === "critico" && item.score < 50) || 
+                           (filtroEstado === "atencion" && item.score >= 50 && item.score < 80) || 
+                           (filtroEstado === "optimo" && item.score >= 80);
+    const coincideBusqueda = item.nombre_cuenta.toLowerCase().includes(busqueda.toLowerCase());
+    return coincideFiltro && coincideBusqueda;
   });
 
   if (status === "loading") return <div className="h-screen w-full flex justify-center items-center text-xl font-bold text-white">Cargando...</div>;
@@ -221,10 +223,15 @@ function AuditorDashboard() {
             ].map((link, idx) => (
               <button 
                 key={idx}
-                onClick={() => { setVista(link.view as any); setReporte(null); setMostrarPagos(false); }} 
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${ vista === link.view ? "bg-white/10 text-white shadow-sm border border-white/5" : "text-slate-400 hover:bg-white/5 hover:text-white" }`}
+                onClick={() => { 
+                  // Evitamos que 'reporte_lectura' ilumine mal el menú
+                  setVista(link.view as any); 
+                  setReporte(null); 
+                  setMostrarPagos(false); 
+                }} 
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${ (vista === link.view || (vista === 'reporte_lectura' && link.view === 'historial')) ? "bg-white/10 text-white shadow-sm border border-white/5" : "text-slate-400 hover:bg-white/5 hover:text-white" }`}
               >
-                <div className={vista === link.view ? "text-[#FFA4BD]" : ""}><link.icon size={20} strokeWidth={vista === link.view ? 2.5 : 2} /></div> 
+                <div className={(vista === link.view || (vista === 'reporte_lectura' && link.view === 'historial')) ? "text-[#FFA4BD]" : ""}><link.icon size={20} strokeWidth={(vista === link.view || (vista === 'reporte_lectura' && link.view === 'historial')) ? 2.5 : 2} /></div> 
                 {link.text}
               </button>
             ))}
@@ -235,11 +242,11 @@ function AuditorDashboard() {
       {/* CONTENIDO PRINCIPAL */}
       <main className="flex-1 flex flex-col relative overflow-y-auto z-10">
         
-        {/* HEADER SUPERIOR CON DROPDOWN PERFIL */}
         <header className="h-20 flex justify-between items-center px-8 print:hidden border-b border-white/5 bg-white/[0.01] backdrop-blur-md sticky top-0 z-30">
           <h2 className="text-2xl font-bold text-white tracking-tight">
             {vista === 'nueva' && t[idioma].nueva}
             {vista === 'historial' && t[idioma].clientes}
+            {vista === 'reporte_lectura' && 'Detalle del Cliente'}
             {vista === 'perfil' && 'Marca Blanca'}
             {vista === 'feedback' && 'Buzón de Sugerencias'}
           </h2>
@@ -289,7 +296,7 @@ function AuditorDashboard() {
 
         <div className="p-8 max-w-6xl mx-auto w-full print:p-0">
           
-          {/* VISTA: NUEVA AUDITORÍA */}
+          {/* VISTA: NUEVA AUDITORÍA (Formulario) */}
           {vista === "nueva" && (
             <div className="print:hidden">
               <div className="bg-white/5 border border-white/10 backdrop-blur-2xl p-8 md:p-12 rounded-[2rem] shadow-2xl mb-8">
@@ -307,7 +314,7 @@ function AuditorDashboard() {
                 </button>
               </div>
 
-              {/* REPORTE */}
+              {/* El PDF recién generado aparece aquí abajo si el usuario acaba de hacerlo */}
               {reporte && !mostrarPagos && (
                 <div className="mt-8 bg-white/5 border border-white/10 backdrop-blur-2xl p-10 rounded-[2rem] shadow-2xl print:bg-white print:text-black print:border-none print:shadow-none print:p-0 print:mt-0 animate-fade-in">
                   <div className="flex justify-between items-center mb-8">
@@ -340,11 +347,62 @@ function AuditorDashboard() {
             </div>
           )}
 
-          {/* VISTA: HISTORIAL (EL NUEVO TABLERO DE CONTROL DE CLIENTES) */}
+          {/* VISTA EXCLUSIVA DE LECTURA DE REPORTE */}
+          {vista === "reporte_lectura" && reporte && (
+            <div className="animate-fade-in">
+              <button 
+                onClick={() => setVista("historial")} 
+                className="mb-6 flex items-center gap-2 text-slate-400 hover:text-white font-medium transition-colors print:hidden"
+              >
+                <ArrowLeft size={18} /> Volver al Panel
+              </button>
+
+              <div className="bg-white/5 border border-white/10 backdrop-blur-2xl p-10 rounded-[2rem] shadow-2xl print:bg-white print:text-black print:border-none print:shadow-none print:p-0 print:mt-0">
+                
+                {/* Cabecera para el PDF (Marca Blanca) */}
+                <div className="hidden print:flex justify-between items-center mb-10 border-b-2 border-slate-100 pb-6">
+                  <div>
+                    {perfil?.agencia_logo ? <img src={perfil.agencia_logo} alt="Logo" className="h-16 object-contain" /> : <div className="flex items-center gap-2"><span className="text-3xl">🐾</span><span className="text-3xl font-black text-slate-800">Mora</span></div>}
+                  </div>
+                  <div className="text-right">
+                    <h2 className="text-xl font-bold text-slate-800">{perfil?.agencia_nombre ? perfil.agencia_nombre : "Reporte de Auditoría"}</h2>
+                    <p className="text-sm text-slate-500">{new Date().toLocaleDateString()}</p>
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-center mb-8">
+                  <div>
+                    <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-2 print:text-sm">{nombreCuenta || '---'}</h2>
+                    <div className="flex items-center gap-4">
+                      <div className="w-20 h-20 rounded-full flex items-center justify-center border-[6px] border-black/20 text-3xl font-black text-[#0a0a0c] shadow-lg print:text-white" style={melocotonGradient}>{reporte.score_general}</div>
+                      <h3 className="text-4xl font-bold text-white print:text-black">{t[idioma].score}</h3>
+                    </div>
+                  </div>
+                  <button onClick={descargarPDF} className="bg-white/5 border border-white/10 hover:bg-white/10 text-white px-6 py-3 rounded-xl font-bold transition-all print:hidden shadow-sm">Exportar PDF</button>
+                </div>
+                
+                <div className="space-y-6">
+                  <div className="border-l-4 pl-6 bg-red-500/5 p-6 rounded-2xl border border-red-500/10 print:bg-red-50 print:border-red-200" style={{ borderLeftColor: '#ef4444' }}>
+                    <h3 className="text-xl font-bold text-red-400 mb-4 flex items-center gap-2 print:text-red-700"><AlertTriangle size={24}/> {t[idioma].problemas}</h3>
+                    {reporte.hallazgos?.graves_rojo?.map((item: any, i: number) => <p key={i} className="mb-3 text-slate-300 leading-relaxed print:text-black"><b className="text-white print:text-black text-lg">{item.titulo}:</b> <br/>{item.descripcion}</p>)}
+                  </div>
+                  <div className="border-l-4 pl-6 bg-yellow-500/5 p-6 rounded-2xl border border-yellow-500/10 print:bg-yellow-50 print:border-yellow-200" style={{ borderLeftColor: '#eab308' }}>
+                    <h3 className="text-xl font-bold text-yellow-400 mb-4 flex items-center gap-2 print:text-yellow-700"><Zap size={24}/> {t[idioma].mejoras}</h3>
+                    {reporte.hallazgos?.debiles_amarillo?.map((item: any, i: number) => <p key={i} className="mb-3 text-slate-300 leading-relaxed print:text-black"><b className="text-white print:text-black text-lg">{item.titulo}:</b> <br/>{item.descripcion}</p>)}
+                  </div>
+                  <div className="border-l-4 pl-6 bg-green-500/5 p-6 rounded-2xl border border-green-500/10 print:bg-green-50 print:border-green-200" style={{ borderLeftColor: '#22c55e' }}>
+                    <h3 className="text-xl font-bold text-green-400 mb-4 flex items-center gap-2 print:text-green-700"><CheckCircle2 size={24}/> {t[idioma].aciertos}</h3>
+                    {reporte.hallazgos?.bien_verde?.map((item: any, i: number) => <p key={i} className="mb-3 text-slate-300 leading-relaxed print:text-black"><b className="text-white print:text-black text-lg">{item.titulo}:</b> <br/>{item.descripcion}</p>)}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* VISTA: HISTORIAL (PANEL DE CLIENTES) */}
           {vista === "historial" && (
             <div className="bg-white/5 border border-white/10 backdrop-blur-2xl p-8 rounded-[2rem] shadow-2xl animate-fade-in flex flex-col min-h-[600px]">
               
-              {/* HEADER Y FILTROS DEL TABLERO */}
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
                  <div className="flex items-center gap-4">
                     <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-white border border-white/10"><Users size={24} /></div>
@@ -354,64 +412,80 @@ function AuditorDashboard() {
                     </div>
                  </div>
 
-                 {/* BOTONERA DE FILTROS */}
-                 <div className="flex bg-black/40 p-1 rounded-xl border border-white/5">
-                    <button onClick={() => setFiltroEstado("todos")} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${filtroEstado === 'todos' ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-white'}`}>Todos</button>
-                    <button onClick={() => setFiltroEstado("critico")} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-1 ${filtroEstado === 'critico' ? 'bg-red-500/20 text-red-400' : 'text-slate-400 hover:text-red-400'}`}><span className="w-2 h-2 rounded-full bg-red-400"></span> Críticos</button>
-                    <button onClick={() => setFiltroEstado("atencion")} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-1 ${filtroEstado === 'atencion' ? 'bg-yellow-500/20 text-yellow-400' : 'text-slate-400 hover:text-yellow-400'}`}><span className="w-2 h-2 rounded-full bg-yellow-400"></span> Atención</button>
+                 <div className="flex flex-wrap items-center gap-3">
+                    {/* BARRA DE BÚSQUEDA */}
+                    <div className="relative">
+                      <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
+                      <input 
+                        type="text" 
+                        placeholder="Buscar cliente..." 
+                        className="pl-9 pr-4 py-2 bg-black/40 border border-white/5 rounded-xl text-sm text-white focus:outline-none focus:border-[#FEAFAE] transition-all w-48"
+                        value={busqueda}
+                        onChange={(e) => setBusqueda(e.target.value)}
+                      />
+                    </div>
+
+                    {/* FILTROS */}
+                    <div className="flex bg-black/40 p-1 rounded-xl border border-white/5">
+                        <button onClick={() => setFiltroEstado("todos")} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${filtroEstado === 'todos' ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-white'}`}>Todos</button>
+                        <button onClick={() => setFiltroEstado("critico")} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-1 ${filtroEstado === 'critico' ? 'bg-red-500/20 text-red-400' : 'text-slate-400 hover:text-red-400'}`}><span className="w-2 h-2 rounded-full bg-red-400"></span> Críticos</button>
+                        <button onClick={() => setFiltroEstado("atencion")} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-1 ${filtroEstado === 'atencion' ? 'bg-yellow-500/20 text-yellow-400' : 'text-slate-400 hover:text-yellow-400'}`}><span className="w-2 h-2 rounded-full bg-yellow-400"></span> Atención</button>
+                    </div>
                  </div>
               </div>
               
-              {/* LA TABLA DE DATOS */}
               <div className="flex-1 bg-black/20 rounded-2xl border border-white/5 overflow-hidden">
-                <div className="grid grid-cols-12 gap-4 p-4 border-b border-white/10 text-xs font-bold text-slate-500 uppercase tracking-wider">
-                  <div className="col-span-4 pl-2">Cliente / Cuenta</div>
-                  <div className="col-span-3">Estado IA</div>
-                  <div className="col-span-2 text-center">Inversión (Simulada)</div>
+                <div className="grid grid-cols-12 gap-4 p-4 border-b border-white/10 text-xs font-bold text-slate-500 uppercase tracking-wider items-center">
+                  <div className="col-span-3 pl-2">Cliente / Cuenta</div>
+                  <div className="col-span-2 text-center">Fecha</div>
+                  <div className="col-span-2 text-center">Estado IA</div>
+                  <div className="col-span-2 text-center">Tendencia</div>
                   <div className="col-span-3 text-right pr-4">Acción</div>
                 </div>
 
                 {clientesFiltrados.length === 0 ? (
-                  <div className="p-10 text-center text-slate-500 font-medium">No se encontraron cuentas con este filtro.</div>
+                  <div className="p-10 text-center text-slate-500 font-medium">No se encontraron clientes.</div>
                 ) : (
                   <div className="divide-y divide-white/5">
                     {clientesFiltrados.map((item, index) => {
                       const estado = getEstadoData(item.score);
                       const StatusIcon = estado.icon;
-                      // Datos simulados para darle vida al tablero
-                      const fakeSpend = (item.score * 120).toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
                       
+                      // Simulaciones para las nuevas columnas de gestión
+                      const fakeDate = new Date().toLocaleDateString();
+                      const fakeTrend = item.score > 60 ? { icon: TrendingUp, val: "+3", color: "text-green-400" } : { icon: TrendingDown, val: "-5", color: "text-red-400" };
+
                       return (
                         <div key={index} className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-white/5 transition-colors group">
                           
-                          {/* Columna: Nombre */}
-                          <div className="col-span-4 flex items-center gap-3 pl-2">
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${estado.bg} ${estado.color} border ${estado.border}`}>
+                          <div className="col-span-3 flex items-center gap-3 pl-2">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${estado.bg} ${estado.color} border ${estado.border} flex-shrink-0`}>
                                {item.score}
                             </div>
                             <p className="font-bold text-white truncate pr-2">{item.nombre_cuenta}</p>
                           </div>
 
-                          {/* Columna: Estado (Semáforo) */}
-                          <div className="col-span-3 flex items-center">
-                            <span className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold border ${estado.bg} ${estado.color} ${estado.border}`}>
+                          <div className="col-span-2 text-center">
+                             <p className="text-sm text-slate-400">{fakeDate}</p>
+                          </div>
+
+                          <div className="col-span-2 flex justify-center">
+                            <span className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${estado.bg} ${estado.color} ${estado.border}`}>
                               <StatusIcon size={12} /> {estado.label}
                             </span>
                           </div>
 
-                          {/* Columna: Inversión (Dato Simulado) */}
-                          <div className="col-span-2 text-center">
-                            <p className="text-sm font-medium text-slate-300">{fakeSpend}</p>
-                            <p className="text-[10px] text-slate-500">Últimos 30d</p>
+                          <div className="col-span-2 flex justify-center items-center gap-1">
+                             <fakeTrend.icon size={14} className={fakeTrend.color} />
+                             <span className={`text-sm font-bold ${fakeTrend.color}`}>{fakeTrend.val} pts</span>
                           </div>
 
-                          {/* Columna: Acciones */}
                           <div className="col-span-3 flex justify-end items-center pr-2">
                             <button 
-                              onClick={() => { setReporte(item.reporte_json); setNombreCuenta(item.nombre_cuenta); setVista("nueva"); }}
-                              className="text-xs font-bold text-[#FFA4BD] hover:text-white flex items-center gap-1 transition-colors bg-white/5 hover:bg-white/10 px-3 py-2 rounded-lg border border-white/5"
+                              onClick={() => { setReporte(item.reporte_json); setNombreCuenta(item.nombre_cuenta); setVista("reporte_lectura"); }}
+                              className="text-xs font-bold text-[#FFA4BD] hover:text-white flex items-center gap-1 transition-colors bg-white/5 hover:bg-white/10 px-4 py-2.5 rounded-xl border border-white/5"
                             >
-                              Ver Tareas <ArrowRight size={14} />
+                              Abrir Auditoría <ArrowRight size={14} />
                             </button>
                           </div>
                           
