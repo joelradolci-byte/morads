@@ -16,7 +16,8 @@ function AuditorDashboard() {
   const [reporte, setReporte] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
-  const [vista, setVista] = useState<"nueva" | "historial">("nueva");
+  // 🔄 AGREGAMOS LA VISTA "PERFIL"
+  const [vista, setVista] = useState<"nueva" | "historial" | "perfil">("nueva");
   const [historial, setHistorial] = useState<any[]>([]);
   const [cargandoHistorial, setCargandoHistorial] = useState(false);
   
@@ -24,11 +25,15 @@ function AuditorDashboard() {
   const [mostrarPagos, setMostrarPagos] = useState(false);
   const [perfil, setPerfil] = useState<any>(null);
 
+  // 🏢 ESTADOS PARA LA MARCA BLANCA
+  const [agenciaNombre, setAgenciaNombre] = useState("");
+  const [agenciaLogo, setAgenciaLogo] = useState("");
+  const [uploading, setUploading] = useState(false);
+
   const descargarPDF = () => {
     window.print();
   };
 
-  // 🔄 NUEVA FUNCIÓN: Obtiene el plan y créditos del usuario
   const obtenerPerfil = async () => {
     if (!session?.user?.email) return;
     const { data: userProfile } = await supabase
@@ -38,6 +43,9 @@ function AuditorDashboard() {
       .single();
     
     setPerfil(userProfile);
+    // Cargamos los datos de la agencia si ya existen
+    if (userProfile?.agencia_nombre) setAgenciaNombre(userProfile.agencia_nombre);
+    if (userProfile?.agencia_logo) setAgenciaLogo(userProfile.agencia_logo);
   };
 
   const cargarHistorial = async () => {
@@ -54,7 +62,6 @@ function AuditorDashboard() {
     setCargandoHistorial(false);
   };
 
-  // Sincronizamos el perfil al cargar o al cambiar de reporte
   useEffect(() => {
     if (session) {
       obtenerPerfil();
@@ -80,6 +87,57 @@ function AuditorDashboard() {
       console.error("Error al ir a pagar:", error);
       alert("Hubo un problema al conectar con el banco.");
     }
+  };
+
+  // 🖼️ FUNCIÓN PARA SUBIR EL LOGO
+  const subirLogo = async (event: any) => {
+    try {
+      setUploading(true);
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${session?.user?.email}-${Math.random()}.${fileExt}`;
+
+      // Subimos a la carpeta pública "logos"
+      const { error: uploadError } = await supabase.storage
+        .from('logos')
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      // Obtenemos el link público de la imagen
+      const { data } = supabase.storage.from('logos').getPublicUrl(fileName);
+      setAgenciaLogo(data.publicUrl);
+
+    } catch (error) {
+      console.error("Error subiendo logo:", error);
+      alert("Hubo un error al subir la imagen. Asegurate de que la carpeta 'logos' sea pública en Supabase.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // 💾 FUNCIÓN PARA GUARDAR LA CONFIGURACIÓN
+  const guardarAjustesAgencia = async () => {
+    if (!session?.user?.email) return;
+    setLoading(true);
+    
+    const { error } = await supabase
+      .from('suscripciones')
+      .update({
+        agencia_nombre: agenciaNombre,
+        agencia_logo: agenciaLogo
+      })
+      .eq('email', session.user.email);
+
+    if (!error) {
+      alert("¡Perfil de agencia guardado con éxito! 🎉");
+      obtenerPerfil();
+    } else {
+      alert("Error al guardar los ajustes.");
+    }
+    setLoading(false);
   };
 
   const analizarCampaña = async () => {
@@ -142,7 +200,6 @@ function AuditorDashboard() {
           .update({ creditos_extra: perfil.creditos_extra - 1 })
           .eq('email', session.user.email);
         
-        // Actualizamos el estado local para que se vea el cambio de créditos de inmediato
         obtenerPerfil();
       }
 
@@ -175,7 +232,6 @@ function AuditorDashboard() {
   return (
     <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 font-sans print:p-0 print:m-0 print:max-w-none">
       
-      {/* HEADER ACTUALIZADO CON STATUS DE PLAN */}
       <div className="flex justify-between items-center mb-6 bg-white p-4 rounded-xl shadow-sm border border-gray-100 print:hidden">
         <div className="flex items-center gap-4">
           {session.user?.image && <img src={session.user.image} alt="Perfil" className="w-10 h-10 rounded-full" />}
@@ -211,12 +267,76 @@ function AuditorDashboard() {
         >
           🗂️ Mis Clientes
         </button>
+        {/* NUEVO BOTÓN PARA EL PERFIL DE AGENCIA */}
+        <button 
+          onClick={() => { setVista("perfil"); setMostrarPagos(false); }} 
+          className={`flex-1 py-3 rounded-xl font-bold text-lg transition-all ${vista === "perfil" ? "bg-indigo-600 text-white shadow-md" : "bg-white text-slate-500 border-2 border-slate-200 hover:bg-slate-50"}`}
+        >
+          ⚙️ Mi Agencia
+        </button>
       </div>
 
+      {/* VISTA: MI AGENCIA */}
+      {vista === "perfil" && (
+        <div className="bg-white p-8 rounded-2xl shadow-xl border border-gray-100 print:hidden max-w-2xl mx-auto">
+          <h2 className="text-3xl font-black mb-2 text-slate-800">Configuración de Marca Blanca 🏢</h2>
+          <p className="text-slate-500 mb-8">Personalizá los reportes PDF con los datos de tu propia agencia.</p>
+
+          <div className="space-y-6">
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-2">Nombre de tu Agencia</label>
+              <input 
+                type="text"
+                placeholder="Ej: Marketing Pro"
+                className="w-full p-4 border-2 border-slate-200 rounded-xl text-black focus:border-indigo-500 outline-none transition-all font-medium"
+                value={agenciaNombre}
+                onChange={(e) => setNombreCuenta(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-2">Logo de tu Agencia (Se verá en el PDF)</label>
+              <div className="flex items-center gap-6 p-4 border-2 border-dashed border-slate-300 rounded-xl bg-slate-50">
+                {agenciaLogo ? (
+                  <img src={agenciaLogo} alt="Logo" className="w-20 h-20 object-contain rounded-lg border bg-white p-1" />
+                ) : (
+                  <div className="w-20 h-20 bg-slate-200 rounded-lg flex items-center justify-center text-slate-400 text-xs text-center p-2">Sin logo</div>
+                )}
+                <div className="flex-1">
+                  <input 
+                    type="file"
+                    accept="image/*"
+                    onChange={subirLogo}
+                    disabled={uploading}
+                    className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
+                  />
+                  {uploading && <p className="text-xs text-indigo-500 mt-2 font-bold animate-pulse">Subiendo imagen...</p>}
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-slate-100 flex justify-between items-center">
+              <p className="text-sm text-slate-500">
+                Plan actual: <span className="font-bold text-slate-800 uppercase">{perfil?.plan || 'Free'}</span>
+              </p>
+              <button 
+                onClick={guardarAjustesAgencia}
+                disabled={loading || uploading}
+                className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-indigo-700 disabled:bg-slate-300 transition-all shadow-md"
+              >
+                {loading ? "Guardando..." : "Guardar Cambios"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* VISTA: NUEVA AUDITORÍA */}
       {vista === "nueva" && (
         <div className="print:hidden">
           {mostrarPagos ? (
             <div className="bg-white p-8 rounded-2xl shadow-xl border border-red-100 text-center animate-fade-in">
+              {/* ... (Todo el bloque de pagos queda igual) ... */}
               <div className="text-5xl mb-4">🛑</div>
               <h2 className="text-3xl font-black mb-4 text-slate-800">¡Límite Gratuito Alcanzado!</h2>
               <p className="text-slate-500 mb-8 text-lg">Ya probaste el poder de la IA. Para seguir detectando fugas de dinero, elegí un plan:</p>
@@ -247,7 +367,6 @@ function AuditorDashboard() {
                   </button>
                 </div>
               </div>
-              
               <button onClick={() => setMostrarPagos(false)} className="mt-8 text-slate-400 hover:text-slate-600 font-medium underline">
                 Volver atrás
               </button>
@@ -276,55 +395,78 @@ function AuditorDashboard() {
               </button>
             </div>
           )}
-
-          {reporte && !mostrarPagos && (
-            <div className="mt-10 bg-white p-8 rounded-xl border border-slate-200 shadow-sm print:border-none print:shadow-none print:mt-0 print:p-0">
-              <div className="flex justify-between items-center mb-6">
-                <div>
-                  <h2 className="text-xl font-bold text-slate-500 uppercase tracking-wider mb-1">
-                    {nombreCuenta ? `Reporte: ${nombreCuenta}` : 'Reporte de Auditoría'}
-                  </h2>
-                  <h3 className="text-4xl font-black text-slate-800">Score General: {reporte.score_general}/100</h3>
-                </div>
-                <button onClick={descargarPDF} className="bg-red-500 text-white px-6 py-3 rounded-lg font-bold hover:bg-red-600 transition-all shadow-md print:hidden flex items-center gap-2">
-                  📄 Guardar como PDF
-                </button>
-              </div>
-              
-              <div className="mb-8 grid grid-cols-2 md:grid-cols-4 gap-4">
-                 <div className="bg-slate-50 p-4 rounded-xl text-center border border-slate-100"><b>Estructura</b> <br/> {reporte.sub_scores?.estructura}/100</div>
-                 <div className="bg-slate-50 p-4 rounded-xl text-center border border-slate-100"><b>Conversiones</b> <br/> {reporte.sub_scores?.conversiones}/100</div>
-                 <div className="bg-slate-50 p-4 rounded-xl text-center border border-slate-100"><b>Presupuesto</b> <br/> {reporte.sub_scores?.presupuesto}/100</div>
-                 <div className="bg-slate-50 p-4 rounded-xl text-center border border-slate-100"><b>Keywords</b> <br/> {reporte.sub_scores?.keywords}/100</div>
-              </div>
-
-              <div className="space-y-6">
-                <div className="border-l-4 border-red-500 pl-4 bg-red-50 p-4 rounded-r-xl">
-                  <h3 className="text-xl font-bold text-red-700 mb-2">🔴 Problemas Graves</h3>
-                  {reporte.hallazgos?.graves_rojo?.map((item: any, i: number) => (
-                    <p key={i} className="mb-2 text-red-900"><b>{item.titulo}:</b> {item.descripcion}</p>
-                  ))}
-                </div>
-                <div className="border-l-4 border-yellow-500 pl-4 bg-yellow-50 p-4 rounded-r-xl">
-                  <h3 className="text-xl font-bold text-yellow-700 mb-2">🟡 Áreas Débiles</h3>
-                  {reporte.hallazgos?.debiles_amarillo?.map((item: any, i: number) => (
-                    <p key={i} className="mb-2 text-yellow-900"><b>{item.titulo}:</b> {item.descripcion}</p>
-                  ))}
-                </div>
-                <div className="border-l-4 border-green-500 pl-4 bg-green-50 p-4 rounded-r-xl">
-                  <h3 className="text-xl font-bold text-green-700 mb-2">🟢 Puntos Fuertes</h3>
-                  {reporte.hallazgos?.bien_verde?.map((item: any, i: number) => (
-                    <p key={i} className="mb-2 text-green-900"><b>{item.titulo}:</b> {item.descripcion}</p>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       )}
 
+      {/* EL REPORTE Y EL PDF (Se muestra si hay reporte, sin importar en qué vista estemos para poder imprimirlo) */}
+      {reporte && !mostrarPagos && (
+        <div className="mt-10 bg-white p-8 rounded-xl border border-slate-200 shadow-sm print:border-none print:shadow-none print:mt-0 print:p-0">
+          
+          {/* 📄 ENCABEZADO EXCLUSIVO PARA EL PDF (Acá ocurre la magia de la Marca Blanca) */}
+          <div className="hidden print:flex justify-between items-center mb-10 border-b-2 border-slate-100 pb-6">
+            <div>
+              {perfil?.agencia_logo ? (
+                <img src={perfil.agencia_logo} alt="Logo Agencia" className="h-16 object-contain" />
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span className="text-3xl">🐾</span><span className="text-3xl font-black text-slate-800">Mora</span>
+                </div>
+              )}
+            </div>
+            <div className="text-right">
+              <h2 className="text-xl font-bold text-slate-800">
+                {perfil?.agencia_nombre ? perfil.agencia_nombre : "Reporte de Auditoría"}
+              </h2>
+              <p className="text-sm text-slate-500">{new Date().toLocaleDateString()}</p>
+            </div>
+          </div>
+
+          <div className="flex justify-between items-center mb-6 print:mb-2">
+            <div>
+              <h2 className="text-xl font-bold text-slate-500 uppercase tracking-wider mb-1 print:text-sm">
+                Cliente: {nombreCuenta || 'Sin identificar'}
+              </h2>
+              <h3 className="text-4xl font-black text-slate-800">Score General: {reporte.score_general}/100</h3>
+            </div>
+            <button onClick={descargarPDF} className="bg-red-500 text-white px-6 py-3 rounded-lg font-bold hover:bg-red-600 transition-all shadow-md print:hidden flex items-center gap-2">
+              📄 Exportar a PDF
+            </button>
+          </div>
+          
+          <div className="mb-8 grid grid-cols-2 md:grid-cols-4 gap-4">
+             <div className="bg-slate-50 p-4 rounded-xl text-center border border-slate-100"><b>Estructura</b> <br/> {reporte.sub_scores?.estructura}/100</div>
+             <div className="bg-slate-50 p-4 rounded-xl text-center border border-slate-100"><b>Conversiones</b> <br/> {reporte.sub_scores?.conversiones}/100</div>
+             <div className="bg-slate-50 p-4 rounded-xl text-center border border-slate-100"><b>Presupuesto</b> <br/> {reporte.sub_scores?.presupuesto}/100</div>
+             <div className="bg-slate-50 p-4 rounded-xl text-center border border-slate-100"><b>Keywords</b> <br/> {reporte.sub_scores?.keywords}/100</div>
+          </div>
+
+          <div className="space-y-6">
+            <div className="border-l-4 border-red-500 pl-4 bg-red-50 p-4 rounded-r-xl print:bg-white print:border-l-2 print:border-slate-300">
+              <h3 className="text-xl font-bold text-red-700 mb-2 print:text-slate-800">🔴 Problemas Graves</h3>
+              {reporte.hallazgos?.graves_rojo?.map((item: any, i: number) => (
+                <p key={i} className="mb-2 text-red-900 print:text-slate-700"><b>{item.titulo}:</b> {item.descripcion}</p>
+              ))}
+            </div>
+            <div className="border-l-4 border-yellow-500 pl-4 bg-yellow-50 p-4 rounded-r-xl print:bg-white print:border-l-2 print:border-slate-300">
+              <h3 className="text-xl font-bold text-yellow-700 mb-2 print:text-slate-800">🟡 Áreas Débiles</h3>
+              {reporte.hallazgos?.debiles_amarillo?.map((item: any, i: number) => (
+                <p key={i} className="mb-2 text-yellow-900 print:text-slate-700"><b>{item.titulo}:</b> {item.descripcion}</p>
+              ))}
+            </div>
+            <div className="border-l-4 border-green-500 pl-4 bg-green-50 p-4 rounded-r-xl print:bg-white print:border-l-2 print:border-slate-300">
+              <h3 className="text-xl font-bold text-green-700 mb-2 print:text-slate-800">🟢 Puntos Fuertes</h3>
+              {reporte.hallazgos?.bien_verde?.map((item: any, i: number) => (
+                <p key={i} className="mb-2 text-green-900 print:text-slate-700"><b>{item.titulo}:</b> {item.descripcion}</p>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* VISTA: HISTORIAL */}
       {vista === "historial" && (
         <div className="bg-white p-8 rounded-2xl shadow-xl border border-gray-100 print:hidden">
+          {/* ... (Todo el bloque del historial queda igual) ... */}
           <h2 className="text-3xl font-black mb-6 text-slate-800">Cartera de Clientes 💼</h2>
           
           {cargandoHistorial ? (
