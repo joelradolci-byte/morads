@@ -3,14 +3,16 @@ import { useState, useEffect } from "react";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { SessionProvider, signIn, signOut, useSession } from "next-auth/react";
 import { createClient } from "@supabase/supabase-js";
-// IMPORTAMOS LOS ÍCONOS PREMIUM DE LUCIDE
-import { Target, Users, Building2, MessageSquare, LogOut, ChevronDown, Zap, AlertTriangle, CheckCircle2, CreditCard, Settings } from 'lucide-react';
+import { 
+  Target, Users, Building2, MessageSquare, LogOut, ChevronDown, 
+  Zap, AlertTriangle, CheckCircle2, CreditCard, Settings, 
+  Search, Filter, ArrowRight 
+} from 'lucide-react';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Gradientes Melocotón
 const melocotonGradient = { background: "linear-gradient(90deg, #FEECE3 0%, #FCD5BF 25%, #FEAFAE 50%, #FFA4BD 75%, #FFA9CC 100%)" };
 const melocotonText = { background: "linear-gradient(90deg, #FEECE3 0%, #FCD5BF 25%, #FEAFAE 50%, #FFA4BD 75%, #FFA9CC 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" };
 
@@ -22,14 +24,16 @@ function AuditorDashboard() {
   const [loading, setLoading] = useState(false);
 
   const [idioma, setIdioma] = useState<"es" | "en">("es");
-  // ELIMINAMOS DASHBOARD. La vista por defecto es "nueva" (Auditor)
   const [vista, setVista] = useState<"nueva" | "historial" | "perfil" | "feedback">("nueva");
   const [historial, setHistorial] = useState<any[]>([]);
   const [cargandoHistorial, setCargandoHistorial] = useState(false);
   
+  // NUEVO ESTADO: Para filtrar la tabla de clientes
+  const [filtroEstado, setFiltroEstado] = useState<"todos" | "critico" | "atencion" | "optimo">("todos");
+  
   const [mostrarPagos, setMostrarPagos] = useState(false);
   const [perfil, setPerfil] = useState<any>(null);
-  const [menuPerfil, setMenuPerfil] = useState(false); // Dropdown
+  const [menuPerfil, setMenuPerfil] = useState(false);
 
   const [agenciaNombre, setAgenciaNombre] = useState("");
   const [agenciaLogo, setAgenciaLogo] = useState("");
@@ -40,14 +44,14 @@ function AuditorDashboard() {
 
   const t = {
     es: {
-      nueva: "Auditor IA", clientes: "Mis Clientes", agencia: "Mi Agencia",
+      nueva: "Auditor IA", clientes: "Panel de Clientes", agencia: "Mi Agencia",
       reportes: "Reportes", feedback: "Sugerencias", configuracion: "Configuración", salir: "Cerrar Sesión",
       placeholderNombre: "Nombre del Cliente o Cuenta", placeholderDatos: "Pegá acá los datos de la campaña...",
       btnAnalizar: "Ejecutar Auditoría", btnAnalizando: "Analizando métricas...", exportar: "Exportar a PDF",
       score: "Score General", problemas: "Problemas Graves", mejoras: "Áreas Débiles", aciertos: "Puntos Fuertes",
     },
     en: {
-      nueva: "AI Auditor", clientes: "My Clients", agencia: "My Agency",
+      nueva: "AI Auditor", clientes: "Client Dashboard", agencia: "My Agency",
       reportes: "Reports", feedback: "Feedback", configuracion: "Settings", salir: "Sign Out",
       placeholderNombre: "Client or Account Name", placeholderDatos: "Paste campaign data here...",
       btnAnalizar: "Run Audit", btnAnalizando: "Analyzing metrics...", exportar: "Export to PDF",
@@ -77,7 +81,9 @@ function AuditorDashboard() {
     if (session) obtenerPerfil();
     if (vista === "historial") cargarHistorial();
   }, [vista, session, reporte]);
-const subirLogo = async (event: any) => {
+
+  // FUNCIONES RECUPERADAS Y ASEGURADAS
+  const subirLogo = async (event: any) => {
     try {
       setUploading(true);
       const file = event.target.files[0];
@@ -114,12 +120,13 @@ const subirLogo = async (event: any) => {
     if (!error) {
       alert("¡Gracias por tu sugerencia!");
       setMensajeFeedback("");
-      setVista("nueva"); // Te devuelve al inicio después de enviarlo
+      setVista("nueva"); 
     } else {
       alert("Error enviando feedback.");
     }
     setEnviandoFeedback(false);
   };
+
   const analizarCampaña = async () => {
     if (!session?.user?.email) return;
     setLoading(true);
@@ -145,11 +152,23 @@ const subirLogo = async (event: any) => {
     setLoading(false);
   };
 
+  // FUNCIONES DE LÓGICA PARA LA TABLA DE CLIENTES
+  const getEstadoData = (score: number) => {
+    if (score < 50) return { label: "Crítico", color: "text-red-400", bg: "bg-red-500/10", border: "border-red-500/20", icon: AlertTriangle };
+    if (score < 80) return { label: "Atención", color: "text-yellow-400", bg: "bg-yellow-500/10", border: "border-yellow-500/20", icon: Zap };
+    return { label: "Óptimo", color: "text-green-400", bg: "bg-green-500/10", border: "border-green-500/20", icon: CheckCircle2 };
+  };
+
+  const clientesFiltrados = historial.filter(item => {
+    if (filtroEstado === "todos") return true;
+    if (filtroEstado === "critico") return item.score < 50;
+    if (filtroEstado === "atencion") return item.score >= 50 && item.score < 80;
+    if (filtroEstado === "optimo") return item.score >= 80;
+    return true;
+  });
+
   if (status === "loading") return <div className="h-screen w-full flex justify-center items-center text-xl font-bold text-white">Cargando...</div>;
 
-  // ==========================================
-  // LANDING PAGE (DESLOGUEADO)
-  // ==========================================
   if (!session) {
     return (
       <div className="min-h-screen w-full font-sans text-slate-200 relative overflow-hidden flex flex-col items-center">
@@ -157,12 +176,6 @@ const subirLogo = async (event: any) => {
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg flex items-center justify-center font-black text-black text-xl shadow-lg" style={melocotonGradient}>M</div>
             <span className="font-bold text-xl tracking-wide">Mora</span>
-          </div>
-          <div className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-400">
-            <span className="text-white cursor-pointer">Home</span>
-            <span className="hover:text-white cursor-pointer transition-colors">About</span>
-            <span className="hover:text-white cursor-pointer transition-colors">Product</span>
-            <span className="hover:text-white cursor-pointer transition-colors">Pricing</span>
           </div>
           <button onClick={() => signIn("google")} className="text-[#0a0a0c] px-6 py-2.5 rounded-full font-bold text-sm hover:scale-105 transition-transform shadow-[0_0_15px_rgba(255,164,189,0.5)]" style={melocotonGradient}>
             Get Started
@@ -189,9 +202,6 @@ const subirLogo = async (event: any) => {
     );
   }
 
-  // ==========================================
-  // DASHBOARD APP (LOGUEADO) - TRUE GLASSMORPHISM
-  // ==========================================
   return (
     <div className="flex h-screen w-full font-sans text-slate-200 overflow-hidden">
       
@@ -226,7 +236,7 @@ const subirLogo = async (event: any) => {
       <main className="flex-1 flex flex-col relative overflow-y-auto z-10">
         
         {/* HEADER SUPERIOR CON DROPDOWN PERFIL */}
-        <header className="h-20 flex justify-between items-center px-8 print:hidden border-b border-white/5 bg-white/[0.01] backdrop-blur-md">
+        <header className="h-20 flex justify-between items-center px-8 print:hidden border-b border-white/5 bg-white/[0.01] backdrop-blur-md sticky top-0 z-30">
           <h2 className="text-2xl font-bold text-white tracking-tight">
             {vista === 'nueva' && t[idioma].nueva}
             {vista === 'historial' && t[idioma].clientes}
@@ -244,9 +254,8 @@ const subirLogo = async (event: any) => {
                 <ChevronDown size={16} className="text-slate-400" />
              </button>
 
-             {/* MENÚ DESPLEGABLE DE CRISTAL */}
              {menuPerfil && (
-               <div className="absolute right-0 mt-2 w-64 bg-[#0f0f13]/90 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl py-2 z-50 animate-fade-in">
+               <div className="absolute right-0 mt-2 w-64 bg-[#0f0f13]/95 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-2xl py-2 z-50 animate-fade-in">
                   <div className="px-4 py-3 border-b border-white/5">
                      <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Suscripción</p>
                      <div className="flex items-center gap-2 mb-1">
@@ -264,7 +273,7 @@ const subirLogo = async (event: any) => {
                       <CreditCard size={16} /> Ver Facturación
                     </button>
                     <button onClick={() => setIdioma(idioma === "es" ? "en" : "es")} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5 hover:text-white transition-colors">
-                      <GlobeIcon /> Idioma: {idioma === "es" ? "Español" : "English"}
+                      <span className="w-4 h-4 flex items-center justify-center border border-slate-400 rounded-full text-[10px]">🌐</span> Idioma: {idioma === "es" ? "Español" : "English"}
                     </button>
                   </div>
 
@@ -280,7 +289,7 @@ const subirLogo = async (event: any) => {
 
         <div className="p-8 max-w-6xl mx-auto w-full print:p-0">
           
-          {/* NUEVA AUDITORÍA */}
+          {/* VISTA: NUEVA AUDITORÍA */}
           {vista === "nueva" && (
             <div className="print:hidden">
               <div className="bg-white/5 border border-white/10 backdrop-blur-2xl p-8 md:p-12 rounded-[2rem] shadow-2xl mb-8">
@@ -298,7 +307,7 @@ const subirLogo = async (event: any) => {
                 </button>
               </div>
 
-              {/* REPORTE (AQUÍ ESTÁ EL ARREGLO: SOLO APARECE SI VISTA ES 'NUEVA' Y HAY REPORTE) */}
+              {/* REPORTE */}
               {reporte && !mostrarPagos && (
                 <div className="mt-8 bg-white/5 border border-white/10 backdrop-blur-2xl p-10 rounded-[2rem] shadow-2xl print:bg-white print:text-black print:border-none print:shadow-none print:p-0 print:mt-0 animate-fade-in">
                   <div className="flex justify-between items-center mb-8">
@@ -331,31 +340,87 @@ const subirLogo = async (event: any) => {
             </div>
           )}
 
-          {/* VISTA: HISTORIAL */}
+          {/* VISTA: HISTORIAL (EL NUEVO TABLERO DE CONTROL DE CLIENTES) */}
           {vista === "historial" && (
-            <div className="bg-white/5 border border-white/10 backdrop-blur-2xl p-10 rounded-[2rem] shadow-2xl animate-fade-in">
-              <div className="flex items-center gap-4 mb-8">
-                 <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-white border border-white/10"><Users size={24} /></div>
-                 <h2 className="text-3xl font-bold text-white">{t[idioma].clientes}</h2>
+            <div className="bg-white/5 border border-white/10 backdrop-blur-2xl p-8 rounded-[2rem] shadow-2xl animate-fade-in flex flex-col min-h-[600px]">
+              
+              {/* HEADER Y FILTROS DEL TABLERO */}
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+                 <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-white border border-white/10"><Users size={24} /></div>
+                    <div>
+                      <h2 className="text-2xl font-bold text-white">Monitoreo de Cuentas</h2>
+                      <p className="text-sm text-slate-400">Tenés {historial.length} auditorías registradas.</p>
+                    </div>
+                 </div>
+
+                 {/* BOTONERA DE FILTROS */}
+                 <div className="flex bg-black/40 p-1 rounded-xl border border-white/5">
+                    <button onClick={() => setFiltroEstado("todos")} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${filtroEstado === 'todos' ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-white'}`}>Todos</button>
+                    <button onClick={() => setFiltroEstado("critico")} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-1 ${filtroEstado === 'critico' ? 'bg-red-500/20 text-red-400' : 'text-slate-400 hover:text-red-400'}`}><span className="w-2 h-2 rounded-full bg-red-400"></span> Críticos</button>
+                    <button onClick={() => setFiltroEstado("atencion")} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-1 ${filtroEstado === 'atencion' ? 'bg-yellow-500/20 text-yellow-400' : 'text-slate-400 hover:text-yellow-400'}`}><span className="w-2 h-2 rounded-full bg-yellow-400"></span> Atención</button>
+                 </div>
               </div>
               
-              {historial.length === 0 ? (
-                 <div className="text-center py-20 border border-white/5 rounded-2xl bg-white/[0.02]">
-                    <p className="text-slate-400 font-medium">Aún no auditaste ninguna cuenta.</p>
-                 </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {historial.map((item, index) => (
-                    <div key={index} className="border border-white/10 bg-black/20 p-6 rounded-2xl hover:bg-white/5 transition-all cursor-pointer flex justify-between items-center group" onClick={() => { setReporte(item.reporte_json); setNombreCuenta(item.nombre_cuenta); setVista("nueva"); }}>
-                      <div>
-                        <h3 className="text-lg font-bold text-white mb-1">{item.nombre_cuenta}</h3>
-                        <p className="text-xs text-slate-500 group-hover:text-slate-300 transition-colors">Ver reporte completo →</p>
-                      </div>
-                      <span className="text-[#0a0a0c] px-4 py-2 rounded-xl text-sm font-black shadow-md" style={melocotonGradient}>{item.score} / 100</span>
-                    </div>
-                  ))}
+              {/* LA TABLA DE DATOS */}
+              <div className="flex-1 bg-black/20 rounded-2xl border border-white/5 overflow-hidden">
+                <div className="grid grid-cols-12 gap-4 p-4 border-b border-white/10 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  <div className="col-span-4 pl-2">Cliente / Cuenta</div>
+                  <div className="col-span-3">Estado IA</div>
+                  <div className="col-span-2 text-center">Inversión (Simulada)</div>
+                  <div className="col-span-3 text-right pr-4">Acción</div>
                 </div>
-              )}
+
+                {clientesFiltrados.length === 0 ? (
+                  <div className="p-10 text-center text-slate-500 font-medium">No se encontraron cuentas con este filtro.</div>
+                ) : (
+                  <div className="divide-y divide-white/5">
+                    {clientesFiltrados.map((item, index) => {
+                      const estado = getEstadoData(item.score);
+                      const StatusIcon = estado.icon;
+                      // Datos simulados para darle vida al tablero
+                      const fakeSpend = (item.score * 120).toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+                      
+                      return (
+                        <div key={index} className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-white/5 transition-colors group">
+                          
+                          {/* Columna: Nombre */}
+                          <div className="col-span-4 flex items-center gap-3 pl-2">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${estado.bg} ${estado.color} border ${estado.border}`}>
+                               {item.score}
+                            </div>
+                            <p className="font-bold text-white truncate pr-2">{item.nombre_cuenta}</p>
+                          </div>
+
+                          {/* Columna: Estado (Semáforo) */}
+                          <div className="col-span-3 flex items-center">
+                            <span className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold border ${estado.bg} ${estado.color} ${estado.border}`}>
+                              <StatusIcon size={12} /> {estado.label}
+                            </span>
+                          </div>
+
+                          {/* Columna: Inversión (Dato Simulado) */}
+                          <div className="col-span-2 text-center">
+                            <p className="text-sm font-medium text-slate-300">{fakeSpend}</p>
+                            <p className="text-[10px] text-slate-500">Últimos 30d</p>
+                          </div>
+
+                          {/* Columna: Acciones */}
+                          <div className="col-span-3 flex justify-end items-center pr-2">
+                            <button 
+                              onClick={() => { setReporte(item.reporte_json); setNombreCuenta(item.nombre_cuenta); setVista("nueva"); }}
+                              className="text-xs font-bold text-[#FFA4BD] hover:text-white flex items-center gap-1 transition-colors bg-white/5 hover:bg-white/10 px-3 py-2 rounded-lg border border-white/5"
+                            >
+                              Ver Tareas <ArrowRight size={14} />
+                            </button>
+                          </div>
+                          
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -406,7 +471,7 @@ const subirLogo = async (event: any) => {
         </div>
 
         {/* BOTÓN FLOTANTE DE SUGERENCIA */}
-        <button onClick={() => setVista("feedback")} className="fixed bottom-8 right-8 bg-white/10 text-white px-5 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 transition-transform flex items-center gap-2 border border-white/20 print:hidden backdrop-blur-md">
+        <button onClick={() => { setVista("feedback"); setReporte(null); setMostrarPagos(false); }} className="fixed bottom-8 right-8 bg-white/10 text-white px-5 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 transition-transform flex items-center gap-2 border border-white/20 print:hidden backdrop-blur-md">
           <MessageSquare size={18} /> {t[idioma].feedback}
         </button>
 
@@ -414,9 +479,6 @@ const subirLogo = async (event: any) => {
     </div>
   );
 }
-
-// Icono global para el idioma
-const GlobeIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/><path d="M2 12h20"/></svg>)
 
 export default function AuditorPageWrapper() {
   return <SessionProvider><AuditorDashboard /></SessionProvider>;
