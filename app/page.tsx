@@ -290,7 +290,7 @@ function AuditorDashboard() {
                 placeholder="Ej: Marketing Pro"
                 className="w-full p-4 border-2 border-slate-200 rounded-xl text-black focus:border-indigo-500 outline-none transition-all font-medium"
                 value={agenciaNombre}
-                onChange={(e) => setNombreCuenta(e.target.value)}
+                onChange={(e) => setAgenciaNombre(e.target.value)}
               />
             </div>
 
