@@ -3,34 +3,16 @@ import { useState, useEffect } from "react";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { SessionProvider, signIn, signOut, useSession } from "next-auth/react";
 import { createClient } from "@supabase/supabase-js";
+// IMPORTAMOS LOS ÍCONOS PREMIUM DE LUCIDE
+import { Target, Users, Building2, MessageSquare, LogOut, ChevronDown, Zap, AlertTriangle, CheckCircle2, CreditCard, Settings } from 'lucide-react';
 
-// 🔌 CONECTAMOS TU BASE DE DATOS
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// ==========================================
-// PALETA CUSTOM DESDE FIGMA
-// ==========================================
-const melocotonGradient = {
-  background: "linear-gradient(90deg, #FEECE3 0%, #FCD5BF 25%, #FEAFAE 50%, #FFA4BD 75%, #FFA9CC 100%)",
-};
-
-const melocotonText = {
-  background: "linear-gradient(90deg, #FEECE3 0%, #FCD5BF 25%, #FEAFAE 50%, #FFA4BD 75%, #FFA9CC 100%)",
-  WebkitBackgroundClip: "text",
-  WebkitTextFillColor: "transparent",
-};
-
-// ==========================================
-// ICONOS SVG (Minimalistas y limpios)
-// ==========================================
-const TargetIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M12 3v13.5m0 3v1.5m3.5-3.5h3v-13.5m-3 13.5h-10.5m1.5 0v3m0 0v1.5m10.5-3.5h3m3-13.5h-16.5m16.5 0v1.5" /></svg>);
-const TargetAuditIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.75l11.25-1.5m0 0l-1.5 11.25m1.5-11.25l-11.25 11.25M12 6.75l-1.5-1.5m0 0L2.25 6.75m1.5-1.5L2.25 6.75m0 0L2.25 6.75m0 0L6.75 6.75m-4.5 0l11.25 11.25" /></svg>);
-const ChartIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M7.5 14.25v3m3-4.5v6m3-6.75v7.5m3-12.75l10.5 20.25H2.25l10.5-20.25z" /></svg>);
-const UsersIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A4.126 4.126 0 0111.25 21a4.126 4.126 0 01-3.75-1.872v-.106M8.25 19.128v.003c.501-.91.786-1.957.786-3.07M8.25 19.128a9.38 9.38 0 012.625.372 9.337 9.337 0 014.121-.952 4.125 4.125 0 01-7.533-2.493M11.25 12a4.125 4.125 0 11-8.25 0 4.125 4.125 0 018.25 0zm0 0l-1.5-1.5M11.25 12a4.125 4.125 0 118.25 0 4.125 4.125 0 01-8.25 0z" /></svg>);
-const AgencyIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h18" /></svg>);
-const WarningIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 12.376zM12 17.25h.007v.008H12v-.008z" /></svg>);
+// Gradientes Melocotón
+const melocotonGradient = { background: "linear-gradient(90deg, #FEECE3 0%, #FCD5BF 25%, #FEAFAE 50%, #FFA4BD 75%, #FFA9CC 100%)" };
+const melocotonText = { background: "linear-gradient(90deg, #FEECE3 0%, #FCD5BF 25%, #FEAFAE 50%, #FFA4BD 75%, #FFA9CC 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" };
 
 function AuditorDashboard() {
   const { data: session, status } = useSession();
@@ -40,13 +22,14 @@ function AuditorDashboard() {
   const [loading, setLoading] = useState(false);
 
   const [idioma, setIdioma] = useState<"es" | "en">("es");
-  const [vista, setVista] = useState<"dashboard" | "nueva" | "historial" | "perfil" | "feedback" | "configuracion">("dashboard");
+  // ELIMINAMOS DASHBOARD. La vista por defecto es "nueva" (Auditor)
+  const [vista, setVista] = useState<"nueva" | "historial" | "perfil" | "feedback">("nueva");
   const [historial, setHistorial] = useState<any[]>([]);
   const [cargandoHistorial, setCargandoHistorial] = useState(false);
   
   const [mostrarPagos, setMostrarPagos] = useState(false);
   const [perfil, setPerfil] = useState<any>(null);
-  const [menuPerfil, setMenuPerfil] = useState(false);
+  const [menuPerfil, setMenuPerfil] = useState(false); // Dropdown
 
   const [agenciaNombre, setAgenciaNombre] = useState("");
   const [agenciaLogo, setAgenciaLogo] = useState("");
@@ -57,14 +40,14 @@ function AuditorDashboard() {
 
   const t = {
     es: {
-      dashboard: "Dashboard", nueva: "Nueva Auditoría", clientes: "Clientes", agencia: "Mi Agencia",
-      reportes: "Reportes", feedback: "Feedback", configuracion: "Configuración", salir: "Cerrar Sesión",
+      nueva: "Auditor IA", clientes: "Mis Clientes", agencia: "Mi Agencia",
+      reportes: "Reportes", feedback: "Sugerencias", configuracion: "Configuración", salir: "Cerrar Sesión",
       placeholderNombre: "Nombre del Cliente o Cuenta", placeholderDatos: "Pegá acá los datos de la campaña...",
       btnAnalizar: "Ejecutar Auditoría", btnAnalizando: "Analizando métricas...", exportar: "Exportar a PDF",
       score: "Score General", problemas: "Problemas Graves", mejoras: "Áreas Débiles", aciertos: "Puntos Fuertes",
     },
     en: {
-      dashboard: "Dashboard", nueva: "New Audit", clientes: "Clients", agencia: "My Agency",
+      nueva: "AI Auditor", clientes: "My Clients", agencia: "My Agency",
       reportes: "Reports", feedback: "Feedback", configuracion: "Settings", salir: "Sign Out",
       placeholderNombre: "Client or Account Name", placeholderDatos: "Paste campaign data here...",
       btnAnalizar: "Run Audit", btnAnalizando: "Analyzing metrics...", exportar: "Export to PDF",
@@ -94,7 +77,49 @@ function AuditorDashboard() {
     if (session) obtenerPerfil();
     if (vista === "historial") cargarHistorial();
   }, [vista, session, reporte]);
+const subirLogo = async (event: any) => {
+    try {
+      setUploading(true);
+      const file = event.target.files[0];
+      if (!file) return;
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${session?.user?.email}-${Math.random()}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage.from('logos').upload(fileName, file);
+      if (uploadError) throw uploadError;
+      const { data } = supabase.storage.from('logos').getPublicUrl(fileName);
+      setAgenciaLogo(data.publicUrl);
+    } catch (error) {
+      console.error("Error subiendo logo:", error);
+      alert("Error al subir imagen.");
+    } finally {
+      setUploading(false);
+    }
+  };
 
+  const guardarAjustesAgencia = async () => {
+    if (!session?.user?.email) return;
+    setLoading(true);
+    const { error } = await supabase.from('suscripciones').update({ agencia_nombre: agenciaNombre, agencia_logo: agenciaLogo }).eq('email', session.user.email);
+    if (!error) {
+      alert("¡Ajustes guardados correctamente!");
+      obtenerPerfil();
+    }
+    setLoading(false);
+  };
+
+  const mandarFeedback = async () => {
+    if (!mensajeFeedback.trim() || !session?.user?.email) return;
+    setEnviandoFeedback(true);
+    const { error } = await supabase.from('feedback').insert([{ usuario_email: session.user.email, mensaje: mensajeFeedback }]);
+    if (!error) {
+      alert("¡Gracias por tu sugerencia!");
+      setMensajeFeedback("");
+      setVista("nueva"); // Te devuelve al inicio después de enviarlo
+    } else {
+      alert("Error enviando feedback.");
+    }
+    setEnviandoFeedback(false);
+  };
   const analizarCampaña = async () => {
     if (!session?.user?.email) return;
     setLoading(true);
@@ -123,123 +148,133 @@ function AuditorDashboard() {
   if (status === "loading") return <div className="h-screen w-full flex justify-center items-center text-xl font-bold text-white">Cargando...</div>;
 
   // ==========================================
-  // ESTADO DESLOGUEADO: LA LANDING PAGE DE FIGMA
+  // LANDING PAGE (DESLOGUEADO)
   // ==========================================
   if (!session) {
     return (
       <div className="min-h-screen w-full font-sans text-slate-200 relative overflow-hidden flex flex-col items-center">
-        
-        {/* NAVBAR */}
         <nav className="w-full max-w-6xl mx-auto px-6 py-6 flex justify-between items-center z-20">
           <div className="flex items-center gap-2">
-            {/* Logo estilo Figma */}
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center font-black text-black text-xl" style={melocotonGradient}>M</div>
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center font-black text-black text-xl shadow-lg" style={melocotonGradient}>M</div>
             <span className="font-bold text-xl tracking-wide">Mora</span>
           </div>
-          
           <div className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-400">
             <span className="text-white cursor-pointer">Home</span>
             <span className="hover:text-white cursor-pointer transition-colors">About</span>
             <span className="hover:text-white cursor-pointer transition-colors">Product</span>
             <span className="hover:text-white cursor-pointer transition-colors">Pricing</span>
           </div>
-
           <button onClick={() => signIn("google")} className="text-[#0a0a0c] px-6 py-2.5 rounded-full font-bold text-sm hover:scale-105 transition-transform shadow-[0_0_15px_rgba(255,164,189,0.5)]" style={melocotonGradient}>
             Get Started
           </button>
         </nav>
 
-        {/* HERO SECTION */}
         <div className="flex-1 flex flex-col items-center justify-center text-center px-4 z-20 mt-10 max-w-3xl mx-auto">
-          
           <div className="border border-white/10 bg-white/5 backdrop-blur-md px-4 py-1.5 rounded-full text-xs font-bold tracking-widest uppercase mb-8 flex items-center gap-2">
              <span className="w-2 h-2 rounded-full" style={melocotonGradient}></span>
-             Amazing features
+             Auditorías Nivel Agencia
           </div>
-
           <h1 className="text-5xl md:text-7xl font-bold mb-6 tracking-tight leading-tight text-white">
-            Manage Your Data For <br />
-            <span style={melocotonText}>Simplified Dashboard.</span>
+            Detectá fugas de dinero con <br />
+            <span style={melocotonText}>Inteligencia Artificial.</span>
           </h1>
-
           <p className="text-slate-400 text-sm md:text-lg mb-10 max-w-xl mx-auto leading-relaxed">
-            Conectá tu cuenta de Google Ads y dejá que nuestra Inteligencia Artificial audite tus campañas, detecte fugas de dinero y genere reportes de nivel agencia en segundos.
+            Conectá tu cuenta de Google Ads y dejá que nuestra Inteligencia Artificial audite tus campañas y genere reportes marca blanca en segundos.
           </p>
-
           <button onClick={() => signIn("google")} className="text-[#0a0a0c] px-8 py-4 rounded-full font-bold text-lg hover:scale-105 transition-transform shadow-[0_0_30px_rgba(255,164,189,0.4)]" style={melocotonGradient}>
-            Get Started Free
+            Comenzar Gratis
           </button>
-
-          {/* TARJETAS GLASS DECORATIVAS ABAJO (Estilo Figma) */}
-          <div className="mt-20 flex gap-6 opacity-80 pointer-events-none scale-90 md:scale-100">
-             <div className="w-64 h-48 bg-white/[0.03] border border-white/10 backdrop-blur-xl rounded-3xl p-6 text-left shadow-2xl flex flex-col justify-center items-center">
-                <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mb-4 w-full">AI Audit Score</p>
-                <div className="w-24 h-24 rounded-full border-4 flex items-center justify-center" style={{ borderColor: '#FEAFAE' }}>
-                  <span className="text-3xl font-black text-white">85</span>
-                </div>
-             </div>
-             
-             <div className="w-80 h-48 bg-white/[0.03] border border-white/10 backdrop-blur-xl rounded-3xl p-6 text-left shadow-2xl">
-                <p className="text-xs text-slate-500 font-bold mb-1">Spendings</p>
-                <p className="text-xl font-bold text-white mb-4">Campañas Activas</p>
-                <div className="flex items-end gap-2 h-16">
-                   <div className="w-4 h-8 rounded-sm bg-white/20"></div>
-                   <div className="w-4 h-12 rounded-sm" style={melocotonGradient}></div>
-                   <div className="w-4 h-6 rounded-sm bg-white/20"></div>
-                   <div className="w-4 h-16 rounded-sm" style={melocotonGradient}></div>
-                   <div className="w-4 h-10 rounded-sm bg-white/20"></div>
-                </div>
-             </div>
-          </div>
         </div>
       </div>
     );
   }
 
   // ==========================================
-  // ESTADO LOGUEADO: EL DASHBOARD EN MODO DARK GLASS
+  // DASHBOARD APP (LOGUEADO) - TRUE GLASSMORPHISM
   // ==========================================
   return (
     <div className="flex h-screen w-full font-sans text-slate-200 overflow-hidden">
       
       {/* SIDEBAR */}
-      <aside className="w-64 bg-black/40 backdrop-blur-2xl border-r border-white/10 flex flex-col justify-between print:hidden z-20">
+      <aside className="w-64 bg-white/[0.02] backdrop-blur-3xl border-r border-white/5 flex flex-col justify-between print:hidden z-20 shadow-2xl">
         <div>
           <div className="h-20 flex items-center px-6 border-b border-white/5 gap-3">
-             <div className="w-8 h-8 rounded-lg flex items-center justify-center font-black text-black text-xl" style={melocotonGradient}>M</div>
+             <div className="w-8 h-8 rounded-lg flex items-center justify-center font-black text-black text-xl shadow-lg" style={melocotonGradient}>M</div>
              <span className="text-xl font-black text-white tracking-wide">Mora</span>
           </div>
 
           <div className="p-4 space-y-2 mt-4">
-            {[ { icon: TargetAuditIcon, text: t[idioma].nueva, view: 'nueva' }, { icon: ChartIcon, text: t[idioma].dashboard, view: 'dashboard' }, { icon: UsersIcon, text: t[idioma].clientes, view: 'historial' }, { icon: AgencyIcon, text: t[idioma].agencia, view: 'perfil' }].map((link, idx) => (
+            {[ 
+              { icon: Target, text: t[idioma].nueva, view: 'nueva' }, 
+              { icon: Users, text: t[idioma].clientes, view: 'historial' }, 
+              { icon: Building2, text: t[idioma].agencia, view: 'perfil' }
+            ].map((link, idx) => (
               <button 
                 key={idx}
-                onClick={() => setVista(link.view as any)} 
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${ vista === link.view ? "bg-white/10 text-white shadow-sm border border-white/10" : "text-slate-400 hover:bg-white/5 hover:text-white" }`}
+                onClick={() => { setVista(link.view as any); setReporte(null); setMostrarPagos(false); }} 
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${ vista === link.view ? "bg-white/10 text-white shadow-sm border border-white/5" : "text-slate-400 hover:bg-white/5 hover:text-white" }`}
               >
-                <div className={vista === link.view ? "text-[#FFA4BD]" : ""}><link.icon /></div> {link.text}
+                <div className={vista === link.view ? "text-[#FFA4BD]" : ""}><link.icon size={20} strokeWidth={vista === link.view ? 2.5 : 2} /></div> 
+                {link.text}
               </button>
             ))}
           </div>
-        </div>
-        <div className="p-6">
-           <button onClick={() => signOut()} className="w-full text-left text-sm font-bold text-slate-500 hover:text-white transition-colors">Cerrar Sesión</button>
         </div>
       </aside>
 
       {/* CONTENIDO PRINCIPAL */}
       <main className="flex-1 flex flex-col relative overflow-y-auto z-10">
         
-        <header className="h-20 flex justify-between items-center px-8 print:hidden border-b border-white/5 bg-black/20 backdrop-blur-md">
+        {/* HEADER SUPERIOR CON DROPDOWN PERFIL */}
+        <header className="h-20 flex justify-between items-center px-8 print:hidden border-b border-white/5 bg-white/[0.01] backdrop-blur-md">
           <h2 className="text-2xl font-bold text-white tracking-tight">
-            {vista === 'nueva' && 'Auditor de Campaña'}
-            {vista === 'dashboard' && 'Panel Principal'}
+            {vista === 'nueva' && t[idioma].nueva}
             {vista === 'historial' && t[idioma].clientes}
-            {vista === 'perfil' && 'Mi Agencia'}
+            {vista === 'perfil' && 'Marca Blanca'}
+            {vista === 'feedback' && 'Buzón de Sugerencias'}
           </h2>
-          <div className="flex items-center gap-4">
-             <span className="text-sm font-bold text-slate-400">Language <button onClick={() => setIdioma(idioma === "es" ? "en" : "es")} className="text-white">{idioma === "es" ? "ESP" : "ENG"}</button></span>
-             <img src={session.user?.image || ""} alt="Perfil" className="w-10 h-10 rounded-full border-2 border-[#FEAFAE] shadow-sm" />
+          
+          <div className="relative">
+             <button onClick={() => setMenuPerfil(!menuPerfil)} className="flex items-center gap-3 hover:bg-white/5 p-2 rounded-xl transition-colors border border-transparent hover:border-white/10">
+                <div className="text-right hidden md:block">
+                  <p className="text-sm font-bold text-white leading-tight">{session.user?.name}</p>
+                  <p className="text-xs text-[#FFA4BD] font-medium">{perfil?.plan === 'pro' ? 'Plan Pro' : 'Plan Free'}</p>
+                </div>
+                <img src={session.user?.image || ""} alt="Perfil" className="w-10 h-10 rounded-full border-2 border-[#FEAFAE] shadow-sm" />
+                <ChevronDown size={16} className="text-slate-400" />
+             </button>
+
+             {/* MENÚ DESPLEGABLE DE CRISTAL */}
+             {menuPerfil && (
+               <div className="absolute right-0 mt-2 w-64 bg-[#0f0f13]/90 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl py-2 z-50 animate-fade-in">
+                  <div className="px-4 py-3 border-b border-white/5">
+                     <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Suscripción</p>
+                     <div className="flex items-center gap-2 mb-1">
+                       <span className="w-2 h-2 rounded-full bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.5)]"></span>
+                       <span className="text-sm font-bold text-white">Activa ({perfil?.plan === 'pro' ? 'Pro' : 'Free'})</span>
+                     </div>
+                     {perfil?.plan === 'pro' && <p className="text-xs text-slate-400">Renueva: 15 Abril 2026</p>}
+                  </div>
+
+                  <div className="py-2">
+                    <button className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5 hover:text-white transition-colors">
+                      <Settings size={16} /> Configuración General
+                    </button>
+                    <button className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5 hover:text-white transition-colors">
+                      <CreditCard size={16} /> Ver Facturación
+                    </button>
+                    <button onClick={() => setIdioma(idioma === "es" ? "en" : "es")} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5 hover:text-white transition-colors">
+                      <GlobeIcon /> Idioma: {idioma === "es" ? "Español" : "English"}
+                    </button>
+                  </div>
+
+                  <div className="border-t border-white/5 mt-1 pt-2">
+                    <button onClick={() => signOut()} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 transition-colors font-medium">
+                      <LogOut size={16} /> {t[idioma].salir}
+                    </button>
+                  </div>
+               </div>
+             )}
           </div>
         </header>
 
@@ -247,71 +282,141 @@ function AuditorDashboard() {
           
           {/* NUEVA AUDITORÍA */}
           {vista === "nueva" && (
-            <div className="bg-white/[0.03] border border-white/10 backdrop-blur-xl p-10 rounded-3xl shadow-2xl mb-8 print:hidden">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 rounded-full flex items-center justify-center text-xl text-black" style={melocotonGradient}><TargetAuditIcon/></div>
-                <h1 className="text-3xl font-bold text-white">Auditor IA</h1>
-              </div>
-              <input type="text" placeholder={t[idioma].placeholderNombre} className="w-full p-4 bg-black/40 border border-white/10 rounded-2xl mb-4 text-white focus:border-[#FEAFAE] focus:outline-none transition-all" value={nombreCuenta} onChange={(e) => setNombreCuenta(e.target.value)} />
-              <textarea className="w-full h-48 p-4 bg-black/40 border border-white/10 rounded-2xl mb-6 text-white focus:border-[#FEAFAE] focus:outline-none transition-all resize-none" placeholder={t[idioma].placeholderDatos} value={data} onChange={(e) => setData(e.target.value)} />
-              <button onClick={analizarCampaña} disabled={loading || !data} className="w-full text-black px-6 py-4 rounded-2xl font-bold text-xl hover:scale-[1.02] disabled:opacity-50 transition-all shadow-lg" style={melocotonGradient}>
-                {loading ? t[idioma].btnAnalizando : t[idioma].btnAnalizar}
-              </button>
-            </div>
-          )}
-
-          {/* REPORTE */}
-          {reporte && (
-            <div className="bg-white/[0.03] border border-white/10 backdrop-blur-xl p-10 rounded-3xl shadow-2xl print:bg-white print:text-black print:border-none print:shadow-none print:p-0">
-              <div className="flex justify-between items-center mb-8">
-                <div>
-                  <h2 className="text-lg font-bold text-slate-400 uppercase tracking-widest mb-1 print:text-sm">{nombreCuenta || '---'}</h2>
-                  <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 rounded-full flex items-center justify-center border-4 text-xl font-black text-[#0a0a0c]" style={melocotonGradient}>{reporte.score_general}</div>
-                    <h3 className="text-3xl font-bold text-white">{t[idioma].score}</h3>
+            <div className="print:hidden">
+              <div className="bg-white/5 border border-white/10 backdrop-blur-2xl p-8 md:p-12 rounded-[2rem] shadow-2xl mb-8">
+                <div className="flex items-center gap-4 mb-8">
+                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-black shadow-lg" style={melocotonGradient}><Zap size={24} /></div>
+                  <div>
+                    <h1 className="text-3xl font-bold text-white">Auditor Inteligente</h1>
+                    <p className="text-slate-400 mt-1">Pegá los datos de la campaña y detectá oportunidades de mejora.</p>
                   </div>
                 </div>
-                <button onClick={descargarPDF} className="bg-white/10 border border-white/20 text-white px-6 py-3 rounded-xl font-bold hover:bg-white/20 transition-all print:hidden">Exportar PDF</button>
+                <input type="text" placeholder={t[idioma].placeholderNombre} className="w-full p-4 bg-black/20 border border-white/10 rounded-2xl mb-4 text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all" value={nombreCuenta} onChange={(e) => setNombreCuenta(e.target.value)} />
+                <textarea className="w-full h-48 p-4 bg-black/20 border border-white/10 rounded-2xl mb-6 text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all resize-none" placeholder={t[idioma].placeholderDatos} value={data} onChange={(e) => setData(e.target.value)} />
+                <button onClick={analizarCampaña} disabled={loading || !data} className="w-full text-black px-6 py-4 rounded-2xl font-bold text-lg hover:scale-[1.01] disabled:opacity-50 transition-all shadow-lg flex justify-center items-center gap-2" style={melocotonGradient}>
+                  {loading ? <span className="animate-pulse">{t[idioma].btnAnalizando}</span> : <><Target size={20}/> {t[idioma].btnAnalizar}</>}
+                </button>
               </div>
-              
-              <div className="space-y-6">
-                <div className="border-l-4 pl-6 bg-red-500/10 p-6 rounded-r-2xl border-y border-r border-red-500/20" style={{ borderLeftColor: '#ef4444' }}>
-                  <h3 className="text-xl font-bold text-red-400 mb-3 flex items-center gap-2"><WarningIcon/> {t[idioma].problemas}</h3>
-                  {reporte.hallazgos?.graves_rojo?.map((item: any, i: number) => <p key={i} className="mb-2 text-slate-300"><b className="text-white">{item.titulo}:</b> {item.descripcion}</p>)}
+
+              {/* REPORTE (AQUÍ ESTÁ EL ARREGLO: SOLO APARECE SI VISTA ES 'NUEVA' Y HAY REPORTE) */}
+              {reporte && !mostrarPagos && (
+                <div className="mt-8 bg-white/5 border border-white/10 backdrop-blur-2xl p-10 rounded-[2rem] shadow-2xl print:bg-white print:text-black print:border-none print:shadow-none print:p-0 print:mt-0 animate-fade-in">
+                  <div className="flex justify-between items-center mb-8">
+                    <div>
+                      <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-2 print:text-sm">{nombreCuenta || '---'}</h2>
+                      <div className="flex items-center gap-4">
+                        <div className="w-20 h-20 rounded-full flex items-center justify-center border-[6px] border-black/20 text-3xl font-black text-[#0a0a0c] shadow-lg" style={melocotonGradient}>{reporte.score_general}</div>
+                        <h3 className="text-4xl font-bold text-white">{t[idioma].score}</h3>
+                      </div>
+                    </div>
+                    <button onClick={descargarPDF} className="bg-white/5 border border-white/10 hover:bg-white/10 text-white px-6 py-3 rounded-xl font-bold transition-all print:hidden shadow-sm">Exportar PDF</button>
+                  </div>
+                  
+                  <div className="space-y-6">
+                    <div className="border-l-4 pl-6 bg-red-500/5 p-6 rounded-2xl border border-red-500/10" style={{ borderLeftColor: '#ef4444' }}>
+                      <h3 className="text-xl font-bold text-red-400 mb-4 flex items-center gap-2"><AlertTriangle size={24}/> {t[idioma].problemas}</h3>
+                      {reporte.hallazgos?.graves_rojo?.map((item: any, i: number) => <p key={i} className="mb-3 text-slate-300 leading-relaxed"><b className="text-white text-lg">{item.titulo}:</b> <br/>{item.descripcion}</p>)}
+                    </div>
+                    <div className="border-l-4 pl-6 bg-yellow-500/5 p-6 rounded-2xl border border-yellow-500/10" style={{ borderLeftColor: '#eab308' }}>
+                      <h3 className="text-xl font-bold text-yellow-400 mb-4 flex items-center gap-2"><Zap size={24}/> {t[idioma].mejoras}</h3>
+                      {reporte.hallazgos?.debiles_amarillo?.map((item: any, i: number) => <p key={i} className="mb-3 text-slate-300 leading-relaxed"><b className="text-white text-lg">{item.titulo}:</b> <br/>{item.descripcion}</p>)}
+                    </div>
+                    <div className="border-l-4 pl-6 bg-green-500/5 p-6 rounded-2xl border border-green-500/10" style={{ borderLeftColor: '#22c55e' }}>
+                      <h3 className="text-xl font-bold text-green-400 mb-4 flex items-center gap-2"><CheckCircle2 size={24}/> {t[idioma].aciertos}</h3>
+                      {reporte.hallazgos?.bien_verde?.map((item: any, i: number) => <p key={i} className="mb-3 text-slate-300 leading-relaxed"><b className="text-white text-lg">{item.titulo}:</b> <br/>{item.descripcion}</p>)}
+                    </div>
+                  </div>
                 </div>
-                <div className="border-l-4 pl-6 bg-yellow-500/10 p-6 rounded-r-2xl border-y border-r border-yellow-500/20" style={{ borderLeftColor: '#eab308' }}>
-                  <h3 className="text-xl font-bold text-yellow-400 mb-3 flex items-center gap-2"><WarningIcon/> {t[idioma].mejoras}</h3>
-                  {reporte.hallazgos?.debiles_amarillo?.map((item: any, i: number) => <p key={i} className="mb-2 text-slate-300"><b className="text-white">{item.titulo}:</b> {item.descripcion}</p>)}
-                </div>
-              </div>
+              )}
             </div>
           )}
 
           {/* VISTA: HISTORIAL */}
           {vista === "historial" && (
-            <div className="bg-white/[0.03] border border-white/10 backdrop-blur-xl p-10 rounded-3xl shadow-2xl">
-              <h2 className="text-3xl font-bold mb-8 text-white">{t[idioma].clientes}</h2>
-              {historial.map((item, index) => (
-                <div key={index} className="border border-white/10 bg-black/20 p-6 rounded-2xl hover:bg-white/5 transition-all cursor-pointer flex justify-between items-center mb-4" onClick={() => { setReporte(item.reporte_json); setNombreCuenta(item.nombre_cuenta); setVista("nueva"); }}>
-                  <h3 className="text-lg font-bold text-white">{item.nombre_cuenta}</h3>
-                  <span className="text-[#0a0a0c] px-3 py-1 rounded-lg text-xs font-black" style={melocotonGradient}>{item.score}/100</span>
+            <div className="bg-white/5 border border-white/10 backdrop-blur-2xl p-10 rounded-[2rem] shadow-2xl animate-fade-in">
+              <div className="flex items-center gap-4 mb-8">
+                 <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-white border border-white/10"><Users size={24} /></div>
+                 <h2 className="text-3xl font-bold text-white">{t[idioma].clientes}</h2>
+              </div>
+              
+              {historial.length === 0 ? (
+                 <div className="text-center py-20 border border-white/5 rounded-2xl bg-white/[0.02]">
+                    <p className="text-slate-400 font-medium">Aún no auditaste ninguna cuenta.</p>
+                 </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {historial.map((item, index) => (
+                    <div key={index} className="border border-white/10 bg-black/20 p-6 rounded-2xl hover:bg-white/5 transition-all cursor-pointer flex justify-between items-center group" onClick={() => { setReporte(item.reporte_json); setNombreCuenta(item.nombre_cuenta); setVista("nueva"); }}>
+                      <div>
+                        <h3 className="text-lg font-bold text-white mb-1">{item.nombre_cuenta}</h3>
+                        <p className="text-xs text-slate-500 group-hover:text-slate-300 transition-colors">Ver reporte completo →</p>
+                      </div>
+                      <span className="text-[#0a0a0c] px-4 py-2 rounded-xl text-sm font-black shadow-md" style={melocotonGradient}>{item.score} / 100</span>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
           )}
 
-          {/* VISTA: DASHBOARD */}
-          {vista === "dashboard" && (
-             <div className="flex flex-col items-center justify-center py-20 opacity-50">
-                <ChartIcon />
-                <p className="mt-4 font-bold text-xl text-white">Estadísticas próximamente</p>
-             </div>
+          {/* VISTA: MI AGENCIA */}
+          {vista === "perfil" && (
+            <div className="bg-white/5 border border-white/10 backdrop-blur-2xl p-10 rounded-[2rem] shadow-2xl max-w-2xl mx-auto animate-fade-in">
+              <div className="flex items-center gap-4 mb-8">
+                 <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-white border border-white/10"><Building2 size={24} /></div>
+                 <div>
+                    <h2 className="text-3xl font-bold text-white">{t[idioma].agencia}</h2>
+                    <p className="text-slate-400 mt-1">Personalizá los PDFs que le enviás a tus clientes.</p>
+                 </div>
+              </div>
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-bold text-slate-400 mb-2 uppercase tracking-wide">Nombre de la Agencia</label>
+                  <input type="text" className="w-full p-4 bg-black/20 border border-white/10 rounded-xl text-white focus:border-[#FEAFAE] focus:outline-none transition-all" value={agenciaNombre} onChange={(e) => setAgenciaNombre(e.target.value)} />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-slate-400 mb-2 uppercase tracking-wide">Logo (Aparecerá en el PDF)</label>
+                  <div className="flex items-center gap-6 p-4 border border-white/10 rounded-xl bg-black/20">
+                    {agenciaLogo ? <img src={agenciaLogo} alt="Logo" className="w-20 h-20 object-contain rounded-xl bg-white p-2" /> : <div className="w-20 h-20 bg-white/5 rounded-xl flex items-center justify-center text-slate-500 text-xs text-center p-2 border border-dashed border-white/20">Sube un logo</div>}
+                    <div className="flex-1">
+                      <input type="file" accept="image/*" onChange={subirLogo} disabled={uploading} className="w-full text-sm text-slate-400 cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-white/10 file:text-white hover:file:bg-white/20 transition-all" />
+                    </div>
+                  </div>
+                </div>
+                <button onClick={guardarAjustesAgencia} disabled={loading || uploading} className="w-full text-black px-8 py-4 rounded-xl font-bold hover:scale-[1.02] disabled:opacity-50 transition-all shadow-lg mt-4" style={melocotonGradient}>
+                  {loading ? "Guardando..." : "Guardar Ajustes"}
+                </button>
+              </div>
+            </div>
           )}
+
+          {/* VISTA: FEEDBACK */}
+          {vista === "feedback" && (
+            <div className="bg-white/5 border border-white/10 backdrop-blur-2xl p-10 rounded-[2rem] shadow-2xl max-w-2xl mx-auto text-center animate-fade-in">
+              <div className="flex justify-center mb-6"><div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center text-white border border-white/10"><MessageSquare size={32} /></div></div>
+              <h2 className="text-3xl font-bold mb-3 text-white">Ayudanos a mejorar Mora</h2>
+              <p className="text-slate-400 mb-8 font-medium">¿Encontraste un bug o tenés una idea genial?</p>
+              <textarea className="w-full h-32 p-4 bg-black/20 border border-white/10 rounded-2xl mb-6 text-white focus:border-[#FEAFAE] focus:outline-none resize-none transition-all" placeholder="Escribí tu sugerencia acá..." value={mensajeFeedback} onChange={(e) => setMensajeFeedback(e.target.value)} />
+              <button onClick={mandarFeedback} disabled={enviandoFeedback || !mensajeFeedback} className="w-full text-black px-8 py-4 rounded-xl font-bold disabled:opacity-50 transition-all shadow-lg hover:scale-[1.02]" style={melocotonGradient}>
+                {enviandoFeedback ? "Enviando..." : "Enviar Sugerencia"}
+              </button>
+            </div>
+          )}
+
         </div>
+
+        {/* BOTÓN FLOTANTE DE SUGERENCIA */}
+        <button onClick={() => setVista("feedback")} className="fixed bottom-8 right-8 bg-white/10 text-white px-5 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 transition-transform flex items-center gap-2 border border-white/20 print:hidden backdrop-blur-md">
+          <MessageSquare size={18} /> {t[idioma].feedback}
+        </button>
+
       </main>
     </div>
   );
 }
+
+// Icono global para el idioma
+const GlobeIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/><path d="M2 12h20"/></svg>)
 
 export default function AuditorPageWrapper() {
   return <SessionProvider><AuditorDashboard /></SessionProvider>;
