@@ -24,17 +24,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es">
-      {/* El fondo base: un gradiente muy suave de tonos crema/gris claro */}
+      {/* El nuevo fondo oscuro profundo */}
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased h-screen w-screen overflow-hidden bg-gradient-to-br from-[#f8f9fa] via-[#e9ecef] to-[#dee2e6] text-slate-800 flex relative`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen w-screen overflow-x-hidden bg-[#0a0a0c] text-slate-200 flex flex-col relative`}
       >
-        {/* MAGIA GLASS: Esferas de luz desenfocadas de fondo para que el vidrio tenga qué desenfocar */}
-        <div className="absolute top-[-15%] left-[-10%] w-[50%] h-[50%] rounded-full bg-indigo-400/20 blur-[120px] pointer-events-none -z-10" />
-        <div className="absolute bottom-[-10%] right-[-5%] w-[40%] h-[40%] rounded-full bg-purple-400/20 blur-[120px] pointer-events-none -z-10" />
-        <div className="absolute top-[20%] right-[10%] w-[30%] h-[30%] rounded-full bg-blue-300/10 blur-[100px] pointer-events-none -z-10" />
+        {/* MAGIA GLASS: Esferas de luz sutiles en tonos rosa/durazno de tu diseño */}
+        <div className="absolute top-[10%] left-[10%] w-[40%] h-[40%] rounded-full bg-[#ff7eb3]/5 blur-[120px] pointer-events-none -z-10" />
+        <div className="absolute bottom-[20%] right-[10%] w-[30%] h-[30%] rounded-full bg-[#ffb199]/5 blur-[120px] pointer-events-none -z-10" />
 
-        {/* El contenedor principal donde va a ir tu Sidebar y el Panel Central */}
-        <main className="w-full h-full flex">
+        <main className="w-full flex-grow flex flex-col z-10">
           {children}
         </main>
       </body>
