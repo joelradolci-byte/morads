@@ -153,27 +153,27 @@ function AuditorDashboard() {
     setLoading(false);
   };
 
-  if (status === "loading") return <div className="flex justify-center items-center min-h-screen text-xl font-bold text-slate-500">Conectando con Google...</div>;
+  if (status === "loading") return <div className="flex-grow flex justify-center items-center text-xl font-bold text-slate-500">Conectando con Google...</div>;
 
   if (!session) {
     return (
-      <main className="flex items-center justify-center min-h-screen bg-slate-50">
+      <div className="flex-grow flex items-center justify-center p-4">
         <div className="bg-white p-10 rounded-2xl shadow-2xl border border-slate-100 text-center max-w-md w-full mx-4">
-          <div className="bg-blue-100 w-16 h-16 mx-auto rounded-full flex items-center justify-center mb-6">
-            <span className="text-3xl">🛡️</span>
+          <div className="bg-indigo-100 w-16 h-16 mx-auto rounded-full flex items-center justify-center mb-6">
+            <span className="text-3xl">🐾</span>
           </div>
-          <h1 className="text-3xl font-black mb-2 text-slate-800">MorAds</h1>
-          <p className="text-slate-500 mb-8 font-medium">Iniciá sesión de forma segura para conectar tus campañas.</p>
+          <h1 className="text-3xl font-black mb-2 text-slate-800">Mora</h1>
+          <p className="text-slate-500 mb-8 font-medium">Iniciá sesión de forma segura para auditar tus campañas.</p>
           <button onClick={() => signIn("google")} className="w-full bg-white border-2 border-slate-200 text-slate-700 px-6 py-4 rounded-xl font-bold text-lg hover:bg-slate-50 hover:border-slate-300 transition-all flex items-center justify-center gap-3 shadow-sm">
             Continuar con Google
           </button>
         </div>
-      </main>
+      </div>
     );
   }
 
   return (
-    <main className="p-8 max-w-4xl mx-auto font-sans bg-gray-50 min-h-screen print:bg-white print:p-0 print:m-0">
+    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 font-sans print:p-0 print:m-0 print:max-w-none">
       
       {/* HEADER ACTUALIZADO CON STATUS DE PLAN */}
       <div className="flex justify-between items-center mb-6 bg-white p-4 rounded-xl shadow-sm border border-gray-100 print:hidden">
@@ -201,13 +201,13 @@ function AuditorDashboard() {
       <div className="flex gap-4 mb-8 print:hidden">
         <button 
           onClick={() => { setVista("nueva"); setMostrarPagos(false); setReporte(null); }} 
-          className={`flex-1 py-3 rounded-xl font-bold text-lg transition-all ${vista === "nueva" ? "bg-blue-600 text-white shadow-md" : "bg-white text-slate-500 border-2 border-slate-200 hover:bg-slate-50"}`}
+          className={`flex-1 py-3 rounded-xl font-bold text-lg transition-all ${vista === "nueva" ? "bg-indigo-600 text-white shadow-md" : "bg-white text-slate-500 border-2 border-slate-200 hover:bg-slate-50"}`}
         >
           ➕ Nueva Auditoría
         </button>
         <button 
           onClick={() => { setVista("historial"); setMostrarPagos(false); }} 
-          className={`flex-1 py-3 rounded-xl font-bold text-lg transition-all ${vista === "historial" ? "bg-blue-600 text-white shadow-md" : "bg-white text-slate-500 border-2 border-slate-200 hover:bg-slate-50"}`}
+          className={`flex-1 py-3 rounded-xl font-bold text-lg transition-all ${vista === "historial" ? "bg-indigo-600 text-white shadow-md" : "bg-white text-slate-500 border-2 border-slate-200 hover:bg-slate-50"}`}
         >
           🗂️ Mis Clientes
         </button>
@@ -222,7 +222,7 @@ function AuditorDashboard() {
               <p className="text-slate-500 mb-8 text-lg">Ya probaste el poder de la IA. Para seguir detectando fugas de dinero, elegí un plan:</p>
               
               <div className="flex flex-col md:flex-row gap-6 justify-center">
-                <div className="border-2 border-slate-200 p-6 rounded-xl flex-1 hover:border-blue-500 transition-all bg-white flex flex-col justify-between">
+                <div className="border-2 border-slate-200 p-6 rounded-xl flex-1 hover:border-indigo-500 transition-all bg-white flex flex-col justify-between">
                   <div>
                     <h3 className="text-2xl font-bold mb-2">1 Reporte Extra</h3>
                     <p className="text-4xl font-black mb-4">$5 <span className="text-lg text-slate-400 font-normal">USD</span></p>
@@ -233,16 +233,16 @@ function AuditorDashboard() {
                   </button>
                 </div>
                 
-                <div className="border-2 border-blue-500 p-6 rounded-xl flex-1 bg-gradient-to-b from-blue-50 to-white relative shadow-xl flex flex-col justify-between scale-105">
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-4 py-1 rounded-full text-xs font-black tracking-wider uppercase shadow-sm">
+                <div className="border-2 border-indigo-500 p-6 rounded-xl flex-1 bg-gradient-to-b from-indigo-50 to-white relative shadow-xl flex flex-col justify-between scale-105">
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-indigo-600 text-white px-4 py-1 rounded-full text-xs font-black tracking-wider uppercase shadow-sm">
                     Recomendado para Agencias
                   </div>
                   <div>
-                    <h3 className="text-2xl font-bold mb-2 text-blue-900">Pase Pro</h3>
-                    <p className="text-4xl font-black mb-4 text-blue-900">$29 <span className="text-lg text-blue-600 font-normal">USD/mes</span></p>
+                    <h3 className="text-2xl font-bold mb-2 text-indigo-900">Pase Pro</h3>
+                    <p className="text-4xl font-black mb-4 text-indigo-900">$29 <span className="text-lg text-indigo-600 font-normal">USD/mes</span></p>
                     <p className="text-slate-600 mb-6 font-medium">Auditorías ilimitadas. Descargá todos los PDF que necesites todo el mes.</p>
                   </div>
-                  <button onClick={() => procesarPago('pro')} className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-blue-700 shadow-lg shadow-blue-200">
+                  <button onClick={() => procesarPago('pro')} className="w-full bg-indigo-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-indigo-700 shadow-lg shadow-indigo-200">
                     Suscribirse a Pro
                   </button>
                 </div>
@@ -260,18 +260,18 @@ function AuditorDashboard() {
               <input 
                 type="text"
                 placeholder="Nombre del Cliente o Cuenta"
-                className="w-full p-4 border-2 border-slate-200 rounded-xl mb-4 text-black focus:border-blue-500 outline-none transition-all font-medium"
+                className="w-full p-4 border-2 border-slate-200 rounded-xl mb-4 text-black focus:border-indigo-500 outline-none transition-all font-medium"
                 value={nombreCuenta}
                 onChange={(e) => setNombreCuenta(e.target.value)}
               />
               
               <textarea 
-                className="w-full h-48 p-4 border-2 border-slate-200 rounded-xl mb-6 text-black focus:border-blue-500 outline-none transition-all"
+                className="w-full h-48 p-4 border-2 border-slate-200 rounded-xl mb-6 text-black focus:border-indigo-500 outline-none transition-all"
                 placeholder="Pegá acá los datos de la campaña..."
                 value={data}
                 onChange={(e) => setData(e.target.value)}
               />
-              <button onClick={analizarCampaña} disabled={loading || !data} className="w-full bg-blue-600 text-white px-6 py-4 rounded-xl font-bold text-xl hover:bg-blue-700 disabled:bg-slate-300 transition-all shadow-lg shadow-blue-200">
+              <button onClick={analizarCampaña} disabled={loading || !data} className="w-full bg-indigo-600 text-white px-6 py-4 rounded-xl font-bold text-xl hover:bg-indigo-700 disabled:bg-slate-300 transition-all shadow-lg shadow-indigo-200">
                 {loading ? "Analizando métricas..." : "Ejecutar Auditoría"}
               </button>
             </div>
@@ -332,12 +332,12 @@ function AuditorDashboard() {
           ) : historial.length === 0 ? (
             <div className="text-center py-10 bg-slate-50 rounded-xl border-2 border-dashed border-slate-200">
               <p className="text-slate-500 text-lg mb-2">Todavía no tenés auditorías guardadas.</p>
-              <button onClick={() => setVista("nueva")} className="text-blue-600 font-bold hover:underline">¡Hacé tu primera auditoría acá!</button>
+              <button onClick={() => setVista("nueva")} className="text-indigo-600 font-bold hover:underline">¡Hacé tu primera auditoría acá!</button>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {historial.map((item, index) => (
-                <div key={index} className="border-2 border-slate-100 p-6 rounded-xl hover:border-blue-300 hover:shadow-md transition-all flex justify-between items-center group cursor-pointer"
+                <div key={index} className="border-2 border-slate-100 p-6 rounded-xl hover:border-indigo-300 hover:shadow-md transition-all flex justify-between items-center group cursor-pointer"
                      onClick={() => {
                         setReporte(item.reporte_json);
                         setNombreCuenta(item.nombre_cuenta);
@@ -356,7 +356,7 @@ function AuditorDashboard() {
           )}
         </div>
       )}
-    </main>
+    </div>
   );
 }
 
