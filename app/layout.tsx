@@ -29,7 +29,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col bg-gray-50 text-gray-900`}
       >
         {/* BARRA DE NAVEGACIÓN (NAVBAR) */}
-        <header className="w-full bg-white border-b border-gray-200 sticky top-0 z-50">
+        <header className="w-full bg-white border-b border-gray-200 sticky top-0 z-50 print:hidden">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
             {/* Logo y Nombre a la izquierda */}
             <Link href="/" className="flex items-center gap-2 transition-transform hover:scale-105">
@@ -60,7 +60,7 @@ export default function RootLayout({
         </main>
 
         {/* PIE DE PÁGINA (FOOTER) */}
-        <footer className="w-full bg-white border-t border-gray-200 py-8 mt-auto">
+        <footer className="w-full bg-white border-t border-gray-200 py-8 mt-auto print:hidden">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center gap-4 text-sm text-gray-500">
             <p>© {new Date().getFullYear()} Mora. Todos los derechos reservados.</p>
             <div className="flex gap-6">
