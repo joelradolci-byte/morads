@@ -165,7 +165,11 @@ function AuditorDashboard() {
                            (filtroEstado === "critico" && item.score < 50) || 
                            (filtroEstado === "atencion" && item.score >= 50 && item.score < 80) || 
                            (filtroEstado === "optimo" && item.score >= 80);
-    const coincideBusqueda = item.nombre_cuenta.toLowerCase().includes(busqueda.toLowerCase());
+    
+    // EL ESCUDO: Si no hay nombre (registros viejos), usa un texto por defecto para no romper la app
+    const nombreSeguro = item.nombre_cuenta || "Cuenta sin nombre";
+    const coincideBusqueda = nombreSeguro.toLowerCase().includes(busqueda.toLowerCase());
+    
     return coincideFiltro && coincideBusqueda;
   });
 
@@ -462,7 +466,8 @@ function AuditorDashboard() {
                             <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${estado.bg} ${estado.color} border ${estado.border} flex-shrink-0`}>
                                {item.score}
                             </div>
-                            <p className="font-bold text-white truncate pr-2">{item.nombre_cuenta}</p>
+                            {/* EL ESCUDO 2 APLICADO AQUÍ ABAJO */}
+                            <p className="font-bold text-white truncate pr-2">{item.nombre_cuenta || "Cuenta sin nombre"}</p>
                           </div>
 
                           <div className="col-span-2 text-center">
@@ -481,8 +486,9 @@ function AuditorDashboard() {
                           </div>
 
                           <div className="col-span-3 flex justify-end items-center pr-2">
+                            {/* EL ESCUDO 3 APLICADO EN EL BOTÓN TAMBIÉN POR LAS DUDAS */}
                             <button 
-                              onClick={() => { setReporte(item.reporte_json); setNombreCuenta(item.nombre_cuenta); setVista("reporte_lectura"); }}
+                              onClick={() => { setReporte(item.reporte_json); setNombreCuenta(item.nombre_cuenta || "Cuenta sin nombre"); setVista("reporte_lectura"); }}
                               className="text-xs font-bold text-[#FFA4BD] hover:text-white flex items-center gap-1 transition-colors bg-white/5 hover:bg-white/10 px-4 py-2.5 rounded-xl border border-white/5"
                             >
                               Abrir Auditoría <ArrowRight size={14} />
