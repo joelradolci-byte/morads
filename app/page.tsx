@@ -7,7 +7,7 @@ import {
   Target, Users, Building2, MessageSquare, LogOut, ChevronDown, 
   Zap, AlertTriangle, CheckCircle2, CreditCard, Settings, 
   Search, ArrowRight, ArrowLeft, TrendingUp, TrendingDown, LayoutPanelLeft,
-  FileText, BarChart3
+  FileText, BarChart3, ShieldCheck, Plus, Clock, Activity
 } from 'lucide-react';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -30,7 +30,8 @@ function AuditorDashboard() {
   const [notas, setNotas] = useState("");
 
   const [idioma, setIdioma] = useState<"es" | "en">("es");
-  const [vista, setVista] = useState<"nueva" | "historial" | "perfil" | "feedback" | "reporte_lectura" | "facturacion">("nueva");
+  // AHORA EL DASHBOARD ES LA VISTA POR DEFECTO
+  const [vista, setVista] = useState<"dashboard" | "nueva" | "historial" | "perfil" | "feedback" | "reporte_lectura" | "facturacion">("dashboard");
   const [historial, setHistorial] = useState<any[]>([]);
   const [cargandoHistorial, setCargandoHistorial] = useState(false);
   
@@ -52,8 +53,12 @@ function AuditorDashboard() {
   const [mensajeFeedback, setMensajeFeedback] = useState("");
   const [enviandoFeedback, setEnviandoFeedback] = useState(false);
 
+  // NUEVAS TRADUCCIONES PARA EL DASHBOARD AGREGADAS
   const t = {
     es: {
+      dashboard: "Dashboard", panelPrin: "Panel Principal", panelDesc: "Resumen del rendimiento global de tu agencia.",
+      saludG: "Salud Promedio", totAud: "Total Cuentas", fugasDet: "Fugas Críticas", oporMej: "Oportunidades",
+      ultAud: "Últimas Auditorías", actRec: "Actividad Reciente", verTodas: "Ver todas", generada: "Se auditó la cuenta", hace: "Hace",
       nueva: "Auditor IA", clientes: "Panel de Clientes",
       reportes: "Reportes", feedback: "Sugerencias", configuracion: "Configuración General", facturacion: "Ver Facturación", salir: "Cerrar Sesión",
       placeholderNombre: "Nombre del Cliente o Cuenta", btnAnalizar: "Ejecutar Auditoría", btnAnalizando: "Analizando métricas...", exportar: "Exportar a PDF",
@@ -79,13 +84,14 @@ function AuditorDashboard() {
       feat1Tit: "Auditoría en Segundos", feat1Desc: "La IA procesa cientos de métricas y detecta fugas de presupuesto al instante.",
       feat2Tit: "Marca Blanca Total", feat2Desc: "Exportá PDFs impecables con tu logo, colores y sitio web listos para enviar al cliente.",
       feat3Tit: "Historial y Tendencias", feat3Desc: "Monitoreá el progreso de todas tus cuentas con scores evolutivos y alertas tempranas.",
-      todoLoQueNecesitas: "Todo lo que tu agencia necesita",
-      planes: "Planes simples y transparentes", planFree: "Plan Starter", planPro: "Plan Agency",
+      todoLoQueNecesitas: "Todo lo que tu agencia necesita", planes: "Planes simples y transparentes", planFree: "Plan Starter", planPro: "Plan Agency",
       btnUnete: "Unite a Mora hoy", login: "Iniciar sesión",
-      // Textos del Mockup Visual
       mockupTit: "Auditoría Finalizada", mockupScore: "Score de Salud", mockupCritico: "Fuga de Presupuesto", mockupCriticoDesc: "Detectamos $450/mes gastados en términos de búsqueda irrelevantes sin conversiones.", mockupOptimo: "Estructura Correcta", mockupOptimoDesc: "El seguimiento de conversiones está correctamente implementado en todas las campañas."
     },
     en: {
+      dashboard: "Dashboard", panelPrin: "Main Dashboard", panelDesc: "Global overview of your agency's performance.",
+      saludG: "Avg Health Score", totAud: "Total Accounts", fugasDet: "Critical Leaks", oporMej: "Opportunities",
+      ultAud: "Recent Audits", actRec: "Recent Activity", verTodas: "View all", generada: "Audit generated for", hace: "Ago",
       nueva: "AI Auditor", clientes: "Client Dashboard",
       reportes: "Reports", feedback: "Feedback", configuracion: "General Settings", facturacion: "Billing", salir: "Sign Out",
       placeholderNombre: "Client or Account Name", btnAnalizar: "Run Audit", btnAnalizando: "Analyzing metrics...", exportar: "Export to PDF",
@@ -111,8 +117,7 @@ function AuditorDashboard() {
       feat1Tit: "Audits in Seconds", feat1Desc: "Our AI processes hundreds of metrics and detects budget leaks instantly.",
       feat2Tit: "Full White Label", feat2Desc: "Export flawless PDFs with your logo, colors, and website ready for your clients.",
       feat3Tit: "History & Trends", feat3Desc: "Monitor the progress of all your accounts with evolutionary scores and early warnings.",
-      todoLoQueNecesitas: "Everything your agency needs",
-      planes: "Simple & transparent pricing", planFree: "Starter Plan", planPro: "Agency Plan",
+      todoLoQueNecesitas: "Everything your agency needs", planes: "Simple & transparent pricing", planFree: "Starter Plan", planPro: "Agency Plan",
       btnUnete: "Join Mora today", login: "Log In",
       mockupTit: "Audit Completed", mockupScore: "Health Score", mockupCritico: "Budget Leak", mockupCriticoDesc: "We detected $450/mo spent on irrelevant search terms with 0 conversions.", mockupOptimo: "Correct Structure", mockupOptimoDesc: "Conversion tracking is correctly implemented across all active campaigns."
     }
@@ -144,7 +149,7 @@ function AuditorDashboard() {
 
   useEffect(() => {
     if (session) obtenerPerfil();
-    if (vista === "historial") cargarHistorial();
+    if (vista === "historial" || vista === "dashboard") cargarHistorial();
   }, [vista, session, reporte]);
 
   const subirLogo = async (event: any) => {
@@ -170,17 +175,11 @@ function AuditorDashboard() {
     if (!session?.user?.email) return;
     setLoading(true);
     const { error } = await supabase.from('suscripciones').update({ 
-      agencia_nombre: agenciaNombre, 
-      agencia_logo: agenciaLogo,
-      agencia_web: agenciaWeb,
-      agencia_pie: agenciaPie,
-      moneda_default: moneda,
-      metrica_default: metrica
+      agencia_nombre: agenciaNombre, agencia_logo: agenciaLogo, agencia_web: agenciaWeb,
+      agencia_pie: agenciaPie, moneda_default: moneda, metrica_default: metrica
     }).eq('email', session.user.email);
-    
     if (!error) {
-      alert("¡Ajustes guardados correctamente!");
-      obtenerPerfil();
+      alert("¡Ajustes guardados correctamente!"); obtenerPerfil();
     } else {
       alert("Error guardando configuraciones.");
     }
@@ -192,9 +191,7 @@ function AuditorDashboard() {
     setEnviandoFeedback(true);
     const { error } = await supabase.from('feedback').insert([{ usuario_email: session.user.email, mensaje: mensajeFeedback }]);
     if (!error) {
-      alert("¡Gracias por tu sugerencia!");
-      setMensajeFeedback("");
-      setVista("nueva"); 
+      alert("¡Gracias por tu sugerencia!"); setMensajeFeedback(""); setVista("dashboard"); 
     } else {
       alert("Error enviando feedback.");
     }
@@ -240,6 +237,11 @@ function AuditorDashboard() {
     return { label: t[idioma].optimos, color: "text-green-400", bg: "bg-green-500/10", border: "border-green-500/20", icon: CheckCircle2 };
   };
 
+  const parseDate = (dateString: string) => {
+    if (!dateString) return new Date().toLocaleDateString();
+    return new Date(dateString).toLocaleDateString();
+  };
+
   const clientesFiltrados = historial.filter(item => {
     const coincideFiltro = filtroEstado === "todos" || 
                            (filtroEstado === "critico" && item.score < 50) || 
@@ -250,16 +252,24 @@ function AuditorDashboard() {
     return coincideFiltro && coincideBusqueda;
   });
 
+  // MATEMÁTICA DEL DASHBOARD EN TIEMPO REAL
+  const totalAuditorias = historial.length;
+  const promedioScore = totalAuditorias > 0 ? Math.round(historial.reduce((acc, curr) => acc + curr.score, 0) / totalAuditorias) : 0;
+  let totalFugas = 0;
+  let totalOportunidades = 0;
+  historial.forEach(h => {
+      if (h.reporte_json?.hallazgos?.graves_rojo) totalFugas += h.reporte_json.hallazgos.graves_rojo.length;
+      if (h.reporte_json?.hallazgos?.debiles_amarillo) totalOportunidades += h.reporte_json.hallazgos.debiles_amarillo.length;
+  });
+
   if (status === "loading") return <div className="h-screen w-full flex justify-center items-center text-xl font-bold text-white">Cargando...</div>;
 
   // =========================================================================
-  // LANDING PAGE PREMIUM (Versión actualizada)
+  // LANDING PAGE PREMIUM 
   // =========================================================================
   if (!session) {
     return (
       <div className="min-h-screen w-full font-sans text-slate-200 overflow-y-auto overflow-x-hidden bg-[#0a0a0c] selection:bg-[#FEAFAE] selection:text-black">
-        
-        {/* Nav Superior */}
         <nav className="w-full max-w-7xl mx-auto px-6 py-6 flex justify-between items-center z-50 relative">
           <div className="flex items-center gap-2">
             <div className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-black text-2xl shadow-[0_0_15px_rgba(255,164,189,0.5)]" style={melocotonGradient}>M</div>
@@ -275,10 +285,8 @@ function AuditorDashboard() {
           </div>
         </nav>
 
-        {/* Decoración de Fondo Brillante */}
         <div className="absolute top-[-10%] left-1/2 transform -translate-x-1/2 w-[800px] h-[600px] bg-[#FEAFAE] opacity-[0.07] blur-[120px] rounded-full pointer-events-none"></div>
 
-        {/* SECCIÓN 1: HERO */}
         <header className="flex flex-col items-center justify-center text-center px-4 pt-24 pb-20 max-w-4xl mx-auto relative z-10">
           <div className="border border-white/10 bg-white/5 backdrop-blur-md px-5 py-2 rounded-full text-xs font-bold tracking-widest uppercase mb-8 flex items-center gap-3 shadow-lg">
              <span className="w-2.5 h-2.5 rounded-full animate-pulse" style={melocotonGradient}></span>
@@ -298,11 +306,8 @@ function AuditorDashboard() {
           </div>
         </header>
 
-        {/* SECCIÓN 2: MOCKUP REALISTA (Insight Premium) */}
         <section className="max-w-6xl mx-auto px-4 mb-32 relative z-10">
           <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)] bg-[#0f0f13]/80 backdrop-blur-xl flex flex-col">
-             
-             {/* Barra superior estilo ventana de aplicación */}
              <div className="h-10 border-b border-white/5 flex items-center px-4 gap-2 bg-black/40">
                <div className="w-3 h-3 rounded-full bg-red-500/80"></div>
                <div className="w-3 h-3 rounded-full bg-yellow-500/80"></div>
@@ -310,10 +315,7 @@ function AuditorDashboard() {
                <div className="ml-4 text-xs text-slate-500 font-mono tracking-wider hidden md:block">mora_audit_preview.pdf</div>
              </div>
              
-             {/* Contenido del Reporte Falso */}
              <div className="p-8 md:p-12 flex flex-col md:flex-row gap-10 items-center justify-center">
-                
-                {/* Columna Izquierda: Score */}
                 <div className="w-full md:w-1/3 flex flex-col items-center text-center">
                    <div className="w-36 h-36 rounded-full border-[8px] border-red-500/20 flex items-center justify-center mb-6 relative shadow-[0_0_40px_rgba(239,68,68,0.15)] bg-black/20">
                       <span className="text-6xl font-black text-white">38</span>
@@ -322,68 +324,49 @@ function AuditorDashboard() {
                    <span className="px-4 py-1.5 rounded-full text-xs font-bold bg-red-500/10 text-red-400 border border-red-500/20">Estado Crítico</span>
                 </div>
 
-                {/* Columna Derecha: Alertas de IA */}
                 <div className="w-full md:w-2/3 space-y-4">
                    <div className="bg-red-500/5 border border-red-500/20 p-6 rounded-2xl flex gap-5 items-start backdrop-blur-md">
-                      <div className="bg-red-500/10 p-2 rounded-xl">
-                        <AlertTriangle className="text-red-400" size={24} />
-                      </div>
+                      <div className="bg-red-500/10 p-2 rounded-xl"><AlertTriangle className="text-red-400" size={24} /></div>
                       <div>
                          <h4 className="text-lg font-bold text-white mb-1">{t[idioma].mockupCritico}</h4>
                          <p className="text-slate-400 text-sm leading-relaxed">{t[idioma].mockupCriticoDesc}</p>
                       </div>
                    </div>
-                   
                    <div className="bg-green-500/5 border border-green-500/20 p-6 rounded-2xl flex gap-5 items-start backdrop-blur-md">
-                      <div className="bg-green-500/10 p-2 rounded-xl">
-                        <CheckCircle2 className="text-green-400" size={24} />
-                      </div>
+                      <div className="bg-green-500/10 p-2 rounded-xl"><CheckCircle2 className="text-green-400" size={24} /></div>
                       <div>
                          <h4 className="text-lg font-bold text-white mb-1">{t[idioma].mockupOptimo}</h4>
                          <p className="text-slate-400 text-sm leading-relaxed">{t[idioma].mockupOptimoDesc}</p>
                       </div>
                    </div>
                 </div>
-
              </div>
           </div>
         </section>
 
-        {/* SECCIÓN 3: BENEFICIOS */}
         <section className="max-w-6xl mx-auto px-4 mb-32 relative z-10">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-5xl font-bold text-white mb-4">{t[idioma].todoLoQueNecesitas}</h2>
-          </div>
+          <div className="text-center mb-16"><h2 className="text-3xl md:text-5xl font-bold text-white mb-4">{t[idioma].todoLoQueNecesitas}</h2></div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-white/5 border border-white/10 p-8 rounded-[2rem] hover:bg-white/10 transition-colors backdrop-blur-sm">
-              <div className="w-14 h-14 rounded-2xl bg-black/40 border border-white/10 flex items-center justify-center text-[#FEAFAE] mb-6">
-                <Zap size={28} />
-              </div>
+              <div className="w-14 h-14 rounded-2xl bg-black/40 border border-white/10 flex items-center justify-center text-[#FEAFAE] mb-6"><Zap size={28} /></div>
               <h3 className="text-xl font-bold text-white mb-3">{t[idioma].feat1Tit}</h3>
               <p className="text-slate-400 leading-relaxed">{t[idioma].feat1Desc}</p>
             </div>
             <div className="bg-white/5 border border-white/10 p-8 rounded-[2rem] hover:bg-white/10 transition-colors backdrop-blur-sm">
-              <div className="w-14 h-14 rounded-2xl bg-black/40 border border-white/10 flex items-center justify-center text-[#FEAFAE] mb-6">
-                <FileText size={28} />
-              </div>
+              <div className="w-14 h-14 rounded-2xl bg-black/40 border border-white/10 flex items-center justify-center text-[#FEAFAE] mb-6"><FileText size={28} /></div>
               <h3 className="text-xl font-bold text-white mb-3">{t[idioma].feat2Tit}</h3>
               <p className="text-slate-400 leading-relaxed">{t[idioma].feat2Desc}</p>
             </div>
             <div className="bg-white/5 border border-white/10 p-8 rounded-[2rem] hover:bg-white/10 transition-colors backdrop-blur-sm">
-              <div className="w-14 h-14 rounded-2xl bg-black/40 border border-white/10 flex items-center justify-center text-[#FEAFAE] mb-6">
-                <BarChart3 size={28} />
-              </div>
+              <div className="w-14 h-14 rounded-2xl bg-black/40 border border-white/10 flex items-center justify-center text-[#FEAFAE] mb-6"><BarChart3 size={28} /></div>
               <h3 className="text-xl font-bold text-white mb-3">{t[idioma].feat3Tit}</h3>
               <p className="text-slate-400 leading-relaxed">{t[idioma].feat3Desc}</p>
             </div>
           </div>
         </section>
 
-        {/* SECCIÓN 4: PRECIOS */}
         <section className="max-w-5xl mx-auto px-4 mb-32 relative z-10">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-5xl font-bold text-white mb-4">{t[idioma].planes}</h2>
-          </div>
+          <div className="text-center mb-16"><h2 className="text-3xl md:text-5xl font-bold text-white mb-4">{t[idioma].planes}</h2></div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-3xl mx-auto">
             <div className="bg-white/5 border border-white/10 p-10 rounded-[2rem] flex flex-col justify-between">
               <div>
@@ -395,17 +378,12 @@ function AuditorDashboard() {
                   <li className="flex items-center gap-3 text-slate-300"><CheckCircle2 size={18} className="text-slate-500" /> Exportación PDF estándar</li>
                 </ul>
               </div>
-              <button onClick={() => signIn("google")} className="w-full bg-white/10 hover:bg-white/20 text-white font-bold py-4 rounded-xl transition-colors">
-                {t[idioma].login}
-              </button>
+              <button onClick={() => signIn("google")} className="w-full bg-white/10 hover:bg-white/20 text-white font-bold py-4 rounded-xl transition-colors">{t[idioma].login}</button>
             </div>
-
             <div className="bg-[#0f0f13] border border-[#FEAFAE]/30 p-10 rounded-[2rem] relative shadow-[0_0_30px_rgba(255,164,189,0.1)] flex flex-col justify-between overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-1" style={melocotonGradient}></div>
               <div>
-                <h3 className="text-2xl font-bold text-white mb-2 flex justify-between items-center">
-                  {t[idioma].planPro} <span className="text-xs font-black px-3 py-1 bg-[#FEAFAE]/20 text-[#FEAFAE] rounded-full uppercase tracking-wider">Popular</span>
-                </h3>
+                <h3 className="text-2xl font-bold text-white mb-2 flex justify-between items-center">{t[idioma].planPro} <span className="text-xs font-black px-3 py-1 bg-[#FEAFAE]/20 text-[#FEAFAE] rounded-full uppercase tracking-wider">Popular</span></h3>
                 <p className="text-slate-400 mb-8">Para agencias que escalan en serio.</p>
                 <div className="text-5xl font-black text-white mb-8">$49<span className="text-lg text-slate-500 font-medium">/mes</span></div>
                 <ul className="space-y-4 mb-10">
@@ -414,14 +392,11 @@ function AuditorDashboard() {
                   <li className="flex items-center gap-3 text-white"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> Historial de Clientes infinito</li>
                 </ul>
               </div>
-              <button onClick={() => signIn("google")} className="w-full text-[#0a0a0c] font-bold py-4 rounded-xl hover:scale-[1.02] transition-transform shadow-lg" style={melocotonGradient}>
-                {t[idioma].btnUnete}
-              </button>
+              <button onClick={() => signIn("google")} className="w-full text-[#0a0a0c] font-bold py-4 rounded-xl hover:scale-[1.02] transition-transform shadow-lg" style={melocotonGradient}>{t[idioma].btnUnete}</button>
             </div>
           </div>
         </section>
 
-        {/* FOOTER */}
         <footer className="border-t border-white/5 py-12 text-center text-slate-500 text-sm relative z-10">
           <div className="flex items-center justify-center gap-2 mb-4">
             <div className="w-6 h-6 rounded flex items-center justify-center font-black text-black text-xs" style={melocotonGradient}>M</div>
@@ -429,7 +404,6 @@ function AuditorDashboard() {
           </div>
           <p>© {new Date().getFullYear()} Mora. All rights reserved.</p>
         </footer>
-
       </div>
     );
   }
@@ -449,6 +423,7 @@ function AuditorDashboard() {
 
       <div className="flex h-screen w-full font-sans text-slate-200 overflow-hidden print-container">
         
+        {/* SIDEBAR LIMPIO CON BOTÓN NUEVO */}
         <aside className="w-64 bg-white/[0.02] backdrop-blur-3xl border-r border-white/5 flex flex-col justify-between print:hidden z-20 shadow-2xl">
           <div>
             <div className="h-20 flex items-center px-6 border-b border-white/5 gap-3">
@@ -456,9 +431,20 @@ function AuditorDashboard() {
                <span className="text-xl font-black text-white tracking-wide">Mora</span>
             </div>
 
-            <div className="p-4 space-y-2 mt-4">
+            {/* NUEVO BOTÓN PRIMARIO DE AUDITORÍA */}
+            <div className="px-4 mt-6 mb-2">
+              <button 
+                onClick={() => { setVista("nueva"); setReporte(null); setMostrarPagos(false); }} 
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-[#0a0a0c] shadow-[0_0_15px_rgba(255,164,189,0.3)] hover:scale-[1.02] transition-transform" 
+                style={melocotonGradient}
+              >
+                <Plus size={20} strokeWidth={3} /> {t[idioma].nueva}
+              </button>
+            </div>
+
+            <div className="p-4 space-y-2 mt-2">
               {[ 
-                { icon: Target, text: t[idioma].nueva, view: 'nueva' }, 
+                { icon: BarChart3, text: t[idioma].dashboard, view: 'dashboard' }, 
                 { icon: Users, text: t[idioma].clientes, view: 'historial' }
               ].map((link, idx) => (
                 <button 
@@ -474,10 +460,12 @@ function AuditorDashboard() {
           </div>
         </aside>
 
+        {/* CONTENIDO PRINCIPAL */}
         <main className="flex-1 flex flex-col relative overflow-y-auto z-10 print:overflow-visible print:h-auto print:static">
           
           <header className="h-20 flex justify-between items-center px-8 print:hidden border-b border-white/5 bg-white/[0.01] backdrop-blur-md sticky top-0 z-30">
             <h2 className="text-2xl font-bold text-white tracking-tight">
+              {vista === 'dashboard' && t[idioma].dashboard}
               {vista === 'nueva' && t[idioma].nueva}
               {vista === 'historial' && t[idioma].clientes}
               {vista === 'reporte_lectura' && t[idioma].detalleCliente}
@@ -530,6 +518,120 @@ function AuditorDashboard() {
 
           <div className="p-8 pb-32 max-w-6xl mx-auto w-full print:p-0 print:pb-0">
             
+            {/* VISTA: DASHBOARD PRINCIPAL (Centro de Comando) */}
+            {vista === "dashboard" && (
+              <div className="animate-fade-custom print:hidden flex flex-col gap-8">
+                
+                <div>
+                  <h2 className="text-3xl font-bold text-white">{t[idioma].panelPrin}</h2>
+                  <p className="text-slate-400 text-sm mt-1">{t[idioma].panelDesc}</p>
+                </div>
+                
+                {/* 4 TARJETAS DE MÉTRICAS */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                   <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col justify-between relative overflow-hidden backdrop-blur-xl">
+                      <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/5 rounded-full blur-2xl"></div>
+                      <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 relative z-10 flex items-center gap-2"><Activity size={16}/> {t[idioma].saludG}</p>
+                      <div className="flex items-end gap-3 relative z-10">
+                        <span className={`text-5xl font-black ${promedioScore >= 80 ? 'text-green-400' : promedioScore >= 50 ? 'text-yellow-400' : 'text-red-400'}`}>
+                          {promedioScore}
+                        </span>
+                        <span className="text-lg text-slate-500 font-bold mb-1">/100</span>
+                      </div>
+                   </div>
+
+                   <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col justify-between relative overflow-hidden backdrop-blur-xl">
+                      <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 relative z-10 flex items-center gap-2"><Users size={16}/> {t[idioma].totAud}</p>
+                      <span className="text-5xl font-black text-white relative z-10">{totalAuditorias}</span>
+                   </div>
+
+                   <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col justify-between relative overflow-hidden backdrop-blur-xl">
+                      <div className="absolute -right-4 -top-4 w-24 h-24 bg-red-500/10 rounded-full blur-2xl"></div>
+                      <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 relative z-10 flex items-center gap-2"><AlertTriangle size={16} className="text-red-400"/> {t[idioma].fugasDet}</p>
+                      <span className="text-5xl font-black text-white relative z-10">{totalFugas}</span>
+                   </div>
+
+                   <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col justify-between relative overflow-hidden backdrop-blur-xl">
+                      <div className="absolute -right-4 -top-4 w-24 h-24 bg-yellow-500/10 rounded-full blur-2xl"></div>
+                      <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 relative z-10 flex items-center gap-2"><Zap size={16} className="text-yellow-400"/> {t[idioma].oporMej}</p>
+                      <span className="text-5xl font-black text-white relative z-10">{totalOportunidades}</span>
+                   </div>
+                </div>
+
+                {/* TABLA Y TIMELINE */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    
+                    {/* Últimas Auditorías */}
+                    <div className="lg:col-span-2 bg-white/5 border border-white/10 rounded-[2rem] p-6 backdrop-blur-xl flex flex-col">
+                       <div className="flex justify-between items-center mb-6">
+                         <h3 className="text-lg font-bold text-white">{t[idioma].ultAud}</h3>
+                         <button onClick={() => setVista("historial")} className="text-sm font-bold text-[#FFA4BD] hover:text-white transition-colors">{t[idioma].verTodas}</button>
+                       </div>
+                       
+                       {historial.length === 0 ? (
+                         <div className="flex-1 flex items-center justify-center text-slate-500 text-sm font-medium py-10 border border-dashed border-white/10 rounded-xl">{t[idioma].sinCuentas}</div>
+                       ) : (
+                         <div className="flex-1 bg-black/20 rounded-xl border border-white/5 overflow-hidden">
+                           <div className="grid grid-cols-4 gap-4 p-4 border-b border-white/10 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                             <div className="col-span-2 pl-2">{t[idioma].thCliente}</div>
+                             <div className="text-center">{t[idioma].score}</div>
+                             <div className="text-right pr-2">Acción</div>
+                           </div>
+                           <div className="divide-y divide-white/5">
+                             {historial.slice(0, 5).map((item, index) => {
+                               const estado = getEstadoData(item.score);
+                               return (
+                                 <div key={index} className="grid grid-cols-4 gap-4 p-4 items-center hover:bg-white/5 transition-colors">
+                                   <div className="col-span-2 flex items-center gap-3 pl-2">
+                                     <div className={`w-2 h-2 rounded-full ${estado.bg.replace('/10','/50')}`}></div>
+                                     <p className="font-bold text-white text-sm truncate">{item.nombre_cuenta || t[idioma].cuentaSinNombre}</p>
+                                   </div>
+                                   <div className="text-center font-bold text-slate-300 text-sm">{item.score}</div>
+                                   <div className="text-right pr-2">
+                                     <button onClick={() => { setReporte(item.reporte_json); setNombreCuenta(item.nombre_cuenta || t[idioma].cuentaSinNombre); setVista("reporte_lectura"); }} className="text-xs font-bold bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-lg transition-colors">
+                                       Ver PDF
+                                     </button>
+                                   </div>
+                                 </div>
+                               )
+                             })}
+                           </div>
+                         </div>
+                       )}
+                    </div>
+
+                    {/* Actividad Reciente */}
+                    <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 backdrop-blur-xl">
+                       <h3 className="text-lg font-bold text-white mb-6">{t[idioma].actRec}</h3>
+                       
+                       {historial.length === 0 ? (
+                         <div className="text-slate-500 text-sm font-medium text-center py-10">No hay actividad.</div>
+                       ) : (
+                         <ul className="space-y-6">
+                            {historial.slice(0, 4).map((item, i) => (
+                               <li key={i} className="flex gap-4 items-start relative">
+                                  {i !== historial.slice(0,4).length - 1 && <div className="absolute left-[11px] top-8 bottom-[-24px] w-px bg-white/10"></div>}
+                                  <div className="w-6 h-6 rounded-full bg-white/10 border-[3px] border-[#0a0a0c] z-10 flex items-center justify-center flex-shrink-0">
+                                     <div className={`w-2 h-2 rounded-full ${item.score >= 80 ? 'bg-green-400' : item.score >= 50 ? 'bg-yellow-400' : 'bg-red-400'}`}></div>
+                                  </div>
+                                  <div>
+                                     <p className="text-sm text-slate-300 font-medium leading-tight">
+                                       {t[idioma].generada} <span className="text-white font-bold">{item.nombre_cuenta || t[idioma].cuentaSinNombre}</span>
+                                     </p>
+                                     <p className="text-[11px] text-slate-500 mt-1 flex items-center gap-1 font-bold tracking-wide">
+                                       <Clock size={10} /> {parseDate(item.created_at)} • Score: {item.score}
+                                     </p>
+                                  </div>
+                               </li>
+                            ))}
+                         </ul>
+                       )}
+                    </div>
+
+                </div>
+              </div>
+            )}
+
             {vista === "nueva" && (
               <div className="print:hidden">
                 <div className="bg-white/5 border border-white/10 backdrop-blur-2xl p-8 md:p-12 rounded-[2rem] shadow-2xl mb-8">
@@ -596,7 +698,7 @@ function AuditorDashboard() {
               <div className="animate-fade-custom print:bg-white print:m-0 print:p-0">
                 
                 {vista === "reporte_lectura" && (
-                  <button onClick={() => setVista("historial")} className="mb-6 flex items-center gap-2 text-slate-400 hover:text-white font-medium transition-colors print:hidden">
+                  <button onClick={() => setVista("dashboard")} className="mb-6 flex items-center gap-2 text-slate-400 hover:text-white font-medium transition-colors print:hidden">
                     <ArrowLeft size={18} /> {t[idioma].volver}
                   </button>
                 )}
@@ -696,7 +798,6 @@ function AuditorDashboard() {
                       {clientesFiltrados.map((item, index) => {
                         const estado = getEstadoData(item.score);
                         const StatusIcon = estado.icon;
-                        const fakeDate = new Date().toLocaleDateString();
                         const fakeTrend = item.score > 60 ? { icon: TrendingUp, val: "+3", color: "text-green-400" } : { icon: TrendingDown, val: "-5", color: "text-red-400" };
 
                         return (
@@ -705,7 +806,7 @@ function AuditorDashboard() {
                               <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${estado.bg} ${estado.color} border ${estado.border} flex-shrink-0`}>{item.score}</div>
                               <p className="font-bold text-white truncate pr-2">{item.nombre_cuenta || t[idioma].cuentaSinNombre}</p>
                             </div>
-                            <div className="col-span-2 text-center"><p className="text-sm text-slate-400">{fakeDate}</p></div>
+                            <div className="col-span-2 text-center"><p className="text-sm text-slate-400">{parseDate(item.created_at)}</p></div>
                             <div className="col-span-2 flex justify-center">
                               <span className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${estado.bg} ${estado.color} ${estado.border}`}><StatusIcon size={12} /> {estado.label}</span>
                             </div>
