@@ -7,7 +7,7 @@ import {
   Target, Users, Building2, MessageSquare, LogOut, ChevronDown, 
   Zap, AlertTriangle, CheckCircle2, CreditCard, Settings, 
   Search, ArrowRight, ArrowLeft, TrendingUp, TrendingDown, LayoutPanelLeft,
-  FileText, BarChart3, ShieldCheck
+  FileText, BarChart3
 } from 'lucide-react';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -76,14 +76,14 @@ function AuditorDashboard() {
       puntajeBasado: "Puntaje basado en rendimiento y estructura.",
       marcaBlanca: "Marca Blanca Visual", preferencias: "Preferencias de Trabajo",
       sitioWeb: "Sitio Web (Aparecerá en PDF)", piePagina: "Pie de página legal (PDF)", monedaDef: "Moneda por defecto", metricaDef: "Métrica por defecto",
-      // Textos Landing Page
       feat1Tit: "Auditoría en Segundos", feat1Desc: "La IA procesa cientos de métricas y detecta fugas de presupuesto al instante.",
       feat2Tit: "Marca Blanca Total", feat2Desc: "Exportá PDFs impecables con tu logo, colores y sitio web listos para enviar al cliente.",
       feat3Tit: "Historial y Tendencias", feat3Desc: "Monitoreá el progreso de todas tus cuentas con scores evolutivos y alertas tempranas.",
       todoLoQueNecesitas: "Todo lo que tu agencia necesita",
       planes: "Planes simples y transparentes", planFree: "Plan Starter", planPro: "Plan Agency",
-      btnUnete: "Unite a Mora hoy",
-      login: "Iniciar sesión"
+      btnUnete: "Unite a Mora hoy", login: "Iniciar sesión",
+      // Textos del Mockup Visual
+      mockupTit: "Auditoría Finalizada", mockupScore: "Score de Salud", mockupCritico: "Fuga de Presupuesto", mockupCriticoDesc: "Detectamos $450/mes gastados en términos de búsqueda irrelevantes sin conversiones.", mockupOptimo: "Estructura Correcta", mockupOptimoDesc: "El seguimiento de conversiones está correctamente implementado en todas las campañas."
     },
     en: {
       nueva: "AI Auditor", clientes: "Client Dashboard",
@@ -108,14 +108,13 @@ function AuditorDashboard() {
       puntajeBasado: "Score based on performance and structure.",
       marcaBlanca: "Visual White Label", preferencias: "Workflow Preferences",
       sitioWeb: "Website (Appears on PDF)", piePagina: "Legal Footer (PDF)", monedaDef: "Default Currency", metricaDef: "Default Metric",
-      // Textos Landing Page
       feat1Tit: "Audits in Seconds", feat1Desc: "Our AI processes hundreds of metrics and detects budget leaks instantly.",
       feat2Tit: "Full White Label", feat2Desc: "Export flawless PDFs with your logo, colors, and website ready for your clients.",
       feat3Tit: "History & Trends", feat3Desc: "Monitor the progress of all your accounts with evolutionary scores and early warnings.",
       todoLoQueNecesitas: "Everything your agency needs",
       planes: "Simple & transparent pricing", planFree: "Starter Plan", planPro: "Agency Plan",
-      btnUnete: "Join Mora today",
-      login: "Log In"
+      btnUnete: "Join Mora today", login: "Log In",
+      mockupTit: "Audit Completed", mockupScore: "Health Score", mockupCritico: "Budget Leak", mockupCriticoDesc: "We detected $450/mo spent on irrelevant search terms with 0 conversions.", mockupOptimo: "Correct Structure", mockupOptimoDesc: "Conversion tracking is correctly implemented across all active campaigns."
     }
   };
 
@@ -254,7 +253,7 @@ function AuditorDashboard() {
   if (status === "loading") return <div className="h-screen w-full flex justify-center items-center text-xl font-bold text-white">Cargando...</div>;
 
   // =========================================================================
-  // LANDING PAGE PREMIUM
+  // LANDING PAGE PREMIUM (Versión actualizada)
   // =========================================================================
   if (!session) {
     return (
@@ -267,7 +266,6 @@ function AuditorDashboard() {
             <span className="font-bold text-2xl tracking-wide text-white">Mora</span>
           </div>
           <div className="flex items-center gap-6">
-            {/* CORRECCIÓN 1: Botón de idioma ahora muestra el idioma actual */}
             <button onClick={() => setIdioma(idioma === "es" ? "en" : "es")} className="text-sm font-bold text-slate-400 hover:text-white transition-colors flex items-center gap-2">
               <span className="w-4 h-4 flex items-center justify-center border border-slate-400 rounded-full text-[10px]">🌐</span> {idioma === "es" ? "ES" : "EN"}
             </button>
@@ -300,37 +298,58 @@ function AuditorDashboard() {
           </div>
         </header>
 
-        {/* SECCIÓN 2: MOCKUP VISUAL (La interfaz falsa B2B) */}
+        {/* SECCIÓN 2: MOCKUP REALISTA (Insight Premium) */}
         <section className="max-w-6xl mx-auto px-4 mb-32 relative z-10">
-          <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)] bg-[#0f0f13]/80 backdrop-blur-xl aspect-[16/9] md:aspect-[21/9] flex flex-col">
-            <div className="h-10 border-b border-white/5 flex items-center px-4 gap-2 bg-black/40">
-              <div className="w-3 h-3 rounded-full bg-red-500/80"></div>
-              <div className="w-3 h-3 rounded-full bg-yellow-500/80"></div>
-              <div className="w-3 h-3 rounded-full bg-green-500/80"></div>
-            </div>
-            <div className="flex-1 p-8 flex flex-col md:flex-row gap-8 items-center justify-center opacity-60 pointer-events-none">
-              <div className="w-full md:w-1/3 space-y-4">
-                <div className="h-4 bg-white/10 rounded-full w-3/4"></div>
-                <div className="h-12 bg-white/5 rounded-xl w-full border border-white/5"></div>
-                <div className="h-12 bg-white/5 rounded-xl w-full border border-white/5"></div>
-                <div className="h-12 rounded-xl" style={melocotonGradient}></div>
-              </div>
-              <div className="w-full md:w-2/3 h-full bg-white/5 rounded-2xl border border-white/5 p-6 space-y-6">
-                <div className="flex gap-4 items-center">
-                  <div className="w-16 h-16 rounded-full border-4 border-white/10"></div>
-                  <div className="space-y-2 flex-1">
-                    <div className="h-6 bg-white/10 rounded w-1/3"></div>
-                    <div className="h-4 bg-white/5 rounded w-1/4"></div>
-                  </div>
+          <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)] bg-[#0f0f13]/80 backdrop-blur-xl flex flex-col">
+             
+             {/* Barra superior estilo ventana de aplicación */}
+             <div className="h-10 border-b border-white/5 flex items-center px-4 gap-2 bg-black/40">
+               <div className="w-3 h-3 rounded-full bg-red-500/80"></div>
+               <div className="w-3 h-3 rounded-full bg-yellow-500/80"></div>
+               <div className="w-3 h-3 rounded-full bg-green-500/80"></div>
+               <div className="ml-4 text-xs text-slate-500 font-mono tracking-wider hidden md:block">mora_audit_preview.pdf</div>
+             </div>
+             
+             {/* Contenido del Reporte Falso */}
+             <div className="p-8 md:p-12 flex flex-col md:flex-row gap-10 items-center justify-center">
+                
+                {/* Columna Izquierda: Score */}
+                <div className="w-full md:w-1/3 flex flex-col items-center text-center">
+                   <div className="w-36 h-36 rounded-full border-[8px] border-red-500/20 flex items-center justify-center mb-6 relative shadow-[0_0_40px_rgba(239,68,68,0.15)] bg-black/20">
+                      <span className="text-6xl font-black text-white">38</span>
+                   </div>
+                   <h3 className="text-xl font-bold text-white mb-2">{t[idioma].mockupScore}</h3>
+                   <span className="px-4 py-1.5 rounded-full text-xs font-bold bg-red-500/10 text-red-400 border border-red-500/20">Estado Crítico</span>
                 </div>
-                <div className="h-24 bg-red-500/10 border border-red-500/20 rounded-xl"></div>
-                <div className="h-24 bg-yellow-500/10 border border-yellow-500/20 rounded-xl"></div>
-              </div>
-            </div>
+
+                {/* Columna Derecha: Alertas de IA */}
+                <div className="w-full md:w-2/3 space-y-4">
+                   <div className="bg-red-500/5 border border-red-500/20 p-6 rounded-2xl flex gap-5 items-start backdrop-blur-md">
+                      <div className="bg-red-500/10 p-2 rounded-xl">
+                        <AlertTriangle className="text-red-400" size={24} />
+                      </div>
+                      <div>
+                         <h4 className="text-lg font-bold text-white mb-1">{t[idioma].mockupCritico}</h4>
+                         <p className="text-slate-400 text-sm leading-relaxed">{t[idioma].mockupCriticoDesc}</p>
+                      </div>
+                   </div>
+                   
+                   <div className="bg-green-500/5 border border-green-500/20 p-6 rounded-2xl flex gap-5 items-start backdrop-blur-md">
+                      <div className="bg-green-500/10 p-2 rounded-xl">
+                        <CheckCircle2 className="text-green-400" size={24} />
+                      </div>
+                      <div>
+                         <h4 className="text-lg font-bold text-white mb-1">{t[idioma].mockupOptimo}</h4>
+                         <p className="text-slate-400 text-sm leading-relaxed">{t[idioma].mockupOptimoDesc}</p>
+                      </div>
+                   </div>
+                </div>
+
+             </div>
           </div>
         </section>
 
-        {/* SECCIÓN 3: BENEFICIOS (Features) */}
+        {/* SECCIÓN 3: BENEFICIOS */}
         <section className="max-w-6xl mx-auto px-4 mb-32 relative z-10">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-5xl font-bold text-white mb-4">{t[idioma].todoLoQueNecesitas}</h2>
@@ -360,13 +379,12 @@ function AuditorDashboard() {
           </div>
         </section>
 
-        {/* SECCIÓN 4: PRECIOS (Pricing) */}
+        {/* SECCIÓN 4: PRECIOS */}
         <section className="max-w-5xl mx-auto px-4 mb-32 relative z-10">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-5xl font-bold text-white mb-4">{t[idioma].planes}</h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-3xl mx-auto">
-            
             <div className="bg-white/5 border border-white/10 p-10 rounded-[2rem] flex flex-col justify-between">
               <div>
                 <h3 className="text-2xl font-bold text-white mb-2">{t[idioma].planFree}</h3>
@@ -377,7 +395,6 @@ function AuditorDashboard() {
                   <li className="flex items-center gap-3 text-slate-300"><CheckCircle2 size={18} className="text-slate-500" /> Exportación PDF estándar</li>
                 </ul>
               </div>
-              {/* CORRECCIÓN 2: El botón de Log In traducido */}
               <button onClick={() => signIn("google")} className="w-full bg-white/10 hover:bg-white/20 text-white font-bold py-4 rounded-xl transition-colors">
                 {t[idioma].login}
               </button>
@@ -401,7 +418,6 @@ function AuditorDashboard() {
                 {t[idioma].btnUnete}
               </button>
             </div>
-
           </div>
         </section>
 
