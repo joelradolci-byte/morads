@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { SessionProvider, signIn, signOut, useSession } from "next-auth/react";
 import { createClient } from "@supabase/supabase-js";
@@ -7,7 +7,7 @@ import {
   Target, Users, Building2, MessageSquare, LogOut, ChevronDown, 
   Zap, AlertTriangle, CheckCircle2, CreditCard, Settings, 
   Search, ArrowRight, ArrowLeft, TrendingUp, TrendingDown, LayoutPanelLeft,
-  FileText, BarChart3, ShieldCheck, Plus, Clock, Activity
+  FileText, BarChart3, ShieldCheck, Plus, Clock, Activity, Trash2
 } from 'lucide-react';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -16,6 +16,38 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 const melocotonGradient = { background: "linear-gradient(90deg, #FEECE3 0%, #FCD5BF 25%, #FEAFAE 50%, #FFA4BD 75%, #FFA9CC 100%)" };
 const melocotonText = { background: "linear-gradient(90deg, #FEECE3 0%, #FCD5BF 25%, #FEAFAE 50%, #FFA4BD 75%, #FFA9CC 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" };
+
+// COMPONENTE PARA ANIMAR AL SCROLLEAR (LANDING PAGE)
+function FadeInOnScroll({ children, delay = 0 }: { children: React.ReactNode, delay?: number }) {
+  const [isVisible, setVisible] = useState(false);
+  const domRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting) {
+        setVisible(true);
+        observer.unobserve(domRef.current!);
+      }
+    }, { threshold: 0.1 });
+    if (domRef.current) observer.observe(domRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div ref={domRef} className={`transition-all duration-1000 ease-out ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'}`} style={{ transitionDelay: `${delay}ms` }}>
+      {children}
+    </div>
+  );
+}
+
+// FONDO ANIMADO ABSTRACTO (BLOBS)
+const BackgroundAbstract = () => (
+  <div className="fixed inset-0 w-full h-full overflow-hidden pointer-events-none z-0 print:hidden">
+    <div className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] rounded-full bg-[#FFA4BD] opacity-[0.03] blur-[120px] animate-blob"></div>
+    <div className="absolute top-[20%] right-[-10%] w-[40vw] h-[40vw] rounded-full bg-[#FEAFAE] opacity-[0.03] blur-[120px] animate-blob animation-delay-2000"></div>
+    <div className="absolute bottom-[-20%] left-[20%] w-[60vw] h-[60vw] rounded-full bg-[#FCD5BF] opacity-[0.02] blur-[150px] animate-blob animation-delay-4000"></div>
+  </div>
+);
 
 function AuditorDashboard() {
   const { data: session, status } = useSession();
@@ -85,7 +117,8 @@ function AuditorDashboard() {
       feat3Tit: "Historial y Tendencias", feat3Desc: "Monitoreá el progreso de todas tus cuentas con scores evolutivos y alertas tempranas.",
       todoLoQueNecesitas: "Todo lo que tu agencia necesita", planes: "Planes simples y transparentes", planFree: "Plan Starter", planPro: "Plan Agency",
       btnUnete: "Unite a Mora hoy", login: "Iniciar sesión",
-      mockupTit: "Auditoría Finalizada", mockupScore: "Score de Salud", mockupCritico: "Fuga de Presupuesto", mockupCriticoDesc: "Detectamos $450/mes gastados en términos de búsqueda irrelevantes sin conversiones.", mockupOptimo: "Estructura Correcta", mockupOptimoDesc: "El seguimiento de conversiones está correctamente implementado en todas las campañas."
+      mockupTit: "Auditoría Finalizada", mockupScore: "Score de Salud", mockupCritico: "Fuga de Presupuesto", mockupCriticoDesc: "Detectamos $450/mes gastados en términos de búsqueda irrelevantes sin conversiones.", mockupOptimo: "Estructura Correcta", mockupOptimoDesc: "El seguimiento de conversiones está correctamente implementado en todas las campañas.",
+      confirmarBorrar: "¿Seguro que querés eliminar esta auditoría? Esta acción no se puede deshacer."
     },
     en: {
       dashboard: "Dashboard", panelPrin: "Main Dashboard", panelDesc: "Global overview of your agency's performance.",
@@ -119,7 +152,8 @@ function AuditorDashboard() {
       feat3Tit: "History & Trends", feat3Desc: "Monitor the progress of all your accounts with evolutionary scores and early warnings.",
       todoLoQueNecesitas: "Everything your agency needs", planes: "Simple & transparent pricing", planFree: "Starter Plan", planPro: "Agency Plan",
       btnUnete: "Join Mora today", login: "Log In",
-      mockupTit: "Audit Completed", mockupScore: "Health Score", mockupCritico: "Budget Leak", mockupCriticoDesc: "We detected $450/mo spent on irrelevant search terms with 0 conversions.", mockupOptimo: "Correct Structure", mockupOptimoDesc: "Conversion tracking is correctly implemented across all active campaigns."
+      mockupTit: "Audit Completed", mockupScore: "Health Score", mockupCritico: "Budget Leak", mockupCriticoDesc: "We detected $450/mo spent on irrelevant search terms with 0 conversions.", mockupOptimo: "Correct Structure", mockupOptimoDesc: "Conversion tracking is correctly implemented across all active campaigns.",
+      confirmarBorrar: "Are you sure you want to delete this audit? This action cannot be undone."
     }
   };
 
@@ -145,6 +179,18 @@ function AuditorDashboard() {
     const { data: registros, error } = await supabase.from('historial_auditorias').select('*').eq('usuario_email', session.user.email);
     if (!error && registros) setHistorial(registros.reverse()); 
     setCargandoHistorial(false);
+  };
+
+  // FUNCIÓN PARA ELIMINAR AUDITORÍA
+  const borrarAuditoria = async (id: number) => {
+    if (!window.confirm(t[idioma].confirmarBorrar)) return;
+    const { error } = await supabase.from('historial_auditorias').delete().eq('id', id);
+    if (!error) {
+      setHistorial(historial.filter(item => item.id !== id));
+      if (vista === "reporte_lectura") setVista("historial");
+    } else {
+      alert("Error al eliminar la auditoría.");
+    }
   };
 
   useEffect(() => {
@@ -224,6 +270,7 @@ function AuditorDashboard() {
       
       setReporte(parsedReporte);
       await supabase.from('historial_auditorias').insert([{ usuario_email: session.user.email, score: parsedReporte.score_general, reporte_json: parsedReporte, nombre_cuenta: nombreCuenta || "Sin nombre" }]);
+      cargarHistorial(); // Refrescamos historial para tener el ID nuevo
     } catch (error) {
       console.error("Error completo:", error);
       alert("Error al analizar los datos. Revisá la consola.");
@@ -252,13 +299,11 @@ function AuditorDashboard() {
     return coincideFiltro && coincideBusqueda;
   });
 
-  // MATEMÁTICA DEL DASHBOARD AVANZADA Y CLICKABLE
   const totalAuditorias = historial.length;
   const promedioScore = totalAuditorias > 0 ? Math.round(historial.reduce((acc, curr) => acc + curr.score, 0) / totalAuditorias) : 0;
   let totalFugas = 0;
   let totalOportunidades = 0;
   
-  // Modificamos las listas para que guarden el reporte completo, así podemos abrirlo al hacer clic
   const cuentasRojas: {nombre: string, cant: number, reporte: any}[] = [];
   const cuentasAmarillas: {nombre: string, cant: number, reporte: any}[] = [];
 
@@ -286,11 +331,13 @@ function AuditorDashboard() {
   if (status === "loading") return <div className="h-screen w-full flex justify-center items-center text-xl font-bold text-white">Cargando...</div>;
 
   // =========================================================================
-  // LANDING PAGE PREMIUM 
+  // LANDING PAGE PREMIUM CON ANIMACIONES SCROLL
   // =========================================================================
   if (!session) {
     return (
-      <div className="min-h-screen w-full font-sans text-slate-200 overflow-y-auto overflow-x-hidden bg-[#0a0a0c] selection:bg-[#FEAFAE] selection:text-black">
+      <div className="min-h-screen w-full font-sans text-slate-200 overflow-y-auto overflow-x-hidden bg-[#0a0a0c] selection:bg-[#FEAFAE] selection:text-black relative">
+        <BackgroundAbstract />
+        
         <nav className="w-full max-w-7xl mx-auto px-6 py-6 flex justify-between items-center z-50 relative">
           <div className="flex items-center gap-2">
             <div className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-black text-2xl shadow-[0_0_15px_rgba(255,164,189,0.5)]" style={melocotonGradient}>M</div>
@@ -306,117 +353,121 @@ function AuditorDashboard() {
           </div>
         </nav>
 
-        <div className="absolute top-[-10%] left-1/2 transform -translate-x-1/2 w-[800px] h-[600px] bg-[#FEAFAE] opacity-[0.07] blur-[120px] rounded-full pointer-events-none"></div>
-
-        <header className="flex flex-col items-center justify-center text-center px-4 pt-24 pb-20 max-w-4xl mx-auto relative z-10">
-          <div className="border border-white/10 bg-white/5 backdrop-blur-md px-5 py-2 rounded-full text-xs font-bold tracking-widest uppercase mb-8 flex items-center gap-3 shadow-lg">
-             <span className="w-2.5 h-2.5 rounded-full animate-pulse" style={melocotonGradient}></span>
-             {t[idioma].tituloland}
-          </div>
-          <h1 className="text-5xl md:text-7xl lg:text-[5rem] font-bold mb-8 tracking-tight leading-[1.1] text-white">
-            {t[idioma].h1land1} <br />
-            <span style={melocotonText}>{t[idioma].h1land2}</span>
-          </h1>
-          <p className="text-slate-400 text-lg md:text-xl mb-12 max-w-2xl mx-auto leading-relaxed">
-            {t[idioma].pland1}
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center w-full sm:w-auto">
-            <button onClick={() => signIn("google")} className="w-full sm:w-auto text-[#0a0a0c] px-10 py-5 rounded-full font-bold text-lg hover:scale-105 transition-transform shadow-[0_0_40px_rgba(255,164,189,0.3)] flex items-center justify-center gap-2" style={melocotonGradient}>
-              {t[idioma].btncomenzar} <ArrowRight size={20} />
-            </button>
-          </div>
-        </header>
-
-        <section className="max-w-6xl mx-auto px-4 mb-32 relative z-10">
-          <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)] bg-[#0f0f13]/80 backdrop-blur-xl flex flex-col">
-             <div className="h-10 border-b border-white/5 flex items-center px-4 gap-2 bg-black/40">
-               <div className="w-3 h-3 rounded-full bg-red-500/80"></div>
-               <div className="w-3 h-3 rounded-full bg-yellow-500/80"></div>
-               <div className="w-3 h-3 rounded-full bg-green-500/80"></div>
-               <div className="ml-4 text-xs text-slate-500 font-mono tracking-wider hidden md:block">mora_audit_preview.pdf</div>
-             </div>
-             
-             <div className="p-8 md:p-12 flex flex-col md:flex-row gap-10 items-center justify-center">
-                <div className="w-full md:w-1/3 flex flex-col items-center text-center">
-                   <div className="w-36 h-36 rounded-full border-[8px] border-red-500/20 flex items-center justify-center mb-6 relative shadow-[0_0_40px_rgba(239,68,68,0.15)] bg-black/20">
-                      <span className="text-6xl font-black text-white">38</span>
-                   </div>
-                   <h3 className="text-xl font-bold text-white mb-2">{t[idioma].mockupScore}</h3>
-                   <span className="px-4 py-1.5 rounded-full text-xs font-bold bg-red-500/10 text-red-400 border border-red-500/20">Estado Crítico</span>
-                </div>
-
-                <div className="w-full md:w-2/3 space-y-4">
-                   <div className="bg-red-500/5 border border-red-500/20 p-6 rounded-2xl flex gap-5 items-start backdrop-blur-md">
-                      <div className="bg-red-500/10 p-2 rounded-xl"><AlertTriangle className="text-red-400" size={24} /></div>
-                      <div>
-                         <h4 className="text-lg font-bold text-white mb-1">{t[idioma].mockupCritico}</h4>
-                         <p className="text-slate-400 text-sm leading-relaxed">{t[idioma].mockupCriticoDesc}</p>
-                      </div>
-                   </div>
-                   <div className="bg-green-500/5 border border-green-500/20 p-6 rounded-2xl flex gap-5 items-start backdrop-blur-md">
-                      <div className="bg-green-500/10 p-2 rounded-xl"><CheckCircle2 className="text-green-400" size={24} /></div>
-                      <div>
-                         <h4 className="text-lg font-bold text-white mb-1">{t[idioma].mockupOptimo}</h4>
-                         <p className="text-slate-400 text-sm leading-relaxed">{t[idioma].mockupOptimoDesc}</p>
-                      </div>
-                   </div>
-                </div>
-             </div>
-          </div>
-        </section>
-
-        <section className="max-w-6xl mx-auto px-4 mb-32 relative z-10">
-          <div className="text-center mb-16"><h2 className="text-3xl md:text-5xl font-bold text-white mb-4">{t[idioma].todoLoQueNecesitas}</h2></div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-white/5 border border-white/10 p-8 rounded-[2rem] hover:bg-white/10 transition-colors backdrop-blur-sm">
-              <div className="w-14 h-14 rounded-2xl bg-black/40 border border-white/10 flex items-center justify-center text-[#FEAFAE] mb-6"><Zap size={28} /></div>
-              <h3 className="text-xl font-bold text-white mb-3">{t[idioma].feat1Tit}</h3>
-              <p className="text-slate-400 leading-relaxed">{t[idioma].feat1Desc}</p>
+        <FadeInOnScroll>
+          <header className="flex flex-col items-center justify-center text-center px-4 pt-20 pb-20 max-w-4xl mx-auto relative z-10">
+            <div className="border border-white/10 bg-white/5 backdrop-blur-md px-5 py-2 rounded-full text-xs font-bold tracking-widest uppercase mb-8 flex items-center gap-3 shadow-lg">
+               <span className="w-2.5 h-2.5 rounded-full animate-pulse" style={melocotonGradient}></span>
+               {t[idioma].tituloland}
             </div>
-            <div className="bg-white/5 border border-white/10 p-8 rounded-[2rem] hover:bg-white/10 transition-colors backdrop-blur-sm">
-              <div className="w-14 h-14 rounded-2xl bg-black/40 border border-white/10 flex items-center justify-center text-[#FEAFAE] mb-6"><FileText size={28} /></div>
-              <h3 className="text-xl font-bold text-white mb-3">{t[idioma].feat2Tit}</h3>
-              <p className="text-slate-400 leading-relaxed">{t[idioma].feat2Desc}</p>
+            <h1 className="text-5xl md:text-7xl lg:text-[5rem] font-bold mb-8 tracking-tight leading-[1.1] text-white">
+              {t[idioma].h1land1} <br />
+              <span style={melocotonText}>{t[idioma].h1land2}</span>
+            </h1>
+            <p className="text-slate-400 text-lg md:text-xl mb-12 max-w-2xl mx-auto leading-relaxed">
+              {t[idioma].pland1}
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center w-full sm:w-auto">
+              <button onClick={() => signIn("google")} className="w-full sm:w-auto text-[#0a0a0c] px-10 py-5 rounded-full font-bold text-lg hover:scale-105 transition-transform shadow-[0_0_40px_rgba(255,164,189,0.3)] flex items-center justify-center gap-2" style={melocotonGradient}>
+                {t[idioma].btncomenzar} <ArrowRight size={20} />
+              </button>
             </div>
-            <div className="bg-white/5 border border-white/10 p-8 rounded-[2rem] hover:bg-white/10 transition-colors backdrop-blur-sm">
-              <div className="w-14 h-14 rounded-2xl bg-black/40 border border-white/10 flex items-center justify-center text-[#FEAFAE] mb-6"><BarChart3 size={28} /></div>
-              <h3 className="text-xl font-bold text-white mb-3">{t[idioma].feat3Tit}</h3>
-              <p className="text-slate-400 leading-relaxed">{t[idioma].feat3Desc}</p>
-            </div>
-          </div>
-        </section>
+          </header>
+        </FadeInOnScroll>
 
-        <section className="max-w-5xl mx-auto px-4 mb-32 relative z-10">
-          <div className="text-center mb-16"><h2 className="text-3xl md:text-5xl font-bold text-white mb-4">{t[idioma].planes}</h2></div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-3xl mx-auto">
-            <div className="bg-white/5 border border-white/10 p-10 rounded-[2rem] flex flex-col justify-between">
-              <div>
-                <h3 className="text-2xl font-bold text-white mb-2">{t[idioma].planFree}</h3>
-                <p className="text-slate-400 mb-8">Ideal para probar la herramienta.</p>
-                <div className="text-5xl font-black text-white mb-8">$0<span className="text-lg text-slate-500 font-medium">/mes</span></div>
-                <ul className="space-y-4 mb-10">
-                  <li className="flex items-center gap-3 text-slate-300"><CheckCircle2 size={18} className="text-slate-500" /> 10 Auditorías mensuales</li>
-                  <li className="flex items-center gap-3 text-slate-300"><CheckCircle2 size={18} className="text-slate-500" /> Exportación PDF estándar</li>
-                </ul>
+        <FadeInOnScroll delay={200}>
+          <section className="max-w-6xl mx-auto px-4 mb-32 relative z-10">
+            <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)] bg-[#0f0f13]/80 backdrop-blur-xl flex flex-col hover:border-white/20 transition-colors duration-500">
+               <div className="h-10 border-b border-white/5 flex items-center px-4 gap-2 bg-black/40">
+                 <div className="w-3 h-3 rounded-full bg-red-500/80"></div>
+                 <div className="w-3 h-3 rounded-full bg-yellow-500/80"></div>
+                 <div className="w-3 h-3 rounded-full bg-green-500/80"></div>
+                 <div className="ml-4 text-xs text-slate-500 font-mono tracking-wider hidden md:block">mora_audit_preview.pdf</div>
+               </div>
+               <div className="p-8 md:p-12 flex flex-col md:flex-row gap-10 items-center justify-center">
+                  <div className="w-full md:w-1/3 flex flex-col items-center text-center">
+                     <div className="w-36 h-36 rounded-full border-[8px] border-red-500/20 flex items-center justify-center mb-6 relative shadow-[0_0_40px_rgba(239,68,68,0.15)] bg-black/20">
+                        <span className="text-6xl font-black text-white">38</span>
+                     </div>
+                     <h3 className="text-xl font-bold text-white mb-2">{t[idioma].mockupScore}</h3>
+                     <span className="px-4 py-1.5 rounded-full text-xs font-bold bg-red-500/10 text-red-400 border border-red-500/20">Estado Crítico</span>
+                  </div>
+                  <div className="w-full md:w-2/3 space-y-4">
+                     <div className="bg-red-500/5 border border-red-500/20 p-6 rounded-2xl flex gap-5 items-start backdrop-blur-md transform hover:-translate-y-1 transition-transform">
+                        <div className="bg-red-500/10 p-2 rounded-xl"><AlertTriangle className="text-red-400" size={24} /></div>
+                        <div>
+                           <h4 className="text-lg font-bold text-white mb-1">{t[idioma].mockupCritico}</h4>
+                           <p className="text-slate-400 text-sm leading-relaxed">{t[idioma].mockupCriticoDesc}</p>
+                        </div>
+                     </div>
+                     <div className="bg-green-500/5 border border-green-500/20 p-6 rounded-2xl flex gap-5 items-start backdrop-blur-md transform hover:-translate-y-1 transition-transform">
+                        <div className="bg-green-500/10 p-2 rounded-xl"><CheckCircle2 className="text-green-400" size={24} /></div>
+                        <div>
+                           <h4 className="text-lg font-bold text-white mb-1">{t[idioma].mockupOptimo}</h4>
+                           <p className="text-slate-400 text-sm leading-relaxed">{t[idioma].mockupOptimoDesc}</p>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+            </div>
+          </section>
+        </FadeInOnScroll>
+
+        <FadeInOnScroll>
+          <section className="max-w-6xl mx-auto px-4 mb-32 relative z-10">
+            <div className="text-center mb-16"><h2 className="text-3xl md:text-5xl font-bold text-white mb-4">{t[idioma].todoLoQueNecesitas}</h2></div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-white/5 border border-white/10 p-8 rounded-[2rem] hover:bg-white/10 transition-all duration-300 backdrop-blur-sm hover:-translate-y-2">
+                <div className="w-14 h-14 rounded-2xl bg-black/40 border border-white/10 flex items-center justify-center text-[#FEAFAE] mb-6"><Zap size={28} /></div>
+                <h3 className="text-xl font-bold text-white mb-3">{t[idioma].feat1Tit}</h3>
+                <p className="text-slate-400 leading-relaxed">{t[idioma].feat1Desc}</p>
               </div>
-              <button onClick={() => signIn("google")} className="w-full bg-white/10 hover:bg-white/20 text-white font-bold py-4 rounded-xl transition-colors">{t[idioma].login}</button>
-            </div>
-            <div className="bg-[#0f0f13] border border-[#FEAFAE]/30 p-10 rounded-[2rem] relative shadow-[0_0_30px_rgba(255,164,189,0.1)] flex flex-col justify-between overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-1" style={melocotonGradient}></div>
-              <div>
-                <h3 className="text-2xl font-bold text-white mb-2 flex justify-between items-center">{t[idioma].planPro} <span className="text-xs font-black px-3 py-1 bg-[#FEAFAE]/20 text-[#FEAFAE] rounded-full uppercase tracking-wider">Popular</span></h3>
-                <p className="text-slate-400 mb-8">Para agencias que escalan en serio.</p>
-                <div className="text-5xl font-black text-white mb-8">$49<span className="text-lg text-slate-500 font-medium">/mes</span></div>
-                <ul className="space-y-4 mb-10">
-                  <li className="flex items-center gap-3 text-white"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> Auditorías ilimitadas</li>
-                  <li className="flex items-center gap-3 text-white"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> Marca Blanca Total (PDF)</li>
-                  <li className="flex items-center gap-3 text-white"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> Historial de Clientes infinito</li>
-                </ul>
+              <div className="bg-white/5 border border-white/10 p-8 rounded-[2rem] hover:bg-white/10 transition-all duration-300 backdrop-blur-sm hover:-translate-y-2" style={{transitionDelay: '100ms'}}>
+                <div className="w-14 h-14 rounded-2xl bg-black/40 border border-white/10 flex items-center justify-center text-[#FEAFAE] mb-6"><FileText size={28} /></div>
+                <h3 className="text-xl font-bold text-white mb-3">{t[idioma].feat2Tit}</h3>
+                <p className="text-slate-400 leading-relaxed">{t[idioma].feat2Desc}</p>
               </div>
-              <button onClick={() => signIn("google")} className="w-full text-[#0a0a0c] font-bold py-4 rounded-xl hover:scale-[1.02] transition-transform shadow-lg" style={melocotonGradient}>{t[idioma].btnUnete}</button>
+              <div className="bg-white/5 border border-white/10 p-8 rounded-[2rem] hover:bg-white/10 transition-all duration-300 backdrop-blur-sm hover:-translate-y-2" style={{transitionDelay: '200ms'}}>
+                <div className="w-14 h-14 rounded-2xl bg-black/40 border border-white/10 flex items-center justify-center text-[#FEAFAE] mb-6"><BarChart3 size={28} /></div>
+                <h3 className="text-xl font-bold text-white mb-3">{t[idioma].feat3Tit}</h3>
+                <p className="text-slate-400 leading-relaxed">{t[idioma].feat3Desc}</p>
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
+        </FadeInOnScroll>
+
+        <FadeInOnScroll>
+          <section className="max-w-5xl mx-auto px-4 mb-32 relative z-10">
+            <div className="text-center mb-16"><h2 className="text-3xl md:text-5xl font-bold text-white mb-4">{t[idioma].planes}</h2></div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-3xl mx-auto">
+              <div className="bg-white/5 border border-white/10 p-10 rounded-[2rem] flex flex-col justify-between hover:border-white/20 transition-colors">
+                <div>
+                  <h3 className="text-2xl font-bold text-white mb-2">{t[idioma].planFree}</h3>
+                  <p className="text-slate-400 mb-8">Ideal para probar la herramienta.</p>
+                  <div className="text-5xl font-black text-white mb-8">$0<span className="text-lg text-slate-500 font-medium">/mes</span></div>
+                  <ul className="space-y-4 mb-10">
+                    <li className="flex items-center gap-3 text-slate-300"><CheckCircle2 size={18} className="text-slate-500" /> 10 Auditorías mensuales</li>
+                    <li className="flex items-center gap-3 text-slate-300"><CheckCircle2 size={18} className="text-slate-500" /> Exportación PDF estándar</li>
+                  </ul>
+                </div>
+                <button onClick={() => signIn("google")} className="w-full bg-white/10 hover:bg-white/20 text-white font-bold py-4 rounded-xl transition-colors">{t[idioma].login}</button>
+              </div>
+              <div className="bg-[#0f0f13] border border-[#FEAFAE]/30 p-10 rounded-[2rem] relative shadow-[0_0_30px_rgba(255,164,189,0.1)] flex flex-col justify-between overflow-hidden hover:shadow-[0_0_50px_rgba(255,164,189,0.2)] transition-shadow">
+                <div className="absolute top-0 left-0 w-full h-1" style={melocotonGradient}></div>
+                <div>
+                  <h3 className="text-2xl font-bold text-white mb-2 flex justify-between items-center">{t[idioma].planPro} <span className="text-xs font-black px-3 py-1 bg-[#FEAFAE]/20 text-[#FEAFAE] rounded-full uppercase tracking-wider">Popular</span></h3>
+                  <p className="text-slate-400 mb-8">Para agencias que escalan en serio.</p>
+                  <div className="text-5xl font-black text-white mb-8">$49<span className="text-lg text-slate-500 font-medium">/mes</span></div>
+                  <ul className="space-y-4 mb-10">
+                    <li className="flex items-center gap-3 text-white"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> Auditorías ilimitadas</li>
+                    <li className="flex items-center gap-3 text-white"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> Marca Blanca Total (PDF)</li>
+                    <li className="flex items-center gap-3 text-white"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> Historial de Clientes infinito</li>
+                  </ul>
+                </div>
+                <button onClick={() => signIn("google")} className="w-full text-[#0a0a0c] font-bold py-4 rounded-xl hover:scale-[1.02] transition-transform shadow-lg" style={melocotonGradient}>{t[idioma].btnUnete}</button>
+              </div>
+            </div>
+          </section>
+        </FadeInOnScroll>
 
         <footer className="border-t border-white/5 py-12 text-center text-slate-500 text-sm relative z-10">
           <div className="flex items-center justify-center gap-2 mb-4">
@@ -439,13 +490,25 @@ function AuditorDashboard() {
           @page { margin: 15mm; }
           .print-container { height: auto !important; overflow: visible !important; position: static !important; }
         }
-        @keyframes fadeInCustom { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .animate-fade-custom { animation: fadeInCustom 0.5s ease-out forwards; }
+        @keyframes fadeInCustom { 0% { opacity: 0; transform: translateY(15px); } 100% { opacity: 1; transform: translateY(0); } }
+        .animate-fade-custom { animation: fadeInCustom 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        
+        @keyframes blob {
+          0% { transform: translate(0px, 0px) scale(1); }
+          33% { transform: translate(30px, -50px) scale(1.1); }
+          66% { transform: translate(-20px, 20px) scale(0.9); }
+          100% { transform: translate(0px, 0px) scale(1); }
+        }
+        .animate-blob { animation: blob 15s infinite alternate ease-in-out; }
+        .animation-delay-2000 { animation-delay: 2s; }
+        .animation-delay-4000 { animation-delay: 4s; }
       `}} />
 
-      <div className="flex h-screen w-full font-sans text-slate-200 overflow-hidden print-container">
+      <div className="flex h-screen w-full font-sans text-slate-200 overflow-hidden print-container relative bg-[#0a0a0c]">
         
-        <aside className="w-64 bg-white/[0.02] backdrop-blur-3xl border-r border-white/5 flex flex-col justify-between print:hidden z-20 shadow-2xl">
+        <BackgroundAbstract />
+
+        <aside className="w-64 bg-white/[0.02] backdrop-blur-3xl border-r border-white/5 flex flex-col justify-between print:hidden z-20 shadow-[10px_0_30px_rgba(0,0,0,0.5)]">
           <div>
             <div className="h-20 flex items-center px-6 border-b border-white/5 gap-3">
                <div className="w-8 h-8 rounded-lg flex items-center justify-center font-black text-black text-xl shadow-lg" style={melocotonGradient}>M</div>
@@ -517,20 +580,17 @@ function AuditorDashboard() {
             </div>
           </header>
 
-          <div className="p-8 pb-32 max-w-6xl mx-auto w-full print:p-0 print:pb-0">
+          <div className="p-8 pb-32 max-w-6xl mx-auto w-full print:p-0 print:pb-0" key={vista}>
             
-            {/* VISTA: DASHBOARD PRINCIPAL ACTUALIZADO */}
             {vista === "dashboard" && (
               <div className="animate-fade-custom print:hidden flex flex-col gap-8">
-                
                 <div>
                   <h2 className="text-3xl font-bold text-white">{t[idioma].panelPrin}</h2>
                   <p className="text-slate-400 text-sm mt-1">{t[idioma].panelDesc}</p>
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                   <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px]">
-                      <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/5 rounded-full blur-2xl"></div>
+                   <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px] hover:bg-white/10 transition-colors">
                       <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 relative z-10 flex items-center gap-2"><Activity size={16}/> {t[idioma].saludG}</p>
                       <div className="flex items-end gap-3 relative z-10">
                         <span className={`text-5xl font-black ${promedioScore >= 80 ? 'text-green-400' : promedioScore >= 50 ? 'text-yellow-400' : 'text-red-400'}`}>
@@ -540,29 +600,21 @@ function AuditorDashboard() {
                       </div>
                    </div>
 
-                   <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px]">
+                   <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px] hover:bg-white/10 transition-colors">
                       <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 relative z-10 flex items-center gap-2"><Users size={16}/> {t[idioma].totAud}</p>
                       <span className="text-5xl font-black text-white relative z-10">{totalAuditorias}</span>
                    </div>
 
-                   {/* TARJETA FUGAS CON LISTA INTERACTIVA */}
-                   <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px]">
-                      <div className="absolute -right-4 -top-4 w-24 h-24 bg-red-500/10 rounded-full blur-2xl"></div>
+                   <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px] hover:border-red-500/30 transition-colors">
                       <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 relative z-10 flex items-center gap-2"><AlertTriangle size={16} className="text-red-400"/> {t[idioma].fugasDet}</p>
-                      
                       <div className="flex-1 flex flex-col">
                         <span className="text-5xl font-black text-white relative z-10 mb-4">{totalFugas}</span>
-                        
                         {cuentasRojas.length > 0 && (
                           <div className="mt-auto border-t border-white/5 pt-3 relative z-10">
                             <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">{t[idioma].afectaA}</p>
                             <div className="space-y-1.5">
                               {cuentasRojas.slice(0, 2).map((c,i) => (
-                                <button 
-                                  key={i} 
-                                  onClick={() => { setReporte(c.reporte); setNombreCuenta(c.nombre); setVista("reporte_lectura"); }}
-                                  className="w-full flex justify-between items-center text-xs hover:bg-white/5 p-1.5 -mx-1.5 rounded-lg transition-colors text-left group"
-                                >
+                                <button key={i} onClick={() => { setReporte(c.reporte); setNombreCuenta(c.nombre); setVista("reporte_lectura"); }} className="w-full flex justify-between items-center text-xs hover:bg-white/10 p-1.5 -mx-1.5 rounded-lg transition-colors text-left group">
                                    <span className="text-slate-300 group-hover:text-white truncate pr-2 transition-colors">{c.nombre}</span>
                                    <span className="text-red-400 font-bold bg-red-500/10 group-hover:bg-red-500/20 px-2 py-0.5 rounded transition-colors">{c.cant}</span>
                                 </button>
@@ -573,24 +625,16 @@ function AuditorDashboard() {
                       </div>
                    </div>
 
-                   {/* TARJETA OPORTUNIDADES CON LISTA INTERACTIVA */}
-                   <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px]">
-                      <div className="absolute -right-4 -top-4 w-24 h-24 bg-yellow-500/10 rounded-full blur-2xl"></div>
+                   <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px] hover:border-yellow-500/30 transition-colors">
                       <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 relative z-10 flex items-center gap-2"><Zap size={16} className="text-yellow-400"/> {t[idioma].oporMej}</p>
-                      
                       <div className="flex-1 flex flex-col">
                         <span className="text-5xl font-black text-white relative z-10 mb-4">{totalOportunidades}</span>
-                        
                         {cuentasAmarillas.length > 0 && (
                           <div className="mt-auto border-t border-white/5 pt-3 relative z-10">
                             <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">{t[idioma].afectaA}</p>
                             <div className="space-y-1.5">
                               {cuentasAmarillas.slice(0, 2).map((c,i) => (
-                                <button 
-                                  key={i} 
-                                  onClick={() => { setReporte(c.reporte); setNombreCuenta(c.nombre); setVista("reporte_lectura"); }}
-                                  className="w-full flex justify-between items-center text-xs hover:bg-white/5 p-1.5 -mx-1.5 rounded-lg transition-colors text-left group"
-                                >
+                                <button key={i} onClick={() => { setReporte(c.reporte); setNombreCuenta(c.nombre); setVista("reporte_lectura"); }} className="w-full flex justify-between items-center text-xs hover:bg-white/10 p-1.5 -mx-1.5 rounded-lg transition-colors text-left group">
                                    <span className="text-slate-300 group-hover:text-white truncate pr-2 transition-colors">{c.nombre}</span>
                                    <span className="text-yellow-400 font-bold bg-yellow-500/10 group-hover:bg-yellow-500/20 px-2 py-0.5 rounded transition-colors">{c.cant}</span>
                                 </button>
@@ -608,30 +652,28 @@ function AuditorDashboard() {
                          <h3 className="text-lg font-bold text-white">{t[idioma].ultAud}</h3>
                          <button onClick={() => setVista("historial")} className="text-sm font-bold text-[#FFA4BD] hover:text-white transition-colors">{t[idioma].verTodas}</button>
                        </div>
-                       
                        {historial.length === 0 ? (
                          <div className="flex-1 flex items-center justify-center text-slate-500 text-sm font-medium py-10 border border-dashed border-white/10 rounded-xl">{t[idioma].sinCuentas}</div>
                        ) : (
                          <div className="flex-1 bg-black/20 rounded-xl border border-white/5 overflow-hidden">
-                           <div className="grid grid-cols-4 gap-4 p-4 border-b border-white/10 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                           <div className="grid grid-cols-5 gap-4 p-4 border-b border-white/10 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                              <div className="col-span-2 pl-2">{t[idioma].thCliente}</div>
                              <div className="text-center">{t[idioma].score}</div>
-                             <div className="text-right pr-2">{t[idioma].thAccion}</div>
+                             <div className="col-span-2 text-right pr-2">{t[idioma].thAccion}</div>
                            </div>
                            <div className="divide-y divide-white/5">
                              {historial.slice(0, 5).map((item, index) => {
                                const estado = getEstadoData(item.score);
                                return (
-                                 <div key={index} className="grid grid-cols-4 gap-4 p-4 items-center hover:bg-white/5 transition-colors">
+                                 <div key={index} className="grid grid-cols-5 gap-4 p-4 items-center hover:bg-white/5 transition-colors">
                                    <div className="col-span-2 flex items-center gap-3 pl-2">
                                      <div className={`w-2 h-2 rounded-full ${estado.bg.replace('/10','/50')}`}></div>
                                      <p className="font-bold text-white text-sm truncate">{item.nombre_cuenta || t[idioma].cuentaSinNombre}</p>
                                    </div>
                                    <div className="text-center font-bold text-slate-300 text-sm">{item.score}</div>
-                                   <div className="text-right pr-2">
-                                     <button onClick={() => { setReporte(item.reporte_json); setNombreCuenta(item.nombre_cuenta || t[idioma].cuentaSinNombre); setVista("reporte_lectura"); }} className="text-xs font-bold bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-lg transition-colors">
-                                       Ver PDF
-                                     </button>
+                                   <div className="col-span-2 flex justify-end items-center gap-3 pr-2">
+                                     <button onClick={() => { setReporte(item.reporte_json); setNombreCuenta(item.nombre_cuenta || t[idioma].cuentaSinNombre); setVista("reporte_lectura"); }} className="text-xs font-bold bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-lg transition-colors">Ver PDF</button>
+                                     <button onClick={() => borrarAuditoria(item.id)} className="text-slate-500 hover:text-red-400 transition-colors p-1.5 rounded-lg hover:bg-red-500/10" title="Eliminar"><Trash2 size={16} /></button>
                                    </div>
                                  </div>
                                )
@@ -643,7 +685,6 @@ function AuditorDashboard() {
 
                     <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 backdrop-blur-xl">
                        <h3 className="text-lg font-bold text-white mb-6">{t[idioma].actRec}</h3>
-                       
                        {historial.length === 0 ? (
                          <div className="text-slate-500 text-sm font-medium text-center py-10">No hay actividad.</div>
                        ) : (
@@ -655,12 +696,8 @@ function AuditorDashboard() {
                                      <div className={`w-2 h-2 rounded-full ${item.score >= 80 ? 'bg-green-400' : item.score >= 50 ? 'bg-yellow-400' : 'bg-red-400'}`}></div>
                                   </div>
                                   <div>
-                                     <p className="text-sm text-slate-300 font-medium leading-tight">
-                                       {t[idioma].generada} <span className="text-white font-bold">{item.nombre_cuenta || t[idioma].cuentaSinNombre}</span>
-                                     </p>
-                                     <p className="text-[11px] text-slate-500 mt-1 flex items-center gap-1 font-bold tracking-wide">
-                                       <Clock size={10} /> {parseDate(item.created_at)} • Score: {item.score}
-                                     </p>
+                                     <p className="text-sm text-slate-300 font-medium leading-tight">{t[idioma].generada} <span className="text-white font-bold">{item.nombre_cuenta || t[idioma].cuentaSinNombre}</span></p>
+                                     <p className="text-[11px] text-slate-500 mt-1 flex items-center gap-1 font-bold tracking-wide"><Clock size={10} /> {parseDate(item.created_at)} • Score: {item.score}</p>
                                   </div>
                                </li>
                             ))}
@@ -671,70 +708,31 @@ function AuditorDashboard() {
               </div>
             )}
 
-            {/* VISTA: NUEVA AUDITORÍA */}
             {vista === "nueva" && (
-              <div className="print:hidden">
+              <div className="animate-fade-custom print:hidden">
                 <div className="bg-white/5 border border-white/10 backdrop-blur-2xl p-8 md:p-12 rounded-[2rem] shadow-2xl mb-8">
                   <div className="flex items-center gap-4 mb-8">
                     <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-black shadow-lg" style={melocotonGradient}><Zap size={24} /></div>
-                    <div>
-                      <h1 className="text-3xl font-bold text-white">{t[idioma].nueva}</h1>
-                      <p className="text-slate-400 mt-1">{t[idioma].ingresaDatos}</p>
-                    </div>
+                    <div><h1 className="text-3xl font-bold text-white">{t[idioma].nueva}</h1><p className="text-slate-400 mt-1">{t[idioma].ingresaDatos}</p></div>
                   </div>
-
-                  <div className="mb-6">
-                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">{t[idioma].placeholderNombre}</label>
-                    <input type="text" placeholder={t[idioma].placeholderNombre} className="w-full p-4 bg-black/40 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all" value={nombreCuenta} onChange={(e) => setNombreCuenta(e.target.value)} />
-                  </div>
-
+                  <div className="mb-6"><label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">{t[idioma].placeholderNombre}</label><input type="text" placeholder={t[idioma].placeholderNombre} className="w-full p-4 bg-black/40 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all" value={nombreCuenta} onChange={(e) => setNombreCuenta(e.target.value)} /></div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">{t[idioma].invMensual}</label>
-                      <input type="text" placeholder={`Ej: 1,500 ${moneda.split(" ")[0]}`} className="w-full p-4 bg-black/20 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all" value={inversion} onChange={(e) => setInversion(e.target.value)} />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">{t[idioma].conversiones}</label>
-                      <input type="text" placeholder={t[idioma].placeholderConv} className="w-full p-4 bg-black/20 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all" value={conversiones} onChange={(e) => setConversiones(e.target.value)} />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">{t[idioma].cparoas}</label>
-                      <input type="text" placeholder={`Ej: ${metrica} objetivo...`} className="w-full p-4 bg-black/20 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all" value={cpaRoas} onChange={(e) => setCpaRoas(e.target.value)} />
-                    </div>
+                    <div><label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">{t[idioma].invMensual}</label><input type="text" placeholder={`Ej: 1,500 ${moneda.split(" ")[0]}`} className="w-full p-4 bg-black/20 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all" value={inversion} onChange={(e) => setInversion(e.target.value)} /></div>
+                    <div><label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">{t[idioma].conversiones}</label><input type="text" placeholder={t[idioma].placeholderConv} className="w-full p-4 bg-black/20 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all" value={conversiones} onChange={(e) => setConversiones(e.target.value)} /></div>
+                    <div><label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">{t[idioma].cparoas}</label><input type="text" placeholder={`Ej: ${metrica} objetivo...`} className="w-full p-4 bg-black/20 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all" value={cpaRoas} onChange={(e) => setCpaRoas(e.target.value)} /></div>
                     <div>
                       <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">{t[idioma].tipoCamp}</label>
-                      <div className="relative">
-                        <select className="w-full p-4 bg-black/20 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all appearance-none cursor-pointer" value={tipoCampana} onChange={(e) => setTipoCampana(e.target.value)}>
-                          <option value="Búsqueda (Search)" className="bg-[#0f0f13] text-white">Búsqueda (Search)</option>
-                          <option value="Performance Max" className="bg-[#0f0f13] text-white">Performance Max</option>
-                          <option value="Display" className="bg-[#0f0f13] text-white">Display</option>
-                          <option value="Shopping" className="bg-[#0f0f13] text-white">Shopping</option>
-                          <option value="Video (YouTube)" className="bg-[#0f0f13] text-white">Video (YouTube)</option>
-                          <option value="Mix de Campañas" className="bg-[#0f0f13] text-white">Mix de Campañas</option>
-                        </select>
-                        <ChevronDown size={18} className="absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400 pointer-events-none" />
-                      </div>
+                      <div className="relative"><select className="w-full p-4 bg-black/20 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all appearance-none cursor-pointer" value={tipoCampana} onChange={(e) => setTipoCampana(e.target.value)}><option value="Búsqueda (Search)" className="bg-[#0f0f13] text-white">Búsqueda (Search)</option><option value="Performance Max" className="bg-[#0f0f13] text-white">Performance Max</option><option value="Display" className="bg-[#0f0f13] text-white">Display</option><option value="Shopping" className="bg-[#0f0f13] text-white">Shopping</option><option value="Video (YouTube)" className="bg-[#0f0f13] text-white">Video (YouTube)</option><option value="Mix de Campañas" className="bg-[#0f0f13] text-white">Mix de Campañas</option></select><ChevronDown size={18} className="absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400 pointer-events-none" /></div>
                     </div>
                   </div>
-
-                  <div className="mb-8">
-                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">{t[idioma].contexto}</label>
-                    <textarea className="w-full h-24 p-4 bg-black/20 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all resize-none" placeholder={t[idioma].placeholderContexto} value={notas} onChange={(e) => setNotas(e.target.value)} />
-                  </div>
-
-                  <button 
-                    onClick={analizarCampaña} 
-                    disabled={loading || !nombreCuenta || !inversion || !conversiones} 
-                    className="w-full text-black px-6 py-4 rounded-2xl font-bold text-lg hover:scale-[1.01] disabled:opacity-50 disabled:hover:scale-100 transition-all shadow-lg flex justify-center items-center gap-2" 
-                    style={melocotonGradient}
-                  >
+                  <div className="mb-8"><label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">{t[idioma].contexto}</label><textarea className="w-full h-24 p-4 bg-black/20 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all resize-none" placeholder={t[idioma].placeholderContexto} value={notas} onChange={(e) => setNotas(e.target.value)} /></div>
+                  <button onClick={analizarCampaña} disabled={loading || !nombreCuenta || !inversion || !conversiones} className="w-full text-black px-6 py-4 rounded-2xl font-bold text-lg hover:scale-[1.01] disabled:opacity-50 disabled:hover:scale-100 transition-all shadow-lg flex justify-center items-center gap-2" style={melocotonGradient}>
                     {loading ? <span className="animate-pulse">{t[idioma].btnAnalizando}</span> : <><Target size={20}/> {t[idioma].btnAnalizar}</>}
                   </button>
                 </div>
               </div>
             )}
 
-            {/* REPORTE COMPARTIDO */}
             {((vista === "nueva" && reporte) || (vista === "reporte_lectura" && reporte)) && (
               <div className="animate-fade-custom print:bg-white print:m-0 print:p-0">
                 {vista === "reporte_lectura" && (
@@ -749,7 +747,6 @@ function AuditorDashboard() {
                       <p className="text-sm font-medium text-slate-500 mt-1">{new Date().toLocaleDateString()}</p>
                     </div>
                   </div>
-
                   <div className="flex justify-between items-center mb-10 print:mb-12">
                     <div>
                       <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-3 print:text-slate-500 print:text-xs">{nombreCuenta || t[idioma].cuentaSinNombre}</h2>
@@ -760,7 +757,6 @@ function AuditorDashboard() {
                     </div>
                     <button onClick={descargarPDF} className="bg-white/5 border border-white/10 hover:bg-white/10 text-white px-6 py-3 rounded-xl font-bold transition-all print:hidden shadow-sm">{t[idioma].exportar}</button>
                   </div>
-                  
                   <div className="space-y-6">
                     <div className="border-l-4 pl-6 bg-red-500/5 p-6 rounded-2xl border border-red-500/10 print:bg-red-50 print:border-red-100 print:shadow-sm" style={{ borderLeftColor: '#ef4444' }}>
                       <h3 className="text-xl font-bold text-red-400 mb-4 flex items-center gap-2 print:text-red-700"><AlertTriangle size={24}/> {t[idioma].problemas}</h3>
@@ -780,9 +776,8 @@ function AuditorDashboard() {
               </div>
             )}
 
-            {/* VISTA: HISTORIAL DE CLIENTES */}
             {vista === "historial" && (
-              <div className="bg-white/5 border border-white/10 backdrop-blur-2xl p-8 rounded-[2rem] shadow-2xl animate-fade-custom flex flex-col min-h-[600px] print:hidden">
+              <div className="animate-fade-custom bg-white/5 border border-white/10 backdrop-blur-2xl p-8 rounded-[2rem] shadow-2xl flex flex-col min-h-[600px] print:hidden">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
                    <div className="flex items-center gap-4">
                       <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-white border border-white/10"><Users size={24} /></div>
@@ -837,9 +832,12 @@ function AuditorDashboard() {
                                <fakeTrend.icon size={14} className={fakeTrend.color} />
                                <span className={`text-sm font-bold ${fakeTrend.color}`}>{fakeTrend.val} pts</span>
                             </div>
-                            <div className="col-span-3 flex justify-end items-center pr-2">
+                            <div className="col-span-3 flex justify-end items-center gap-3 pr-2">
                               <button onClick={() => { setReporte(item.reporte_json); setNombreCuenta(item.nombre_cuenta || t[idioma].cuentaSinNombre); setVista("reporte_lectura"); }} className="text-xs font-bold text-[#FFA4BD] hover:text-white flex items-center gap-1 transition-colors bg-white/5 hover:bg-white/10 px-4 py-2.5 rounded-xl border border-white/5">
                                 {t[idioma].abrirAud} <ArrowRight size={14} />
+                              </button>
+                              <button onClick={() => borrarAuditoria(item.id)} className="text-slate-500 hover:text-red-400 transition-colors p-2 rounded-lg hover:bg-red-500/10" title="Eliminar auditoría">
+                                <Trash2 size={18} />
                               </button>
                             </div>
                           </div>
@@ -852,7 +850,7 @@ function AuditorDashboard() {
             )}
 
             {vista === "perfil" && (
-              <div className="bg-white/5 border border-white/10 backdrop-blur-2xl p-10 rounded-[2rem] shadow-2xl mx-auto animate-fade-custom print:hidden">
+              <div className="animate-fade-custom bg-white/5 border border-white/10 backdrop-blur-2xl p-10 rounded-[2rem] shadow-2xl mx-auto print:hidden">
                 <div className="flex items-center gap-4 mb-8">
                    <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-white border border-white/10"><Settings size={24} /></div>
                    <div>
@@ -895,7 +893,7 @@ function AuditorDashboard() {
             )}
 
             {vista === "facturacion" && (
-              <div className="bg-white/5 border border-white/10 backdrop-blur-2xl p-10 rounded-[2rem] shadow-2xl max-w-2xl mx-auto animate-fade-custom print:hidden">
+              <div className="animate-fade-custom bg-white/5 border border-white/10 backdrop-blur-2xl p-10 rounded-[2rem] shadow-2xl max-w-2xl mx-auto print:hidden">
                 <div className="flex items-center gap-4 mb-8">
                    <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-white border border-white/10"><CreditCard size={24} /></div>
                    <div>
@@ -917,7 +915,7 @@ function AuditorDashboard() {
             )}
 
             {vista === "feedback" && (
-              <div className="bg-white/5 border border-white/10 backdrop-blur-2xl p-10 rounded-[2rem] shadow-2xl max-w-2xl mx-auto text-center animate-fade-custom print:hidden">
+              <div className="animate-fade-custom bg-white/5 border border-white/10 backdrop-blur-2xl p-10 rounded-[2rem] shadow-2xl max-w-2xl mx-auto text-center print:hidden">
                 <div className="flex justify-center mb-6"><div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center text-white border border-white/10"><MessageSquare size={32} /></div></div>
                 <h2 className="text-3xl font-bold mb-3 text-white">{t[idioma].ayudanos}</h2>
                 <p className="text-slate-400 mb-8 font-medium">{t[idioma].bug}</p>
