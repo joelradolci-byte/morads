@@ -17,7 +17,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 const melocotonGradient = { background: "linear-gradient(90deg, #FEECE3 0%, #FCD5BF 25%, #FEAFAE 50%, #FFA4BD 75%, #FFA9CC 100%)" };
 const melocotonText = { background: "linear-gradient(90deg, #FEECE3 0%, #FCD5BF 25%, #FEAFAE 50%, #FFA4BD 75%, #FFA9CC 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" };
 
-// COMPONENTE PARA ANIMAR AL SCROLLEAR (LANDING PAGE)
+// COMPONENTE PARA ANIMAR AL SCROLLEAR
 function FadeInOnScroll({ children, delay = 0 }: { children: React.ReactNode, delay?: number }) {
   const [isVisible, setVisible] = useState(false);
   const domRef = useRef<HTMLDivElement>(null);
@@ -40,14 +40,90 @@ function FadeInOnScroll({ children, delay = 0 }: { children: React.ReactNode, de
   );
 }
 
-// FONDO ANIMADO ABSTRACTO (BLOBS)
-const BackgroundAbstract = () => (
-  <div className="fixed inset-0 w-full h-full overflow-hidden pointer-events-none z-0 print:hidden">
-    <div className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] rounded-full bg-[#FFA4BD] opacity-[0.03] blur-[120px] animate-blob"></div>
-    <div className="absolute top-[20%] right-[-10%] w-[40vw] h-[40vw] rounded-full bg-[#FEAFAE] opacity-[0.03] blur-[120px] animate-blob animation-delay-2000"></div>
-    <div className="absolute bottom-[-20%] left-[20%] w-[60vw] h-[60vw] rounded-full bg-[#FCD5BF] opacity-[0.02] blur-[150px] animate-blob animation-delay-4000"></div>
-  </div>
-);
+// FONDO RED NEURONAL IA (Canvas animado, ligero y elegante)
+const NeuralBackground = () => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    let width = window.innerWidth;
+    let height = window.innerHeight;
+    canvas.width = width;
+    canvas.height = height;
+
+    const particles: {x: number, y: number, vx: number, vy: number, radius: number}[] = [];
+    const numParticles = Math.floor((width * height) / 12000); // Densidad adaptable
+
+    for (let i = 0; i < numParticles; i++) {
+      particles.push({
+        x: Math.random() * width,
+        y: Math.random() * height,
+        vx: (Math.random() - 0.5) * 0.4, // Movimiento lento
+        vy: (Math.random() - 0.5) * 0.4,
+        radius: Math.random() * 1.5 + 0.5
+      });
+    }
+
+    let animationFrameId: number;
+
+    const render = () => {
+      ctx.clearRect(0, 0, width, height);
+      ctx.fillStyle = 'rgba(254, 175, 174, 0.6)'; // Melocotón/Rosa para los puntos
+      ctx.strokeStyle = 'rgba(254, 175, 174, 0.12)'; // Melocotón transparente para las líneas
+
+      for (let i = 0; i < numParticles; i++) {
+        let p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+
+        if (p.x < 0 || p.x > width) p.vx *= -1;
+        if (p.y < 0 || p.y > height) p.vy *= -1;
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Conectar con otras partículas
+        for (let j = i + 1; j < numParticles; j++) {
+          let p2 = particles[j];
+          let dx = p.x - p2.x;
+          let dy = p.y - p2.y;
+          let dist = Math.sqrt(dx * dx + dy * dy);
+
+          if (dist < 130) { // Distancia de conexión
+            ctx.beginPath();
+            ctx.moveTo(p.x, p.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.lineWidth = 1 - dist / 130;
+            ctx.stroke();
+          }
+        }
+      }
+      animationFrameId = requestAnimationFrame(render);
+    };
+
+    render();
+
+    const handleResize = () => {
+      width = window.innerWidth;
+      height = window.innerHeight;
+      canvas.width = width;
+      canvas.height = height;
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, []);
+
+  return <canvas ref={canvasRef} className="fixed inset-0 w-full h-full pointer-events-none z-0 print:hidden opacity-50 mix-blend-screen" />;
+};
 
 function AuditorDashboard() {
   const { data: session, status } = useSession();
@@ -89,7 +165,7 @@ function AuditorDashboard() {
       dashboard: "Dashboard", panelPrin: "Panel Principal", panelDesc: "Resumen del rendimiento global de tu agencia.",
       saludG: "Salud Promedio", totAud: "Total Cuentas", fugasDet: "Fugas Críticas", oporMej: "Oportunidades",
       ultAud: "Últimas Auditorías", actRec: "Actividad Reciente", verTodas: "Ver todas", generada: "Se auditó la cuenta", hace: "Hace",
-      afectaA: "Afecta principalmente a:",
+      afectaA: "Afecta principalmente a:", buscarGlobal: "Buscar cuentas, reportes...", usoMensual: "Uso Mensual", ilimitado: "Ilimitado en tu plan",
       nueva: "Auditor IA", clientes: "Panel de Clientes",
       reportes: "Reportes", feedback: "Sugerencias", configuracion: "Configuración General", facturacion: "Ver Facturación", salir: "Cerrar Sesión",
       placeholderNombre: "Nombre del Cliente o Cuenta", btnAnalizar: "Ejecutar Auditoría", btnAnalizando: "Analizando métricas...", exportar: "Exportar a PDF",
@@ -124,7 +200,7 @@ function AuditorDashboard() {
       dashboard: "Dashboard", panelPrin: "Main Dashboard", panelDesc: "Global overview of your agency's performance.",
       saludG: "Avg Health Score", totAud: "Total Accounts", fugasDet: "Critical Leaks", oporMej: "Opportunities",
       ultAud: "Recent Audits", actRec: "Recent Activity", verTodas: "View all", generada: "Audit generated for", hace: "Ago",
-      afectaA: "Mainly affecting:",
+      afectaA: "Mainly affecting:", buscarGlobal: "Search accounts, reports...", usoMensual: "Monthly Usage", ilimitado: "Unlimited on your plan",
       nueva: "AI Auditor", clientes: "Client Dashboard",
       reportes: "Reports", feedback: "Feedback", configuracion: "General Settings", facturacion: "Billing", salir: "Sign Out",
       placeholderNombre: "Client or Account Name", btnAnalizar: "Run Audit", btnAnalizando: "Analyzing metrics...", exportar: "Export to PDF",
@@ -181,7 +257,6 @@ function AuditorDashboard() {
     setCargandoHistorial(false);
   };
 
-  // FUNCIÓN PARA ELIMINAR AUDITORÍA
   const borrarAuditoria = async (id: number) => {
     if (!window.confirm(t[idioma].confirmarBorrar)) return;
     const { error } = await supabase.from('historial_auditorias').delete().eq('id', id);
@@ -270,7 +345,7 @@ function AuditorDashboard() {
       
       setReporte(parsedReporte);
       await supabase.from('historial_auditorias').insert([{ usuario_email: session.user.email, score: parsedReporte.score_general, reporte_json: parsedReporte, nombre_cuenta: nombreCuenta || "Sin nombre" }]);
-      cargarHistorial(); // Refrescamos historial para tener el ID nuevo
+      cargarHistorial(); 
     } catch (error) {
       console.error("Error completo:", error);
       alert("Error al analizar los datos. Revisá la consola.");
@@ -328,15 +403,15 @@ function AuditorDashboard() {
   cuentasRojas.sort((a,b) => b.cant - a.cant);
   cuentasAmarillas.sort((a,b) => b.cant - a.cant);
 
-  if (status === "loading") return <div className="h-screen w-full flex justify-center items-center text-xl font-bold text-white">Cargando...</div>;
+  if (status === "loading") return <div className="h-screen w-full flex justify-center items-center text-xl font-bold text-white bg-[#0a0a0c]">Cargando...</div>;
 
   // =========================================================================
-  // LANDING PAGE PREMIUM CON ANIMACIONES SCROLL
+  // LANDING PAGE PREMIUM 
   // =========================================================================
   if (!session) {
     return (
       <div className="min-h-screen w-full font-sans text-slate-200 overflow-y-auto overflow-x-hidden bg-[#0a0a0c] selection:bg-[#FEAFAE] selection:text-black relative">
-        <BackgroundAbstract />
+        <NeuralBackground />
         
         <nav className="w-full max-w-7xl mx-auto px-6 py-6 flex justify-between items-center z-50 relative">
           <div className="flex items-center gap-2">
@@ -492,23 +567,14 @@ function AuditorDashboard() {
         }
         @keyframes fadeInCustom { 0% { opacity: 0; transform: translateY(15px); } 100% { opacity: 1; transform: translateY(0); } }
         .animate-fade-custom { animation: fadeInCustom 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-        
-        @keyframes blob {
-          0% { transform: translate(0px, 0px) scale(1); }
-          33% { transform: translate(30px, -50px) scale(1.1); }
-          66% { transform: translate(-20px, 20px) scale(0.9); }
-          100% { transform: translate(0px, 0px) scale(1); }
-        }
-        .animate-blob { animation: blob 15s infinite alternate ease-in-out; }
-        .animation-delay-2000 { animation-delay: 2s; }
-        .animation-delay-4000 { animation-delay: 4s; }
       `}} />
 
       <div className="flex h-screen w-full font-sans text-slate-200 overflow-hidden print-container relative bg-[#0a0a0c]">
         
-        <BackgroundAbstract />
+        <NeuralBackground />
 
-        <aside className="w-64 bg-white/[0.02] backdrop-blur-3xl border-r border-white/5 flex flex-col justify-between print:hidden z-20 shadow-[10px_0_30px_rgba(0,0,0,0.5)]">
+        {/* SIDEBAR */}
+        <aside className="w-64 bg-[#0a0a0c]/40 backdrop-blur-2xl border-r border-white/5 flex flex-col justify-between print:hidden z-20 relative">
           <div>
             <div className="h-20 flex items-center px-6 border-b border-white/5 gap-3">
                <div className="w-8 h-8 rounded-lg flex items-center justify-center font-black text-black text-xl shadow-lg" style={melocotonGradient}>M</div>
@@ -533,12 +599,25 @@ function AuditorDashboard() {
               ))}
             </div>
           </div>
+          
+          {/* NUEVO WIDGET LATERAL: USO MENSUAL */}
+          <div className="mx-4 mb-6 p-4 rounded-xl bg-black/40 border border-white/5 relative z-10 backdrop-blur-md">
+             <div className="flex justify-between items-center mb-3">
+               <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t[idioma].usoMensual}</span>
+               <span className="text-xs text-[#FEAFAE] font-bold px-2 py-0.5 bg-[#FEAFAE]/10 rounded-md">Pro</span>
+             </div>
+             <div className="w-full bg-white/5 rounded-full h-1.5 mb-2 overflow-hidden">
+               <div className="bg-gradient-to-r from-[#FCD5BF] to-[#FEAFAE] h-1.5 rounded-full" style={{width: '35%'}}></div>
+             </div>
+             <p className="text-[10px] text-slate-500 font-medium">{t[idioma].ilimitado}</p>
+          </div>
         </aside>
 
+        {/* CONTENIDO PRINCIPAL */}
         <main className="flex-1 flex flex-col relative overflow-y-auto z-10 print:overflow-visible print:h-auto print:static">
           
-          <header className="h-20 flex justify-between items-center px-8 print:hidden border-b border-white/5 bg-white/[0.01] backdrop-blur-md sticky top-0 z-30">
-            <h2 className="text-2xl font-bold text-white tracking-tight">
+          <header className="h-20 flex justify-between items-center px-8 print:hidden border-b border-white/5 bg-[#0a0a0c]/20 backdrop-blur-md sticky top-0 z-30">
+            <h2 className="text-2xl font-bold text-white tracking-tight min-w-[200px]">
               {vista === 'dashboard' && t[idioma].dashboard}
               {vista === 'nueva' && t[idioma].nueva}
               {vista === 'historial' && t[idioma].clientes}
@@ -547,12 +626,27 @@ function AuditorDashboard() {
               {vista === 'feedback' && t[idioma].buzonSug}
               {vista === 'facturacion' && t[idioma].facturacionTitulo}
             </h2>
+
+            {/* NUEVA BARRA DE BÚSQUEDA GLOBAL CENTRADA */}
+            <div className="hidden md:flex items-center justify-center flex-1 max-w-md mx-8">
+               <div className="relative w-full group">
+                  <Search size={14} className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-500 group-focus-within:text-[#FEAFAE] transition-colors" />
+                  <input type="text" placeholder={t[idioma].buscarGlobal} className="w-full bg-black/40 border border-white/10 rounded-full pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#FEAFAE]/50 focus:bg-black/60 transition-all placeholder:text-slate-500 shadow-inner" />
+                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex gap-1">
+                    <span className="text-[10px] text-slate-500 font-mono border border-white/10 rounded px-1.5 py-0.5">⌘</span>
+                    <span className="text-[10px] text-slate-500 font-mono border border-white/10 rounded px-1.5 py-0.5">K</span>
+                  </div>
+               </div>
+            </div>
             
-            <div className="relative">
+            <div className="relative min-w-[200px] flex justify-end">
                <button onClick={() => setMenuPerfil(!menuPerfil)} className="flex items-center gap-3 hover:bg-white/5 p-2 rounded-xl transition-colors border border-transparent hover:border-white/10">
-                  <div className="text-right hidden md:block">
+                  <div className="text-right hidden lg:block">
                     <p className="text-sm font-bold text-white leading-tight">{session.user?.name}</p>
-                    <p className="text-xs text-[#FFA4BD] font-medium">{perfil?.plan === 'pro' ? 'Plan Pro' : 'Plan Free'}</p>
+                    <div className="flex items-center justify-end gap-1.5 mt-0.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-green-400"></span>
+                      <p className="text-xs text-slate-400 font-medium">Sistemas Operativos</p>
+                    </div>
                   </div>
                   <img src={session.user?.image || ""} alt="Perfil" className="w-10 h-10 rounded-full border-2 border-[#FEAFAE] shadow-sm" />
                   <ChevronDown size={16} className="text-slate-400" />
@@ -580,17 +674,18 @@ function AuditorDashboard() {
             </div>
           </header>
 
-          <div className="p-8 pb-32 max-w-6xl mx-auto w-full print:p-0 print:pb-0" key={vista}>
+          {/* AMPLIADO EL ANCHO MAXIMO DE 6XL A 7XL PARA LLENAR MARGENES */}
+          <div className="p-8 pb-32 max-w-7xl mx-auto w-full print:p-0 print:pb-0" key={vista}>
             
             {vista === "dashboard" && (
-              <div className="animate-fade-custom print:hidden flex flex-col gap-8">
+              <div className="animate-fade-custom print:hidden flex flex-col gap-8 relative z-10">
                 <div>
                   <h2 className="text-3xl font-bold text-white">{t[idioma].panelPrin}</h2>
                   <p className="text-slate-400 text-sm mt-1">{t[idioma].panelDesc}</p>
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                   <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px] hover:bg-white/10 transition-colors">
+                   <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px] hover:bg-white/10 transition-colors shadow-lg">
                       <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 relative z-10 flex items-center gap-2"><Activity size={16}/> {t[idioma].saludG}</p>
                       <div className="flex items-end gap-3 relative z-10">
                         <span className={`text-5xl font-black ${promedioScore >= 80 ? 'text-green-400' : promedioScore >= 50 ? 'text-yellow-400' : 'text-red-400'}`}>
@@ -600,12 +695,13 @@ function AuditorDashboard() {
                       </div>
                    </div>
 
-                   <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px] hover:bg-white/10 transition-colors">
+                   <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px] hover:bg-white/10 transition-colors shadow-lg">
                       <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 relative z-10 flex items-center gap-2"><Users size={16}/> {t[idioma].totAud}</p>
                       <span className="text-5xl font-black text-white relative z-10">{totalAuditorias}</span>
                    </div>
 
-                   <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px] hover:border-red-500/30 transition-colors">
+                   <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px] hover:border-red-500/30 transition-colors shadow-lg">
+                      <div className="absolute -right-4 -top-4 w-24 h-24 bg-red-500/10 rounded-full blur-2xl"></div>
                       <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 relative z-10 flex items-center gap-2"><AlertTriangle size={16} className="text-red-400"/> {t[idioma].fugasDet}</p>
                       <div className="flex-1 flex flex-col">
                         <span className="text-5xl font-black text-white relative z-10 mb-4">{totalFugas}</span>
@@ -625,7 +721,8 @@ function AuditorDashboard() {
                       </div>
                    </div>
 
-                   <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px] hover:border-yellow-500/30 transition-colors">
+                   <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px] hover:border-yellow-500/30 transition-colors shadow-lg">
+                      <div className="absolute -right-4 -top-4 w-24 h-24 bg-yellow-500/10 rounded-full blur-2xl"></div>
                       <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 relative z-10 flex items-center gap-2"><Zap size={16} className="text-yellow-400"/> {t[idioma].oporMej}</p>
                       <div className="flex-1 flex flex-col">
                         <span className="text-5xl font-black text-white relative z-10 mb-4">{totalOportunidades}</span>
@@ -647,7 +744,7 @@ function AuditorDashboard() {
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div className="lg:col-span-2 bg-white/5 border border-white/10 rounded-[2rem] p-6 backdrop-blur-xl flex flex-col">
+                    <div className="lg:col-span-2 bg-white/5 border border-white/10 rounded-[2rem] p-6 backdrop-blur-xl flex flex-col shadow-lg">
                        <div className="flex justify-between items-center mb-6">
                          <h3 className="text-lg font-bold text-white">{t[idioma].ultAud}</h3>
                          <button onClick={() => setVista("historial")} className="text-sm font-bold text-[#FFA4BD] hover:text-white transition-colors">{t[idioma].verTodas}</button>
@@ -683,7 +780,7 @@ function AuditorDashboard() {
                        )}
                     </div>
 
-                    <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 backdrop-blur-xl">
+                    <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 backdrop-blur-xl shadow-lg">
                        <h3 className="text-lg font-bold text-white mb-6">{t[idioma].actRec}</h3>
                        {historial.length === 0 ? (
                          <div className="text-slate-500 text-sm font-medium text-center py-10">No hay actividad.</div>
@@ -709,7 +806,7 @@ function AuditorDashboard() {
             )}
 
             {vista === "nueva" && (
-              <div className="animate-fade-custom print:hidden">
+              <div className="animate-fade-custom print:hidden relative z-10">
                 <div className="bg-white/5 border border-white/10 backdrop-blur-2xl p-8 md:p-12 rounded-[2rem] shadow-2xl mb-8">
                   <div className="flex items-center gap-4 mb-8">
                     <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-black shadow-lg" style={melocotonGradient}><Zap size={24} /></div>
@@ -734,7 +831,7 @@ function AuditorDashboard() {
             )}
 
             {((vista === "nueva" && reporte) || (vista === "reporte_lectura" && reporte)) && (
-              <div className="animate-fade-custom print:bg-white print:m-0 print:p-0">
+              <div className="animate-fade-custom print:bg-white print:m-0 print:p-0 relative z-10">
                 {vista === "reporte_lectura" && (
                   <button onClick={() => setVista("dashboard")} className="mb-6 flex items-center gap-2 text-slate-400 hover:text-white font-medium transition-colors print:hidden"><ArrowLeft size={18} /> {t[idioma].volver}</button>
                 )}
@@ -777,7 +874,7 @@ function AuditorDashboard() {
             )}
 
             {vista === "historial" && (
-              <div className="animate-fade-custom bg-white/5 border border-white/10 backdrop-blur-2xl p-8 rounded-[2rem] shadow-2xl flex flex-col min-h-[600px] print:hidden">
+              <div className="animate-fade-custom bg-white/5 border border-white/10 backdrop-blur-2xl p-8 rounded-[2rem] shadow-2xl flex flex-col min-h-[600px] print:hidden relative z-10">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
                    <div className="flex items-center gap-4">
                       <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-white border border-white/10"><Users size={24} /></div>
@@ -850,7 +947,7 @@ function AuditorDashboard() {
             )}
 
             {vista === "perfil" && (
-              <div className="animate-fade-custom bg-white/5 border border-white/10 backdrop-blur-2xl p-10 rounded-[2rem] shadow-2xl mx-auto print:hidden">
+              <div className="animate-fade-custom bg-white/5 border border-white/10 backdrop-blur-2xl p-10 rounded-[2rem] shadow-2xl mx-auto print:hidden relative z-10">
                 <div className="flex items-center gap-4 mb-8">
                    <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-white border border-white/10"><Settings size={24} /></div>
                    <div>
@@ -893,7 +990,7 @@ function AuditorDashboard() {
             )}
 
             {vista === "facturacion" && (
-              <div className="animate-fade-custom bg-white/5 border border-white/10 backdrop-blur-2xl p-10 rounded-[2rem] shadow-2xl max-w-2xl mx-auto print:hidden">
+              <div className="animate-fade-custom bg-white/5 border border-white/10 backdrop-blur-2xl p-10 rounded-[2rem] shadow-2xl max-w-2xl mx-auto print:hidden relative z-10">
                 <div className="flex items-center gap-4 mb-8">
                    <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-white border border-white/10"><CreditCard size={24} /></div>
                    <div>
@@ -915,7 +1012,7 @@ function AuditorDashboard() {
             )}
 
             {vista === "feedback" && (
-              <div className="animate-fade-custom bg-white/5 border border-white/10 backdrop-blur-2xl p-10 rounded-[2rem] shadow-2xl max-w-2xl mx-auto text-center print:hidden">
+              <div className="animate-fade-custom bg-white/5 border border-white/10 backdrop-blur-2xl p-10 rounded-[2rem] shadow-2xl max-w-2xl mx-auto text-center print:hidden relative z-10">
                 <div className="flex justify-center mb-6"><div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center text-white border border-white/10"><MessageSquare size={32} /></div></div>
                 <h2 className="text-3xl font-bold mb-3 text-white">{t[idioma].ayudanos}</h2>
                 <p className="text-slate-400 mb-8 font-medium">{t[idioma].bug}</p>
@@ -926,7 +1023,7 @@ function AuditorDashboard() {
 
           </div>
 
-          <button onClick={() => { setVista("feedback"); setReporte(null); setMenuPerfil(false); }} className="fixed bottom-8 right-8 bg-white/10 text-white px-5 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 transition-transform flex items-center gap-2 border border-white/20 print:hidden backdrop-blur-md">
+          <button onClick={() => { setVista("feedback"); setReporte(null); setMenuPerfil(false); }} className="fixed bottom-8 right-8 bg-white/10 text-white px-5 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 transition-transform flex items-center gap-2 border border-white/20 print:hidden backdrop-blur-md relative z-10">
             <MessageSquare size={18} /> {t[idioma].feedback}
           </button>
 
