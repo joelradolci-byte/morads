@@ -7,7 +7,7 @@ import {
   Target, Users, Building2, MessageSquare, LogOut, ChevronDown, 
   Zap, AlertTriangle, CheckCircle2, CreditCard, Settings, 
   Search, ArrowRight, ArrowLeft, TrendingUp, TrendingDown, LayoutPanelLeft,
-  FileText, BarChart3, ShieldCheck, Plus, Clock, Activity, Trash2, HeadphonesIcon
+  FileText, BarChart3, ShieldCheck, Plus, Clock, Activity, Trash2, Lock
 } from 'lucide-react';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -602,20 +602,27 @@ function AuditorDashboard() {
             </div>
           </div>
           
-          {/* NUEVO WIDGET LATERAL: SOPORTE VIP */}
+          {/* NUEVO WIDGET LATERAL: SOPORTE VIP PREMIUM */}
           <div className="mx-4 mb-6 p-4 rounded-xl bg-black/40 border border-white/5 relative z-10 backdrop-blur-md">
              <div className="flex items-center gap-3 mb-2">
-               <div className="p-2 bg-[#FEAFAE]/10 rounded-lg text-[#FEAFAE]">
-                 <ShieldCheck size={18} />
+               <div className={`p-2 rounded-lg ${perfil?.plan === 'pro' ? 'bg-[#FEAFAE]/10 text-[#FEAFAE]' : 'bg-white/5 text-slate-500'}`}>
+                 {perfil?.plan === 'pro' ? <ShieldCheck size={18} /> : <Lock size={18} />}
                </div>
                <div>
-                 <p className="text-xs font-bold text-white">Soporte VIP</p>
-                 <p className="text-[10px] text-slate-400">Respuesta en 1h</p>
+                 <p className={`text-xs font-bold ${perfil?.plan === 'pro' ? 'text-white' : 'text-slate-400'}`}>Soporte VIP</p>
+                 <p className="text-[10px] text-slate-400">{perfil?.plan === 'pro' ? 'Línea directa (1h)' : 'Exclusivo Plan Pro'}</p>
                </div>
              </div>
-             <button onClick={() => setVista("feedback")} className="w-full mt-2 py-1.5 text-xs font-bold text-[#0a0a0c] rounded-lg hover:opacity-90 transition-opacity" style={melocotonGradient}>
-               Contactar
-             </button>
+             
+             {perfil?.plan === 'pro' ? (
+               <button onClick={() => window.location.href = "mailto:soporte@tuagencia.com?subject=Soporte%20VIP%20Mora"} className="w-full mt-2 py-1.5 text-xs font-bold text-[#0a0a0c] rounded-lg hover:opacity-90 transition-opacity" style={melocotonGradient}>
+                 Contactar Soporte
+               </button>
+             ) : (
+               <button onClick={() => setVista("facturacion")} className="w-full mt-2 py-1.5 text-xs font-bold text-slate-300 bg-white/5 hover:bg-white/10 rounded-lg transition-colors border border-white/10">
+                 Desbloquear
+               </button>
+             )}
           </div>
         </aside>
 
@@ -633,7 +640,7 @@ function AuditorDashboard() {
               {vista === 'facturacion' && t[idioma].facturacionTitulo}
             </h2>
 
-            {/* BARRA DE BÚSQUEDA GLOBAL CONECTADA */}
+            {/* BARRA DE BÚSQUEDA GLOBAL CONECTADA Y LIMPIA */}
             <div className="hidden md:flex items-center justify-center flex-1 max-w-md mx-8">
                <div className="relative w-full group">
                   <Search size={14} className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-500 group-focus-within:text-[#FEAFAE] transition-colors" />
@@ -652,6 +659,7 @@ function AuditorDashboard() {
                </div>
             </div>
             
+            {/* CORRECCIÓN DEL DROPDOWN: AHORA ENVUELTO EN DIV RELATIVE */}
             <div className="relative min-w-[200px] flex justify-end">
                <button onClick={() => setMenuPerfil(!menuPerfil)} className="flex items-center gap-3 hover:bg-white/5 p-2 rounded-xl transition-colors border border-transparent hover:border-white/10">
                   <div className="text-right hidden lg:block">
@@ -665,11 +673,11 @@ function AuditorDashboard() {
                   <ChevronDown size={16} className="text-slate-400" />
                </button>
 
-               {/* CAPA INVISIBLE PARA CERRAR EL MENÚ */}
+               {/* CAPA INVISIBLE PARA CERRAR EL MENÚ Y TOP-FULL PARA QUE CAIGA ABAJO */}
                {menuPerfil && (
                  <>
                    <div className="fixed inset-0 z-40 cursor-default" onClick={() => setMenuPerfil(false)}></div>
-                   <div className="absolute right-0 mt-2 w-64 bg-[#0f0f13]/95 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-2xl py-2 z-50 animate-fade-custom">
+                   <div className="absolute right-0 top-full mt-2 w-64 bg-[#0f0f13]/95 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-2xl py-2 z-50 animate-fade-custom">
                       <div className="px-4 py-3 border-b border-white/5">
                          <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">{t[idioma].suscripcion}</p>
                          <div className="flex items-center gap-2 mb-1">
@@ -1038,7 +1046,7 @@ function AuditorDashboard() {
         </main>
       </div>
 
-      {/* BOTÓN DE FEEDBACK FLOTANTE ARREGLADO (Z-50) */}
+      {/* BOTÓN FLOTANTE ARREGLADO (Siempre abajo a la derecha) */}
       {session && (
         <button onClick={() => { setVista("feedback"); setReporte(null); setMenuPerfil(false); }} className="fixed bottom-8 right-8 z-50 bg-white/10 text-white px-5 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 transition-transform flex items-center gap-2 border border-white/20 print:hidden backdrop-blur-md">
           <MessageSquare size={18} /> {t[idioma].feedback}
