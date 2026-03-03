@@ -18,20 +18,24 @@ const melocotonText = { background: "linear-gradient(90deg, #FEECE3 0%, #FCD5BF 
 
 function AuditorDashboard() {
   const { data: session, status } = useSession();
-  const [data, setData] = useState("");
   const [nombreCuenta, setNombreCuenta] = useState("");
   const [reporte, setReporte] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
+  // NUEVOS ESTADOS PARA EL FORMULARIO ESTRUCTURADO
+  const [inversion, setInversion] = useState("");
+  const [conversiones, setConversiones] = useState("");
+  const [cpaRoas, setCpaRoas] = useState("");
+  const [tipoCampana, setTipoCampana] = useState("Búsqueda (Search)");
+  const [notas, setNotas] = useState("");
+
   const [idioma, setIdioma] = useState<"es" | "en">("es");
-  // NUEVA VISTA AGREGADA: reporte_lectura
   const [vista, setVista] = useState<"nueva" | "historial" | "perfil" | "feedback" | "reporte_lectura">("nueva");
   const [historial, setHistorial] = useState<any[]>([]);
   const [cargandoHistorial, setCargandoHistorial] = useState(false);
   
-  // ESTADOS DEL PANEL DE CLIENTES
   const [filtroEstado, setFiltroEstado] = useState<"todos" | "critico" | "atencion" | "optimo">("todos");
-  const [busqueda, setBusqueda] = useState(""); // Buscador en tiempo real
+  const [busqueda, setBusqueda] = useState(""); 
   
   const [mostrarPagos, setMostrarPagos] = useState(false);
   const [perfil, setPerfil] = useState<any>(null);
@@ -48,14 +52,14 @@ function AuditorDashboard() {
     es: {
       nueva: "Auditor IA", clientes: "Panel de Clientes", agencia: "Mi Agencia",
       reportes: "Reportes", feedback: "Sugerencias", configuracion: "Configuración", salir: "Cerrar Sesión",
-      placeholderNombre: "Nombre del Cliente o Cuenta", placeholderDatos: "Pegá acá los datos de la campaña...",
+      placeholderNombre: "Nombre del Cliente o Cuenta",
       btnAnalizar: "Ejecutar Auditoría", btnAnalizando: "Analizando métricas...", exportar: "Exportar a PDF",
       score: "Score General", problemas: "Problemas Graves", mejoras: "Áreas Débiles", aciertos: "Puntos Fuertes",
     },
     en: {
       nueva: "AI Auditor", clientes: "Client Dashboard", agencia: "My Agency",
       reportes: "Reports", feedback: "Feedback", configuracion: "Settings", salir: "Sign Out",
-      placeholderNombre: "Client or Account Name", placeholderDatos: "Paste campaign data here...",
+      placeholderNombre: "Client or Account Name",
       btnAnalizar: "Run Audit", btnAnalizando: "Analyzing metrics...", exportar: "Export to PDF",
       score: "Overall Score", problemas: "Critical Issues", mejoras: "Weak Areas", aciertos: "Strengths",
     }
@@ -136,9 +140,18 @@ function AuditorDashboard() {
       const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
       const idiomaInstruccion = idioma === 'es' ? 'ESPAÑOL' : 'INGLÉS';
       
-      const prompt = `Actúa como un auditor experto en Google Ads. Analiza estos datos y devuelve ÚNICAMENTE un objeto JSON válido con esta estructura exacta. IMPORTANTE: Los valores de "titulo" y "descripcion" DEBEN estar redactados en ${idiomaInstruccion}.
+      // FORMATEAMOS LOS DATOS PARA LA IA
+      const datosEstructurados = `
+        Inversión Mensual: ${inversion}
+        Conversiones: ${conversiones}
+        CPA / ROAS actual: ${cpaRoas}
+        Tipo de Campaña: ${tipoCampana}
+        Contexto/Notas del cliente: ${notas}
+      `;
+
+      const prompt = `Actúa como un auditor experto en Google Ads. Analiza estos datos estructurados y devuelve ÚNICAMENTE un objeto JSON válido con esta estructura exacta. IMPORTANTE: Los valores de "titulo" y "descripcion" DEBEN estar redactados en ${idiomaInstruccion}. Evalúa críticamente la relación entre inversión, conversiones y tipo de campaña.
       { "score_general": 45, "sub_scores": {"estructura": 50, "conversiones": 20, "presupuesto": 60, "keywords": 40}, "hallazgos": { "graves_rojo": [{"titulo": "Problema", "descripcion": "Detalle"}], "debiles_amarillo": [{"titulo": "Mejora", "descripcion": "Detalle"}], "bien_verde": [{"titulo": "Acierto", "descripcion": "Detalle"}] } }
-      Datos a analizar: ${data}`;
+      Datos a analizar: ${datosEstructurados}`;
       
       const result = await model.generateContent(prompt);
       const text = (await result.response).text().replace(/```json|```/g, "");
@@ -159,17 +172,13 @@ function AuditorDashboard() {
     return { label: "Óptimo", color: "text-green-400", bg: "bg-green-500/10", border: "border-green-500/20", icon: CheckCircle2 };
   };
 
-  // Lógica combinada: Filtro por estado + Búsqueda por nombre
   const clientesFiltrados = historial.filter(item => {
     const coincideFiltro = filtroEstado === "todos" || 
                            (filtroEstado === "critico" && item.score < 50) || 
                            (filtroEstado === "atencion" && item.score >= 50 && item.score < 80) || 
                            (filtroEstado === "optimo" && item.score >= 80);
-    
-    // EL ESCUDO: Si no hay nombre (registros viejos), usa un texto por defecto para no romper la app
     const nombreSeguro = item.nombre_cuenta || "Cuenta sin nombre";
     const coincideBusqueda = nombreSeguro.toLowerCase().includes(busqueda.toLowerCase());
-    
     return coincideFiltro && coincideBusqueda;
   });
 
@@ -228,7 +237,6 @@ function AuditorDashboard() {
               <button 
                 key={idx}
                 onClick={() => { 
-                  // Evitamos que 'reporte_lectura' ilumine mal el menú
                   setVista(link.view as any); 
                   setReporte(null); 
                   setMostrarPagos(false); 
@@ -300,7 +308,7 @@ function AuditorDashboard() {
 
         <div className="p-8 max-w-6xl mx-auto w-full print:p-0">
           
-          {/* VISTA: NUEVA AUDITORÍA (Formulario) */}
+          {/* VISTA: NUEVA AUDITORÍA (Formulario Estructurado) */}
           {vista === "nueva" && (
             <div className="print:hidden">
               <div className="bg-white/5 border border-white/10 backdrop-blur-2xl p-8 md:p-12 rounded-[2rem] shadow-2xl mb-8">
@@ -308,17 +316,61 @@ function AuditorDashboard() {
                   <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-black shadow-lg" style={melocotonGradient}><Zap size={24} /></div>
                   <div>
                     <h1 className="text-3xl font-bold text-white">Auditor Inteligente</h1>
-                    <p className="text-slate-400 mt-1">Pegá los datos de la campaña y detectá oportunidades de mejora.</p>
+                    <p className="text-slate-400 mt-1">Ingresá los datos clave de la campaña para un análisis preciso.</p>
                   </div>
                 </div>
-                <input type="text" placeholder={t[idioma].placeholderNombre} className="w-full p-4 bg-black/20 border border-white/10 rounded-2xl mb-4 text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all" value={nombreCuenta} onChange={(e) => setNombreCuenta(e.target.value)} />
-                <textarea className="w-full h-48 p-4 bg-black/20 border border-white/10 rounded-2xl mb-6 text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all resize-none" placeholder={t[idioma].placeholderDatos} value={data} onChange={(e) => setData(e.target.value)} />
-                <button onClick={analizarCampaña} disabled={loading || !data} className="w-full text-black px-6 py-4 rounded-2xl font-bold text-lg hover:scale-[1.01] disabled:opacity-50 transition-all shadow-lg flex justify-center items-center gap-2" style={melocotonGradient}>
+
+                <div className="mb-6">
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">Nombre del Cliente / Cuenta</label>
+                  <input type="text" placeholder={t[idioma].placeholderNombre} className="w-full p-4 bg-black/40 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all" value={nombreCuenta} onChange={(e) => setNombreCuenta(e.target.value)} />
+                </div>
+
+                {/* GRID DEL FORMULARIO */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">Inversión Mensual</label>
+                    <input type="text" placeholder="Ej: $1,500" className="w-full p-4 bg-black/20 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all" value={inversion} onChange={(e) => setInversion(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">Conversiones</label>
+                    <input type="text" placeholder="Ej: 120" className="w-full p-4 bg-black/20 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all" value={conversiones} onChange={(e) => setConversiones(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">CPA o ROAS Actual</label>
+                    <input type="text" placeholder="Ej: CPA $12.50 o ROAS 350%" className="w-full p-4 bg-black/20 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all" value={cpaRoas} onChange={(e) => setCpaRoas(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">Tipo de Campaña</label>
+                    <div className="relative">
+                      <select className="w-full p-4 bg-black/20 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all appearance-none cursor-pointer" value={tipoCampana} onChange={(e) => setTipoCampana(e.target.value)}>
+                        <option value="Búsqueda (Search)" className="bg-[#0f0f13] text-white">Búsqueda (Search)</option>
+                        <option value="Performance Max" className="bg-[#0f0f13] text-white">Performance Max</option>
+                        <option value="Display" className="bg-[#0f0f13] text-white">Display</option>
+                        <option value="Shopping" className="bg-[#0f0f13] text-white">Shopping</option>
+                        <option value="Video (YouTube)" className="bg-[#0f0f13] text-white">Video (YouTube)</option>
+                        <option value="Mix de Campañas" className="bg-[#0f0f13] text-white">Mix de Campañas</option>
+                      </select>
+                      <ChevronDown size={18} className="absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mb-8">
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">Contexto y Notas del Cliente (Opcional)</label>
+                  <textarea className="w-full h-24 p-4 bg-black/20 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all resize-none" placeholder="Ej: El cliente quiere enfocarse en vender zapatos de invierno. Notamos muchos clics de países irrelevantes." value={notas} onChange={(e) => setNotas(e.target.value)} />
+                </div>
+
+                <button 
+                  onClick={analizarCampaña} 
+                  disabled={loading || !nombreCuenta || !inversion || !conversiones} 
+                  className="w-full text-black px-6 py-4 rounded-2xl font-bold text-lg hover:scale-[1.01] disabled:opacity-50 disabled:hover:scale-100 transition-all shadow-lg flex justify-center items-center gap-2" 
+                  style={melocotonGradient}
+                >
                   {loading ? <span className="animate-pulse">{t[idioma].btnAnalizando}</span> : <><Target size={20}/> {t[idioma].btnAnalizar}</>}
                 </button>
               </div>
 
-              {/* El PDF recién generado aparece aquí abajo si el usuario acaba de hacerlo */}
+              {/* REPORTE RECIÉN GENERADO */}
               {reporte && !mostrarPagos && (
                 <div className="mt-8 bg-white/5 border border-white/10 backdrop-blur-2xl p-10 rounded-[2rem] shadow-2xl print:bg-white print:text-black print:border-none print:shadow-none print:p-0 print:mt-0 animate-fade-in">
                   <div className="flex justify-between items-center mb-8">
@@ -417,7 +469,6 @@ function AuditorDashboard() {
                  </div>
 
                  <div className="flex flex-wrap items-center gap-3">
-                    {/* BARRA DE BÚSQUEDA */}
                     <div className="relative">
                       <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
                       <input 
@@ -429,7 +480,6 @@ function AuditorDashboard() {
                       />
                     </div>
 
-                    {/* FILTROS */}
                     <div className="flex bg-black/40 p-1 rounded-xl border border-white/5">
                         <button onClick={() => setFiltroEstado("todos")} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${filtroEstado === 'todos' ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-white'}`}>Todos</button>
                         <button onClick={() => setFiltroEstado("critico")} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-1 ${filtroEstado === 'critico' ? 'bg-red-500/20 text-red-400' : 'text-slate-400 hover:text-red-400'}`}><span className="w-2 h-2 rounded-full bg-red-400"></span> Críticos</button>
@@ -455,7 +505,6 @@ function AuditorDashboard() {
                       const estado = getEstadoData(item.score);
                       const StatusIcon = estado.icon;
                       
-                      // Simulaciones para las nuevas columnas de gestión
                       const fakeDate = new Date().toLocaleDateString();
                       const fakeTrend = item.score > 60 ? { icon: TrendingUp, val: "+3", color: "text-green-400" } : { icon: TrendingDown, val: "-5", color: "text-red-400" };
 
@@ -466,7 +515,6 @@ function AuditorDashboard() {
                             <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${estado.bg} ${estado.color} border ${estado.border} flex-shrink-0`}>
                                {item.score}
                             </div>
-                            {/* EL ESCUDO 2 APLICADO AQUÍ ABAJO */}
                             <p className="font-bold text-white truncate pr-2">{item.nombre_cuenta || "Cuenta sin nombre"}</p>
                           </div>
 
@@ -486,7 +534,6 @@ function AuditorDashboard() {
                           </div>
 
                           <div className="col-span-3 flex justify-end items-center pr-2">
-                            {/* EL ESCUDO 3 APLICADO EN EL BOTÓN TAMBIÉN POR LAS DUDAS */}
                             <button 
                               onClick={() => { setReporte(item.reporte_json); setNombreCuenta(item.nombre_cuenta || "Cuenta sin nombre"); setVista("reporte_lectura"); }}
                               className="text-xs font-bold text-[#FFA4BD] hover:text-white flex items-center gap-1 transition-colors bg-white/5 hover:bg-white/10 px-4 py-2.5 rounded-xl border border-white/5"
