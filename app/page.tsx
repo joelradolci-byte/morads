@@ -647,7 +647,12 @@ function AuditorDashboard() {
             <div className="w-6 h-6 rounded flex items-center justify-center font-black text-black text-xs" style={melocotonGradient}>M</div>
             <span className="font-bold text-white">Mora Analytics</span>
           </div>
-          <p>© {new Date().getFullYear()} Mora. All rights reserved.</p>
+          <p className="mb-4">© {new Date().getFullYear()} Mora. All rights reserved.</p>
+          {/* NUEVOS LINKS LEGALES */}
+          <div className="flex justify-center gap-6 text-xs">
+            <a href="/privacidad" className="hover:text-white transition-colors">Política de Privacidad</a>
+            <a href="/terminos" className="hover:text-white transition-colors">Términos y Condiciones</a>
+          </div>
         </footer>
       </div>
     );
