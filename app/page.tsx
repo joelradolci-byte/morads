@@ -8,7 +8,7 @@ import {
   Zap, AlertTriangle, CheckCircle2, CreditCard, Settings, 
   Search, ArrowRight, ArrowLeft, TrendingUp, TrendingDown, LayoutPanelLeft,
   FileText, BarChart3, ShieldCheck, Plus, Clock, Activity, Trash2, Lock, 
-  Bell, ListChecks, LayoutGrid, CheckSquare, Sparkles, Undo2, RefreshCcw
+  Bell, ListChecks, LayoutGrid, CheckSquare, Sparkles, Undo2, RefreshCcw, Type, Calculator, BookOpen
 } from 'lucide-react';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -165,9 +165,11 @@ function AuditorDashboard() {
   
   const [tareasCompletadas, setTareasCompletadas] = useState<number[]>([]);
   
-  // NUEVO ESTADO: Modal Destructivo y Toast de Deshacer
   const [mostrarConfirmacion, setMostrarConfirmacion] = useState(false);
   const [toastState, setToastState] = useState<{show: boolean, status: 'success' | 'undoing' | 'reverted', timeLeft: number}>({show: false, status: 'success', timeLeft: 15});
+
+  // NUEVO ESTADO: Switch para simular Plan Individual vs Agencia
+  const [modoPlan, setModoPlan] = useState<"agencia" | "individual">("agencia");
 
   const t = {
     es: {
@@ -214,6 +216,7 @@ function AuditorDashboard() {
       escalar: "ESTRELLAS (Escalar)", apagar: "BASURA (Apagar)", observar: "DUDOSOS (Observar)", potenciales: "POTENCIALES (Testear)"
     },
     en: {
+      // (Omitiendo la traducción al inglés por espacio, es idéntica a la anterior)
       dashboard: "Dashboard", panelPrin: "Main Dashboard", panelDesc: "Global overview of your agency's performance.",
       saludG: "Avg Health Score", totAud: "Total Accounts", fugasDet: "Critical Leaks", oporMej: "Opportunities",
       ultAud: "Recent Audits", actRec: "Recent Activity", verTodas: "View all", generada: "Audit generated for", hace: "Ago",
@@ -254,11 +257,10 @@ function AuditorDashboard() {
       autoApply: "Auto-Apply", msgAutoApply: "To use the Auto-Apply execution, link your Google Ads API in the Integrations section. (Coming soon)",
       pacingTit: "Budget Pacing", pacingDesc: "Projected spend rhythm",
       matrizTit: "Campaign Matrix", matrizDesc: "Spend distribution vs performance",
-      escalar: "STARS (Scale)", apagar: "TRASH (Pause)", observar: "DOUBTFUL (Observe)", potenciales: "POTENTIAL (Test)"
+      escalar: "STARS (Scale)", apagar: "TRASH (Pause)", observar: "DOUBTFUL (Observe)", potenciales: "POTENCIALES (Test)"
     }
   };
 
-  // LOGICA DEL TIMER DEL TOAST
   useEffect(() => {
     let timer: NodeJS.Timeout;
     if (toastState.show && toastState.status === 'success' && toastState.timeLeft > 0) {
@@ -266,7 +268,6 @@ function AuditorDashboard() {
         setToastState(prev => ({...prev, timeLeft: prev.timeLeft - 1}));
       }, 1000);
     } else if (toastState.show && toastState.status === 'success' && toastState.timeLeft <= 0) {
-      // Se acabó el tiempo y no deshizo nada, el cambio queda firme.
       setToastState(prev => ({...prev, show: false}));
     }
     return () => clearInterval(timer);
@@ -274,16 +275,13 @@ function AuditorDashboard() {
 
   const aplicarCambios = () => {
     setMostrarConfirmacion(false);
-    // Reinicia el toast a 15 segundos
     setToastState({show: true, status: 'success', timeLeft: 15});
   };
 
   const deshacerCambios = () => {
     setToastState(prev => ({...prev, status: 'undoing'}));
-    // Simulamos que la API tarda 1.5s en revertir
     setTimeout(() => {
       setToastState(prev => ({...prev, status: 'reverted'}));
-      // Cerramos el toast 3 segundos después de confirmar que se deshizo
       setTimeout(() => {
         setToastState(prev => ({...prev, show: false}));
       }, 3000);
@@ -536,6 +534,10 @@ function AuditorDashboard() {
   cuentasRojas.sort((a,b) => b.cant - a.cant);
   cuentasAmarillas.sort((a,b) => b.cant - a.cant);
 
+  // Obtener datos para el Dashboard Individual
+  const ultimaAuditoria = historial.length > 0 ? historial[0] : null;
+  const fugasIndividuales = ultimaAuditoria?.reporte_json?.hallazgos?.graves_rojo?.length || 0;
+
   if (status === "loading") return <div className="h-screen w-full flex justify-center items-center text-xl font-bold text-white bg-[#0a0a0c]">Cargando...</div>;
 
   if (!session) {
@@ -557,7 +559,6 @@ function AuditorDashboard() {
           </div>
         </nav>
 
-        {/* HERO SECTION CON MICRO-COPY */}
         <FadeInOnScroll>
           <header className="flex flex-col items-center justify-center text-center px-4 pt-20 pb-20 max-w-4xl mx-auto relative z-10">
             <div className="border border-white/10 bg-white/5 backdrop-blur-md px-5 py-2 rounded-full text-xs font-bold tracking-widest uppercase mb-8 flex items-center gap-3 shadow-lg">
@@ -580,7 +581,6 @@ function AuditorDashboard() {
           </header>
         </FadeInOnScroll>
 
-        {/* CÓMO FUNCIONA EN 3 PASOS */}
         <FadeInOnScroll delay={200}>
           <section className="max-w-6xl mx-auto px-4 mb-32 relative z-10">
             <div className="text-center mb-16"><h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Optimización en 3 pasos</h2></div>
@@ -605,12 +605,10 @@ function AuditorDashboard() {
           </section>
         </FadeInOnScroll>
 
-        {/* PLANES ACTUALIZADOS (INDIVIDUAL VS AGENCIA) */}
         <FadeInOnScroll>
           <section className="max-w-5xl mx-auto px-4 mb-32 relative z-10">
             <div className="text-center mb-16"><h2 className="text-3xl md:text-5xl font-bold text-white mb-4">Elegí tu camino</h2><p className="text-slate-400">Comenzá con 14 días gratis en cualquier plan.</p></div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-              {/* PLAN PRO (DUEÑO DE NEGOCIO) */}
               <div className="bg-white/5 border border-white/10 p-10 rounded-[2rem] flex flex-col justify-between hover:border-white/20 transition-colors">
                 <div>
                   <h3 className="text-2xl font-bold text-white mb-2">Plan Individual</h3>
@@ -626,7 +624,6 @@ function AuditorDashboard() {
                 <button onClick={() => signIn("google", { prompt: "select_account" })} className="w-full bg-white/10 hover:bg-white/20 text-white font-bold py-4 rounded-xl transition-colors border border-white/10">Iniciar prueba de 14 días</button>
               </div>
               
-              {/* PLAN AGENCY */}
               <div className="bg-[#0f0f13] border border-[#FEAFAE]/30 p-10 rounded-[2rem] relative shadow-[0_0_30px_rgba(255,164,189,0.1)] flex flex-col justify-between overflow-hidden hover:shadow-[0_0_50px_rgba(255,164,189,0.2)] transition-shadow">
                 <div className="absolute top-0 left-0 w-full h-1" style={melocotonGradient}></div>
                 <div>
@@ -646,7 +643,6 @@ function AuditorDashboard() {
           </section>
         </FadeInOnScroll>
 
-        {/* PREGUNTAS FRECUENTES (FAQ) ACTUALIZADAS */}
         <FadeInOnScroll>
           <section className="max-w-4xl mx-auto px-4 mb-32 relative z-10">
             <div className="text-center mb-16"><h2 className="text-3xl font-bold text-white">Preguntas Frecuentes</h2></div>
@@ -671,7 +667,6 @@ function AuditorDashboard() {
           </section>
         </FadeInOnScroll>
 
-        {/* FOOTER */}
         <footer className="border-t border-white/5 py-12 text-center text-slate-500 text-sm relative z-10">
           <div className="flex items-center justify-center gap-2 mb-4">
             <div className="w-6 h-6 rounded flex items-center justify-center font-black text-black text-xs" style={melocotonGradient}>M</div>
@@ -718,8 +713,8 @@ function AuditorDashboard() {
 
             <div className="p-4 space-y-2 mt-2">
               {[ 
-                { icon: BarChart3, text: t[idioma].dashboard, view: 'dashboard' }, 
-                { icon: Users, text: t[idioma].clientes, view: 'historial' }
+                { icon: BarChart3, text: modoPlan === 'individual' ? "Mi Negocio" : t[idioma].dashboard, view: 'dashboard' }, 
+                { icon: Users, text: modoPlan === 'individual' ? "Mis Auditorías" : t[idioma].clientes, view: 'historial' }
               ].map((link, idx) => (
                 <button key={idx} onClick={() => { setVista(link.view as any); setReporte(null); setMostrarPagos(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${ (vista === link.view || (vista === 'reporte_lectura' && link.view === 'historial')) ? "bg-white/10 text-white shadow-sm border border-white/5" : "text-slate-400 hover:bg-white/5 hover:text-white" }`}>
                   <div className={(vista === link.view || (vista === 'reporte_lectura' && link.view === 'historial')) ? "text-[#FFA4BD]" : ""}><link.icon size={20} strokeWidth={(vista === link.view || (vista === 'reporte_lectura' && link.view === 'historial')) ? 2.5 : 2} /></div> 
@@ -731,16 +726,16 @@ function AuditorDashboard() {
           
           <div className="mx-4 mb-6 p-4 rounded-xl bg-black/40 border border-white/5 relative z-10 backdrop-blur-md">
              <div className="flex items-center gap-3 mb-2">
-               <div className={`p-2 rounded-lg ${perfil?.plan === 'pro' ? 'bg-[#FEAFAE]/10 text-[#FEAFAE]' : 'bg-white/5 text-slate-500'}`}>
-                 {perfil?.plan === 'pro' ? <ShieldCheck size={18} /> : <Lock size={18} />}
+               <div className={`p-2 rounded-lg ${perfil?.plan === 'pro' || modoPlan === 'agencia' ? 'bg-[#FEAFAE]/10 text-[#FEAFAE]' : 'bg-white/5 text-slate-500'}`}>
+                 {perfil?.plan === 'pro' || modoPlan === 'agencia' ? <ShieldCheck size={18} /> : <Lock size={18} />}
                </div>
                <div>
-                 <p className={`text-xs font-bold ${perfil?.plan === 'pro' ? 'text-white' : 'text-slate-400'}`}>Soporte VIP</p>
-                 <p className="text-[10px] text-slate-400">{perfil?.plan === 'pro' ? 'Línea directa (1h)' : 'Exclusivo Plan Pro'}</p>
+                 <p className={`text-xs font-bold ${perfil?.plan === 'pro' || modoPlan === 'agencia' ? 'text-white' : 'text-slate-400'}`}>Soporte VIP</p>
+                 <p className="text-[10px] text-slate-400">{perfil?.plan === 'pro' || modoPlan === 'agencia' ? 'Línea directa (1h)' : 'Exclusivo Plan Pro'}</p>
                </div>
              </div>
              
-             {perfil?.plan === 'pro' ? (
+             {perfil?.plan === 'pro' || modoPlan === 'agencia' ? (
                <button onClick={() => window.location.href = "mailto:soporte@tuagencia.com?subject=Soporte%20VIP%20Mora"} className="w-full mt-2 py-1.5 text-xs font-bold text-[#0a0a0c] rounded-lg hover:opacity-90 transition-opacity" style={melocotonGradient}>
                  Contactar Soporte
                </button>
@@ -756,9 +751,9 @@ function AuditorDashboard() {
           
           <header className="h-20 flex justify-between items-center px-8 print:hidden border-b border-white/5 bg-[#0a0a0c]/20 backdrop-blur-md sticky top-0 z-30">
             <h2 className="text-2xl font-bold text-white tracking-tight min-w-[200px]">
-              {vista === 'dashboard' && t[idioma].dashboard}
+              {vista === 'dashboard' && (modoPlan === 'agencia' ? t[idioma].dashboard : 'Resumen')}
               {vista === 'nueva' && t[idioma].nueva}
-              {vista === 'historial' && t[idioma].clientes}
+              {vista === 'historial' && (modoPlan === 'agencia' ? t[idioma].clientes : 'Historial')}
               {vista === 'reporte_lectura' && t[idioma].detalleCliente}
               {vista === 'perfil' && t[idioma].configuracion}
               {vista === 'feedback' && t[idioma].buzonSug}
@@ -768,16 +763,22 @@ function AuditorDashboard() {
             <div className="hidden md:flex items-center justify-center flex-1 max-w-md mx-8">
                <div className="relative w-full group">
                   <Search size={14} className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-500 group-focus-within:text-[#FEAFAE] transition-colors" />
-                  <input type="text" placeholder={t[idioma].buscarGlobal} value={busqueda} onChange={(e) => {setBusqueda(e.target.value); if (vista !== "historial" && e.target.value !== "") setVista("historial"); }} className="w-full bg-black/40 border border-white/10 rounded-full pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#FEAFAE]/50 focus:bg-black/60 transition-all placeholder:text-slate-500 shadow-inner" />
+                  <input type="text" placeholder={modoPlan === 'agencia' ? t[idioma].buscarGlobal : "Buscar en historial..."} value={busqueda} onChange={(e) => {setBusqueda(e.target.value); if (vista !== "historial" && e.target.value !== "") setVista("historial"); }} className="w-full bg-black/40 border border-white/10 rounded-full pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#FEAFAE]/50 focus:bg-black/60 transition-all placeholder:text-slate-500 shadow-inner" />
                </div>
             </div>
             
             <div className="relative min-w-[200px] flex justify-end items-center gap-4">
                
+               {/* DEV TOGGLE PARA PROBAR PLANES */}
+               <div className="hidden lg:flex items-center bg-black/40 border border-white/10 rounded-full p-1 mr-2" title="Toggle de desarrollo">
+                 <button onClick={() => setModoPlan('individual')} className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-colors ${modoPlan === 'individual' ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-300'}`}>Individual</button>
+                 <button onClick={() => setModoPlan('agencia')} className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-colors ${modoPlan === 'agencia' ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-300'}`}>Agencia</button>
+               </div>
+
                <div className="relative">
                  <button onClick={() => {setMenuNotificaciones(!menuNotificaciones); setMenuPerfil(false)}} className="p-2 hover:bg-white/5 rounded-full transition-colors relative">
                    <Bell size={20} className="text-slate-400 hover:text-white" />
-                   <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-[#0a0a0c]"></span>
+                   {modoPlan === 'agencia' && <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-[#0a0a0c]"></span>}
                  </button>
 
                  {menuNotificaciones && (
@@ -789,16 +790,22 @@ function AuditorDashboard() {
                            <span className="px-2 py-0.5 bg-[#FEAFAE]/10 text-[#FEAFAE] text-[10px] font-bold rounded">Beta</span>
                         </div>
                         <div className="p-2 max-h-64 overflow-y-auto">
-                           <div className="p-3 hover:bg-white/5 rounded-xl transition-colors cursor-pointer border-l-2 border-red-500 bg-red-500/5 mb-1">
-                             <p className="text-sm font-bold text-white mb-1">CPA Disparado (+45%)</p>
-                             <p className="text-xs text-slate-400 leading-relaxed">Cliente: <b>Inmobiliaria VIP</b>. Detectamos un pico de gasto en la campaña 'Search'.</p>
-                             <p className="text-[10px] text-slate-500 mt-2 flex items-center gap-1"><Clock size={10}/> Hace 2 horas</p>
-                           </div>
-                           <div className="p-3 hover:bg-white/5 rounded-xl transition-colors cursor-pointer border-l-2 border-yellow-500 mb-1">
-                             <p className="text-sm font-bold text-white mb-1">Anuncio Rechazado</p>
-                             <p className="text-xs text-slate-400 leading-relaxed">Cliente: <b>Teche</b>. Google rechazó 2 anuncios por 'Políticas de marca'.</p>
-                             <p className="text-[10px] text-slate-500 mt-2 flex items-center gap-1"><Clock size={10}/> Ayer</p>
-                           </div>
+                           {modoPlan === 'agencia' ? (
+                             <>
+                               <div className="p-3 hover:bg-white/5 rounded-xl transition-colors cursor-pointer border-l-2 border-red-500 bg-red-500/5 mb-1">
+                                 <p className="text-sm font-bold text-white mb-1">CPA Disparado (+45%)</p>
+                                 <p className="text-xs text-slate-400 leading-relaxed">Cliente: <b>Inmobiliaria VIP</b>. Detectamos un pico de gasto en la campaña 'Search'.</p>
+                                 <p className="text-[10px] text-slate-500 mt-2 flex items-center gap-1"><Clock size={10}/> Hace 2 horas</p>
+                               </div>
+                               <div className="p-3 hover:bg-white/5 rounded-xl transition-colors cursor-pointer border-l-2 border-yellow-500 mb-1">
+                                 <p className="text-sm font-bold text-white mb-1">Anuncio Rechazado</p>
+                                 <p className="text-xs text-slate-400 leading-relaxed">Cliente: <b>Teche</b>. Google rechazó 2 anuncios por 'Políticas de marca'.</p>
+                                 <p className="text-[10px] text-slate-500 mt-2 flex items-center gap-1"><Clock size={10}/> Ayer</p>
+                               </div>
+                             </>
+                           ) : (
+                             <div className="p-4 text-center text-sm text-slate-500">Todo en orden con tu cuenta. No hay alertas.</div>
+                           )}
                         </div>
                      </div>
                    </>
@@ -810,7 +817,7 @@ function AuditorDashboard() {
                     <p className="text-sm font-bold text-white leading-tight">{session.user?.name}</p>
                     <div className="flex items-center justify-end gap-1.5 mt-0.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-green-400 shadow-[0_0_5px_#4ade80]"></span>
-                      <p className="text-xs text-slate-400 font-medium">Operativo</p>
+                      <p className="text-xs text-slate-400 font-medium">{modoPlan === 'agencia' ? 'Agency' : 'Individual'}</p>
                     </div>
                   </div>
                   <img src={session.user?.image || ""} alt="Perfil" className="w-10 h-10 rounded-full border-2 border-[#FEAFAE] shadow-sm" />
@@ -825,7 +832,7 @@ function AuditorDashboard() {
                          <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">{t[idioma].suscripcion}</p>
                          <div className="flex items-center gap-2 mb-1">
                            <span className="w-2 h-2 rounded-full bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.5)]"></span>
-                           <span className="text-sm font-bold text-white">{t[idioma].activa} ({perfil?.plan === 'pro' ? 'Pro' : 'Free'})</span>
+                           <span className="text-sm font-bold text-white">{t[idioma].activa} ({modoPlan === 'agencia' ? 'Agency' : 'Indiv.'})</span>
                          </div>
                       </div>
                       <div className="py-2">
@@ -844,7 +851,7 @@ function AuditorDashboard() {
 
           <div className="p-8 pb-32 max-w-7xl mx-auto w-full print:p-0 print:pb-0" key={vista}>
             
-            {vista === "dashboard" && (
+            {vista === "dashboard" && modoPlan === "agencia" && (
               <div className="animate-fade-custom print:hidden flex flex-col gap-8 relative z-10">
                 <div>
                   <h2 className="text-3xl font-bold text-white">{t[idioma].panelPrin}</h2>
@@ -972,6 +979,81 @@ function AuditorDashboard() {
               </div>
             )}
 
+            {/* DASHBOARD PARA PLAN INDIVIDUAL */}
+            {vista === "dashboard" && modoPlan === "individual" && (
+              <div className="animate-fade-custom print:hidden flex flex-col gap-8 relative z-10">
+                <div>
+                  <h2 className="text-3xl font-bold text-white">Resumen de Negocio</h2>
+                  <p className="text-slate-400 text-sm mt-1">El estado de tu cuenta de Google Ads y herramientas para crecer.</p>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                   <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px] shadow-lg">
+                      <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 relative z-10 flex items-center gap-2"><Activity size={16}/> Salud de la Cuenta</p>
+                      {ultimaAuditoria ? (
+                        <div className="flex-1 flex flex-col justify-end">
+                           <div className="flex items-end gap-3 mb-2">
+                             <span className={`text-6xl font-black ${ultimaAuditoria.score >= 80 ? 'text-green-400' : ultimaAuditoria.score >= 50 ? 'text-yellow-400' : 'text-red-400'}`}>
+                               {ultimaAuditoria.score}
+                             </span>
+                           </div>
+                           <button onClick={() => { setReporte(ultimaAuditoria.reporte_json); setNombreCuenta(ultimaAuditoria.nombre_cuenta); setVista("reporte_lectura"); }} className="w-full text-xs font-bold bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded-xl transition-colors mt-2 text-left">
+                             Ver reporte completo <ArrowRight size={12} className="inline ml-1"/>
+                           </button>
+                        </div>
+                      ) : (
+                        <div className="flex-1 flex items-center justify-center text-slate-500 text-sm font-medium">No hay datos.</div>
+                      )}
+                   </div>
+
+                   <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px] shadow-lg">
+                      <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 relative z-10 flex items-center gap-2"><AlertTriangle size={16} className="text-red-400"/> Fugas Críticas</p>
+                      {ultimaAuditoria ? (
+                        <div className="flex-1 flex flex-col">
+                          <span className="text-5xl font-black text-white mb-2">{fugasIndividuales}</span>
+                          <p className="text-xs text-slate-400 leading-relaxed">Problemas graves que están consumiendo tu presupuesto ahora mismo.</p>
+                        </div>
+                      ) : (
+                         <div className="flex-1 flex items-center justify-center text-slate-500 text-sm font-medium">No hay datos.</div>
+                      )}
+                   </div>
+
+                   <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col justify-center items-center text-center relative overflow-hidden backdrop-blur-xl min-h-[200px] shadow-lg border-dashed hover:bg-white/10 transition-colors cursor-pointer group" onClick={() => setVista("nueva")}>
+                      <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                         <Zap size={28} className="text-[#FEAFAE]" />
+                      </div>
+                      <h3 className="font-bold text-white text-lg">Ejecutar Nueva Auditoría</h3>
+                      <p className="text-xs text-slate-400 mt-2 px-4">Actualizá los datos de tu cuenta para ver el score de hoy.</p>
+                   </div>
+                </div>
+
+                <div>
+                  <h3 className="text-xl font-bold text-white mb-6 mt-4">Herramientas Exclusivas</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                     <div className="bg-[#0f0f13] border border-white/5 rounded-2xl p-6 opacity-70 grayscale hover:grayscale-0 transition-all cursor-not-allowed">
+                        <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-400 mb-4"><BookOpen size={20}/></div>
+                        <h4 className="font-bold text-white mb-1">Traductor de Métricas IA</h4>
+                        <p className="text-xs text-slate-400 mb-4 leading-relaxed">Leé tu cuenta de Google Ads en lenguaje de negocios simple.</p>
+                        <span className="text-[10px] font-black uppercase tracking-wider px-2 py-1 bg-white/10 rounded-md text-white">Próximamente</span>
+                     </div>
+                     <div className="bg-[#0f0f13] border border-white/5 rounded-2xl p-6 opacity-70 grayscale hover:grayscale-0 transition-all cursor-not-allowed">
+                        <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-400 mb-4"><Type size={20}/></div>
+                        <h4 className="font-bold text-white mb-1">Generador de Anuncios</h4>
+                        <p className="text-xs text-slate-400 mb-4 leading-relaxed">Títulos y descripciones redactados por IA listos para copiar y pegar.</p>
+                        <span className="text-[10px] font-black uppercase tracking-wider px-2 py-1 bg-white/10 rounded-md text-white">Próximamente</span>
+                     </div>
+                     <div className="bg-[#0f0f13] border border-white/5 rounded-2xl p-6 opacity-70 grayscale hover:grayscale-0 transition-all cursor-not-allowed">
+                        <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center text-green-400 mb-4"><Calculator size={20}/></div>
+                        <h4 className="font-bold text-white mb-1">Simulador de Presupuesto</h4>
+                        <p className="text-xs text-slate-400 mb-4 leading-relaxed">Proyectá cuántas ventas tendrías si subís o bajás la inversión.</p>
+                        <span className="text-[10px] font-black uppercase tracking-wider px-2 py-1 bg-white/10 rounded-md text-white">Próximamente</span>
+                     </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* VISTA: NUEVA AUDITORÍA (CON NUEVOS CAMPOS) */}
             {vista === "nueva" && (
               <div className="animate-fade-custom print:hidden relative z-10">
                 <div className="bg-white/5 border border-white/10 backdrop-blur-2xl p-8 md:p-12 rounded-[2rem] shadow-2xl mb-8 max-w-4xl mx-auto">
@@ -1004,6 +1086,7 @@ function AuditorDashboard() {
               </div>
             )}
 
+            {/* VISTA: LECTURA DE REPORTE (CON PESTAÑAS ENTERPRISE Y CHECKLIST INTERACTIVO) */}
             {vista === "reporte_lectura" && reporte && (
               <div className="animate-fade-custom print:bg-white print:m-0 print:p-0 relative z-10">
                 
@@ -1020,10 +1103,11 @@ function AuditorDashboard() {
                 <div className="bg-white/5 border border-white/10 backdrop-blur-2xl p-10 rounded-[2rem] shadow-2xl print:bg-white print:text-black print:border-none print:shadow-none print:p-0">
                   
                   <div className="hidden print:flex justify-between items-center mb-10 border-b-2 border-slate-200 pb-6">
-                    <div>{perfil?.agencia_logo ? <img src={perfil.agencia_logo} alt="Logo Agencia" className="h-16 object-contain" /> : <div className="flex items-center gap-2"><span className="text-3xl">🐾</span><span className="text-3xl font-black text-slate-800">Mora</span></div>}</div>
+                    {/* EN MODO INDIVIDUAL, NO MOSTRAMOS LOGO MARCA BLANCA EN EL PDF PARA DIFERENCIAR LOS PLANES */}
+                    <div>{modoPlan === 'agencia' && perfil?.agencia_logo ? <img src={perfil.agencia_logo} alt="Logo Agencia" className="h-16 object-contain" /> : <div className="flex items-center gap-2"><span className="text-3xl">🐾</span><span className="text-3xl font-black text-slate-800">Mora</span></div>}</div>
                     <div className="text-right">
-                      <h2 className="text-2xl font-black text-slate-800 tracking-tight">{perfil?.agencia_nombre ? perfil.agencia_nombre : "Auditoría Estratégica"}</h2>
-                      {agenciaWeb && <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-widest">{agenciaWeb}</p>}
+                      <h2 className="text-2xl font-black text-slate-800 tracking-tight">{modoPlan === 'agencia' && perfil?.agencia_nombre ? perfil.agencia_nombre : "Auditoría Estratégica"}</h2>
+                      {modoPlan === 'agencia' && agenciaWeb && <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-widest">{agenciaWeb}</p>}
                       <p className="text-sm font-medium text-slate-500 mt-1">{new Date().toLocaleDateString()}</p>
                     </div>
                   </div>
@@ -1036,7 +1120,8 @@ function AuditorDashboard() {
                         <div><h3 className="text-4xl font-black text-white print:text-slate-900">{t[idioma].score}</h3><p className="text-slate-400 text-sm mt-1 print:text-slate-500">{t[idioma].puntajeBasado}</p></div>
                       </div>
                     </div>
-                    {subVistaReporte === "diagnostico" && <button onClick={descargarPDF} className="bg-white/5 border border-white/10 hover:bg-white/10 text-white px-6 py-3 rounded-xl font-bold transition-all print:hidden shadow-sm">{t[idioma].exportar}</button>}
+                    {/* BOTON DE DESCARGAR PDF SOLO PARA AGENCIA (COMO INCENTIVO) O SI QUERES DEJALO PARA LOS DOS */}
+                    {subVistaReporte === "diagnostico" && modoPlan === 'agencia' && <button onClick={descargarPDF} className="bg-white/5 border border-white/10 hover:bg-white/10 text-white px-6 py-3 rounded-xl font-bold transition-all print:hidden shadow-sm">{t[idioma].exportar}</button>}
                   </div>
                   
                   {subVistaReporte === "diagnostico" && (
@@ -1177,7 +1262,7 @@ function AuditorDashboard() {
                    <div className="flex items-center gap-4">
                       <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-white border border-white/10"><Users size={24} /></div>
                       <div>
-                        <h2 className="text-2xl font-bold text-white">{t[idioma].monitoreo}</h2>
+                        <h2 className="text-2xl font-bold text-white">{modoPlan === 'agencia' ? t[idioma].monitoreo : "Historial de Auditorías"}</h2>
                         <p className="text-sm text-slate-400">{t[idioma].tenes} {historial.length} {t[idioma].registradas}</p>
                       </div>
                    </div>
@@ -1376,7 +1461,6 @@ function AuditorDashboard() {
                 </button>
               )}
            </div>
-           {/* Barra de progreso visual para los 15s */}
            {toastState.status === 'success' && (
               <div className="w-full bg-white/5 h-1">
                  <div 
