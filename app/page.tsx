@@ -7,7 +7,8 @@ import {
   Target, Users, Building2, MessageSquare, LogOut, ChevronDown, 
   Zap, AlertTriangle, CheckCircle2, CreditCard, Settings, 
   Search, ArrowRight, ArrowLeft, TrendingUp, TrendingDown, LayoutPanelLeft,
-  FileText, BarChart3, ShieldCheck, Plus, Clock, Activity, Trash2, Lock
+  FileText, BarChart3, ShieldCheck, Plus, Clock, Activity, Trash2, Lock, 
+  Bell, ListChecks, LayoutGrid, CheckSquare, Sparkles
 } from 'lucide-react';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -17,7 +18,6 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 const melocotonGradient = { background: "linear-gradient(90deg, #FEECE3 0%, #FCD5BF 25%, #FEAFAE 50%, #FFA4BD 75%, #FFA9CC 100%)" };
 const melocotonText = { background: "linear-gradient(90deg, #FEECE3 0%, #FCD5BF 25%, #FEAFAE 50%, #FFA4BD 75%, #FFA9CC 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" };
 
-// COMPONENTE PARA ANIMAR AL SCROLLEAR
 function FadeInOnScroll({ children, delay = 0 }: { children: React.ReactNode, delay?: number }) {
   const [isVisible, setVisible] = useState(false);
   const domRef = useRef<HTMLDivElement>(null);
@@ -40,7 +40,6 @@ function FadeInOnScroll({ children, delay = 0 }: { children: React.ReactNode, de
   );
 }
 
-// FONDO RED NEURONAL IA
 const NeuralBackground = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -130,7 +129,10 @@ function AuditorDashboard() {
   const [reporte, setReporte] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
-  const [inversion, setInversion] = useState("");
+  // NUEVOS ESTADOS PARA EL PACING
+  const [presupuestoObjetivo, setPresupuestoObjetivo] = useState("");
+  const [gastoActual, setGastoActual] = useState("");
+  
   const [conversiones, setConversiones] = useState("");
   const [cpaRoas, setCpaRoas] = useState("");
   const [tipoCampana, setTipoCampana] = useState("Búsqueda (Search)");
@@ -138,6 +140,8 @@ function AuditorDashboard() {
 
   const [idioma, setIdioma] = useState<"es" | "en">("es");
   const [vista, setVista] = useState<"dashboard" | "nueva" | "historial" | "perfil" | "feedback" | "reporte_lectura" | "facturacion">("dashboard");
+  const [subVistaReporte, setSubVistaReporte] = useState<"diagnostico" | "checklist" | "avanzado">("diagnostico");
+  
   const [historial, setHistorial] = useState<any[]>([]);
   const [cargandoHistorial, setCargandoHistorial] = useState(false);
   
@@ -147,6 +151,7 @@ function AuditorDashboard() {
   const [mostrarPagos, setMostrarPagos] = useState(false);
   const [perfil, setPerfil] = useState<any>(null);
   const [menuPerfil, setMenuPerfil] = useState(false);
+  const [menuNotificaciones, setMenuNotificaciones] = useState(false);
 
   const [agenciaNombre, setAgenciaNombre] = useState("");
   const [agenciaLogo, setAgenciaLogo] = useState("");
@@ -174,7 +179,10 @@ function AuditorDashboard() {
       btncomenzar: "Comenzar Gratis", detalleCliente: "Detalle del Cliente", buzonSug: "Buzón de Sugerencias",
       suscripcion: "Suscripción", activa: "Activa", renueva: "Renueva:",
       ingresaDatos: "Ingresá los datos clave de la campaña para un análisis preciso.",
-      invMensual: "Inversión Mensual", conversiones: "Conversiones", cparoas: "CPA o ROAS Actual", tipoCamp: "Tipo de Campaña", contexto: "Contexto y Notas del Cliente (Opcional)",
+      // TRADUCCIONES NUEVAS DEL FORMULARIO
+      presupuestoObj: "Presupuesto Mensual", placeholderPres: "Ej: 1000",
+      gastoAct: "Gasto Actual (Hasta hoy)", placeholderGasto: "Ej: 450",
+      conversiones: "Conversiones", cparoas: "CPA o ROAS Actual", tipoCamp: "Tipo de Campaña", contexto: "Contexto y Notas del Cliente (Opcional)",
       placeholderConv: "Ej: 120", placeholderContexto: "Ej: El cliente quiere enfocarse en vender zapatos de invierno. Notamos muchos clics de países irrelevantes.",
       volver: "Volver al Panel", monitoreo: "Monitoreo de Cuentas", tenes: "Tenés", registradas: "auditorías registradas.",
       buscar: "Buscar cliente...", todos: "Todos", criticos: "Críticos", atencion: "Atención", optimos: "Óptimos",
@@ -193,7 +201,13 @@ function AuditorDashboard() {
       todoLoQueNecesitas: "Todo lo que tu agencia necesita", planes: "Planes simples y transparentes", planFree: "Plan Starter", planPro: "Plan Agency",
       btnUnete: "Unite a Mora hoy", login: "Iniciar sesión",
       mockupTit: "Auditoría Finalizada", mockupScore: "Score de Salud", mockupCritico: "Fuga de Presupuesto", mockupCriticoDesc: "Detectamos $450/mes gastados en términos de búsqueda irrelevantes sin conversiones.", mockupOptimo: "Estructura Correcta", mockupOptimoDesc: "El seguimiento de conversiones está correctamente implementado en todas las campañas.",
-      confirmarBorrar: "¿Seguro que querés eliminar esta auditoría? Esta acción no se puede deshacer."
+      confirmarBorrar: "¿Seguro que querés eliminar esta auditoría? Esta acción no se puede deshacer.",
+      notifTit: "Alertas del Guardián IA", notifVacio: "Todo en orden. No hay anomalías recientes.",
+      tabDiag: "Diagnóstico IA", tabCheck: "Plan de Acción", tabAvanzado: "Análisis Avanzado",
+      autoApply: "Corregir Ahora", msgAutoApply: "Para usar la ejecución en piloto automático (Auto-Apply), vinculá tu API de Google Ads en la sección de Integraciones. (Disponible próximamente)",
+      pacingTit: "Pacing de Presupuesto", pacingDesc: "Ritmo de gasto proyectado",
+      matrizTit: "Matriz de Campañas", matrizDesc: "Distribución del gasto vs rendimiento",
+      escalar: "ESTRELLAS (Escalar)", apagar: "BASURA (Apagar)", observar: "DUDOSOS (Observar)", potenciales: "POTENCIALES (Testear)"
     },
     en: {
       dashboard: "Dashboard", panelPrin: "Main Dashboard", panelDesc: "Global overview of your agency's performance.",
@@ -209,7 +223,9 @@ function AuditorDashboard() {
       btncomenzar: "Start for Free", detalleCliente: "Client Details", buzonSug: "Suggestion Box",
       suscripcion: "Subscription", activa: "Active", renueva: "Renews:",
       ingresaDatos: "Enter key campaign data for a precise analysis.",
-      invMensual: "Monthly Spend", conversiones: "Conversions", cparoas: "Current CPA or ROAS", tipoCamp: "Campaign Type", contexto: "Client Context & Notes (Optional)",
+      presupuestoObj: "Target Monthly Budget", placeholderPres: "E.g. 1000",
+      gastoAct: "Current Spend (To date)", placeholderGasto: "E.g. 450",
+      conversiones: "Conversions", cparoas: "Current CPA or ROAS", tipoCamp: "Campaign Type", contexto: "Client Context & Notes (Optional)",
       placeholderConv: "E.g. 120", placeholderContexto: "E.g. The client wants to focus on selling winter shoes. We noticed many clicks from irrelevant countries.",
       volver: "Back to Dashboard", monitoreo: "Account Monitoring", tenes: "You have", registradas: "audits recorded.",
       buscar: "Search client...", todos: "All", criticos: "Critical", atencion: "Warning", optimos: "Optimal",
@@ -228,7 +244,13 @@ function AuditorDashboard() {
       todoLoQueNecesitas: "Everything your agency needs", planes: "Simple & transparent pricing", planFree: "Starter Plan", planPro: "Agency Plan",
       btnUnete: "Join Mora today", login: "Log In",
       mockupTit: "Audit Completed", mockupScore: "Health Score", mockupCritico: "Budget Leak", mockupCriticoDesc: "We detected $450/mo spent on irrelevant search terms with 0 conversions.", mockupOptimo: "Correct Structure", mockupOptimoDesc: "Conversion tracking is correctly implemented across all active campaigns.",
-      confirmarBorrar: "Are you sure you want to delete this audit? This action cannot be undone."
+      confirmarBorrar: "Are you sure you want to delete this audit? This action cannot be undone.",
+      notifTit: "AI Guardian Alerts", notifVacio: "All clear. No recent anomalies.",
+      tabDiag: "AI Diagnosis", tabCheck: "Action Plan", tabAvanzado: "Advanced Analysis",
+      autoApply: "Auto-Apply", msgAutoApply: "To use the Auto-Apply execution, link your Google Ads API in the Integrations section. (Coming soon)",
+      pacingTit: "Budget Pacing", pacingDesc: "Projected spend rhythm",
+      matrizTit: "Campaign Matrix", matrizDesc: "Spend distribution vs performance",
+      escalar: "STARS (Scale)", apagar: "TRASH (Pause)", observar: "DOUBTFUL (Observe)", potenciales: "POTENTIAL (Test)"
     }
   };
 
@@ -270,7 +292,7 @@ function AuditorDashboard() {
   useEffect(() => {
     if (session) obtenerPerfil();
     if (vista === "historial" || vista === "dashboard") cargarHistorial();
-  }, [vista, session, reporte]);
+  }, [vista, session]);
 
   const subirLogo = async (event: any) => {
     try {
@@ -322,29 +344,88 @@ function AuditorDashboard() {
     if (!session?.user?.email) return;
     setLoading(true);
     try {
+      // 1. MATEMÁTICA DEL PACING (Calculado en el momento de crear el reporte)
+      const presObj = parseFloat(presupuestoObjetivo) || 0;
+      const gastoAct = parseFloat(gastoActual) || 0;
+      const today = new Date();
+      const currentDay = today.getDate();
+      const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+      
+      const dailySpend = currentDay > 0 ? gastoAct / currentDay : 0;
+      const projectedSpend = Math.round(dailySpend * daysInMonth);
+      const spendPercentage = presObj > 0 ? Math.round((projectedSpend / presObj) * 100) : 0;
+      const currentPercentage = presObj > 0 ? Math.min(Math.round((gastoAct / presObj) * 100), 100) : 0;
+
+      let pacingStatus = "optimo";
+      let pacingColor = "text-green-400";
+      let pacingBg = "bg-green-400";
+      let pacingMsg = idioma === 'es' ? `🟢 Pacing Perfecto: Proyecta gastar $${projectedSpend}` : `🟢 Perfect Pacing: Projected spend $${projectedSpend}`;
+
+      if (spendPercentage > 110) {
+          pacingStatus = "overspend";
+          pacingColor = "text-red-400";
+          pacingBg = "bg-red-500";
+          pacingMsg = idioma === 'es' ? `🔴 Peligro Overspend: Proyecta gastar $${projectedSpend} (${spendPercentage}%)` : `🔴 Overspend Warning: Projected spend $${projectedSpend} (${spendPercentage}%)`;
+      } else if (spendPercentage < 90) {
+          pacingStatus = "underspend";
+          pacingColor = "text-yellow-400";
+          pacingBg = "bg-yellow-400";
+          pacingMsg = idioma === 'es' ? `🟡 Peligro Underspend: Proyecta gastar solo $${projectedSpend}` : `🟡 Underspend Warning: Projected spend only $${projectedSpend}`;
+      }
+
+      const pacingData = {
+          presupuesto: presObj,
+          gasto: gastoAct,
+          proyectado: projectedSpend,
+          porcentajeProyectado: spendPercentage,
+          porcentajeActual: currentPercentage,
+          estado: pacingStatus,
+          color: pacingColor,
+          bg: pacingBg,
+          mensaje: pacingMsg
+      };
+
+      // 2. CONEXIÓN A GEMINI
       const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY!);
       const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
       const idiomaInstruccion = idioma === 'es' ? 'ESPAÑOL' : 'INGLÉS';
       
       const datosEstructurados = `
-        Inversión Mensual: ${inversion}
+        Presupuesto Objetivo: ${presObj}
+        Gasto Actual: ${gastoAct}
         Conversiones: ${conversiones}
         CPA / ROAS actual: ${cpaRoas}
         Tipo de Campaña: ${tipoCampana}
         Contexto/Notas del cliente: ${notas}
       `;
 
-      const prompt = `Actúa como un auditor experto en Google Ads. Analiza estos datos estructurados y devuelve ÚNICAMENTE un objeto JSON válido con esta estructura exacta. IMPORTANTE: Los valores de "titulo" y "descripcion" DEBEN estar redactados en ${idiomaInstruccion}. Evalúa críticamente la relación entre inversión, conversiones y tipo de campaña.
-      { "score_general": 45, "sub_scores": {"estructura": 50, "conversiones": 20, "presupuesto": 60, "keywords": 40}, "hallazgos": { "graves_rojo": [{"titulo": "Problema", "descripcion": "Detalle"}], "debiles_amarillo": [{"titulo": "Mejora", "descripcion": "Detalle"}], "bien_verde": [{"titulo": "Acierto", "descripcion": "Detalle"}] } }
+      const prompt = `Actúa como un auditor experto en Google Ads. Analiza estos datos estructurados y devuelve ÚNICAMENTE un objeto JSON válido con esta estructura exacta. IMPORTANTE: Los valores DEBEN estar redactados en ${idiomaInstruccion}. Evalúa críticamente la relación entre inversión, conversiones y tipo de campaña.
+      { 
+        "score_general": 45, 
+        "sub_scores": {"estructura": 50, "conversiones": 20, "presupuesto": 60, "keywords": 40}, 
+        "hallazgos": { 
+          "graves_rojo": [{"titulo": "Problema", "descripcion": "Detalle"}], 
+          "debiles_amarillo": [{"titulo": "Mejora", "descripcion": "Detalle"}], 
+          "bien_verde": [{"titulo": "Acierto", "descripcion": "Detalle"}] 
+        },
+        "checklist": [
+          {"tarea": "Pausar campañas sin conversiones en los últimos 30 días", "impacto": "Alto", "color": "rojo"},
+          {"tarea": "Agregar extensiones de imagen a campaña Search", "impacto": "Medio", "color": "amarillo"}
+        ]
+      }
       Datos a analizar: ${datosEstructurados}`;
       
       const result = await model.generateContent(prompt);
       const text = (await result.response).text().replace(/```json|```/g, "");
       const parsedReporte = JSON.parse(text);
       
+      // Adjuntamos el Pacing calculado localmente al reporte de Gemini
+      parsedReporte.pacing = pacingData;
+      
       setReporte(parsedReporte);
       await supabase.from('historial_auditorias').insert([{ usuario_email: session.user.email, score: parsedReporte.score_general, reporte_json: parsedReporte, nombre_cuenta: nombreCuenta || "Sin nombre" }]);
       cargarHistorial(); 
+      setSubVistaReporte("avanzado"); // Lo mandamos directo a ver la magia matemática
       setVista("reporte_lectura");
     } catch (error) {
       console.error("Error completo:", error);
@@ -405,14 +486,10 @@ function AuditorDashboard() {
 
   if (status === "loading") return <div className="h-screen w-full flex justify-center items-center text-xl font-bold text-white bg-[#0a0a0c]">Cargando...</div>;
 
-  // =========================================================================
-  // LANDING PAGE PREMIUM 
-  // =========================================================================
   if (!session) {
     return (
       <div className="min-h-screen w-full font-sans text-slate-200 overflow-y-auto overflow-x-hidden bg-[#0a0a0c] selection:bg-[#FEAFAE] selection:text-black relative">
         <NeuralBackground />
-        
         <nav className="w-full max-w-7xl mx-auto px-6 py-6 flex justify-between items-center z-50 relative">
           <div className="flex items-center gap-2">
             <div className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-black text-2xl shadow-[0_0_15px_rgba(255,164,189,0.5)]" style={melocotonGradient}>M</div>
@@ -427,8 +504,6 @@ function AuditorDashboard() {
             </button>
           </div>
         </nav>
-
-        <div className="absolute top-[-10%] left-1/2 transform -translate-x-1/2 w-[800px] h-[600px] bg-[#FEAFAE] opacity-[0.07] blur-[120px] rounded-full pointer-events-none"></div>
 
         <FadeInOnScroll>
           <header className="flex flex-col items-center justify-center text-center px-4 pt-20 pb-20 max-w-4xl mx-auto relative z-10">
@@ -557,8 +632,6 @@ function AuditorDashboard() {
     );
   }
 
-  // =========================================================================
-
   return (
     <>
       <style dangerouslySetInnerHTML={{__html: `
@@ -575,7 +648,6 @@ function AuditorDashboard() {
         
         <NeuralBackground />
 
-        {/* SIDEBAR */}
         <aside className="w-64 bg-[#0a0a0c]/40 backdrop-blur-2xl border-r border-white/5 flex flex-col justify-between print:hidden z-20 relative shadow-[10px_0_30px_rgba(0,0,0,0.5)]">
           <div>
             <div className="h-20 flex items-center px-6 border-b border-white/5 gap-3">
@@ -602,7 +674,6 @@ function AuditorDashboard() {
             </div>
           </div>
           
-          {/* NUEVO WIDGET LATERAL: SOPORTE VIP PREMIUM */}
           <div className="mx-4 mb-6 p-4 rounded-xl bg-black/40 border border-white/5 relative z-10 backdrop-blur-md">
              <div className="flex items-center gap-3 mb-2">
                <div className={`p-2 rounded-lg ${perfil?.plan === 'pro' ? 'bg-[#FEAFAE]/10 text-[#FEAFAE]' : 'bg-white/5 text-slate-500'}`}>
@@ -615,7 +686,7 @@ function AuditorDashboard() {
              </div>
              
              {perfil?.plan === 'pro' ? (
-               <button onClick={() => window.location.href = "mailto:joelradolci@gmail.com?subject=Soporte%20VIP%20Mora"} className="w-full mt-2 py-1.5 text-xs font-bold text-[#0a0a0c] rounded-lg hover:opacity-90 transition-opacity" style={melocotonGradient}>
+               <button onClick={() => window.location.href = "mailto:soporte@tuagencia.com?subject=Soporte%20VIP%20Mora"} className="w-full mt-2 py-1.5 text-xs font-bold text-[#0a0a0c] rounded-lg hover:opacity-90 transition-opacity" style={melocotonGradient}>
                  Contactar Soporte
                </button>
              ) : (
@@ -626,7 +697,6 @@ function AuditorDashboard() {
           </div>
         </aside>
 
-        {/* CONTENIDO PRINCIPAL */}
         <main className="flex-1 flex flex-col relative overflow-y-auto z-10 print:overflow-visible print:h-auto print:static">
           
           <header className="h-20 flex justify-between items-center px-8 print:hidden border-b border-white/5 bg-[#0a0a0c]/20 backdrop-blur-md sticky top-0 z-30">
@@ -640,28 +710,47 @@ function AuditorDashboard() {
               {vista === 'facturacion' && t[idioma].facturacionTitulo}
             </h2>
 
-            {/* BARRA DE BÚSQUEDA GLOBAL CONECTADA Y LIMPIA */}
             <div className="hidden md:flex items-center justify-center flex-1 max-w-md mx-8">
                <div className="relative w-full group">
                   <Search size={14} className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-500 group-focus-within:text-[#FEAFAE] transition-colors" />
-                  <input 
-                    type="text" 
-                    placeholder={t[idioma].buscarGlobal} 
-                    value={busqueda}
-                    onChange={(e) => {
-                      setBusqueda(e.target.value);
-                      if (vista !== "historial" && e.target.value !== "") {
-                        setVista("historial");
-                      }
-                    }}
-                    className="w-full bg-black/40 border border-white/10 rounded-full pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#FEAFAE]/50 focus:bg-black/60 transition-all placeholder:text-slate-500 shadow-inner" 
-                  />
+                  <input type="text" placeholder={t[idioma].buscarGlobal} value={busqueda} onChange={(e) => {setBusqueda(e.target.value); if (vista !== "historial" && e.target.value !== "") setVista("historial"); }} className="w-full bg-black/40 border border-white/10 rounded-full pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#FEAFAE]/50 focus:bg-black/60 transition-all placeholder:text-slate-500 shadow-inner" />
                </div>
             </div>
             
-            {/* CORRECCIÓN DEL DROPDOWN: AHORA ENVUELTO EN DIV RELATIVE */}
-            <div className="relative min-w-[200px] flex justify-end">
-               <button onClick={() => setMenuPerfil(!menuPerfil)} className="flex items-center gap-3 hover:bg-white/5 p-2 rounded-xl transition-colors border border-transparent hover:border-white/10">
+            <div className="relative min-w-[200px] flex justify-end items-center gap-4">
+               
+               <div className="relative">
+                 <button onClick={() => {setMenuNotificaciones(!menuNotificaciones); setMenuPerfil(false)}} className="p-2 hover:bg-white/5 rounded-full transition-colors relative">
+                   <Bell size={20} className="text-slate-400 hover:text-white" />
+                   <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-[#0a0a0c]"></span>
+                 </button>
+
+                 {menuNotificaciones && (
+                   <>
+                     <div className="fixed inset-0 z-40 cursor-default" onClick={() => setMenuNotificaciones(false)}></div>
+                     <div className="absolute right-0 top-full mt-2 w-80 bg-[#0f0f13]/95 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-2xl py-2 z-50 animate-fade-custom">
+                        <div className="px-4 py-3 border-b border-white/5 flex justify-between items-center">
+                           <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">{t[idioma].notifTit}</p>
+                           <span className="px-2 py-0.5 bg-[#FEAFAE]/10 text-[#FEAFAE] text-[10px] font-bold rounded">Beta</span>
+                        </div>
+                        <div className="p-2 max-h-64 overflow-y-auto">
+                           <div className="p-3 hover:bg-white/5 rounded-xl transition-colors cursor-pointer border-l-2 border-red-500 bg-red-500/5 mb-1">
+                             <p className="text-sm font-bold text-white mb-1">CPA Disparado (+45%)</p>
+                             <p className="text-xs text-slate-400 leading-relaxed">Cliente: <b>Inmobiliaria VIP</b>. Detectamos un pico de gasto en la campaña 'Search'.</p>
+                             <p className="text-[10px] text-slate-500 mt-2 flex items-center gap-1"><Clock size={10}/> Hace 2 horas</p>
+                           </div>
+                           <div className="p-3 hover:bg-white/5 rounded-xl transition-colors cursor-pointer border-l-2 border-yellow-500 mb-1">
+                             <p className="text-sm font-bold text-white mb-1">Anuncio Rechazado</p>
+                             <p className="text-xs text-slate-400 leading-relaxed">Cliente: <b>Teche</b>. Google rechazó 2 anuncios por 'Políticas de marca'.</p>
+                             <p className="text-[10px] text-slate-500 mt-2 flex items-center gap-1"><Clock size={10}/> Ayer</p>
+                           </div>
+                        </div>
+                     </div>
+                   </>
+                 )}
+               </div>
+
+               <button onClick={() => {setMenuPerfil(!menuPerfil); setMenuNotificaciones(false)}} className="flex items-center gap-3 hover:bg-white/5 p-2 rounded-xl transition-colors border border-transparent hover:border-white/10">
                   <div className="text-right hidden lg:block">
                     <p className="text-sm font-bold text-white leading-tight">{session.user?.name}</p>
                     <div className="flex items-center justify-end gap-1.5 mt-0.5">
@@ -673,7 +762,6 @@ function AuditorDashboard() {
                   <ChevronDown size={16} className="text-slate-400" />
                </button>
 
-               {/* CAPA INVISIBLE PARA CERRAR EL MENÚ Y TOP-FULL PARA QUE CAIGA ABAJO */}
                {menuPerfil && (
                  <>
                    <div className="fixed inset-0 z-40 cursor-default" onClick={() => setMenuPerfil(false)}></div>
@@ -793,7 +881,7 @@ function AuditorDashboard() {
                                    </div>
                                    <div className="text-center font-bold text-slate-300 text-sm">{item.score}</div>
                                    <div className="col-span-2 flex justify-end items-center gap-3 pr-2">
-                                     <button onClick={() => { setReporte(item.reporte_json); setNombreCuenta(item.nombre_cuenta || t[idioma].cuentaSinNombre); setVista("reporte_lectura"); }} className="text-xs font-bold bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-lg transition-colors">Ver PDF</button>
+                                     <button onClick={() => { setReporte(item.reporte_json); setNombreCuenta(item.nombre_cuenta || t[idioma].cuentaSinNombre); setSubVistaReporte("diagnostico"); setVista("reporte_lectura"); }} className="text-xs font-bold bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-lg transition-colors">Ver PDF</button>
                                      <button onClick={() => borrarAuditoria(item.id)} className="text-slate-500 hover:text-red-400 transition-colors p-1.5 rounded-lg hover:bg-red-500/10" title="Eliminar"><Trash2 size={16} /></button>
                                    </div>
                                  </div>
@@ -829,37 +917,58 @@ function AuditorDashboard() {
               </div>
             )}
 
+            {/* VISTA: NUEVA AUDITORÍA (CON NUEVOS CAMPOS) */}
             {vista === "nueva" && (
               <div className="animate-fade-custom print:hidden relative z-10">
-                <div className="bg-white/5 border border-white/10 backdrop-blur-2xl p-8 md:p-12 rounded-[2rem] shadow-2xl mb-8">
+                <div className="bg-white/5 border border-white/10 backdrop-blur-2xl p-8 md:p-12 rounded-[2rem] shadow-2xl mb-8 max-w-4xl mx-auto">
                   <div className="flex items-center gap-4 mb-8">
                     <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-black shadow-lg" style={melocotonGradient}><Zap size={24} /></div>
                     <div><h1 className="text-3xl font-bold text-white">{t[idioma].nueva}</h1><p className="text-slate-400 mt-1">{t[idioma].ingresaDatos}</p></div>
                   </div>
+                  
                   <div className="mb-6"><label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">{t[idioma].placeholderNombre}</label><input type="text" placeholder={t[idioma].placeholderNombre} className="w-full p-4 bg-black/40 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all" value={nombreCuenta} onChange={(e) => setNombreCuenta(e.target.value)} /></div>
+                  
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                    <div><label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">{t[idioma].invMensual}</label><input type="text" placeholder={`Ej: 1,500 ${moneda.split(" ")[0]}`} className="w-full p-4 bg-black/20 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all" value={inversion} onChange={(e) => setInversion(e.target.value)} /></div>
-                    <div><label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">{t[idioma].conversiones}</label><input type="text" placeholder={t[idioma].placeholderConv} className="w-full p-4 bg-black/20 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all" value={conversiones} onChange={(e) => setConversiones(e.target.value)} /></div>
+                    {/* NUEVO CAMPO: PRESUPUESTO OBJETIVO */}
+                    <div><label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">{t[idioma].presupuestoObj}</label><input type="number" placeholder={t[idioma].placeholderPres} className="w-full p-4 bg-black/20 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all" value={presupuestoObjetivo} onChange={(e) => setPresupuestoObjetivo(e.target.value)} /></div>
+                    {/* NUEVO CAMPO: GASTO ACTUAL */}
+                    <div><label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">{t[idioma].gastoAct}</label><input type="number" placeholder={t[idioma].placeholderGasto} className="w-full p-4 bg-black/20 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all" value={gastoActual} onChange={(e) => setGastoActual(e.target.value)} /></div>
+                    
+                    <div><label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">{t[idioma].conversiones}</label><input type="number" placeholder={t[idioma].placeholderConv} className="w-full p-4 bg-black/20 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all" value={conversiones} onChange={(e) => setConversiones(e.target.value)} /></div>
                     <div><label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">{t[idioma].cparoas}</label><input type="text" placeholder={`Ej: ${metrica} objetivo...`} className="w-full p-4 bg-black/20 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all" value={cpaRoas} onChange={(e) => setCpaRoas(e.target.value)} /></div>
-                    <div>
+                  </div>
+
+                  <div className="mb-6">
                       <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">{t[idioma].tipoCamp}</label>
                       <div className="relative"><select className="w-full p-4 bg-black/20 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all appearance-none cursor-pointer" value={tipoCampana} onChange={(e) => setTipoCampana(e.target.value)}><option value="Búsqueda (Search)" className="bg-[#0f0f13] text-white">Búsqueda (Search)</option><option value="Performance Max" className="bg-[#0f0f13] text-white">Performance Max</option><option value="Display" className="bg-[#0f0f13] text-white">Display</option><option value="Shopping" className="bg-[#0f0f13] text-white">Shopping</option><option value="Video (YouTube)" className="bg-[#0f0f13] text-white">Video (YouTube)</option><option value="Mix de Campañas" className="bg-[#0f0f13] text-white">Mix de Campañas</option></select><ChevronDown size={18} className="absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400 pointer-events-none" /></div>
-                    </div>
                   </div>
+
                   <div className="mb-8"><label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">{t[idioma].contexto}</label><textarea className="w-full h-24 p-4 bg-black/20 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all resize-none" placeholder={t[idioma].placeholderContexto} value={notas} onChange={(e) => setNotas(e.target.value)} /></div>
-                  <button onClick={analizarCampaña} disabled={loading || !nombreCuenta || !inversion || !conversiones} className="w-full text-black px-6 py-4 rounded-2xl font-bold text-lg hover:scale-[1.01] disabled:opacity-50 disabled:hover:scale-100 transition-all shadow-lg flex justify-center items-center gap-2" style={melocotonGradient}>
-                    {loading ? <span className="animate-pulse">{t[idioma].btnAnalizando}</span> : <><Target size={20}/> {t[idioma].btnAnalizar}</>}
+                  
+                  {/* BOTÓN ACTUALIZADO */}
+                  <button onClick={analizarCampaña} disabled={loading || !nombreCuenta || !presupuestoObjetivo || !gastoActual || !conversiones} className="w-full text-black px-6 py-4 rounded-2xl font-bold text-lg hover:scale-[1.01] disabled:opacity-50 disabled:hover:scale-100 transition-all shadow-lg flex justify-center items-center gap-2" style={melocotonGradient}>
+                    {loading ? <span className="animate-pulse">{t[idioma].btnAnalizando}</span> : <><Sparkles size={20}/> {t[idioma].btnAnalizar}</>}
                   </button>
                 </div>
               </div>
             )}
 
-            {((vista === "nueva" && reporte) || (vista === "reporte_lectura" && reporte)) && (
+            {/* VISTA: LECTURA DE REPORTE (CON PESTAÑAS ENTERPRISE) */}
+            {vista === "reporte_lectura" && reporte && (
               <div className="animate-fade-custom print:bg-white print:m-0 print:p-0 relative z-10">
-                {vista === "reporte_lectura" && (
-                  <button onClick={() => setVista("dashboard")} className="mb-6 flex items-center gap-2 text-slate-400 hover:text-white font-medium transition-colors print:hidden"><ArrowLeft size={18} /> {t[idioma].volver}</button>
-                )}
-                <div className={`bg-white/5 border border-white/10 backdrop-blur-2xl p-10 rounded-[2rem] shadow-2xl print:bg-white print:text-black print:border-none print:shadow-none print:p-0 print:mt-0 ${vista === "nueva" ? "mt-8" : ""}`}>
+                
+                <div className="mb-6 flex justify-between items-center print:hidden">
+                   <button onClick={() => setVista("dashboard")} className="flex items-center gap-2 text-slate-400 hover:text-white font-medium transition-colors"><ArrowLeft size={18} /> {t[idioma].volver}</button>
+                   
+                   <div className="flex bg-black/40 border border-white/10 rounded-xl p-1 gap-1">
+                      <button onClick={() => setSubVistaReporte("diagnostico")} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${subVistaReporte === 'diagnostico' ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-300'}`}><FileText size={16}/> {t[idioma].tabDiag}</button>
+                      <button onClick={() => setSubVistaReporte("checklist")} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${subVistaReporte === 'checklist' ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-300'}`}><ListChecks size={16}/> {t[idioma].tabCheck}</button>
+                      <button onClick={() => setSubVistaReporte("avanzado")} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${subVistaReporte === 'avanzado' ? 'bg-[#FEAFAE]/20 text-[#FEAFAE]' : 'text-slate-500 hover:text-slate-300'}`}><LayoutGrid size={16}/> {t[idioma].tabAvanzado}</button>
+                   </div>
+                </div>
+
+                <div className="bg-white/5 border border-white/10 backdrop-blur-2xl p-10 rounded-[2rem] shadow-2xl print:bg-white print:text-black print:border-none print:shadow-none print:p-0">
+                  
                   <div className="hidden print:flex justify-between items-center mb-10 border-b-2 border-slate-200 pb-6">
                     <div>{perfil?.agencia_logo ? <img src={perfil.agencia_logo} alt="Logo Agencia" className="h-16 object-contain" /> : <div className="flex items-center gap-2"><span className="text-3xl">🐾</span><span className="text-3xl font-black text-slate-800">Mora</span></div>}</div>
                     <div className="text-right">
@@ -868,6 +977,7 @@ function AuditorDashboard() {
                       <p className="text-sm font-medium text-slate-500 mt-1">{new Date().toLocaleDateString()}</p>
                     </div>
                   </div>
+
                   <div className="flex justify-between items-center mb-10 print:mb-12">
                     <div>
                       <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-3 print:text-slate-500 print:text-xs">{nombreCuenta || t[idioma].cuentaSinNombre}</h2>
@@ -876,22 +986,125 @@ function AuditorDashboard() {
                         <div><h3 className="text-4xl font-black text-white print:text-slate-900">{t[idioma].score}</h3><p className="text-slate-400 text-sm mt-1 print:text-slate-500">{t[idioma].puntajeBasado}</p></div>
                       </div>
                     </div>
-                    <button onClick={descargarPDF} className="bg-white/5 border border-white/10 hover:bg-white/10 text-white px-6 py-3 rounded-xl font-bold transition-all print:hidden shadow-sm">{t[idioma].exportar}</button>
+                    {subVistaReporte === "diagnostico" && <button onClick={descargarPDF} className="bg-white/5 border border-white/10 hover:bg-white/10 text-white px-6 py-3 rounded-xl font-bold transition-all print:hidden shadow-sm">{t[idioma].exportar}</button>}
                   </div>
-                  <div className="space-y-6">
-                    <div className="border-l-4 pl-6 bg-red-500/5 p-6 rounded-2xl border border-red-500/10 print:bg-red-50 print:border-red-100 print:shadow-sm" style={{ borderLeftColor: '#ef4444' }}>
-                      <h3 className="text-xl font-bold text-red-400 mb-4 flex items-center gap-2 print:text-red-700"><AlertTriangle size={24}/> {t[idioma].problemas}</h3>
-                      {reporte.hallazgos?.graves_rojo?.map((item: any, i: number) => (<p key={i} className="mb-4 text-slate-300 leading-relaxed print:text-slate-700 print:break-inside-avoid"><b className="text-white print:text-slate-900 text-lg">{item.titulo}:</b> <br/>{item.descripcion}</p>))}
+                  
+                  {subVistaReporte === "diagnostico" && (
+                    <div className="space-y-6 animate-fade-custom">
+                      {reporte.hallazgos?.graves_rojo?.length > 0 && (
+                        <div className="border-l-4 pl-6 bg-red-500/5 p-6 rounded-2xl border border-red-500/10 print:bg-red-50 print:border-red-100 print:shadow-sm" style={{ borderLeftColor: '#ef4444' }}>
+                          <h3 className="text-xl font-bold text-red-400 mb-4 flex items-center gap-2 print:text-red-700"><AlertTriangle size={24}/> {t[idioma].problemas}</h3>
+                          {reporte.hallazgos.graves_rojo.map((item: any, i: number) => (<p key={i} className="mb-4 text-slate-300 leading-relaxed print:text-slate-700 print:break-inside-avoid"><b className="text-white print:text-slate-900 text-lg">{item.titulo}:</b> <br/>{item.descripcion}</p>))}
+                        </div>
+                      )}
+                      {reporte.hallazgos?.debiles_amarillo?.length > 0 && (
+                        <div className="border-l-4 pl-6 bg-yellow-500/5 p-6 rounded-2xl border border-yellow-500/10 print:bg-amber-50 print:border-amber-100 print:shadow-sm" style={{ borderLeftColor: '#eab308' }}>
+                          <h3 className="text-xl font-bold text-yellow-400 mb-4 flex items-center gap-2 print:text-amber-700"><Zap size={24}/> {t[idioma].mejoras}</h3>
+                          {reporte.hallazgos.debiles_amarillo.map((item: any, i: number) => (<p key={i} className="mb-4 text-slate-300 leading-relaxed print:text-slate-700 print:break-inside-avoid"><b className="text-white print:text-slate-900 text-lg">{item.titulo}:</b> <br/>{item.descripcion}</p>))}
+                        </div>
+                      )}
+                      {reporte.hallazgos?.bien_verde?.length > 0 && (
+                        <div className="border-l-4 pl-6 bg-green-500/5 p-6 rounded-2xl border border-green-500/10 print:bg-emerald-50 print:border-emerald-100 print:shadow-sm" style={{ borderLeftColor: '#22c55e' }}>
+                          <h3 className="text-xl font-bold text-green-400 mb-4 flex items-center gap-2 print:text-emerald-700"><CheckCircle2 size={24}/> {t[idioma].aciertos}</h3>
+                          {reporte.hallazgos.bien_verde.map((item: any, i: number) => (<p key={i} className="mb-4 text-slate-300 leading-relaxed print:text-slate-700 print:break-inside-avoid"><b className="text-white print:text-slate-900 text-lg">{item.titulo}:</b> <br/>{item.descripcion}</p>))}
+                        </div>
+                      )}
                     </div>
-                    <div className="border-l-4 pl-6 bg-yellow-500/5 p-6 rounded-2xl border border-yellow-500/10 print:bg-amber-50 print:border-amber-100 print:shadow-sm" style={{ borderLeftColor: '#eab308' }}>
-                      <h3 className="text-xl font-bold text-yellow-400 mb-4 flex items-center gap-2 print:text-amber-700"><Zap size={24}/> {t[idioma].mejoras}</h3>
-                      {reporte.hallazgos?.debiles_amarillo?.map((item: any, i: number) => (<p key={i} className="mb-4 text-slate-300 leading-relaxed print:text-slate-700 print:break-inside-avoid"><b className="text-white print:text-slate-900 text-lg">{item.titulo}:</b> <br/>{item.descripcion}</p>))}
-                    </div>
-                    <div className="border-l-4 pl-6 bg-green-500/5 p-6 rounded-2xl border border-green-500/10 print:bg-emerald-50 print:border-emerald-100 print:shadow-sm" style={{ borderLeftColor: '#22c55e' }}>
-                      <h3 className="text-xl font-bold text-green-400 mb-4 flex items-center gap-2 print:text-emerald-700"><CheckCircle2 size={24}/> {t[idioma].aciertos}</h3>
-                      {reporte.hallazgos?.bien_verde?.map((item: any, i: number) => (<p key={i} className="mb-4 text-slate-300 leading-relaxed print:text-slate-700 print:break-inside-avoid"><b className="text-white print:text-slate-900 text-lg">{item.titulo}:</b> <br/>{item.descripcion}</p>))}
-                    </div>
-                  </div>
+                  )}
+
+                  {subVistaReporte === "checklist" && (
+                     <div className="animate-fade-custom bg-[#0f0f13] border border-white/5 rounded-2xl p-8">
+                        <div className="flex items-center justify-between mb-8 pb-4 border-b border-white/5">
+                           <div>
+                             <h3 className="text-xl font-bold text-white flex items-center gap-2"><ListChecks size={24} className="text-[#FEAFAE]" /> To-Do List (20 min)</h3>
+                             <p className="text-slate-400 text-sm mt-1">Tareas accionables generadas por IA.</p>
+                           </div>
+                        </div>
+
+                        {reporte.checklist ? (
+                          <div className="space-y-4">
+                            {reporte.checklist.map((item: any, i: number) => (
+                              <div key={i} className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 bg-white/5 border border-white/10 rounded-xl hover:border-white/20 transition-colors">
+                                 <div className="flex items-start gap-4">
+                                   <div className="mt-1"><CheckSquare size={20} className="text-slate-500 hover:text-green-400 cursor-pointer transition-colors" /></div>
+                                   <div>
+                                     <p className="font-bold text-white text-lg">{item.tarea}</p>
+                                     <div className="flex gap-3 mt-2">
+                                       <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${item.color === 'rojo' ? 'bg-red-500/20 text-red-400' : 'bg-yellow-500/20 text-yellow-400'}`}>Prioridad: {item.impacto}</span>
+                                     </div>
+                                   </div>
+                                 </div>
+                                 <button onClick={() => alert(t[idioma].msgAutoApply)} className="flex items-center gap-2 px-5 py-2.5 rounded-lg font-bold text-xs bg-white/10 text-white hover:bg-white/20 border border-white/5 hover:border-white/20 transition-all whitespace-nowrap group">
+                                    <Sparkles size={14} className="text-[#FEAFAE] group-hover:animate-pulse" /> {t[idioma].autoApply}
+                                 </button>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center text-slate-500 py-10">Esta auditoría es antigua y no tiene Checklist. Generá una nueva.</div>
+                        )}
+                     </div>
+                  )}
+
+                  {/* AQUÍ VIVE LA MAGIA DEL PACING */}
+                  {subVistaReporte === "avanzado" && (
+                     <div className="animate-fade-custom grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        
+                        {reporte.pacing ? (
+                          <div className="bg-[#0f0f13] border border-white/5 rounded-2xl p-8 flex flex-col justify-center relative overflow-hidden">
+                             <div className={`absolute top-0 right-0 w-32 h-32 ${reporte.pacing.bg}/10 blur-3xl rounded-full pointer-events-none`}></div>
+                             <h3 className="text-lg font-bold text-white mb-2 flex items-center gap-2"><Clock size={20} className={reporte.pacing.color}/> {t[idioma].pacingTit}</h3>
+                             <p className="text-sm text-slate-400 mb-8">{t[idioma].pacingDesc}</p>
+                             
+                             <div className="flex justify-between items-end mb-3">
+                                <div><p className="text-xs font-bold text-slate-500 uppercase">Gasto Actual</p><p className="text-3xl font-black text-white mt-1">${reporte.pacing.gasto}</p></div>
+                                <div className="text-right"><p className="text-xs font-bold text-slate-500 uppercase">Presupuesto</p><p className="text-xl font-bold text-slate-300 mt-1">${reporte.pacing.presupuesto}</p></div>
+                             </div>
+                             <div className="w-full bg-white/5 rounded-full h-3 mb-4 border border-white/5 overflow-hidden">
+                               <div className={`${reporte.pacing.bg} h-3 rounded-full transition-all duration-1000`} style={{width: `${reporte.pacing.porcentajeActual}%`}}></div>
+                             </div>
+                             <p className={`text-xs font-bold ${reporte.pacing.color} ${reporte.pacing.bg.replace('bg-', 'bg-').replace('-400', '-500')}/10 inline-block px-3 py-1.5 rounded-lg self-start border border-${reporte.pacing.bg.replace('bg-', '')}/20`}>
+                               {reporte.pacing.mensaje}
+                             </p>
+                          </div>
+                        ) : (
+                          <div className="bg-[#0f0f13] border border-white/5 rounded-2xl p-8 flex items-center justify-center text-slate-500 text-sm text-center">
+                            Este reporte es antiguo y no tiene datos de presupuesto.
+                          </div>
+                        )}
+
+                        <div className="bg-[#0f0f13] border border-white/5 rounded-2xl p-8">
+                           <div className="flex justify-between items-start mb-6">
+                             <div>
+                               <h3 className="text-lg font-bold text-white mb-1 flex items-center gap-2"><LayoutGrid size={20} className="text-[#FEAFAE]"/> {t[idioma].matrizTit}</h3>
+                               <p className="text-sm text-slate-400">{t[idioma].matrizDesc}</p>
+                             </div>
+                             <span className="px-2 py-0.5 bg-[#FEAFAE]/10 text-[#FEAFAE] text-[10px] font-bold rounded">Próximamente</span>
+                           </div>
+                           
+                           <div className="grid grid-cols-2 gap-3 h-48 opacity-50 grayscale cursor-not-allowed">
+                              <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-3 flex flex-col justify-between">
+                                <span className="text-[10px] font-bold text-green-400">{t[idioma].escalar}</span>
+                                <span className="text-2xl font-black text-white">?</span>
+                              </div>
+                              <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3 flex flex-col justify-between">
+                                <span className="text-[10px] font-bold text-blue-400">{t[idioma].potenciales}</span>
+                                <span className="text-2xl font-black text-white">?</span>
+                              </div>
+                              <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-3 flex flex-col justify-between">
+                                <span className="text-[10px] font-bold text-yellow-400">{t[idioma].observar}</span>
+                                <span className="text-2xl font-black text-white">?</span>
+                              </div>
+                              <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 flex flex-col justify-between">
+                                <span className="text-[10px] font-bold text-red-400">{t[idioma].apagar}</span>
+                                <span className="text-2xl font-black text-white">?</span>
+                              </div>
+                           </div>
+                        </div>
+
+                     </div>
+                  )}
+
                   <div className="hidden print:block mt-16 pt-6 border-t border-slate-200 text-center"><p className="text-xs text-slate-400 font-medium">{agenciaPie}</p></div>
                 </div>
               </div>
@@ -950,7 +1163,7 @@ function AuditorDashboard() {
                                <span className={`text-sm font-bold ${fakeTrend.color}`}>{fakeTrend.val} pts</span>
                             </div>
                             <div className="col-span-3 flex justify-end items-center gap-3 pr-2">
-                              <button onClick={() => { setReporte(item.reporte_json); setNombreCuenta(item.nombre_cuenta || t[idioma].cuentaSinNombre); setVista("reporte_lectura"); }} className="text-xs font-bold text-[#FFA4BD] hover:text-white flex items-center gap-1 transition-colors bg-white/5 hover:bg-white/10 px-4 py-2.5 rounded-xl border border-white/5">
+                              <button onClick={() => { setReporte(item.reporte_json); setNombreCuenta(item.nombre_cuenta || t[idioma].cuentaSinNombre); setSubVistaReporte("diagnostico"); setVista("reporte_lectura"); }} className="text-xs font-bold text-[#FFA4BD] hover:text-white flex items-center gap-1 transition-colors bg-white/5 hover:bg-white/10 px-4 py-2.5 rounded-xl border border-white/5">
                                 {t[idioma].abrirAud} <ArrowRight size={14} />
                               </button>
                               <button onClick={() => borrarAuditoria(item.id)} className="text-slate-500 hover:text-red-400 transition-colors p-2 rounded-lg hover:bg-red-500/10" title="Eliminar auditoría">
@@ -1046,7 +1259,6 @@ function AuditorDashboard() {
         </main>
       </div>
 
-      {/* BOTÓN FLOTANTE ARREGLADO (Siempre abajo a la derecha) */}
       {session && (
         <button onClick={() => { setVista("feedback"); setReporte(null); setMenuPerfil(false); }} className="fixed bottom-8 right-8 z-50 bg-white/10 text-white px-5 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 transition-transform flex items-center gap-2 border border-white/20 print:hidden backdrop-blur-md">
           <MessageSquare size={18} /> {t[idioma].feedback}
