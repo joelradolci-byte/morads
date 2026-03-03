@@ -22,6 +22,7 @@ function AuditorDashboard() {
   const [reporte, setReporte] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
+  // ESTADOS DEL FORMULARIO ESTRUCTURADO
   const [inversion, setInversion] = useState("");
   const [conversiones, setConversiones] = useState("");
   const [cpaRoas, setCpaRoas] = useState("");
@@ -217,19 +218,26 @@ function AuditorDashboard() {
 
   return (
     <>
-      {/* 🚀 BLOQUE MÁGICO DE CSS PARA IMPRESIÓN (PDF) */}
+      {/* BLOQUE MÁGICO DE CSS PARA IMPRESIÓN Y ANIMACIÓN */}
       <style dangerouslySetInnerHTML={{__html: `
         @media print {
           body { 
             -webkit-print-color-adjust: exact !important; 
             print-color-adjust: exact !important; 
             background: white !important;
+            height: auto !important;
           }
           @page { margin: 15mm; }
+          .print-container { height: auto !important; overflow: visible !important; position: static !important; }
         }
+        @keyframes fadeInCustom {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-custom { animation: fadeInCustom 0.5s ease-out forwards; }
       `}} />
 
-      <div className="flex h-screen w-full font-sans text-slate-200 overflow-hidden">
+      <div className="flex h-screen w-full font-sans text-slate-200 overflow-hidden print-container">
         
         {/* SIDEBAR */}
         <aside className="w-64 bg-white/[0.02] backdrop-blur-3xl border-r border-white/5 flex flex-col justify-between print:hidden z-20 shadow-2xl">
@@ -263,7 +271,7 @@ function AuditorDashboard() {
         </aside>
 
         {/* CONTENIDO PRINCIPAL */}
-        <main className="flex-1 flex flex-col relative overflow-y-auto z-10 print:overflow-visible">
+        <main className="flex-1 flex flex-col relative overflow-y-auto z-10 print:overflow-visible print:h-auto print:static">
           
           <header className="h-20 flex justify-between items-center px-8 print:hidden border-b border-white/5 bg-white/[0.01] backdrop-blur-md sticky top-0 z-30">
             <h2 className="text-2xl font-bold text-white tracking-tight">
@@ -285,7 +293,7 @@ function AuditorDashboard() {
                </button>
 
                {menuPerfil && (
-                 <div className="absolute right-0 mt-2 w-64 bg-[#0f0f13]/95 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-2xl py-2 z-50 animate-fade-in">
+                 <div className="absolute right-0 mt-2 w-64 bg-[#0f0f13]/95 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-2xl py-2 z-50 animate-fade-custom">
                     <div className="px-4 py-3 border-b border-white/5">
                        <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Suscripción</p>
                        <div className="flex items-center gap-2 mb-1">
@@ -317,7 +325,8 @@ function AuditorDashboard() {
             </div>
           </header>
 
-          <div className="p-8 max-w-6xl mx-auto w-full print:p-0">
+          {/* ACÁ ESTÁ EL PB-32 PARA EVITAR QUE SE CORTE EL CONTENIDO AL FINAL */}
+          <div className="p-8 pb-32 max-w-6xl mx-auto w-full print:p-0 print:pb-0">
             
             {/* VISTA: NUEVA AUDITORÍA */}
             {vista === "nueva" && (
@@ -385,7 +394,7 @@ function AuditorDashboard() {
 
             {/* REPORTE COMPARTIDO (Se muestra cuando recién lo generás en "nueva" o al entrar desde el historial) */}
             {((vista === "nueva" && reporte && !mostrarPagos) || (vista === "reporte_lectura" && reporte)) && (
-              <div className="animate-fade-in print:bg-white print:m-0 print:p-0">
+              <div className="animate-fade-custom print:bg-white print:m-0 print:p-0">
                 
                 {vista === "reporte_lectura" && (
                   <button 
@@ -466,7 +475,7 @@ function AuditorDashboard() {
 
             {/* VISTA: HISTORIAL (PANEL DE CLIENTES) */}
             {vista === "historial" && (
-              <div className="bg-white/5 border border-white/10 backdrop-blur-2xl p-8 rounded-[2rem] shadow-2xl animate-fade-in flex flex-col min-h-[600px] print:hidden">
+              <div className="bg-white/5 border border-white/10 backdrop-blur-2xl p-8 rounded-[2rem] shadow-2xl animate-fade-custom flex flex-col min-h-[600px] print:hidden">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
                    <div className="flex items-center gap-4">
                       <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-white border border-white/10"><Users size={24} /></div>
@@ -538,7 +547,7 @@ function AuditorDashboard() {
 
             {/* VISTA: MI AGENCIA */}
             {vista === "perfil" && (
-              <div className="bg-white/5 border border-white/10 backdrop-blur-2xl p-10 rounded-[2rem] shadow-2xl max-w-2xl mx-auto animate-fade-in print:hidden">
+              <div className="bg-white/5 border border-white/10 backdrop-blur-2xl p-10 rounded-[2rem] shadow-2xl max-w-2xl mx-auto animate-fade-custom print:hidden">
                 <div className="flex items-center gap-4 mb-8">
                    <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-white border border-white/10"><Building2 size={24} /></div>
                    <div>
@@ -569,7 +578,7 @@ function AuditorDashboard() {
 
             {/* VISTA: FEEDBACK */}
             {vista === "feedback" && (
-              <div className="bg-white/5 border border-white/10 backdrop-blur-2xl p-10 rounded-[2rem] shadow-2xl max-w-2xl mx-auto text-center animate-fade-in print:hidden">
+              <div className="bg-white/5 border border-white/10 backdrop-blur-2xl p-10 rounded-[2rem] shadow-2xl max-w-2xl mx-auto text-center animate-fade-custom print:hidden">
                 <div className="flex justify-center mb-6"><div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center text-white border border-white/10"><MessageSquare size={32} /></div></div>
                 <h2 className="text-3xl font-bold mb-3 text-white">Ayudanos a mejorar Mora</h2>
                 <p className="text-slate-400 mb-8 font-medium">¿Encontraste un bug o tenés una idea genial?</p>
