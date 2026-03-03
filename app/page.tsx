@@ -7,7 +7,7 @@ import {
   Target, Users, Building2, MessageSquare, LogOut, ChevronDown, 
   Zap, AlertTriangle, CheckCircle2, CreditCard, Settings, 
   Search, ArrowRight, ArrowLeft, TrendingUp, TrendingDown, LayoutPanelLeft,
-  FileText, BarChart3, Clock, Activity, Plus
+  FileText, BarChart3, ShieldCheck, Plus, Clock, Activity
 } from 'lucide-react';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -252,15 +252,15 @@ function AuditorDashboard() {
     return coincideFiltro && coincideBusqueda;
   });
 
-  // MATEMÁTICA DEL DASHBOARD AVANZADA
+  // MATEMÁTICA DEL DASHBOARD AVANZADA Y CLICKABLE
   const totalAuditorias = historial.length;
   const promedioScore = totalAuditorias > 0 ? Math.round(historial.reduce((acc, curr) => acc + curr.score, 0) / totalAuditorias) : 0;
   let totalFugas = 0;
   let totalOportunidades = 0;
   
-  // Listas de ranking de cuentas afectadas
-  const cuentasRojas: {nombre: string, cant: number}[] = [];
-  const cuentasAmarillas: {nombre: string, cant: number}[] = [];
+  // Modificamos las listas para que guarden el reporte completo, así podemos abrirlo al hacer clic
+  const cuentasRojas: {nombre: string, cant: number, reporte: any}[] = [];
+  const cuentasAmarillas: {nombre: string, cant: number, reporte: any}[] = [];
 
   historial.forEach(h => {
       const nombre = h.nombre_cuenta || t[idioma].cuentaSinNombre;
@@ -268,24 +268,26 @@ function AuditorDashboard() {
          const cantRojas = h.reporte_json.hallazgos.graves_rojo.length;
          if (cantRojas > 0) {
             totalFugas += cantRojas;
-            cuentasRojas.push({ nombre, cant: cantRojas });
+            cuentasRojas.push({ nombre, cant: cantRojas, reporte: h.reporte_json });
          }
       }
       if (h.reporte_json?.hallazgos?.debiles_amarillo) {
          const cantAma = h.reporte_json.hallazgos.debiles_amarillo.length;
          if (cantAma > 0) {
             totalOportunidades += cantAma;
-            cuentasAmarillas.push({ nombre, cant: cantAma });
+            cuentasAmarillas.push({ nombre, cant: cantAma, reporte: h.reporte_json });
          }
       }
   });
 
-  // Ordenamos para mostrar las que tienen MÁS errores arriba de todo
   cuentasRojas.sort((a,b) => b.cant - a.cant);
   cuentasAmarillas.sort((a,b) => b.cant - a.cant);
 
   if (status === "loading") return <div className="h-screen w-full flex justify-center items-center text-xl font-bold text-white">Cargando...</div>;
 
+  // =========================================================================
+  // LANDING PAGE PREMIUM 
+  // =========================================================================
   if (!session) {
     return (
       <div className="min-h-screen w-full font-sans text-slate-200 overflow-y-auto overflow-x-hidden bg-[#0a0a0c] selection:bg-[#FEAFAE] selection:text-black">
@@ -527,7 +529,7 @@ function AuditorDashboard() {
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                   <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col justify-between relative overflow-hidden backdrop-blur-xl">
+                   <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px]">
                       <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/5 rounded-full blur-2xl"></div>
                       <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 relative z-10 flex items-center gap-2"><Activity size={16}/> {t[idioma].saludG}</p>
                       <div className="flex items-end gap-3 relative z-10">
@@ -538,28 +540,32 @@ function AuditorDashboard() {
                       </div>
                    </div>
 
-                   <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col justify-between relative overflow-hidden backdrop-blur-xl">
+                   <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px]">
                       <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 relative z-10 flex items-center gap-2"><Users size={16}/> {t[idioma].totAud}</p>
                       <span className="text-5xl font-black text-white relative z-10">{totalAuditorias}</span>
                    </div>
 
-                   {/* TARJETA FUGAS CON LISTA INTERNA */}
+                   {/* TARJETA FUGAS CON LISTA INTERACTIVA */}
                    <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px]">
                       <div className="absolute -right-4 -top-4 w-24 h-24 bg-red-500/10 rounded-full blur-2xl"></div>
                       <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 relative z-10 flex items-center gap-2"><AlertTriangle size={16} className="text-red-400"/> {t[idioma].fugasDet}</p>
                       
-                      <div className="flex-1 flex flex-col justify-center">
+                      <div className="flex-1 flex flex-col">
                         <span className="text-5xl font-black text-white relative z-10 mb-4">{totalFugas}</span>
                         
                         {cuentasRojas.length > 0 && (
                           <div className="mt-auto border-t border-white/5 pt-3 relative z-10">
-                            <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1.5">{t[idioma].afectaA}</p>
-                            <div className="space-y-1">
+                            <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">{t[idioma].afectaA}</p>
+                            <div className="space-y-1.5">
                               {cuentasRojas.slice(0, 2).map((c,i) => (
-                                <div key={i} className="flex justify-between items-center text-xs">
-                                   <span className="text-slate-300 truncate pr-2">{c.nombre}</span>
-                                   <span className="text-red-400 font-bold bg-red-500/10 px-1.5 py-0.5 rounded">{c.cant}</span>
-                                </div>
+                                <button 
+                                  key={i} 
+                                  onClick={() => { setReporte(c.reporte); setNombreCuenta(c.nombre); setVista("reporte_lectura"); }}
+                                  className="w-full flex justify-between items-center text-xs hover:bg-white/5 p-1.5 -mx-1.5 rounded-lg transition-colors text-left group"
+                                >
+                                   <span className="text-slate-300 group-hover:text-white truncate pr-2 transition-colors">{c.nombre}</span>
+                                   <span className="text-red-400 font-bold bg-red-500/10 group-hover:bg-red-500/20 px-2 py-0.5 rounded transition-colors">{c.cant}</span>
+                                </button>
                               ))}
                             </div>
                           </div>
@@ -567,23 +573,27 @@ function AuditorDashboard() {
                       </div>
                    </div>
 
-                   {/* TARJETA OPORTUNIDADES CON LISTA INTERNA */}
+                   {/* TARJETA OPORTUNIDADES CON LISTA INTERACTIVA */}
                    <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px]">
                       <div className="absolute -right-4 -top-4 w-24 h-24 bg-yellow-500/10 rounded-full blur-2xl"></div>
                       <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 relative z-10 flex items-center gap-2"><Zap size={16} className="text-yellow-400"/> {t[idioma].oporMej}</p>
                       
-                      <div className="flex-1 flex flex-col justify-center">
+                      <div className="flex-1 flex flex-col">
                         <span className="text-5xl font-black text-white relative z-10 mb-4">{totalOportunidades}</span>
                         
                         {cuentasAmarillas.length > 0 && (
                           <div className="mt-auto border-t border-white/5 pt-3 relative z-10">
-                            <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1.5">{t[idioma].afectaA}</p>
-                            <div className="space-y-1">
+                            <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">{t[idioma].afectaA}</p>
+                            <div className="space-y-1.5">
                               {cuentasAmarillas.slice(0, 2).map((c,i) => (
-                                <div key={i} className="flex justify-between items-center text-xs">
-                                   <span className="text-slate-300 truncate pr-2">{c.nombre}</span>
-                                   <span className="text-yellow-400 font-bold bg-yellow-500/10 px-1.5 py-0.5 rounded">{c.cant}</span>
-                                </div>
+                                <button 
+                                  key={i} 
+                                  onClick={() => { setReporte(c.reporte); setNombreCuenta(c.nombre); setVista("reporte_lectura"); }}
+                                  className="w-full flex justify-between items-center text-xs hover:bg-white/5 p-1.5 -mx-1.5 rounded-lg transition-colors text-left group"
+                                >
+                                   <span className="text-slate-300 group-hover:text-white truncate pr-2 transition-colors">{c.nombre}</span>
+                                   <span className="text-yellow-400 font-bold bg-yellow-500/10 group-hover:bg-yellow-500/20 px-2 py-0.5 rounded transition-colors">{c.cant}</span>
+                                </button>
                               ))}
                             </div>
                           </div>
@@ -728,7 +738,7 @@ function AuditorDashboard() {
             {((vista === "nueva" && reporte) || (vista === "reporte_lectura" && reporte)) && (
               <div className="animate-fade-custom print:bg-white print:m-0 print:p-0">
                 {vista === "reporte_lectura" && (
-                  <button onClick={() => setVista("historial")} className="mb-6 flex items-center gap-2 text-slate-400 hover:text-white font-medium transition-colors print:hidden"><ArrowLeft size={18} /> {t[idioma].volver}</button>
+                  <button onClick={() => setVista("dashboard")} className="mb-6 flex items-center gap-2 text-slate-400 hover:text-white font-medium transition-colors print:hidden"><ArrowLeft size={18} /> {t[idioma].volver}</button>
                 )}
                 <div className={`bg-white/5 border border-white/10 backdrop-blur-2xl p-10 rounded-[2rem] shadow-2xl print:bg-white print:text-black print:border-none print:shadow-none print:p-0 print:mt-0 ${vista === "nueva" ? "mt-8" : ""}`}>
                   <div className="hidden print:flex justify-between items-center mb-10 border-b-2 border-slate-200 pb-6">
@@ -770,6 +780,7 @@ function AuditorDashboard() {
               </div>
             )}
 
+            {/* VISTA: HISTORIAL DE CLIENTES */}
             {vista === "historial" && (
               <div className="bg-white/5 border border-white/10 backdrop-blur-2xl p-8 rounded-[2rem] shadow-2xl animate-fade-custom flex flex-col min-h-[600px] print:hidden">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
