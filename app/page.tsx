@@ -8,7 +8,7 @@ import {
   Zap, AlertTriangle, CheckCircle2, CreditCard, Settings, 
   Search, ArrowRight, ArrowLeft, TrendingUp, TrendingDown, LayoutPanelLeft,
   FileText, BarChart3, ShieldCheck, Plus, Clock, Activity, Trash2, Lock, 
-  Bell, ListChecks, LayoutGrid, CheckSquare, Sparkles
+  Bell, ListChecks, LayoutGrid, CheckSquare, Sparkles, Undo2, RefreshCcw
 } from 'lucide-react';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -165,8 +165,9 @@ function AuditorDashboard() {
   
   const [tareasCompletadas, setTareasCompletadas] = useState<number[]>([]);
   
-  // NUEVO ESTADO: Controla el Modal de Seguridad del Auto-Apply
+  // NUEVO ESTADO: Modal Destructivo y Toast de Deshacer
   const [mostrarConfirmacion, setMostrarConfirmacion] = useState(false);
+  const [toastState, setToastState] = useState<{show: boolean, status: 'success' | 'undoing' | 'reverted', timeLeft: number}>({show: false, status: 'success', timeLeft: 15});
 
   const t = {
     es: {
@@ -255,6 +256,38 @@ function AuditorDashboard() {
       matrizTit: "Campaign Matrix", matrizDesc: "Spend distribution vs performance",
       escalar: "STARS (Scale)", apagar: "TRASH (Pause)", observar: "DOUBTFUL (Observe)", potenciales: "POTENTIAL (Test)"
     }
+  };
+
+  // LOGICA DEL TIMER DEL TOAST
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (toastState.show && toastState.status === 'success' && toastState.timeLeft > 0) {
+      timer = setInterval(() => {
+        setToastState(prev => ({...prev, timeLeft: prev.timeLeft - 1}));
+      }, 1000);
+    } else if (toastState.show && toastState.status === 'success' && toastState.timeLeft <= 0) {
+      // Se acabó el tiempo y no deshizo nada, el cambio queda firme.
+      setToastState(prev => ({...prev, show: false}));
+    }
+    return () => clearInterval(timer);
+  }, [toastState.show, toastState.status, toastState.timeLeft]);
+
+  const aplicarCambios = () => {
+    setMostrarConfirmacion(false);
+    // Reinicia el toast a 15 segundos
+    setToastState({show: true, status: 'success', timeLeft: 15});
+  };
+
+  const deshacerCambios = () => {
+    setToastState(prev => ({...prev, status: 'undoing'}));
+    // Simulamos que la API tarda 1.5s en revertir
+    setTimeout(() => {
+      setToastState(prev => ({...prev, status: 'reverted'}));
+      // Cerramos el toast 3 segundos después de confirmar que se deshizo
+      setTimeout(() => {
+        setToastState(prev => ({...prev, show: false}));
+      }, 3000);
+    }, 1500);
   };
 
   const descargarPDF = () => window.print();
@@ -939,7 +972,6 @@ function AuditorDashboard() {
               </div>
             )}
 
-            {/* VISTA: NUEVA AUDITORÍA (CON NUEVOS CAMPOS) */}
             {vista === "nueva" && (
               <div className="animate-fade-custom print:hidden relative z-10">
                 <div className="bg-white/5 border border-white/10 backdrop-blur-2xl p-8 md:p-12 rounded-[2rem] shadow-2xl mb-8 max-w-4xl mx-auto">
@@ -951,9 +983,7 @@ function AuditorDashboard() {
                   <div className="mb-6"><label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">{t[idioma].placeholderNombre}</label><input type="text" placeholder={t[idioma].placeholderNombre} className="w-full p-4 bg-black/40 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all" value={nombreCuenta} onChange={(e) => setNombreCuenta(e.target.value)} /></div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                    {/* NUEVO CAMPO: PRESUPUESTO OBJETIVO */}
                     <div><label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">{t[idioma].presupuestoObj}</label><input type="number" placeholder={t[idioma].placeholderPres} className="w-full p-4 bg-black/20 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all" value={presupuestoObjetivo} onChange={(e) => setPresupuestoObjetivo(e.target.value)} /></div>
-                    {/* NUEVO CAMPO: GASTO ACTUAL */}
                     <div><label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">{t[idioma].gastoAct}</label><input type="number" placeholder={t[idioma].placeholderGasto} className="w-full p-4 bg-black/20 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all" value={gastoActual} onChange={(e) => setGastoActual(e.target.value)} /></div>
                     
                     <div><label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">{t[idioma].conversiones}</label><input type="number" placeholder={t[idioma].placeholderConv} className="w-full p-4 bg-black/20 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all" value={conversiones} onChange={(e) => setConversiones(e.target.value)} /></div>
@@ -967,7 +997,6 @@ function AuditorDashboard() {
 
                   <div className="mb-8"><label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">{t[idioma].contexto}</label><textarea className="w-full h-24 p-4 bg-black/20 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all resize-none" placeholder={t[idioma].placeholderContexto} value={notas} onChange={(e) => setNotas(e.target.value)} /></div>
                   
-                  {/* BOTÓN ACTUALIZADO */}
                   <button onClick={analizarCampaña} disabled={loading || !nombreCuenta || !presupuestoObjetivo || !gastoActual || !conversiones} className="w-full text-black px-6 py-4 rounded-2xl font-bold text-lg hover:scale-[1.01] disabled:opacity-50 disabled:hover:scale-100 transition-all shadow-lg flex justify-center items-center gap-2" style={melocotonGradient}>
                     {loading ? <span className="animate-pulse">{t[idioma].btnAnalizando}</span> : <><Sparkles size={20}/> {t[idioma].btnAnalizar}</>}
                   </button>
@@ -975,7 +1004,6 @@ function AuditorDashboard() {
               </div>
             )}
 
-            {/* VISTA: LECTURA DE REPORTE (CON PESTAÑAS ENTERPRISE Y CHECKLIST INTERACTIVO) */}
             {vista === "reporte_lectura" && reporte && (
               <div className="animate-fade-custom print:bg-white print:m-0 print:p-0 relative z-10">
                 
@@ -1080,7 +1108,6 @@ function AuditorDashboard() {
                      </div>
                   )}
 
-                  {/* AQUÍ VIVE LA MAGIA DEL PACING */}
                   {subVistaReporte === "avanzado" && (
                      <div className="animate-fade-custom grid grid-cols-1 lg:grid-cols-2 gap-8">
                         
@@ -1293,7 +1320,7 @@ function AuditorDashboard() {
         </main>
       </div>
 
-      {/* MODAL DE CONFIRMACIÓN DE AUTO-APPLY (NUEVO) */}
+      {/* MODAL DE CONFIRMACIÓN DE AUTO-APPLY */}
       {mostrarConfirmacion && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 print:hidden">
           <div className="absolute inset-0 bg-black/80 backdrop-blur-sm cursor-pointer" onClick={() => setMostrarConfirmacion(false)}></div>
@@ -1317,12 +1344,47 @@ function AuditorDashboard() {
                 <button onClick={() => setMostrarConfirmacion(false)} className="px-5 py-3 rounded-xl font-bold text-sm text-slate-300 bg-white/5 hover:bg-white/10 transition-colors border border-white/10 w-full">
                   Cancelar
                 </button>
-                <button onClick={() => { setMostrarConfirmacion(false); alert(t[idioma].msgAutoApply); }} className="px-5 py-3 rounded-xl font-bold text-sm text-white transition-all shadow-lg bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 w-full flex justify-center items-center gap-2">
+                <button onClick={aplicarCambios} className="px-5 py-3 rounded-xl font-bold text-sm text-white transition-all shadow-lg bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 w-full flex justify-center items-center gap-2">
                   <Sparkles size={16} /> Aplicar
                 </button>
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* TOAST DE DESHACER (UNDO) */}
+      {toastState.show && (
+        <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-[120] bg-[#0f0f13] border border-white/10 shadow-[0_10px_40px_rgba(0,0,0,0.5)] rounded-2xl overflow-hidden flex flex-col w-80 animate-fade-custom">
+           <div className="p-4 flex justify-between items-center bg-white/5">
+              <div className="flex items-center gap-3">
+                 {toastState.status === 'success' && <CheckCircle2 className="text-green-400" size={20} />}
+                 {toastState.status === 'undoing' && <RefreshCcw className="text-yellow-400 animate-spin" size={20} />}
+                 {toastState.status === 'reverted' && <Undo2 className="text-slate-400" size={20} />}
+                 
+                 <div>
+                    <p className="text-sm font-bold text-white">
+                      {toastState.status === 'success' ? 'Cambios aplicados.' : 
+                       toastState.status === 'undoing' ? 'Revertiendo...' : 'Cambios revertidos.'}
+                    </p>
+                    {toastState.status === 'success' && <p className="text-[10px] text-slate-400 font-medium">Permanentes en {toastState.timeLeft}s</p>}
+                 </div>
+              </div>
+              {toastState.status === 'success' && (
+                <button onClick={deshacerCambios} className="text-[#FEAFAE] hover:text-white font-bold text-xs uppercase tracking-wider transition-colors px-3 py-1.5 bg-[#FEAFAE]/10 rounded hover:bg-[#FEAFAE]/20">
+                   Deshacer
+                </button>
+              )}
+           </div>
+           {/* Barra de progreso visual para los 15s */}
+           {toastState.status === 'success' && (
+              <div className="w-full bg-white/5 h-1">
+                 <div 
+                   className="bg-[#FEAFAE] h-1 transition-all duration-1000 ease-linear" 
+                   style={{ width: `${(toastState.timeLeft / 15) * 100}%` }}
+                 ></div>
+              </div>
+           )}
         </div>
       )}
 
