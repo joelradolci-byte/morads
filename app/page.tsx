@@ -4,7 +4,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { SessionProvider, signIn, signOut, useSession } from "next-auth/react";
 import { createClient } from "@supabase/supabase-js";
 import { 
-  Target, Users, MessageSquare, LogOut, ChevronDown, 
+  Target, Users, Building2, MessageSquare, LogOut, ChevronDown, 
   Zap, AlertTriangle, CheckCircle2, CreditCard, Settings, 
   Search, ArrowRight, ArrowLeft, TrendingUp, TrendingDown, LayoutPanelLeft 
 } from 'lucide-react';
@@ -36,6 +36,8 @@ function AuditorDashboard() {
   const [filtroEstado, setFiltroEstado] = useState<"todos" | "critico" | "atencion" | "optimo">("todos");
   const [busqueda, setBusqueda] = useState(""); 
   
+  // RESTAURADO EL ESTADO DE MOSTRAR PAGOS
+  const [mostrarPagos, setMostrarPagos] = useState(false);
   const [perfil, setPerfil] = useState<any>(null);
   const [menuPerfil, setMenuPerfil] = useState(false);
 
@@ -73,7 +75,6 @@ function AuditorDashboard() {
       ayudanos: "Ayudanos a mejorar Mora", bug: "¿Encontraste un bug o tenés una idea genial?", escribiSug: "Escribí tu sugerencia acá...", enviando: "Enviando...", enviarSug: "Enviar Sugerencia",
       facturacionTitulo: "Suscripción y Pagos", facturacionDesc: "Gestioná tu plan actual y métodos de pago de forma segura.", planActual: "Tu Plan Actual", gestionarStripe: "Gestionar en Stripe", pronto: "(Próximamente)",
       puntajeBasado: "Puntaje basado en rendimiento y estructura.",
-      // NUEVOS TEXTOS CONFIG
       marcaBlanca: "Marca Blanca Visual", preferencias: "Preferencias de Trabajo",
       sitioWeb: "Sitio Web (Aparecerá en PDF)", piePagina: "Pie de página legal (PDF)", monedaDef: "Moneda por defecto", metricaDef: "Métrica por defecto"
     },
@@ -387,7 +388,6 @@ function AuditorDashboard() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                     <div>
                       <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">{t[idioma].invMensual}</label>
-                      {/* PLACEHOLDER DINAMICO SEGUN LA MONEDA */}
                       <input type="text" placeholder={`Ej: 1,500 ${moneda.split(" ")[0]}`} className="w-full p-4 bg-black/20 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all" value={inversion} onChange={(e) => setInversion(e.target.value)} />
                     </div>
                     <div>
@@ -396,7 +396,6 @@ function AuditorDashboard() {
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">{t[idioma].cparoas}</label>
-                      {/* PLACEHOLDER DINAMICO SEGUN LA METRICA */}
                       <input type="text" placeholder={`Ej: ${metrica} objetivo...`} className="w-full p-4 bg-black/20 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all" value={cpaRoas} onChange={(e) => setCpaRoas(e.target.value)} />
                     </div>
                     <div>
@@ -448,7 +447,6 @@ function AuditorDashboard() {
                     <div>{perfil?.agencia_logo ? <img src={perfil.agencia_logo} alt="Logo Agencia" className="h-16 object-contain" /> : <div className="flex items-center gap-2"><span className="text-3xl">🐾</span><span className="text-3xl font-black text-slate-800">Mora</span></div>}</div>
                     <div className="text-right">
                       <h2 className="text-2xl font-black text-slate-800 tracking-tight">{perfil?.agencia_nombre ? perfil.agencia_nombre : "Auditoría Estratégica"}</h2>
-                      {/* SITIO WEB INYECTADO AQUI */}
                       {agenciaWeb && <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-widest">{agenciaWeb}</p>}
                       <p className="text-sm font-medium text-slate-500 mt-1">{new Date().toLocaleDateString()}</p>
                     </div>
@@ -583,7 +581,6 @@ function AuditorDashboard() {
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                  {/* COLUMNA 1: MARCA BLANCA */}
                   <div className="space-y-6">
                     <h3 className="text-lg font-bold text-[#FEAFAE] flex items-center gap-2 border-b border-white/5 pb-2"><Building2 size={18}/> {t[idioma].marcaBlanca}</h3>
                     <div>
@@ -609,7 +606,6 @@ function AuditorDashboard() {
                     </div>
                   </div>
 
-                  {/* COLUMNA 2: PREFERENCIAS */}
                   <div className="space-y-6">
                     <h3 className="text-lg font-bold text-[#FEAFAE] flex items-center gap-2 border-b border-white/5 pb-2"><LayoutPanelLeft size={18}/> {t[idioma].preferencias}</h3>
                     <div>
