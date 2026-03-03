@@ -4,9 +4,9 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { SessionProvider, signIn, signOut, useSession } from "next-auth/react";
 import { createClient } from "@supabase/supabase-js";
 import { 
-  Target, Users, Building2, MessageSquare, LogOut, ChevronDown, 
+  Target, Users, MessageSquare, LogOut, ChevronDown, 
   Zap, AlertTriangle, CheckCircle2, CreditCard, Settings, 
-  Search, ArrowRight, ArrowLeft, TrendingUp, TrendingDown 
+  Search, ArrowRight, ArrowLeft, TrendingUp, TrendingDown, LayoutPanelLeft 
 } from 'lucide-react';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -29,7 +29,6 @@ function AuditorDashboard() {
   const [notas, setNotas] = useState("");
 
   const [idioma, setIdioma] = useState<"es" | "en">("es");
-  // AGREGAMOS LA VISTA DE FACTURACION
   const [vista, setVista] = useState<"nueva" | "historial" | "perfil" | "feedback" | "reporte_lectura" | "facturacion">("nueva");
   const [historial, setHistorial] = useState<any[]>([]);
   const [cargandoHistorial, setCargandoHistorial] = useState(false);
@@ -40,18 +39,22 @@ function AuditorDashboard() {
   const [perfil, setPerfil] = useState<any>(null);
   const [menuPerfil, setMenuPerfil] = useState(false);
 
+  // ESTADOS DE CONFIGURACIÓN AVANZADA
   const [agenciaNombre, setAgenciaNombre] = useState("");
   const [agenciaLogo, setAgenciaLogo] = useState("");
+  const [agenciaWeb, setAgenciaWeb] = useState("");
+  const [agenciaPie, setAgenciaPie] = useState("Auditoría generada con tecnología IA - Reporte Confidencial.");
+  const [moneda, setMoneda] = useState("USD ($)");
+  const [metrica, setMetrica] = useState("ROAS");
   const [uploading, setUploading] = useState(false);
 
   const [mensajeFeedback, setMensajeFeedback] = useState("");
   const [enviandoFeedback, setEnviandoFeedback] = useState(false);
 
-  // DICCIONARIO COMPLETO PARA TRADUCCIÓN TOTAL
   const t = {
     es: {
-      nueva: "Auditor IA", clientes: "Panel de Clientes", agencia: "Configuración",
-      reportes: "Reportes", feedback: "Sugerencias", configuracion: "Configuración", facturacion: "Ver Facturación", salir: "Cerrar Sesión",
+      nueva: "Auditor IA", clientes: "Panel de Clientes",
+      reportes: "Reportes", feedback: "Sugerencias", configuracion: "Configuración General", facturacion: "Ver Facturación", salir: "Cerrar Sesión",
       placeholderNombre: "Nombre del Cliente o Cuenta", btnAnalizar: "Ejecutar Auditoría", btnAnalizando: "Analizando métricas...", exportar: "Exportar a PDF",
       score: "Score General", problemas: "Problemas Graves", mejoras: "Áreas Débiles", aciertos: "Puntos Fuertes",
       tituloland: "Auditorías Nivel Agencia", h1land1: "Detectá fugas de dinero con", h1land2: "Inteligencia Artificial.",
@@ -60,20 +63,23 @@ function AuditorDashboard() {
       suscripcion: "Suscripción", activa: "Activa", renueva: "Renueva:",
       ingresaDatos: "Ingresá los datos clave de la campaña para un análisis preciso.",
       invMensual: "Inversión Mensual", conversiones: "Conversiones", cparoas: "CPA o ROAS Actual", tipoCamp: "Tipo de Campaña", contexto: "Contexto y Notas del Cliente (Opcional)",
-      placeholderInv: "Ej: $1,500", placeholderConv: "Ej: 120", placeholderCpa: "Ej: CPA $12.50 o ROAS 350%", placeholderContexto: "Ej: El cliente quiere enfocarse en vender zapatos de invierno. Notamos muchos clics de países irrelevantes.",
+      placeholderConv: "Ej: 120", placeholderContexto: "Ej: El cliente quiere enfocarse en vender zapatos de invierno. Notamos muchos clics de países irrelevantes.",
       volver: "Volver al Panel", monitoreo: "Monitoreo de Cuentas", tenes: "Tenés", registradas: "auditorías registradas.",
       buscar: "Buscar cliente...", todos: "Todos", criticos: "Críticos", atencion: "Atención", optimos: "Óptimos",
       thCliente: "Cliente / Cuenta", thFecha: "Fecha", thEstado: "Estado IA", thTendencia: "Tendencia", thAccion: "Acción",
       abrirAud: "Abrir Auditoría", sinCuentas: "No se encontraron clientes.", cuentaSinNombre: "Cuenta sin nombre",
-      persPdf: "Personalizá tu cuenta y los PDFs que le enviás a tus clientes.", nomAgencia: "Nombre de la Agencia", logoPdf: "Logo (Aparecerá en el PDF)",
+      persPdf: "Personalizá la identidad y las herramientas de tu agencia.", nomAgencia: "Nombre de la Agencia", logoPdf: "Logo (PDF)",
       subeLogo: "Sube un logo", guardando: "Guardando...", guardarAj: "Guardar Ajustes",
       ayudanos: "Ayudanos a mejorar Mora", bug: "¿Encontraste un bug o tenés una idea genial?", escribiSug: "Escribí tu sugerencia acá...", enviando: "Enviando...", enviarSug: "Enviar Sugerencia",
       facturacionTitulo: "Suscripción y Pagos", facturacionDesc: "Gestioná tu plan actual y métodos de pago de forma segura.", planActual: "Tu Plan Actual", gestionarStripe: "Gestionar en Stripe", pronto: "(Próximamente)",
-      puntajeBasado: "Puntaje basado en rendimiento y estructura."
+      puntajeBasado: "Puntaje basado en rendimiento y estructura.",
+      // NUEVOS TEXTOS CONFIG
+      marcaBlanca: "Marca Blanca Visual", preferencias: "Preferencias de Trabajo",
+      sitioWeb: "Sitio Web (Aparecerá en PDF)", piePagina: "Pie de página legal (PDF)", monedaDef: "Moneda por defecto", metricaDef: "Métrica por defecto"
     },
     en: {
-      nueva: "AI Auditor", clientes: "Client Dashboard", agencia: "Settings",
-      reportes: "Reports", feedback: "Feedback", configuracion: "Settings", facturacion: "Billing", salir: "Sign Out",
+      nueva: "AI Auditor", clientes: "Client Dashboard",
+      reportes: "Reports", feedback: "Feedback", configuracion: "General Settings", facturacion: "Billing", salir: "Sign Out",
       placeholderNombre: "Client or Account Name", btnAnalizar: "Run Audit", btnAnalizando: "Analyzing metrics...", exportar: "Export to PDF",
       score: "Overall Score", problemas: "Critical Issues", mejoras: "Weak Areas", aciertos: "Strengths",
       tituloland: "Agency-Level Audits", h1land1: "Detect money leaks with", h1land2: "Artificial Intelligence.",
@@ -82,16 +88,18 @@ function AuditorDashboard() {
       suscripcion: "Subscription", activa: "Active", renueva: "Renews:",
       ingresaDatos: "Enter key campaign data for a precise analysis.",
       invMensual: "Monthly Spend", conversiones: "Conversions", cparoas: "Current CPA or ROAS", tipoCamp: "Campaign Type", contexto: "Client Context & Notes (Optional)",
-      placeholderInv: "E.g. $1,500", placeholderConv: "E.g. 120", placeholderCpa: "E.g. CPA $12.50 or ROAS 350%", placeholderContexto: "E.g. The client wants to focus on selling winter shoes. We noticed many clicks from irrelevant countries.",
+      placeholderConv: "E.g. 120", placeholderContexto: "E.g. The client wants to focus on selling winter shoes. We noticed many clicks from irrelevant countries.",
       volver: "Back to Dashboard", monitoreo: "Account Monitoring", tenes: "You have", registradas: "audits recorded.",
       buscar: "Search client...", todos: "All", criticos: "Critical", atencion: "Warning", optimos: "Optimal",
       thCliente: "Client / Account", thFecha: "Date", thEstado: "AI Status", thTendencia: "Trend", thAccion: "Action",
       abrirAud: "Open Audit", sinCuentas: "No clients found.", cuentaSinNombre: "Unnamed Account",
-      persPdf: "Customize your account and the PDFs you send to clients.", nomAgencia: "Agency Name", logoPdf: "Logo (Appears on PDF)",
+      persPdf: "Customize your agency's identity and workflow tools.", nomAgencia: "Agency Name", logoPdf: "Logo (PDF)",
       subeLogo: "Upload logo", guardando: "Saving...", guardarAj: "Save Settings",
       ayudanos: "Help us improve Mora", bug: "Found a bug or have a great idea?", escribiSug: "Write your suggestion here...", enviando: "Sending...", enviarSug: "Send Suggestion",
       facturacionTitulo: "Subscription & Billing", facturacionDesc: "Manage your current plan and payment methods securely.", planActual: "Your Current Plan", gestionarStripe: "Manage in Stripe", pronto: "(Coming Soon)",
-      puntajeBasado: "Score based on performance and structure."
+      puntajeBasado: "Score based on performance and structure.",
+      marcaBlanca: "Visual White Label", preferencias: "Workflow Preferences",
+      sitioWeb: "Website (Appears on PDF)", piePagina: "Legal Footer (PDF)", monedaDef: "Default Currency", metricaDef: "Default Metric"
     }
   };
 
@@ -101,8 +109,14 @@ function AuditorDashboard() {
     if (!session?.user?.email) return;
     const { data: userProfile } = await supabase.from('suscripciones').select('*').eq('email', session.user.email).single();
     setPerfil(userProfile);
-    if (userProfile?.agencia_nombre) setAgenciaNombre(userProfile.agencia_nombre);
-    if (userProfile?.agencia_logo) setAgenciaLogo(userProfile.agencia_logo);
+    if (userProfile) {
+      if (userProfile.agencia_nombre) setAgenciaNombre(userProfile.agencia_nombre);
+      if (userProfile.agencia_logo) setAgenciaLogo(userProfile.agencia_logo);
+      if (userProfile.agencia_web) setAgenciaWeb(userProfile.agencia_web);
+      if (userProfile.agencia_pie) setAgenciaPie(userProfile.agencia_pie);
+      if (userProfile.moneda_default) setMoneda(userProfile.moneda_default);
+      if (userProfile.metrica_default) setMetrica(userProfile.metrica_default);
+    }
   };
 
   const cargarHistorial = async () => {
@@ -140,10 +154,20 @@ function AuditorDashboard() {
   const guardarAjustesAgencia = async () => {
     if (!session?.user?.email) return;
     setLoading(true);
-    const { error } = await supabase.from('suscripciones').update({ agencia_nombre: agenciaNombre, agencia_logo: agenciaLogo }).eq('email', session.user.email);
+    const { error } = await supabase.from('suscripciones').update({ 
+      agencia_nombre: agenciaNombre, 
+      agencia_logo: agenciaLogo,
+      agencia_web: agenciaWeb,
+      agencia_pie: agenciaPie,
+      moneda_default: moneda,
+      metrica_default: metrica
+    }).eq('email', session.user.email);
+    
     if (!error) {
       alert("¡Ajustes guardados correctamente!");
       obtenerPerfil();
+    } else {
+      alert("Error. Asegurate de haber creado las 4 columnas nuevas en Supabase.");
     }
     setLoading(false);
   };
@@ -250,25 +274,17 @@ function AuditorDashboard() {
     <>
       <style dangerouslySetInnerHTML={{__html: `
         @media print {
-          body { 
-            -webkit-print-color-adjust: exact !important; 
-            print-color-adjust: exact !important; 
-            background: white !important;
-            height: auto !important;
-          }
+          body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; background: white !important; height: auto !important; }
           @page { margin: 15mm; }
           .print-container { height: auto !important; overflow: visible !important; position: static !important; }
         }
-        @keyframes fadeInCustom {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
+        @keyframes fadeInCustom { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .animate-fade-custom { animation: fadeInCustom 0.5s ease-out forwards; }
       `}} />
 
       <div className="flex h-screen w-full font-sans text-slate-200 overflow-hidden print-container">
         
-        {/* SIDEBAR */}
+        {/* SIDEBAR LIMPIO (Sin Configuración) */}
         <aside className="w-64 bg-white/[0.02] backdrop-blur-3xl border-r border-white/5 flex flex-col justify-between print:hidden z-20 shadow-2xl">
           <div>
             <div className="h-20 flex items-center px-6 border-b border-white/5 gap-3">
@@ -279,15 +295,11 @@ function AuditorDashboard() {
             <div className="p-4 space-y-2 mt-4">
               {[ 
                 { icon: Target, text: t[idioma].nueva, view: 'nueva' }, 
-                { icon: Users, text: t[idioma].clientes, view: 'historial' }, 
-                { icon: Building2, text: t[idioma].agencia, view: 'perfil' }
+                { icon: Users, text: t[idioma].clientes, view: 'historial' }
               ].map((link, idx) => (
                 <button 
                   key={idx}
-                  onClick={() => { 
-                    setVista(link.view as any); 
-                    setReporte(null); 
-                  }} 
+                  onClick={() => { setVista(link.view as any); setReporte(null); setMostrarPagos(false); }} 
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${ (vista === link.view || (vista === 'reporte_lectura' && link.view === 'historial')) ? "bg-white/10 text-white shadow-sm border border-white/5" : "text-slate-400 hover:bg-white/5 hover:text-white" }`}
                 >
                   <div className={(vista === link.view || (vista === 'reporte_lectura' && link.view === 'historial')) ? "text-[#FFA4BD]" : ""}><link.icon size={20} strokeWidth={(vista === link.view || (vista === 'reporte_lectura' && link.view === 'historial')) ? 2.5 : 2} /></div> 
@@ -306,7 +318,7 @@ function AuditorDashboard() {
               {vista === 'nueva' && t[idioma].nueva}
               {vista === 'historial' && t[idioma].clientes}
               {vista === 'reporte_lectura' && t[idioma].detalleCliente}
-              {vista === 'perfil' && t[idioma].agencia}
+              {vista === 'perfil' && t[idioma].configuracion}
               {vista === 'feedback' && t[idioma].buzonSug}
               {vista === 'facturacion' && t[idioma].facturacionTitulo}
             </h2>
@@ -321,7 +333,6 @@ function AuditorDashboard() {
                   <ChevronDown size={16} className="text-slate-400" />
                </button>
 
-               {/* MENÚ DESPLEGABLE CONECTADO Y TRADUCIDO */}
                {menuPerfil && (
                  <div className="absolute right-0 mt-2 w-64 bg-[#0f0f13]/95 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-2xl py-2 z-50 animate-fade-custom">
                     <div className="px-4 py-3 border-b border-white/5">
@@ -330,7 +341,6 @@ function AuditorDashboard() {
                          <span className="w-2 h-2 rounded-full bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.5)]"></span>
                          <span className="text-sm font-bold text-white">{t[idioma].activa} ({perfil?.plan === 'pro' ? 'Pro' : 'Free'})</span>
                        </div>
-                       {perfil?.plan === 'pro' && <p className="text-xs text-slate-400">{t[idioma].renueva} 15 Abril 2026</p>}
                     </div>
 
                     <div className="py-2">
@@ -377,7 +387,8 @@ function AuditorDashboard() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                     <div>
                       <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">{t[idioma].invMensual}</label>
-                      <input type="text" placeholder={t[idioma].placeholderInv} className="w-full p-4 bg-black/20 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all" value={inversion} onChange={(e) => setInversion(e.target.value)} />
+                      {/* PLACEHOLDER DINAMICO SEGUN LA MONEDA */}
+                      <input type="text" placeholder={`Ej: 1,500 ${moneda.split(" ")[0]}`} className="w-full p-4 bg-black/20 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all" value={inversion} onChange={(e) => setInversion(e.target.value)} />
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">{t[idioma].conversiones}</label>
@@ -385,7 +396,8 @@ function AuditorDashboard() {
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">{t[idioma].cparoas}</label>
-                      <input type="text" placeholder={t[idioma].placeholderCpa} className="w-full p-4 bg-black/20 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all" value={cpaRoas} onChange={(e) => setCpaRoas(e.target.value)} />
+                      {/* PLACEHOLDER DINAMICO SEGUN LA METRICA */}
+                      <input type="text" placeholder={`Ej: ${metrica} objetivo...`} className="w-full p-4 bg-black/20 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all" value={cpaRoas} onChange={(e) => setCpaRoas(e.target.value)} />
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">{t[idioma].tipoCamp}</label>
@@ -436,6 +448,8 @@ function AuditorDashboard() {
                     <div>{perfil?.agencia_logo ? <img src={perfil.agencia_logo} alt="Logo Agencia" className="h-16 object-contain" /> : <div className="flex items-center gap-2"><span className="text-3xl">🐾</span><span className="text-3xl font-black text-slate-800">Mora</span></div>}</div>
                     <div className="text-right">
                       <h2 className="text-2xl font-black text-slate-800 tracking-tight">{perfil?.agencia_nombre ? perfil.agencia_nombre : "Auditoría Estratégica"}</h2>
+                      {/* SITIO WEB INYECTADO AQUI */}
+                      {agenciaWeb && <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-widest">{agenciaWeb}</p>}
                       <p className="text-sm font-medium text-slate-500 mt-1">{new Date().toLocaleDateString()}</p>
                     </div>
                   </div>
@@ -477,8 +491,9 @@ function AuditorDashboard() {
                     </div>
                   </div>
                   
+                  {/* PIE DE PAGINA DINAMICO */}
                   <div className="hidden print:block mt-16 pt-6 border-t border-slate-200 text-center">
-                    <p className="text-xs text-slate-400">Auditoría generada con tecnología IA de Mora - Reporte Confidencial.</p>
+                    <p className="text-xs text-slate-400 font-medium">{agenciaPie}</p>
                   </div>
                 </div>
               </div>
@@ -556,38 +571,82 @@ function AuditorDashboard() {
               </div>
             )}
 
-            {/* VISTA: CONFIGURACIÓN / MI AGENCIA */}
+            {/* VISTA: CONFIGURACIÓN GENERAL DIVIDIDA */}
             {vista === "perfil" && (
-              <div className="bg-white/5 border border-white/10 backdrop-blur-2xl p-10 rounded-[2rem] shadow-2xl max-w-2xl mx-auto animate-fade-custom print:hidden">
+              <div className="bg-white/5 border border-white/10 backdrop-blur-2xl p-10 rounded-[2rem] shadow-2xl mx-auto animate-fade-custom print:hidden">
                 <div className="flex items-center gap-4 mb-8">
                    <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-white border border-white/10"><Settings size={24} /></div>
                    <div>
-                      <h2 className="text-3xl font-bold text-white">{t[idioma].agencia}</h2>
+                      <h2 className="text-3xl font-bold text-white">{t[idioma].configuracion}</h2>
                       <p className="text-slate-400 mt-1">{t[idioma].persPdf}</p>
                    </div>
                 </div>
-                <div className="space-y-6">
-                  <div>
-                    <label className="block text-sm font-bold text-slate-400 mb-2 uppercase tracking-wide">{t[idioma].nomAgencia}</label>
-                    <input type="text" className="w-full p-4 bg-black/20 border border-white/10 rounded-xl text-white focus:border-[#FEAFAE] focus:outline-none transition-all" value={agenciaNombre} onChange={(e) => setAgenciaNombre(e.target.value)} />
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                  {/* COLUMNA 1: MARCA BLANCA */}
+                  <div className="space-y-6">
+                    <h3 className="text-lg font-bold text-[#FEAFAE] flex items-center gap-2 border-b border-white/5 pb-2"><Building2 size={18}/> {t[idioma].marcaBlanca}</h3>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wide">{t[idioma].nomAgencia}</label>
+                      <input type="text" className="w-full p-4 bg-black/20 border border-white/10 rounded-xl text-white focus:border-[#FEAFAE] focus:outline-none transition-all" value={agenciaNombre} onChange={(e) => setAgenciaNombre(e.target.value)} />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wide">{t[idioma].sitioWeb}</label>
+                      <input type="text" placeholder="Ej: www.tuagencia.com" className="w-full p-4 bg-black/20 border border-white/10 rounded-xl text-white focus:border-[#FEAFAE] focus:outline-none transition-all" value={agenciaWeb} onChange={(e) => setAgenciaWeb(e.target.value)} />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wide">{t[idioma].logoPdf}</label>
+                      <div className="flex items-center gap-6 p-4 border border-white/10 rounded-xl bg-black/20">
+                        {agenciaLogo ? <img src={agenciaLogo} alt="Logo" className="w-16 h-16 object-contain rounded-xl bg-white p-2" /> : <div className="w-16 h-16 bg-white/5 rounded-xl flex items-center justify-center text-slate-500 text-xs text-center p-2 border border-dashed border-white/20">{t[idioma].subeLogo}</div>}
+                        <div className="flex-1">
+                          <input type="file" accept="image/*" onChange={subirLogo} disabled={uploading} className="w-full text-sm text-slate-400 cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-white/10 file:text-white hover:file:bg-white/20 transition-all" />
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wide">{t[idioma].piePagina}</label>
+                      <textarea className="w-full h-20 p-4 bg-black/20 border border-white/10 rounded-xl text-white text-sm focus:border-[#FEAFAE] focus:outline-none transition-all resize-none" value={agenciaPie} onChange={(e) => setAgenciaPie(e.target.value)} />
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-bold text-slate-400 mb-2 uppercase tracking-wide">{t[idioma].logoPdf}</label>
-                    <div className="flex items-center gap-6 p-4 border border-white/10 rounded-xl bg-black/20">
-                      {agenciaLogo ? <img src={agenciaLogo} alt="Logo" className="w-20 h-20 object-contain rounded-xl bg-white p-2" /> : <div className="w-20 h-20 bg-white/5 rounded-xl flex items-center justify-center text-slate-500 text-xs text-center p-2 border border-dashed border-white/20">{t[idioma].subeLogo}</div>}
-                      <div className="flex-1">
-                        <input type="file" accept="image/*" onChange={subirLogo} disabled={uploading} className="w-full text-sm text-slate-400 cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-white/10 file:text-white hover:file:bg-white/20 transition-all" />
+
+                  {/* COLUMNA 2: PREFERENCIAS */}
+                  <div className="space-y-6">
+                    <h3 className="text-lg font-bold text-[#FEAFAE] flex items-center gap-2 border-b border-white/5 pb-2"><LayoutPanelLeft size={18}/> {t[idioma].preferencias}</h3>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wide">{t[idioma].monedaDef}</label>
+                      <div className="relative">
+                        <select className="w-full p-4 bg-black/20 border border-white/10 rounded-xl text-white focus:border-[#FEAFAE] focus:outline-none transition-all appearance-none cursor-pointer" value={moneda} onChange={(e) => setMoneda(e.target.value)}>
+                          <option value="USD ($)" className="bg-[#0f0f13]">Dólares USD ($)</option>
+                          <option value="EUR (€)" className="bg-[#0f0f13]">Euros EUR (€)</option>
+                          <option value="ARS ($)" className="bg-[#0f0f13]">Pesos Argentinos ARS ($)</option>
+                          <option value="MXN ($)" className="bg-[#0f0f13]">Pesos Mexicanos MXN ($)</option>
+                        </select>
+                        <ChevronDown size={18} className="absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400 pointer-events-none" />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wide">{t[idioma].metricaDef}</label>
+                      <div className="relative">
+                        <select className="w-full p-4 bg-black/20 border border-white/10 rounded-xl text-white focus:border-[#FEAFAE] focus:outline-none transition-all appearance-none cursor-pointer" value={metrica} onChange={(e) => setMetrica(e.target.value)}>
+                          <option value="ROAS" className="bg-[#0f0f13]">ROAS (Retorno de Inversión)</option>
+                          <option value="CPA" className="bg-[#0f0f13]">CPA (Costo por Adquisición)</option>
+                          <option value="ROI" className="bg-[#0f0f13]">ROI</option>
+                        </select>
+                        <ChevronDown size={18} className="absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400 pointer-events-none" />
                       </div>
                     </div>
                   </div>
-                  <button onClick={guardarAjustesAgencia} disabled={loading || uploading} className="w-full text-black px-8 py-4 rounded-xl font-bold hover:scale-[1.02] disabled:opacity-50 transition-all shadow-lg mt-4" style={melocotonGradient}>
+                </div>
+                
+                <div className="border-t border-white/5 mt-10 pt-8">
+                  <button onClick={guardarAjustesAgencia} disabled={loading || uploading} className="w-full md:w-auto md:px-12 text-black px-8 py-4 rounded-xl font-bold hover:scale-[1.02] disabled:opacity-50 transition-all shadow-lg mx-auto block" style={melocotonGradient}>
                     {loading ? t[idioma].guardando : t[idioma].guardarAj}
                   </button>
                 </div>
               </div>
             )}
 
-            {/* NUEVA VISTA: FACTURACIÓN */}
+            {/* VISTA: FACTURACIÓN */}
             {vista === "facturacion" && (
               <div className="bg-white/5 border border-white/10 backdrop-blur-2xl p-10 rounded-[2rem] shadow-2xl max-w-2xl mx-auto animate-fade-custom print:hidden">
                 <div className="flex items-center gap-4 mb-8">
