@@ -344,14 +344,14 @@ const analizarCampaña = async () => {
     if (!session?.user?.email) return;
     setLoading(true);
     try {
-      // 1. MATEMÁTICA DEL PACING
+      // 1. MATEMÁTICA DEL PACING (Cálculo local ultra rápido)
       const presObj = parseFloat(presupuestoObjetivo) || 0;
       const gastoAct = parseFloat(gastoActual) || 0;
       const today = new Date();
       const currentDay = today.getDate();
       const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
       
-      const dailySpend = currentDay > 0 ? gastoAct / currentDay : 0;
+      const dailySpend = currentDay > 1 ? gastoAct / currentDay : gastoAct; 
       const projectedSpend = Math.round(dailySpend * daysInMonth);
       const spendPercentage = presObj > 0 ? Math.round((projectedSpend / presObj) * 100) : 0;
       const currentPercentage = presObj > 0 ? Math.min(Math.round((gastoAct / presObj) * 100), 100) : 0;
@@ -385,9 +385,9 @@ const analizarCampaña = async () => {
           mensaje: pacingMsg
       };
 
-      // 2. CONEXIÓN A GEMINI
+      // 2. CONEXIÓN A GEMINI 1.5 FLASH (El modelo estable)
       const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY!);
-      const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); // CAMBIO AQUÍ
       const idiomaInstruccion = idioma === 'es' ? 'ESPAÑOL' : 'INGLÉS';
       
       const datosEstructurados = `
@@ -399,18 +399,18 @@ const analizarCampaña = async () => {
         Contexto/Notas del cliente: ${notas}
       `;
 
-      const prompt = `Actúa como un auditor experto en Google Ads. Analiza estos datos estructurados y devuelve ÚNICAMENTE un objeto JSON válido con esta estructura exacta. NO agregues texto antes ni después.
+      const prompt = `Actúa como un auditor experto en Google Ads. Analiza estos datos y devuelve ÚNICAMENTE un JSON con esta estructura exacta, redactado en ${idiomaInstruccion}. No digas nada antes ni después.
       { 
         "score_general": 45, 
         "sub_scores": {"estructura": 50, "conversiones": 20, "presupuesto": 60, "keywords": 40}, 
         "hallazgos": { 
-          "graves_rojo": [{"titulo": "Problema", "descripcion": "Detalle"}], 
-          "debiles_amarillo": [{"titulo": "Mejora", "descripcion": "Detalle"}], 
-          "bien_verde": [{"titulo": "Acierto", "descripcion": "Detalle"}] 
+          "graves_rojo": [{"titulo": "...", "descripcion": "..."}], 
+          "debiles_amarillo": [{"titulo": "...", "descripcion": "..."}], 
+          "bien_verde": [{"titulo": "...", "descripcion": "..."}] 
         },
         "checklist": [
-          {"tarea": "Pausar campañas sin conversiones en los últimos 30 días", "impacto": "Alto", "color": "rojo"},
-          {"tarea": "Agregar extensiones de imagen a campaña Search", "impacto": "Medio", "color": "amarillo"}
+          {"tarea": "...", "impacto": "Alto", "color": "rojo"},
+          {"tarea": "...", "impacto": "Medio", "color": "amarillo"}
         ]
       }
       Datos a analizar: ${datosEstructurados}`;
@@ -418,30 +418,28 @@ const analizarCampaña = async () => {
       const result = await model.generateContent(prompt);
       let text = (await result.response).text();
       
-      // EXTRACTOR A PRUEBA DE BALAS: Busca la primer llave "{" y la última "}" ignorando el texto de relleno
+      // Limpiador de JSON por si el modelo 1.5 se pone charlatán
       const startIndex = text.indexOf('{');
       const endIndex = text.lastIndexOf('}');
-      
-      if (startIndex === -1 || endIndex === -1) {
-        throw new Error("Gemini no devolvió un formato JSON válido.");
-      }
-      
       const jsonLimpio = text.substring(startIndex, endIndex + 1);
       const parsedReporte = JSON.parse(jsonLimpio);
       
-      // Adjuntamos el Pacing calculado localmente al reporte de Gemini
       parsedReporte.pacing = pacingData;
       
-      const { error: dbError } = await supabase.from('historial_auditorias').insert([{ usuario_email: session.user.email, score: parsedReporte.score_general, reporte_json: parsedReporte, nombre_cuenta: nombreCuenta || "Sin nombre" }]);
+      setReporte(parsedReporte);
+      await supabase.from('historial_auditorias').insert([{ 
+        usuario_email: session.user.email, 
+        score: parsedReporte.score_general, 
+        reporte_json: parsedReporte, 
+        nombre_cuenta: nombreCuenta || "Sin nombre" 
+      }]);
       
-      if (dbError) throw dbError;
-
       cargarHistorial(); 
-      setSubVistaReporte("avanzado");
+      setSubVistaReporte("avanzado"); // Te manda directo a ver la magia del presupuesto
       setVista("reporte_lectura");
     } catch (error) {
-      console.error("Error completo al analizar:", error);
-      alert("Error al analizar los datos. Revisá la consola (F12) para más detalles.");
+      console.error("Error completo:", error);
+      alert("Error al analizar. Verificá tu API Key y la consola.");
     }
     setLoading(false);
   };
