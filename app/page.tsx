@@ -526,129 +526,127 @@ function AuditorDashboard() {
           </div>
         </nav>
 
+        {/* HERO SECTION CON MICRO-COPY */}
         <FadeInOnScroll>
           <header className="flex flex-col items-center justify-center text-center px-4 pt-20 pb-20 max-w-4xl mx-auto relative z-10">
             <div className="border border-white/10 bg-white/5 backdrop-blur-md px-5 py-2 rounded-full text-xs font-bold tracking-widest uppercase mb-8 flex items-center gap-3 shadow-lg">
                <span className="w-2.5 h-2.5 rounded-full animate-pulse" style={melocotonGradient}></span>
-               {t[idioma].tituloland}
+               Auditorías con Inteligencia Artificial
             </div>
             <h1 className="text-5xl md:text-7xl lg:text-[5rem] font-bold mb-8 tracking-tight leading-[1.1] text-white">
-              {t[idioma].h1land1} <br />
-              <span style={melocotonText}>{t[idioma].h1land2}</span>
+              Detectá fugas de dinero con <br />
+              <span style={melocotonText}>precisión quirúrgica.</span>
             </h1>
             <p className="text-slate-400 text-lg md:text-xl mb-12 max-w-2xl mx-auto leading-relaxed">
-              {t[idioma].pland1}
+              Conectá tu cuenta de Google Ads y dejá que nuestra IA audite tus campañas, traduzca las métricas y genere reportes marca blanca en segundos.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center w-full sm:w-auto">
-              <button onClick={() => signIn("google", { prompt: "select_account" })} className="w-full sm:w-auto text-[#0a0a0c] px-10 py-5 rounded-full font-bold text-lg hover:scale-105 transition-transform shadow-[0_0_40px_rgba(255,164,189,0.3)] flex items-center justify-center gap-2" style={melocotonGradient}>
-                {t[idioma].btncomenzar} <ArrowRight size={20} />
+            <div className="flex flex-col items-center w-full sm:w-auto">
+              <button onClick={() => signIn("google", { prompt: "select_account" })} className="w-full sm:w-auto text-[#0a0a0c] px-10 py-5 rounded-full font-bold text-lg hover:scale-105 transition-transform shadow-[0_0_40px_rgba(255,164,189,0.3)] flex items-center justify-center gap-2 mb-3" style={melocotonGradient}>
+                Comenzar prueba gratis <ArrowRight size={20} />
               </button>
+              <p className="text-xs text-slate-500 font-medium">14 días de acceso total. Sin tarjeta de crédito.</p>
             </div>
           </header>
         </FadeInOnScroll>
 
+        {/* CÓMO FUNCIONA EN 3 PASOS */}
         <FadeInOnScroll delay={200}>
           <section className="max-w-6xl mx-auto px-4 mb-32 relative z-10">
-            <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)] bg-[#0f0f13]/80 backdrop-blur-xl flex flex-col hover:border-white/20 transition-colors duration-500">
-               <div className="h-10 border-b border-white/5 flex items-center px-4 gap-2 bg-black/40">
-                 <div className="w-3 h-3 rounded-full bg-red-500/80"></div>
-                 <div className="w-3 h-3 rounded-full bg-yellow-500/80"></div>
-                 <div className="w-3 h-3 rounded-full bg-green-500/80"></div>
-                 <div className="ml-4 text-xs text-slate-500 font-mono tracking-wider hidden md:block">mora_audit_preview.pdf</div>
+            <div className="text-center mb-16"><h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Optimización en 3 pasos</h2></div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
+               <div className="hidden md:block absolute top-12 left-[20%] right-[20%] h-0.5 bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
+               <div className="flex flex-col items-center text-center relative z-10">
+                  <div className="w-24 h-24 rounded-full bg-[#0f0f13] border border-white/10 flex items-center justify-center text-3xl font-black text-white mb-6 shadow-[0_0_30px_rgba(255,164,189,0.1)]">1</div>
+                  <h3 className="text-xl font-bold text-white mb-2">Conectá</h3>
+                  <p className="text-slate-400 text-sm leading-relaxed px-4">Vinculá tu cuenta de Google Ads de forma segura con un solo clic.</p>
                </div>
-               <div className="p-8 md:p-12 flex flex-col md:flex-row gap-10 items-center justify-center">
-                  <div className="w-full md:w-1/3 flex flex-col items-center text-center">
-                     <div className="w-36 h-36 rounded-full border-[8px] border-red-500/20 flex items-center justify-center mb-6 relative shadow-[0_0_40px_rgba(239,68,68,0.15)] bg-black/20">
-                        <span className="text-6xl font-black text-white">38</span>
-                     </div>
-                     <h3 className="text-xl font-bold text-white mb-2">{t[idioma].mockupScore}</h3>
-                     <span className="px-4 py-1.5 rounded-full text-xs font-bold bg-red-500/10 text-red-400 border border-red-500/20">Estado Crítico</span>
-                  </div>
-                  <div className="w-full md:w-2/3 space-y-4">
-                     <div className="bg-red-500/5 border border-red-500/20 p-6 rounded-2xl flex gap-5 items-start backdrop-blur-md transform hover:-translate-y-1 transition-transform">
-                        <div className="bg-red-500/10 p-2 rounded-xl"><AlertTriangle className="text-red-400" size={24} /></div>
-                        <div>
-                           <h4 className="text-lg font-bold text-white mb-1">{t[idioma].mockupCritico}</h4>
-                           <p className="text-slate-400 text-sm leading-relaxed">{t[idioma].mockupCriticoDesc}</p>
-                        </div>
-                     </div>
-                     <div className="bg-green-500/5 border border-green-500/20 p-6 rounded-2xl flex gap-5 items-start backdrop-blur-md transform hover:-translate-y-1 transition-transform">
-                        <div className="bg-green-500/10 p-2 rounded-xl"><CheckCircle2 className="text-green-400" size={24} /></div>
-                        <div>
-                           <h4 className="text-lg font-bold text-white mb-1">{t[idioma].mockupOptimo}</h4>
-                           <p className="text-slate-400 text-sm leading-relaxed">{t[idioma].mockupOptimoDesc}</p>
-                        </div>
-                     </div>
-                  </div>
+               <div className="flex flex-col items-center text-center relative z-10">
+                  <div className="w-24 h-24 rounded-full bg-[#0f0f13] border border-[#FEAFAE]/30 flex items-center justify-center text-3xl font-black text-[#FEAFAE] mb-6 shadow-[0_0_30px_rgba(255,164,189,0.2)]">2</div>
+                  <h3 className="text-xl font-bold text-white mb-2">Diagnosticá</h3>
+                  <p className="text-slate-400 text-sm leading-relaxed px-4">La IA analiza cientos de métricas y detecta dónde estás perdiendo presupuesto.</p>
+               </div>
+               <div className="flex flex-col items-center text-center relative z-10">
+                  <div className="w-24 h-24 rounded-full bg-[#0f0f13] border border-white/10 flex items-center justify-center text-3xl font-black text-white mb-6 shadow-[0_0_30px_rgba(255,164,189,0.1)]">3</div>
+                  <h3 className="text-xl font-bold text-white mb-2">Ejecutá</h3>
+                  <p className="text-slate-400 text-sm leading-relaxed px-4">Aplicá el plan de acción sugerido o exportá el reporte en PDF para tu cliente.</p>
                </div>
             </div>
           </section>
         </FadeInOnScroll>
 
-        <FadeInOnScroll>
-          <section className="max-w-6xl mx-auto px-4 mb-32 relative z-10">
-            <div className="text-center mb-16"><h2 className="text-3xl md:text-5xl font-bold text-white mb-4">{t[idioma].todoLoQueNecesitas}</h2></div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-white/5 border border-white/10 p-8 rounded-[2rem] hover:bg-white/10 transition-all duration-300 backdrop-blur-sm hover:-translate-y-2">
-                <div className="w-14 h-14 rounded-2xl bg-black/40 border border-white/10 flex items-center justify-center text-[#FEAFAE] mb-6"><Zap size={28} /></div>
-                <h3 className="text-xl font-bold text-white mb-3">{t[idioma].feat1Tit}</h3>
-                <p className="text-slate-400 leading-relaxed">{t[idioma].feat1Desc}</p>
-              </div>
-              <div className="bg-white/5 border border-white/10 p-8 rounded-[2rem] hover:bg-white/10 transition-all duration-300 backdrop-blur-sm hover:-translate-y-2" style={{transitionDelay: '100ms'}}>
-                <div className="w-14 h-14 rounded-2xl bg-black/40 border border-white/10 flex items-center justify-center text-[#FEAFAE] mb-6"><FileText size={28} /></div>
-                <h3 className="text-xl font-bold text-white mb-3">{t[idioma].feat2Tit}</h3>
-                <p className="text-slate-400 leading-relaxed">{t[idioma].feat2Desc}</p>
-              </div>
-              <div className="bg-white/5 border border-white/10 p-8 rounded-[2rem] hover:bg-white/10 transition-all duration-300 backdrop-blur-sm hover:-translate-y-2" style={{transitionDelay: '200ms'}}>
-                <div className="w-14 h-14 rounded-2xl bg-black/40 border border-white/10 flex items-center justify-center text-[#FEAFAE] mb-6"><BarChart3 size={28} /></div>
-                <h3 className="text-xl font-bold text-white mb-3">{t[idioma].feat3Tit}</h3>
-                <p className="text-slate-400 leading-relaxed">{t[idioma].feat3Desc}</p>
-              </div>
-            </div>
-          </section>
-        </FadeInOnScroll>
-
+        {/* PLANES ACTUALIZADOS (INDIVIDUAL VS AGENCIA) */}
         <FadeInOnScroll>
           <section className="max-w-5xl mx-auto px-4 mb-32 relative z-10">
-            <div className="text-center mb-16"><h2 className="text-3xl md:text-5xl font-bold text-white mb-4">{t[idioma].planes}</h2></div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-3xl mx-auto">
+            <div className="text-center mb-16"><h2 className="text-3xl md:text-5xl font-bold text-white mb-4">Elegí tu camino</h2><p className="text-slate-400">Comenzá con 14 días gratis en cualquier plan.</p></div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+              {/* PLAN PRO (DUEÑO DE NEGOCIO) */}
               <div className="bg-white/5 border border-white/10 p-10 rounded-[2rem] flex flex-col justify-between hover:border-white/20 transition-colors">
                 <div>
-                  <h3 className="text-2xl font-bold text-white mb-2">{t[idioma].planFree}</h3>
-                  <p className="text-slate-400 mb-8">Ideal para probar la herramienta.</p>
-                  <div className="text-5xl font-black text-white mb-8">$0<span className="text-lg text-slate-500 font-medium">/mes</span></div>
-                  <ul className="space-y-4 mb-10">
-                    <li className="flex items-center gap-3 text-slate-300"><CheckCircle2 size={18} className="text-slate-500" /> 10 Auditorías mensuales</li>
-                    <li className="flex items-center gap-3 text-slate-300"><CheckCircle2 size={18} className="text-slate-500" /> Exportación PDF estándar</li>
+                  <h3 className="text-2xl font-bold text-white mb-2">Plan Individual</h3>
+                  <p className="text-slate-400 mb-8 text-sm">Para emprendedores que gestionan sus propios anuncios.</p>
+                  <div className="text-5xl font-black text-white mb-8">$19<span className="text-lg text-slate-500 font-medium">/mes</span></div>
+                  <ul className="space-y-4 mb-10 text-sm">
+                    <li className="flex items-center gap-3 text-slate-300"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> 1 Cuenta publicitaria</li>
+                    <li className="flex items-center gap-3 text-slate-300"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> Traductor de Métricas IA</li>
+                    <li className="flex items-center gap-3 text-slate-300"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> Generador de Anuncios</li>
+                    <li className="flex items-center gap-3 text-slate-300"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> Checklist de Optimización</li>
                   </ul>
                 </div>
-                <button onClick={() => signIn("google", { prompt: "select_account" })} className="w-full bg-white/10 hover:bg-white/20 text-white font-bold py-4 rounded-xl transition-colors">{t[idioma].login}</button>
+                <button onClick={() => signIn("google", { prompt: "select_account" })} className="w-full bg-white/10 hover:bg-white/20 text-white font-bold py-4 rounded-xl transition-colors border border-white/10">Iniciar prueba de 14 días</button>
               </div>
+              
+              {/* PLAN AGENCY */}
               <div className="bg-[#0f0f13] border border-[#FEAFAE]/30 p-10 rounded-[2rem] relative shadow-[0_0_30px_rgba(255,164,189,0.1)] flex flex-col justify-between overflow-hidden hover:shadow-[0_0_50px_rgba(255,164,189,0.2)] transition-shadow">
                 <div className="absolute top-0 left-0 w-full h-1" style={melocotonGradient}></div>
                 <div>
-                  <h3 className="text-2xl font-bold text-white mb-2 flex justify-between items-center">{t[idioma].planPro} <span className="text-xs font-black px-3 py-1 bg-[#FEAFAE]/20 text-[#FEAFAE] rounded-full uppercase tracking-wider">Popular</span></h3>
-                  <p className="text-slate-400 mb-8">Para agencias que escalan en serio.</p>
+                  <h3 className="text-2xl font-bold text-white mb-2 flex justify-between items-center">Plan Agency <span className="text-[10px] font-black px-3 py-1 bg-[#FEAFAE]/20 text-[#FEAFAE] rounded-full uppercase tracking-wider">Escala</span></h3>
+                  <p className="text-slate-400 mb-8 text-sm">El centro de comando para agencias de marketing.</p>
                   <div className="text-5xl font-black text-white mb-8">$49<span className="text-lg text-slate-500 font-medium">/mes</span></div>
-                  <ul className="space-y-4 mb-10">
-                    <li className="flex items-center gap-3 text-white"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> Auditorías ilimitadas</li>
-                    <li className="flex items-center gap-3 text-white"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> Marca Blanca Total (PDF)</li>
-                    <li className="flex items-center gap-3 text-white"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> Historial de Clientes infinito</li>
+                  <ul className="space-y-4 mb-10 text-sm">
+                    <li className="flex items-center gap-3 text-white"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> Cuentas ilimitadas</li>
+                    <li className="flex items-center gap-3 text-white"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> Marca Blanca Total (PDFs con logo)</li>
+                    <li className="flex items-center gap-3 text-white"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> Dashboard Global Multi-cliente</li>
+                    <li className="flex items-center gap-3 text-white"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> Matriz de Campañas</li>
                   </ul>
                 </div>
-                <button onClick={() => signIn("google", { prompt: "select_account" })} className="w-full text-[#0a0a0c] font-bold py-4 rounded-xl hover:scale-[1.02] transition-transform shadow-lg" style={melocotonGradient}>{t[idioma].btnUnete}</button>
+                <button onClick={() => signIn("google", { prompt: "select_account" })} className="w-full text-[#0a0a0c] font-bold py-4 rounded-xl hover:scale-[1.02] transition-transform shadow-lg" style={melocotonGradient}>Iniciar prueba de 14 días</button>
               </div>
             </div>
           </section>
         </FadeInOnScroll>
 
+        {/* PREGUNTAS FRECUENTES (FAQ) */}
+        <FadeInOnScroll>
+          <section className="max-w-4xl mx-auto px-4 mb-32 relative z-10">
+            <div className="text-center mb-16"><h2 className="text-3xl font-bold text-white">Preguntas Frecuentes</h2></div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+               <div className="bg-white/5 border border-white/10 p-6 rounded-2xl">
+                  <h4 className="text-lg font-bold text-white mb-2">¿Mora hace cambios en mis campañas sin avisar?</h4>
+                  <p className="text-slate-400 text-sm leading-relaxed">No. Mora audita y sugiere. Vos tenés el control total: podés aplicar los cambios con un clic o ignorarlos. Nunca tocaremos tu presupuesto sin permiso.</p>
+               </div>
+               <div className="bg-white/5 border border-white/10 p-6 rounded-2xl">
+                  <h4 className="text-lg font-bold text-white mb-2">¿Necesito ser un experto en Google Ads?</h4>
+                  <p className="text-slate-400 text-sm leading-relaxed">Para nada. Mora traduce métricas complejas a un lenguaje de negocios simple. Te decimos dónde estás perdiendo dinero y cómo solucionarlo.</p>
+               </div>
+               <div className="bg-white/5 border border-white/10 p-6 rounded-2xl">
+                  <h4 className="text-lg font-bold text-white mb-2">¿Qué es exactamente la 'Marca Blanca Total'?</h4>
+                  <p className="text-slate-400 text-sm leading-relaxed">Exclusiva del Plan Agency, te permite exportar auditorías en PDF con el logo, colores y web de tu agencia. Tu cliente pensará que lo armó tu equipo.</p>
+               </div>
+               <div className="bg-white/5 border border-white/10 p-6 rounded-2xl">
+                  <h4 className="text-lg font-bold text-white mb-2">¿Mis datos están seguros?</h4>
+                  <p className="text-slate-400 text-sm leading-relaxed">100%. Solo solicitamos permisos de lectura oficiales de Google. No usamos tus datos ni los de tus clientes para entrenar modelos de IA públicos.</p>
+               </div>
+            </div>
+          </section>
+        </FadeInOnScroll>
+
+        {/* FOOTER */}
         <footer className="border-t border-white/5 py-12 text-center text-slate-500 text-sm relative z-10">
           <div className="flex items-center justify-center gap-2 mb-4">
             <div className="w-6 h-6 rounded flex items-center justify-center font-black text-black text-xs" style={melocotonGradient}>M</div>
             <span className="font-bold text-white">Mora Analytics</span>
           </div>
           <p className="mb-4">© {new Date().getFullYear()} Mora. All rights reserved.</p>
-          {/* NUEVOS LINKS LEGALES */}
           <div className="flex justify-center gap-6 text-xs">
             <a href="/privacidad" className="hover:text-white transition-colors">Política de Privacidad</a>
             <a href="/terminos" className="hover:text-white transition-colors">Términos y Condiciones</a>
