@@ -340,11 +340,11 @@ function AuditorDashboard() {
     setEnviandoFeedback(false);
   };
 
-  const analizarCampaña = async () => {
+const analizarCampaña = async () => {
     if (!session?.user?.email) return;
     setLoading(true);
     try {
-      // 1. MATEMÁTICA DEL PACING (Calculado en el momento de crear el reporte)
+      // 1. MATEMÁTICA DEL PACING
       const presObj = parseFloat(presupuestoObjetivo) || 0;
       const gastoAct = parseFloat(gastoActual) || 0;
       const today = new Date();
@@ -399,7 +399,7 @@ function AuditorDashboard() {
         Contexto/Notas del cliente: ${notas}
       `;
 
-      const prompt = `Actúa como un auditor experto en Google Ads. Analiza estos datos estructurados y devuelve ÚNICAMENTE un objeto JSON válido con esta estructura exacta. IMPORTANTE: Los valores DEBEN estar redactados en ${idiomaInstruccion}. Evalúa críticamente la relación entre inversión, conversiones y tipo de campaña.
+      const prompt = `Actúa como un auditor experto en Google Ads. Analiza estos datos estructurados y devuelve ÚNICAMENTE un objeto JSON válido con esta estructura exacta. NO agregues texto antes ni después.
       { 
         "score_general": 45, 
         "sub_scores": {"estructura": 50, "conversiones": 20, "presupuesto": 60, "keywords": 40}, 
@@ -416,20 +416,32 @@ function AuditorDashboard() {
       Datos a analizar: ${datosEstructurados}`;
       
       const result = await model.generateContent(prompt);
-      const text = (await result.response).text().replace(/```json|```/g, "");
-      const parsedReporte = JSON.parse(text);
+      let text = (await result.response).text();
+      
+      // EXTRACTOR A PRUEBA DE BALAS: Busca la primer llave "{" y la última "}" ignorando el texto de relleno
+      const startIndex = text.indexOf('{');
+      const endIndex = text.lastIndexOf('}');
+      
+      if (startIndex === -1 || endIndex === -1) {
+        throw new Error("Gemini no devolvió un formato JSON válido.");
+      }
+      
+      const jsonLimpio = text.substring(startIndex, endIndex + 1);
+      const parsedReporte = JSON.parse(jsonLimpio);
       
       // Adjuntamos el Pacing calculado localmente al reporte de Gemini
       parsedReporte.pacing = pacingData;
       
-      setReporte(parsedReporte);
-      await supabase.from('historial_auditorias').insert([{ usuario_email: session.user.email, score: parsedReporte.score_general, reporte_json: parsedReporte, nombre_cuenta: nombreCuenta || "Sin nombre" }]);
+      const { error: dbError } = await supabase.from('historial_auditorias').insert([{ usuario_email: session.user.email, score: parsedReporte.score_general, reporte_json: parsedReporte, nombre_cuenta: nombreCuenta || "Sin nombre" }]);
+      
+      if (dbError) throw dbError;
+
       cargarHistorial(); 
-      setSubVistaReporte("avanzado"); // Lo mandamos directo a ver la magia matemática
+      setSubVistaReporte("avanzado");
       setVista("reporte_lectura");
     } catch (error) {
-      console.error("Error completo:", error);
-      alert("Error al analizar los datos. Revisá la consola.");
+      console.error("Error completo al analizar:", error);
+      alert("Error al analizar los datos. Revisá la consola (F12) para más detalles.");
     }
     setLoading(false);
   };
