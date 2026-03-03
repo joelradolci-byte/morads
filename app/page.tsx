@@ -129,7 +129,6 @@ function AuditorDashboard() {
   const [reporte, setReporte] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
-  // NUEVOS ESTADOS PARA EL PACING
   const [presupuestoObjetivo, setPresupuestoObjetivo] = useState("");
   const [gastoActual, setGastoActual] = useState("");
   
@@ -164,8 +163,10 @@ function AuditorDashboard() {
   const [mensajeFeedback, setMensajeFeedback] = useState("");
   const [enviandoFeedback, setEnviandoFeedback] = useState(false);
   
-  // ESTADO PARA EL CHECKLIST INTERACTIVO
   const [tareasCompletadas, setTareasCompletadas] = useState<number[]>([]);
+  
+  // NUEVO ESTADO: Controla el Modal de Seguridad del Auto-Apply
+  const [mostrarConfirmacion, setMostrarConfirmacion] = useState(false);
 
   const t = {
     es: {
@@ -200,7 +201,7 @@ function AuditorDashboard() {
       feat1Tit: "Auditoría en Segundos", feat1Desc: "La IA procesa cientos de métricas y detecta fugas de presupuesto al instante.",
       feat2Tit: "Marca Blanca Total", feat2Desc: "Exportá PDFs impecables con tu logo, colores y sitio web listos para enviar al cliente.",
       feat3Tit: "Historial y Tendencias", feat3Desc: "Monitoreá el progreso de todas tus cuentas con scores evolutivos y alertas tempranas.",
-      todoLoQueNecesitas: "Todo lo que tu agencia necesita", planes: "Planes simples y transparentes", planFree: "Plan Starter", planPro: "Plan Agency",
+      todoLoQueNecesitas: "Everything tu agencia necesita", planes: "Planes simples y transparentes", planFree: "Plan Starter", planPro: "Plan Agency",
       btnUnete: "Unite a Mora hoy", login: "Iniciar sesión",
       mockupTit: "Auditoría Finalizada", mockupScore: "Score de Salud", mockupCritico: "Fuga de Presupuesto", mockupCriticoDesc: "Detectamos $450/mes gastados en términos de búsqueda irrelevantes sin conversiones.", mockupOptimo: "Estructura Correcta", mockupOptimoDesc: "El seguimiento de conversiones está correctamente implementado en todas las campañas.",
       confirmarBorrar: "¿Seguro que querés eliminar esta auditoría? Esta acción no se puede deshacer.",
@@ -354,7 +355,6 @@ function AuditorDashboard() {
     if (!session?.user?.email) return;
     setLoading(true);
     try {
-      // 1. MATEMÁTICA DEL PACING (Cálculo local ultra rápido)
       const presObj = parseFloat(presupuestoObjetivo) || 0;
       const gastoAct = parseFloat(gastoActual) || 0;
       const today = new Date();
@@ -395,7 +395,6 @@ function AuditorDashboard() {
           mensaje: pacingMsg
       };
 
-      // 2. CONEXIÓN A GEMINI (VOLVEMOS A 3 FLASH PREVIEW)
       const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY!);
       const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
       const idiomaInstruccion = idioma === 'es' ? 'ESPAÑOL' : 'INGLÉS';
@@ -428,7 +427,6 @@ function AuditorDashboard() {
       const result = await model.generateContent(prompt);
       let text = (await result.response).text();
       
-      // Limpiador de JSON por si el modelo se pone charlatán
       const startIndex = text.indexOf('{');
       const endIndex = text.lastIndexOf('}');
       const jsonLimpio = text.substring(startIndex, endIndex + 1);
@@ -445,8 +443,8 @@ function AuditorDashboard() {
       }]);
       
       cargarHistorial(); 
-      setTareasCompletadas([]); // Reseteamos el checklist
-      setSubVistaReporte("avanzado"); // Te manda directo a ver la magia del presupuesto
+      setTareasCompletadas([]);
+      setSubVistaReporte("avanzado"); 
       setVista("reporte_lectura");
     } catch (error) {
       console.error("Error completo:", error);
@@ -615,7 +613,7 @@ function AuditorDashboard() {
           </section>
         </FadeInOnScroll>
 
-        {/* PREGUNTAS FRECUENTES (FAQ) */}
+        {/* PREGUNTAS FRECUENTES (FAQ) ACTUALIZADAS */}
         <FadeInOnScroll>
           <section className="max-w-4xl mx-auto px-4 mb-32 relative z-10">
             <div className="text-center mb-16"><h2 className="text-3xl font-bold text-white">Preguntas Frecuentes</h2></div>
@@ -1067,12 +1065,7 @@ function AuditorDashboard() {
                                      </div>
                                    </div>
                                    <button 
-                                     onClick={() => {
-                                       const seguro = window.confirm("⚠️ ATENCIÓN: Estás por ejecutar cambios directos en el presupuesto y estado de las campañas de Google Ads.\n\n¿Confirmás que revisaste el impacto de esta acción?");
-                                       if (seguro) {
-                                         alert(t[idioma].msgAutoApply);
-                                       }
-                                     }} 
+                                     onClick={() => setMostrarConfirmacion(true)} 
                                      className="flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-[10px] uppercase tracking-wider bg-white/5 text-white hover:bg-white/10 border border-white/5 transition-all group"
                                    >
                                       <Sparkles size={14} className="text-[#FEAFAE] group-hover:animate-pulse" /> {t[idioma].autoApply}
@@ -1299,6 +1292,39 @@ function AuditorDashboard() {
 
         </main>
       </div>
+
+      {/* MODAL DE CONFIRMACIÓN DE AUTO-APPLY (NUEVO) */}
+      {mostrarConfirmacion && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 print:hidden">
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm cursor-pointer" onClick={() => setMostrarConfirmacion(false)}></div>
+          <div className="bg-[#0f0f13] border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.8)] rounded-3xl w-full max-w-md relative z-10 animate-fade-custom overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-500 to-orange-500"></div>
+            <div className="p-6 md:p-8">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-12 h-12 rounded-2xl bg-red-500/10 flex items-center justify-center text-red-400 border border-red-500/20 flex-shrink-0">
+                  <AlertTriangle size={24} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-white leading-tight">Confirmar Acción</h3>
+                  <p className="text-sm text-slate-400 mt-1">Conexión con Google Ads</p>
+                </div>
+              </div>
+              <p className="text-slate-300 text-sm leading-relaxed mb-8">
+                <strong className="text-white">⚠️ ATENCIÓN:</strong> Estás por ejecutar cambios directos en el presupuesto y estado de las campañas.<br/><br/>
+                ¿Confirmás que revisaste el impacto de esta acción y deseás aplicar los cambios?
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button onClick={() => setMostrarConfirmacion(false)} className="px-5 py-3 rounded-xl font-bold text-sm text-slate-300 bg-white/5 hover:bg-white/10 transition-colors border border-white/10 w-full">
+                  Cancelar
+                </button>
+                <button onClick={() => { setMostrarConfirmacion(false); alert(t[idioma].msgAutoApply); }} className="px-5 py-3 rounded-xl font-bold text-sm text-white transition-all shadow-lg bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 w-full flex justify-center items-center gap-2">
+                  <Sparkles size={16} /> Aplicar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {session && (
         <button onClick={() => { setVista("feedback"); setReporte(null); setMenuPerfil(false); }} className="fixed bottom-8 right-8 z-50 bg-white/10 text-white px-5 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 transition-transform flex items-center gap-2 border border-white/20 print:hidden backdrop-blur-md">
