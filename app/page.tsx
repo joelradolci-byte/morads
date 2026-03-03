@@ -7,7 +7,7 @@ import {
   Target, Users, Building2, MessageSquare, LogOut, ChevronDown, 
   Zap, AlertTriangle, CheckCircle2, CreditCard, Settings, 
   Search, ArrowRight, ArrowLeft, TrendingUp, TrendingDown, LayoutPanelLeft,
-  FileText, BarChart3, ShieldCheck, Plus, Clock, Activity
+  FileText, BarChart3, Clock, Activity, Plus
 } from 'lucide-react';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -30,7 +30,6 @@ function AuditorDashboard() {
   const [notas, setNotas] = useState("");
 
   const [idioma, setIdioma] = useState<"es" | "en">("es");
-  // AHORA EL DASHBOARD ES LA VISTA POR DEFECTO
   const [vista, setVista] = useState<"dashboard" | "nueva" | "historial" | "perfil" | "feedback" | "reporte_lectura" | "facturacion">("dashboard");
   const [historial, setHistorial] = useState<any[]>([]);
   const [cargandoHistorial, setCargandoHistorial] = useState(false);
@@ -53,12 +52,12 @@ function AuditorDashboard() {
   const [mensajeFeedback, setMensajeFeedback] = useState("");
   const [enviandoFeedback, setEnviandoFeedback] = useState(false);
 
-  // NUEVAS TRADUCCIONES PARA EL DASHBOARD AGREGADAS
   const t = {
     es: {
       dashboard: "Dashboard", panelPrin: "Panel Principal", panelDesc: "Resumen del rendimiento global de tu agencia.",
       saludG: "Salud Promedio", totAud: "Total Cuentas", fugasDet: "Fugas Críticas", oporMej: "Oportunidades",
       ultAud: "Últimas Auditorías", actRec: "Actividad Reciente", verTodas: "Ver todas", generada: "Se auditó la cuenta", hace: "Hace",
+      afectaA: "Afecta principalmente a:",
       nueva: "Auditor IA", clientes: "Panel de Clientes",
       reportes: "Reportes", feedback: "Sugerencias", configuracion: "Configuración General", facturacion: "Ver Facturación", salir: "Cerrar Sesión",
       placeholderNombre: "Nombre del Cliente o Cuenta", btnAnalizar: "Ejecutar Auditoría", btnAnalizando: "Analizando métricas...", exportar: "Exportar a PDF",
@@ -92,6 +91,7 @@ function AuditorDashboard() {
       dashboard: "Dashboard", panelPrin: "Main Dashboard", panelDesc: "Global overview of your agency's performance.",
       saludG: "Avg Health Score", totAud: "Total Accounts", fugasDet: "Critical Leaks", oporMej: "Opportunities",
       ultAud: "Recent Audits", actRec: "Recent Activity", verTodas: "View all", generada: "Audit generated for", hace: "Ago",
+      afectaA: "Mainly affecting:",
       nueva: "AI Auditor", clientes: "Client Dashboard",
       reportes: "Reports", feedback: "Feedback", configuracion: "General Settings", facturacion: "Billing", salir: "Sign Out",
       placeholderNombre: "Client or Account Name", btnAnalizar: "Run Audit", btnAnalizando: "Analyzing metrics...", exportar: "Export to PDF",
@@ -252,21 +252,40 @@ function AuditorDashboard() {
     return coincideFiltro && coincideBusqueda;
   });
 
-  // MATEMÁTICA DEL DASHBOARD EN TIEMPO REAL
+  // MATEMÁTICA DEL DASHBOARD AVANZADA
   const totalAuditorias = historial.length;
   const promedioScore = totalAuditorias > 0 ? Math.round(historial.reduce((acc, curr) => acc + curr.score, 0) / totalAuditorias) : 0;
   let totalFugas = 0;
   let totalOportunidades = 0;
+  
+  // Listas de ranking de cuentas afectadas
+  const cuentasRojas: {nombre: string, cant: number}[] = [];
+  const cuentasAmarillas: {nombre: string, cant: number}[] = [];
+
   historial.forEach(h => {
-      if (h.reporte_json?.hallazgos?.graves_rojo) totalFugas += h.reporte_json.hallazgos.graves_rojo.length;
-      if (h.reporte_json?.hallazgos?.debiles_amarillo) totalOportunidades += h.reporte_json.hallazgos.debiles_amarillo.length;
+      const nombre = h.nombre_cuenta || t[idioma].cuentaSinNombre;
+      if (h.reporte_json?.hallazgos?.graves_rojo) {
+         const cantRojas = h.reporte_json.hallazgos.graves_rojo.length;
+         if (cantRojas > 0) {
+            totalFugas += cantRojas;
+            cuentasRojas.push({ nombre, cant: cantRojas });
+         }
+      }
+      if (h.reporte_json?.hallazgos?.debiles_amarillo) {
+         const cantAma = h.reporte_json.hallazgos.debiles_amarillo.length;
+         if (cantAma > 0) {
+            totalOportunidades += cantAma;
+            cuentasAmarillas.push({ nombre, cant: cantAma });
+         }
+      }
   });
+
+  // Ordenamos para mostrar las que tienen MÁS errores arriba de todo
+  cuentasRojas.sort((a,b) => b.cant - a.cant);
+  cuentasAmarillas.sort((a,b) => b.cant - a.cant);
 
   if (status === "loading") return <div className="h-screen w-full flex justify-center items-center text-xl font-bold text-white">Cargando...</div>;
 
-  // =========================================================================
-  // LANDING PAGE PREMIUM 
-  // =========================================================================
   if (!session) {
     return (
       <div className="min-h-screen w-full font-sans text-slate-200 overflow-y-auto overflow-x-hidden bg-[#0a0a0c] selection:bg-[#FEAFAE] selection:text-black">
@@ -407,6 +426,7 @@ function AuditorDashboard() {
       </div>
     );
   }
+
   // =========================================================================
 
   return (
@@ -423,7 +443,6 @@ function AuditorDashboard() {
 
       <div className="flex h-screen w-full font-sans text-slate-200 overflow-hidden print-container">
         
-        {/* SIDEBAR LIMPIO CON BOTÓN NUEVO */}
         <aside className="w-64 bg-white/[0.02] backdrop-blur-3xl border-r border-white/5 flex flex-col justify-between print:hidden z-20 shadow-2xl">
           <div>
             <div className="h-20 flex items-center px-6 border-b border-white/5 gap-3">
@@ -431,13 +450,8 @@ function AuditorDashboard() {
                <span className="text-xl font-black text-white tracking-wide">Mora</span>
             </div>
 
-            {/* NUEVO BOTÓN PRIMARIO DE AUDITORÍA */}
             <div className="px-4 mt-6 mb-2">
-              <button 
-                onClick={() => { setVista("nueva"); setReporte(null); setMostrarPagos(false); }} 
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-[#0a0a0c] shadow-[0_0_15px_rgba(255,164,189,0.3)] hover:scale-[1.02] transition-transform" 
-                style={melocotonGradient}
-              >
+              <button onClick={() => { setVista("nueva"); setReporte(null); setMostrarPagos(false); }} className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-[#0a0a0c] shadow-[0_0_15px_rgba(255,164,189,0.3)] hover:scale-[1.02] transition-transform" style={melocotonGradient}>
                 <Plus size={20} strokeWidth={3} /> {t[idioma].nueva}
               </button>
             </div>
@@ -447,11 +461,7 @@ function AuditorDashboard() {
                 { icon: BarChart3, text: t[idioma].dashboard, view: 'dashboard' }, 
                 { icon: Users, text: t[idioma].clientes, view: 'historial' }
               ].map((link, idx) => (
-                <button 
-                  key={idx}
-                  onClick={() => { setVista(link.view as any); setReporte(null); setMostrarPagos(false); }} 
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${ (vista === link.view || (vista === 'reporte_lectura' && link.view === 'historial')) ? "bg-white/10 text-white shadow-sm border border-white/5" : "text-slate-400 hover:bg-white/5 hover:text-white" }`}
-                >
+                <button key={idx} onClick={() => { setVista(link.view as any); setReporte(null); setMostrarPagos(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${ (vista === link.view || (vista === 'reporte_lectura' && link.view === 'historial')) ? "bg-white/10 text-white shadow-sm border border-white/5" : "text-slate-400 hover:bg-white/5 hover:text-white" }`}>
                   <div className={(vista === link.view || (vista === 'reporte_lectura' && link.view === 'historial')) ? "text-[#FFA4BD]" : ""}><link.icon size={20} strokeWidth={(vista === link.view || (vista === 'reporte_lectura' && link.view === 'historial')) ? 2.5 : 2} /></div> 
                   {link.text}
                 </button>
@@ -460,7 +470,6 @@ function AuditorDashboard() {
           </div>
         </aside>
 
-        {/* CONTENIDO PRINCIPAL */}
         <main className="flex-1 flex flex-col relative overflow-y-auto z-10 print:overflow-visible print:h-auto print:static">
           
           <header className="h-20 flex justify-between items-center px-8 print:hidden border-b border-white/5 bg-white/[0.01] backdrop-blur-md sticky top-0 z-30">
@@ -493,23 +502,13 @@ function AuditorDashboard() {
                          <span className="text-sm font-bold text-white">{t[idioma].activa} ({perfil?.plan === 'pro' ? 'Pro' : 'Free'})</span>
                        </div>
                     </div>
-
                     <div className="py-2">
-                      <button onClick={() => { setVista("perfil"); setMenuPerfil(false); }} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5 hover:text-white transition-colors">
-                        <Settings size={16} /> {t[idioma].configuracion}
-                      </button>
-                      <button onClick={() => { setVista("facturacion"); setMenuPerfil(false); }} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5 hover:text-white transition-colors">
-                        <CreditCard size={16} /> {t[idioma].facturacion}
-                      </button>
-                      <button onClick={() => setIdioma(idioma === "es" ? "en" : "es")} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5 hover:text-white transition-colors">
-                        <span className="w-4 h-4 flex items-center justify-center border border-slate-400 rounded-full text-[10px]">🌐</span> Idioma: {idioma === "es" ? "ES" : "EN"}
-                      </button>
+                      <button onClick={() => { setVista("perfil"); setMenuPerfil(false); }} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5 hover:text-white transition-colors"><Settings size={16} /> {t[idioma].configuracion}</button>
+                      <button onClick={() => { setVista("facturacion"); setMenuPerfil(false); }} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5 hover:text-white transition-colors"><CreditCard size={16} /> {t[idioma].facturacion}</button>
+                      <button onClick={() => setIdioma(idioma === "es" ? "en" : "es")} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5 hover:text-white transition-colors"><span className="w-4 h-4 flex items-center justify-center border border-slate-400 rounded-full text-[10px]">🌐</span> Idioma: {idioma === "es" ? "ES" : "EN"}</button>
                     </div>
-
                     <div className="border-t border-white/5 mt-1 pt-2">
-                      <button onClick={() => signOut()} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 transition-colors font-medium">
-                        <LogOut size={16} /> {t[idioma].salir}
-                      </button>
+                      <button onClick={() => signOut()} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 transition-colors font-medium"><LogOut size={16} /> {t[idioma].salir}</button>
                     </div>
                  </div>
                )}
@@ -518,7 +517,7 @@ function AuditorDashboard() {
 
           <div className="p-8 pb-32 max-w-6xl mx-auto w-full print:p-0 print:pb-0">
             
-            {/* VISTA: DASHBOARD PRINCIPAL (Centro de Comando) */}
+            {/* VISTA: DASHBOARD PRINCIPAL ACTUALIZADO */}
             {vista === "dashboard" && (
               <div className="animate-fade-custom print:hidden flex flex-col gap-8">
                 
@@ -527,7 +526,6 @@ function AuditorDashboard() {
                   <p className="text-slate-400 text-sm mt-1">{t[idioma].panelDesc}</p>
                 </div>
                 
-                {/* 4 TARJETAS DE MÉTRICAS */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                    <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col justify-between relative overflow-hidden backdrop-blur-xl">
                       <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/5 rounded-full blur-2xl"></div>
@@ -545,23 +543,56 @@ function AuditorDashboard() {
                       <span className="text-5xl font-black text-white relative z-10">{totalAuditorias}</span>
                    </div>
 
-                   <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col justify-between relative overflow-hidden backdrop-blur-xl">
+                   {/* TARJETA FUGAS CON LISTA INTERNA */}
+                   <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px]">
                       <div className="absolute -right-4 -top-4 w-24 h-24 bg-red-500/10 rounded-full blur-2xl"></div>
                       <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 relative z-10 flex items-center gap-2"><AlertTriangle size={16} className="text-red-400"/> {t[idioma].fugasDet}</p>
-                      <span className="text-5xl font-black text-white relative z-10">{totalFugas}</span>
+                      
+                      <div className="flex-1 flex flex-col justify-center">
+                        <span className="text-5xl font-black text-white relative z-10 mb-4">{totalFugas}</span>
+                        
+                        {cuentasRojas.length > 0 && (
+                          <div className="mt-auto border-t border-white/5 pt-3 relative z-10">
+                            <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1.5">{t[idioma].afectaA}</p>
+                            <div className="space-y-1">
+                              {cuentasRojas.slice(0, 2).map((c,i) => (
+                                <div key={i} className="flex justify-between items-center text-xs">
+                                   <span className="text-slate-300 truncate pr-2">{c.nombre}</span>
+                                   <span className="text-red-400 font-bold bg-red-500/10 px-1.5 py-0.5 rounded">{c.cant}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
                    </div>
 
-                   <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col justify-between relative overflow-hidden backdrop-blur-xl">
+                   {/* TARJETA OPORTUNIDADES CON LISTA INTERNA */}
+                   <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px]">
                       <div className="absolute -right-4 -top-4 w-24 h-24 bg-yellow-500/10 rounded-full blur-2xl"></div>
                       <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 relative z-10 flex items-center gap-2"><Zap size={16} className="text-yellow-400"/> {t[idioma].oporMej}</p>
-                      <span className="text-5xl font-black text-white relative z-10">{totalOportunidades}</span>
+                      
+                      <div className="flex-1 flex flex-col justify-center">
+                        <span className="text-5xl font-black text-white relative z-10 mb-4">{totalOportunidades}</span>
+                        
+                        {cuentasAmarillas.length > 0 && (
+                          <div className="mt-auto border-t border-white/5 pt-3 relative z-10">
+                            <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1.5">{t[idioma].afectaA}</p>
+                            <div className="space-y-1">
+                              {cuentasAmarillas.slice(0, 2).map((c,i) => (
+                                <div key={i} className="flex justify-between items-center text-xs">
+                                   <span className="text-slate-300 truncate pr-2">{c.nombre}</span>
+                                   <span className="text-yellow-400 font-bold bg-yellow-500/10 px-1.5 py-0.5 rounded">{c.cant}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
                    </div>
                 </div>
 
-                {/* TABLA Y TIMELINE */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    
-                    {/* Últimas Auditorías */}
                     <div className="lg:col-span-2 bg-white/5 border border-white/10 rounded-[2rem] p-6 backdrop-blur-xl flex flex-col">
                        <div className="flex justify-between items-center mb-6">
                          <h3 className="text-lg font-bold text-white">{t[idioma].ultAud}</h3>
@@ -575,7 +606,7 @@ function AuditorDashboard() {
                            <div className="grid grid-cols-4 gap-4 p-4 border-b border-white/10 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                              <div className="col-span-2 pl-2">{t[idioma].thCliente}</div>
                              <div className="text-center">{t[idioma].score}</div>
-                             <div className="text-right pr-2">Acción</div>
+                             <div className="text-right pr-2">{t[idioma].thAccion}</div>
                            </div>
                            <div className="divide-y divide-white/5">
                              {historial.slice(0, 5).map((item, index) => {
@@ -600,7 +631,6 @@ function AuditorDashboard() {
                        )}
                     </div>
 
-                    {/* Actividad Reciente */}
                     <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 backdrop-blur-xl">
                        <h3 className="text-lg font-bold text-white mb-6">{t[idioma].actRec}</h3>
                        
@@ -627,11 +657,11 @@ function AuditorDashboard() {
                          </ul>
                        )}
                     </div>
-
                 </div>
               </div>
             )}
 
+            {/* VISTA: NUEVA AUDITORÍA */}
             {vista === "nueva" && (
               <div className="print:hidden">
                 <div className="bg-white/5 border border-white/10 backdrop-blur-2xl p-8 md:p-12 rounded-[2rem] shadow-2xl mb-8">
@@ -694,17 +724,13 @@ function AuditorDashboard() {
               </div>
             )}
 
+            {/* REPORTE COMPARTIDO */}
             {((vista === "nueva" && reporte) || (vista === "reporte_lectura" && reporte)) && (
               <div className="animate-fade-custom print:bg-white print:m-0 print:p-0">
-                
                 {vista === "reporte_lectura" && (
-                  <button onClick={() => setVista("dashboard")} className="mb-6 flex items-center gap-2 text-slate-400 hover:text-white font-medium transition-colors print:hidden">
-                    <ArrowLeft size={18} /> {t[idioma].volver}
-                  </button>
+                  <button onClick={() => setVista("historial")} className="mb-6 flex items-center gap-2 text-slate-400 hover:text-white font-medium transition-colors print:hidden"><ArrowLeft size={18} /> {t[idioma].volver}</button>
                 )}
-
                 <div className={`bg-white/5 border border-white/10 backdrop-blur-2xl p-10 rounded-[2rem] shadow-2xl print:bg-white print:text-black print:border-none print:shadow-none print:p-0 print:mt-0 ${vista === "nueva" ? "mt-8" : ""}`}>
-                  
                   <div className="hidden print:flex justify-between items-center mb-10 border-b-2 border-slate-200 pb-6">
                     <div>{perfil?.agencia_logo ? <img src={perfil.agencia_logo} alt="Logo Agencia" className="h-16 object-contain" /> : <div className="flex items-center gap-2"><span className="text-3xl">🐾</span><span className="text-3xl font-black text-slate-800">Mora</span></div>}</div>
                     <div className="text-right">
@@ -719,10 +745,7 @@ function AuditorDashboard() {
                       <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-3 print:text-slate-500 print:text-xs">{nombreCuenta || t[idioma].cuentaSinNombre}</h2>
                       <div className="flex items-center gap-5">
                         <div className="w-20 h-20 rounded-full flex items-center justify-center border-[6px] border-black/20 text-3xl font-black text-[#0a0a0c] shadow-lg print:border-slate-100 print:text-slate-800" style={melocotonGradient}>{reporte.score_general}</div>
-                        <div>
-                           <h3 className="text-4xl font-black text-white print:text-slate-900">{t[idioma].score}</h3>
-                           <p className="text-slate-400 text-sm mt-1 print:text-slate-500">{t[idioma].puntajeBasado}</p>
-                        </div>
+                        <div><h3 className="text-4xl font-black text-white print:text-slate-900">{t[idioma].score}</h3><p className="text-slate-400 text-sm mt-1 print:text-slate-500">{t[idioma].puntajeBasado}</p></div>
                       </div>
                     </div>
                     <button onClick={descargarPDF} className="bg-white/5 border border-white/10 hover:bg-white/10 text-white px-6 py-3 rounded-xl font-bold transition-all print:hidden shadow-sm">{t[idioma].exportar}</button>
@@ -731,29 +754,18 @@ function AuditorDashboard() {
                   <div className="space-y-6">
                     <div className="border-l-4 pl-6 bg-red-500/5 p-6 rounded-2xl border border-red-500/10 print:bg-red-50 print:border-red-100 print:shadow-sm" style={{ borderLeftColor: '#ef4444' }}>
                       <h3 className="text-xl font-bold text-red-400 mb-4 flex items-center gap-2 print:text-red-700"><AlertTriangle size={24}/> {t[idioma].problemas}</h3>
-                      {reporte.hallazgos?.graves_rojo?.map((item: any, i: number) => (
-                        <p key={i} className="mb-4 text-slate-300 leading-relaxed print:text-slate-700 print:break-inside-avoid"><b className="text-white print:text-slate-900 text-lg">{item.titulo}:</b> <br/>{item.descripcion}</p>
-                      ))}
+                      {reporte.hallazgos?.graves_rojo?.map((item: any, i: number) => (<p key={i} className="mb-4 text-slate-300 leading-relaxed print:text-slate-700 print:break-inside-avoid"><b className="text-white print:text-slate-900 text-lg">{item.titulo}:</b> <br/>{item.descripcion}</p>))}
                     </div>
-                    
                     <div className="border-l-4 pl-6 bg-yellow-500/5 p-6 rounded-2xl border border-yellow-500/10 print:bg-amber-50 print:border-amber-100 print:shadow-sm" style={{ borderLeftColor: '#eab308' }}>
                       <h3 className="text-xl font-bold text-yellow-400 mb-4 flex items-center gap-2 print:text-amber-700"><Zap size={24}/> {t[idioma].mejoras}</h3>
-                      {reporte.hallazgos?.debiles_amarillo?.map((item: any, i: number) => (
-                        <p key={i} className="mb-4 text-slate-300 leading-relaxed print:text-slate-700 print:break-inside-avoid"><b className="text-white print:text-slate-900 text-lg">{item.titulo}:</b> <br/>{item.descripcion}</p>
-                      ))}
+                      {reporte.hallazgos?.debiles_amarillo?.map((item: any, i: number) => (<p key={i} className="mb-4 text-slate-300 leading-relaxed print:text-slate-700 print:break-inside-avoid"><b className="text-white print:text-slate-900 text-lg">{item.titulo}:</b> <br/>{item.descripcion}</p>))}
                     </div>
-
                     <div className="border-l-4 pl-6 bg-green-500/5 p-6 rounded-2xl border border-green-500/10 print:bg-emerald-50 print:border-emerald-100 print:shadow-sm" style={{ borderLeftColor: '#22c55e' }}>
                       <h3 className="text-xl font-bold text-green-400 mb-4 flex items-center gap-2 print:text-emerald-700"><CheckCircle2 size={24}/> {t[idioma].aciertos}</h3>
-                      {reporte.hallazgos?.bien_verde?.map((item: any, i: number) => (
-                        <p key={i} className="mb-4 text-slate-300 leading-relaxed print:text-slate-700 print:break-inside-avoid"><b className="text-white print:text-slate-900 text-lg">{item.titulo}:</b> <br/>{item.descripcion}</p>
-                      ))}
+                      {reporte.hallazgos?.bien_verde?.map((item: any, i: number) => (<p key={i} className="mb-4 text-slate-300 leading-relaxed print:text-slate-700 print:break-inside-avoid"><b className="text-white print:text-slate-900 text-lg">{item.titulo}:</b> <br/>{item.descripcion}</p>))}
                     </div>
                   </div>
-                  
-                  <div className="hidden print:block mt-16 pt-6 border-t border-slate-200 text-center">
-                    <p className="text-xs text-slate-400 font-medium">{agenciaPie}</p>
-                  </div>
+                  <div className="hidden print:block mt-16 pt-6 border-t border-slate-200 text-center"><p className="text-xs text-slate-400 font-medium">{agenciaPie}</p></div>
                 </div>
               </div>
             )}
@@ -841,61 +853,32 @@ function AuditorDashboard() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                   <div className="space-y-6">
                     <h3 className="text-lg font-bold text-[#FEAFAE] flex items-center gap-2 border-b border-white/5 pb-2"><Building2 size={18}/> {t[idioma].marcaBlanca}</h3>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wide">{t[idioma].nomAgencia}</label>
-                      <input type="text" className="w-full p-4 bg-black/20 border border-white/10 rounded-xl text-white focus:border-[#FEAFAE] focus:outline-none transition-all" value={agenciaNombre} onChange={(e) => setAgenciaNombre(e.target.value)} />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wide">{t[idioma].sitioWeb}</label>
-                      <input type="text" placeholder="Ej: www.tuagencia.com" className="w-full p-4 bg-black/20 border border-white/10 rounded-xl text-white focus:border-[#FEAFAE] focus:outline-none transition-all" value={agenciaWeb} onChange={(e) => setAgenciaWeb(e.target.value)} />
-                    </div>
+                    <div><label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wide">{t[idioma].nomAgencia}</label><input type="text" className="w-full p-4 bg-black/20 border border-white/10 rounded-xl text-white focus:border-[#FEAFAE] focus:outline-none transition-all" value={agenciaNombre} onChange={(e) => setAgenciaNombre(e.target.value)} /></div>
+                    <div><label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wide">{t[idioma].sitioWeb}</label><input type="text" placeholder="Ej: www.tuagencia.com" className="w-full p-4 bg-black/20 border border-white/10 rounded-xl text-white focus:border-[#FEAFAE] focus:outline-none transition-all" value={agenciaWeb} onChange={(e) => setAgenciaWeb(e.target.value)} /></div>
                     <div>
                       <label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wide">{t[idioma].logoPdf}</label>
                       <div className="flex items-center gap-6 p-4 border border-white/10 rounded-xl bg-black/20">
                         {agenciaLogo ? <img src={agenciaLogo} alt="Logo" className="w-16 h-16 object-contain rounded-xl bg-white p-2" /> : <div className="w-16 h-16 bg-white/5 rounded-xl flex items-center justify-center text-slate-500 text-xs text-center p-2 border border-dashed border-white/20">{t[idioma].subeLogo}</div>}
-                        <div className="flex-1">
-                          <input type="file" accept="image/*" onChange={subirLogo} disabled={uploading} className="w-full text-sm text-slate-400 cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-white/10 file:text-white hover:file:bg-white/20 transition-all" />
-                        </div>
+                        <div className="flex-1"><input type="file" accept="image/*" onChange={subirLogo} disabled={uploading} className="w-full text-sm text-slate-400 cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-white/10 file:text-white hover:file:bg-white/20 transition-all" /></div>
                       </div>
                     </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wide">{t[idioma].piePagina}</label>
-                      <textarea className="w-full h-20 p-4 bg-black/20 border border-white/10 rounded-xl text-white text-sm focus:border-[#FEAFAE] focus:outline-none transition-all resize-none" value={agenciaPie} onChange={(e) => setAgenciaPie(e.target.value)} />
-                    </div>
+                    <div><label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wide">{t[idioma].piePagina}</label><textarea className="w-full h-20 p-4 bg-black/20 border border-white/10 rounded-xl text-white text-sm focus:border-[#FEAFAE] focus:outline-none transition-all resize-none" value={agenciaPie} onChange={(e) => setAgenciaPie(e.target.value)} /></div>
                   </div>
 
                   <div className="space-y-6">
                     <h3 className="text-lg font-bold text-[#FEAFAE] flex items-center gap-2 border-b border-white/5 pb-2"><LayoutPanelLeft size={18}/> {t[idioma].preferencias}</h3>
                     <div>
                       <label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wide">{t[idioma].monedaDef}</label>
-                      <div className="relative">
-                        <select className="w-full p-4 bg-black/20 border border-white/10 rounded-xl text-white focus:border-[#FEAFAE] focus:outline-none transition-all appearance-none cursor-pointer" value={moneda} onChange={(e) => setMoneda(e.target.value)}>
-                          <option value="USD ($)" className="bg-[#0f0f13]">Dólares USD ($)</option>
-                          <option value="EUR (€)" className="bg-[#0f0f13]">Euros EUR (€)</option>
-                          <option value="ARS ($)" className="bg-[#0f0f13]">Pesos Argentinos ARS ($)</option>
-                          <option value="MXN ($)" className="bg-[#0f0f13]">Pesos Mexicanos MXN ($)</option>
-                        </select>
-                        <ChevronDown size={18} className="absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400 pointer-events-none" />
-                      </div>
+                      <div className="relative"><select className="w-full p-4 bg-black/20 border border-white/10 rounded-xl text-white focus:border-[#FEAFAE] focus:outline-none transition-all appearance-none cursor-pointer" value={moneda} onChange={(e) => setMoneda(e.target.value)}><option value="USD ($)" className="bg-[#0f0f13]">Dólares USD ($)</option><option value="EUR (€)" className="bg-[#0f0f13]">Euros EUR (€)</option><option value="ARS ($)" className="bg-[#0f0f13]">Pesos Argentinos ARS ($)</option><option value="MXN ($)" className="bg-[#0f0f13]">Pesos Mexicanos MXN ($)</option></select><ChevronDown size={18} className="absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400 pointer-events-none" /></div>
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wide">{t[idioma].metricaDef}</label>
-                      <div className="relative">
-                        <select className="w-full p-4 bg-black/20 border border-white/10 rounded-xl text-white focus:border-[#FEAFAE] focus:outline-none transition-all appearance-none cursor-pointer" value={metrica} onChange={(e) => setMetrica(e.target.value)}>
-                          <option value="ROAS" className="bg-[#0f0f13]">ROAS (Retorno de Inversión)</option>
-                          <option value="CPA" className="bg-[#0f0f13]">CPA (Costo por Adquisición)</option>
-                          <option value="ROI" className="bg-[#0f0f13]">ROI</option>
-                        </select>
-                        <ChevronDown size={18} className="absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400 pointer-events-none" />
-                      </div>
+                      <div className="relative"><select className="w-full p-4 bg-black/20 border border-white/10 rounded-xl text-white focus:border-[#FEAFAE] focus:outline-none transition-all appearance-none cursor-pointer" value={metrica} onChange={(e) => setMetrica(e.target.value)}><option value="ROAS" className="bg-[#0f0f13]">ROAS (Retorno de Inversión)</option><option value="CPA" className="bg-[#0f0f13]">CPA (Costo por Adquisición)</option><option value="ROI" className="bg-[#0f0f13]">ROI</option></select><ChevronDown size={18} className="absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400 pointer-events-none" /></div>
                     </div>
                   </div>
                 </div>
-                
                 <div className="border-t border-white/5 mt-10 pt-8">
-                  <button onClick={guardarAjustesAgencia} disabled={loading || uploading} className="w-full md:w-auto md:px-12 text-black px-8 py-4 rounded-xl font-bold hover:scale-[1.02] disabled:opacity-50 transition-all shadow-lg mx-auto block" style={melocotonGradient}>
-                    {loading ? t[idioma].guardando : t[idioma].guardarAj}
-                  </button>
+                  <button onClick={guardarAjustesAgencia} disabled={loading || uploading} className="w-full md:w-auto md:px-12 text-black px-8 py-4 rounded-xl font-bold hover:scale-[1.02] disabled:opacity-50 transition-all shadow-lg mx-auto block" style={melocotonGradient}>{loading ? t[idioma].guardando : t[idioma].guardarAj}</button>
                 </div>
               </div>
             )}
@@ -909,7 +892,6 @@ function AuditorDashboard() {
                       <p className="text-slate-400 mt-1">{t[idioma].facturacionDesc}</p>
                    </div>
                 </div>
-
                 <div className="bg-black/20 border border-white/10 rounded-2xl p-6 mb-6 flex justify-between items-center">
                   <div>
                     <p className="text-sm font-bold text-slate-400 uppercase tracking-wide mb-1">{t[idioma].planActual}</p>
@@ -919,10 +901,7 @@ function AuditorDashboard() {
                     </div>
                   </div>
                 </div>
-
-                <button className="w-full text-slate-300 bg-white/5 border border-white/10 px-8 py-4 rounded-xl font-bold hover:bg-white/10 transition-all shadow-lg mt-2 flex justify-center items-center gap-2 cursor-not-allowed opacity-80">
-                  <CreditCard size={20} /> {t[idioma].gestionarStripe} <span className="text-[#FFA4BD] text-xs font-black">{t[idioma].pronto}</span>
-                </button>
+                <button className="w-full text-slate-300 bg-white/5 border border-white/10 px-8 py-4 rounded-xl font-bold hover:bg-white/10 transition-all shadow-lg mt-2 flex justify-center items-center gap-2 cursor-not-allowed opacity-80"><CreditCard size={20} /> {t[idioma].gestionarStripe} <span className="text-[#FFA4BD] text-xs font-black">{t[idioma].pronto}</span></button>
               </div>
             )}
 
@@ -932,9 +911,7 @@ function AuditorDashboard() {
                 <h2 className="text-3xl font-bold mb-3 text-white">{t[idioma].ayudanos}</h2>
                 <p className="text-slate-400 mb-8 font-medium">{t[idioma].bug}</p>
                 <textarea className="w-full h-32 p-4 bg-black/20 border border-white/10 rounded-2xl mb-6 text-white focus:border-[#FEAFAE] focus:outline-none resize-none transition-all" placeholder={t[idioma].escribiSug} value={mensajeFeedback} onChange={(e) => setMensajeFeedback(e.target.value)} />
-                <button onClick={mandarFeedback} disabled={enviandoFeedback || !mensajeFeedback} className="w-full text-black px-8 py-4 rounded-xl font-bold disabled:opacity-50 transition-all shadow-lg hover:scale-[1.02]" style={melocotonGradient}>
-                  {enviandoFeedback ? t[idioma].enviando : t[idioma].enviarSug}
-                </button>
+                <button onClick={mandarFeedback} disabled={enviandoFeedback || !mensajeFeedback} className="w-full text-black px-8 py-4 rounded-xl font-bold disabled:opacity-50 transition-all shadow-lg hover:scale-[1.02]" style={melocotonGradient}>{enviandoFeedback ? t[idioma].enviando : t[idioma].enviarSug}</button>
               </div>
             )}
 
