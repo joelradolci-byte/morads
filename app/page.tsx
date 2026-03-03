@@ -163,6 +163,9 @@ function AuditorDashboard() {
 
   const [mensajeFeedback, setMensajeFeedback] = useState("");
   const [enviandoFeedback, setEnviandoFeedback] = useState(false);
+  
+  // ESTADO PARA EL CHECKLIST INTERACTIVO
+  const [tareasCompletadas, setTareasCompletadas] = useState<number[]>([]);
 
   const t = {
     es: {
@@ -179,7 +182,6 @@ function AuditorDashboard() {
       btncomenzar: "Comenzar Gratis", detalleCliente: "Detalle del Cliente", buzonSug: "Buzón de Sugerencias",
       suscripcion: "Suscripción", activa: "Activa", renueva: "Renueva:",
       ingresaDatos: "Ingresá los datos clave de la campaña para un análisis preciso.",
-      // TRADUCCIONES NUEVAS DEL FORMULARIO
       presupuestoObj: "Presupuesto Mensual", placeholderPres: "Ej: 1000",
       gastoAct: "Gasto Actual (Hasta hoy)", placeholderGasto: "Ej: 450",
       conversiones: "Conversiones", cparoas: "CPA o ROAS Actual", tipoCamp: "Tipo de Campaña", contexto: "Contexto y Notas del Cliente (Opcional)",
@@ -289,6 +291,14 @@ function AuditorDashboard() {
     }
   };
 
+  const toggleTarea = (index: number) => {
+    if (tareasCompletadas.includes(index)) {
+      setTareasCompletadas(tareasCompletadas.filter(i => i !== index));
+    } else {
+      setTareasCompletadas([...tareasCompletadas, index]);
+    }
+  };
+
   useEffect(() => {
     if (session) obtenerPerfil();
     if (vista === "historial" || vista === "dashboard") cargarHistorial();
@@ -340,7 +350,7 @@ function AuditorDashboard() {
     setEnviandoFeedback(false);
   };
 
-const analizarCampaña = async () => {
+  const analizarCampaña = async () => {
     if (!session?.user?.email) return;
     setLoading(true);
     try {
@@ -385,9 +395,9 @@ const analizarCampaña = async () => {
           mensaje: pacingMsg
       };
 
-      // 2. CONEXIÓN A GEMINI 1.5 FLASH (El modelo estable)
+      // 2. CONEXIÓN A GEMINI (VOLVEMOS A 3 FLASH PREVIEW)
       const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY!);
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); // CAMBIO AQUÍ
+      const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
       const idiomaInstruccion = idioma === 'es' ? 'ESPAÑOL' : 'INGLÉS';
       
       const datosEstructurados = `
@@ -418,7 +428,7 @@ const analizarCampaña = async () => {
       const result = await model.generateContent(prompt);
       let text = (await result.response).text();
       
-      // Limpiador de JSON por si el modelo 1.5 se pone charlatán
+      // Limpiador de JSON por si el modelo se pone charlatán
       const startIndex = text.indexOf('{');
       const endIndex = text.lastIndexOf('}');
       const jsonLimpio = text.substring(startIndex, endIndex + 1);
@@ -435,6 +445,7 @@ const analizarCampaña = async () => {
       }]);
       
       cargarHistorial(); 
+      setTareasCompletadas([]); // Reseteamos el checklist
       setSubVistaReporte("avanzado"); // Te manda directo a ver la magia del presupuesto
       setVista("reporte_lectura");
     } catch (error) {
@@ -963,7 +974,7 @@ const analizarCampaña = async () => {
               </div>
             )}
 
-            {/* VISTA: LECTURA DE REPORTE (CON PESTAÑAS ENTERPRISE) */}
+            {/* VISTA: LECTURA DE REPORTE (CON PESTAÑAS ENTERPRISE Y CHECKLIST INTERACTIVO) */}
             {vista === "reporte_lectura" && reporte && (
               <div className="animate-fade-custom print:bg-white print:m-0 print:p-0 relative z-10">
                 
@@ -972,8 +983,8 @@ const analizarCampaña = async () => {
                    
                    <div className="flex bg-black/40 border border-white/10 rounded-xl p-1 gap-1">
                       <button onClick={() => setSubVistaReporte("diagnostico")} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${subVistaReporte === 'diagnostico' ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-300'}`}><FileText size={16}/> {t[idioma].tabDiag}</button>
-                      <button onClick={() => setSubVistaReporte("checklist")} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${subVistaReporte === 'checklist' ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-300'}`}><ListChecks size={16}/> {t[idioma].tabCheck}</button>
-                      <button onClick={() => setSubVistaReporte("avanzado")} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${subVistaReporte === 'avanzado' ? 'bg-[#FEAFAE]/20 text-[#FEAFAE]' : 'text-slate-500 hover:text-slate-300'}`}><LayoutGrid size={16}/> {t[idioma].tabAvanzado}</button>
+                      <button onClick={() => setSubVistaReporte("checklist")} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${subVistaReporte === 'checklist' ? 'bg-[#FEAFAE]/20 text-[#FEAFAE]' : 'text-slate-500 hover:text-slate-300'}`}><ListChecks size={16}/> {t[idioma].tabCheck}</button>
+                      <button onClick={() => setSubVistaReporte("avanzado")} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${subVistaReporte === 'avanzado' ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-300'}`}><LayoutGrid size={16}/> {t[idioma].tabAvanzado}</button>
                    </div>
                 </div>
 
@@ -1023,32 +1034,41 @@ const analizarCampaña = async () => {
                   )}
 
                   {subVistaReporte === "checklist" && (
-                     <div className="animate-fade-custom bg-[#0f0f13] border border-white/5 rounded-2xl p-8">
+                     <div className="animate-fade-custom bg-[#0f0f13]/60 backdrop-blur-md border border-white/5 rounded-2xl p-8 shadow-inner">
                         <div className="flex items-center justify-between mb-8 pb-4 border-b border-white/5">
                            <div>
-                             <h3 className="text-xl font-bold text-white flex items-center gap-2"><ListChecks size={24} className="text-[#FEAFAE]" /> To-Do List (20 min)</h3>
-                             <p className="text-slate-400 text-sm mt-1">Tareas accionables generadas por IA.</p>
+                             <h3 className="text-xl font-bold text-white flex items-center gap-2"><ListChecks size={24} className="text-[#FEAFAE]" /> Optimización de 20 Minutos</h3>
+                             <p className="text-slate-400 text-sm mt-1">Completá estas tareas en Google Ads para mejorar tu Score.</p>
+                           </div>
+                           <div className="text-right">
+                             <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Progreso</p>
+                             <p className="text-lg font-bold text-[#FEAFAE]">{tareasCompletadas.length} / {reporte.checklist?.length || 0}</p>
                            </div>
                         </div>
 
                         {reporte.checklist ? (
-                          <div className="space-y-4">
-                            {reporte.checklist.map((item: any, i: number) => (
-                              <div key={i} className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 bg-white/5 border border-white/10 rounded-xl hover:border-white/20 transition-colors">
-                                 <div className="flex items-start gap-4">
-                                   <div className="mt-1"><CheckSquare size={20} className="text-slate-500 hover:text-green-400 cursor-pointer transition-colors" /></div>
-                                   <div>
-                                     <p className="font-bold text-white text-lg">{item.tarea}</p>
-                                     <div className="flex gap-3 mt-2">
-                                       <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${item.color === 'rojo' ? 'bg-red-500/20 text-red-400' : 'bg-yellow-500/20 text-yellow-400'}`}>Prioridad: {item.impacto}</span>
+                          <div className="space-y-3">
+                            {reporte.checklist.map((item: any, i: number) => {
+                              const esCompletada = tareasCompletadas.includes(i);
+                              return (
+                                <div key={i} className={`flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-xl border transition-all duration-300 ${esCompletada ? "bg-green-500/5 border-green-500/20 opacity-60" : "bg-white/5 border-white/10 hover:border-[#FEAFAE]/30"}`}>
+                                   <div className="flex items-start gap-4">
+                                     <button onClick={() => toggleTarea(i)} className={`mt-1 w-6 h-6 rounded-md border flex items-center justify-center transition-colors ${esCompletada ? "bg-green-500 border-green-500 text-black" : "border-slate-600 hover:border-[#FEAFAE]"}`}>
+                                        {esCompletada && <CheckSquare size={16} strokeWidth={3} />}
+                                     </button>
+                                     <div>
+                                       <p className={`font-bold text-white transition-all ${esCompletada ? "line-through text-slate-500" : "text-lg"}`}>{item.tarea}</p>
+                                       <div className="flex gap-2 mt-1">
+                                         <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded ${item.color === 'rojo' ? 'bg-red-500/10 text-red-400' : 'bg-yellow-500/10 text-yellow-400'}`}>Prioridad: {item.impacto}</span>
+                                       </div>
                                      </div>
                                    </div>
-                                 </div>
-                                 <button onClick={() => alert(t[idioma].msgAutoApply)} className="flex items-center gap-2 px-5 py-2.5 rounded-lg font-bold text-xs bg-white/10 text-white hover:bg-white/20 border border-white/5 hover:border-white/20 transition-all whitespace-nowrap group">
-                                    <Sparkles size={14} className="text-[#FEAFAE] group-hover:animate-pulse" /> {t[idioma].autoApply}
-                                 </button>
-                              </div>
-                            ))}
+                                   <button onClick={() => alert(t[idioma].msgAutoApply)} className="flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-[10px] uppercase tracking-wider bg-white/5 text-white hover:bg-white/10 border border-white/5 transition-all group">
+                                      <Sparkles size={14} className="text-[#FEAFAE] group-hover:animate-pulse" /> {t[idioma].autoApply}
+                                   </button>
+                                </div>
+                              );
+                            })}
                           </div>
                         ) : (
                           <div className="text-center text-slate-500 py-10">Esta auditoría es antigua y no tiene Checklist. Generá una nueva.</div>
