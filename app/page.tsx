@@ -7,7 +7,7 @@ import {
   Target, Users, Building2, MessageSquare, LogOut, ChevronDown, 
   Zap, AlertTriangle, CheckCircle2, CreditCard, Settings, 
   Search, ArrowRight, ArrowLeft, TrendingUp, TrendingDown, LayoutPanelLeft,
-  FileText, BarChart3, ShieldCheck, Plus, Clock, Activity, Trash2
+  FileText, BarChart3, ShieldCheck, Plus, Clock, Activity, Trash2, HeadphonesIcon
 } from 'lucide-react';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -40,7 +40,7 @@ function FadeInOnScroll({ children, delay = 0 }: { children: React.ReactNode, de
   );
 }
 
-// FONDO RED NEURONAL IA (Canvas animado, ligero y elegante)
+// FONDO RED NEURONAL IA
 const NeuralBackground = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -56,13 +56,13 @@ const NeuralBackground = () => {
     canvas.height = height;
 
     const particles: {x: number, y: number, vx: number, vy: number, radius: number}[] = [];
-    const numParticles = Math.floor((width * height) / 12000); // Densidad adaptable
+    const numParticles = Math.floor((width * height) / 12000); 
 
     for (let i = 0; i < numParticles; i++) {
       particles.push({
         x: Math.random() * width,
         y: Math.random() * height,
-        vx: (Math.random() - 0.5) * 0.4, // Movimiento lento
+        vx: (Math.random() - 0.5) * 0.4, 
         vy: (Math.random() - 0.5) * 0.4,
         radius: Math.random() * 1.5 + 0.5
       });
@@ -72,8 +72,8 @@ const NeuralBackground = () => {
 
     const render = () => {
       ctx.clearRect(0, 0, width, height);
-      ctx.fillStyle = 'rgba(254, 175, 174, 0.6)'; // Melocotón/Rosa para los puntos
-      ctx.strokeStyle = 'rgba(254, 175, 174, 0.12)'; // Melocotón transparente para las líneas
+      ctx.fillStyle = 'rgba(254, 175, 174, 0.6)'; 
+      ctx.strokeStyle = 'rgba(254, 175, 174, 0.12)'; 
 
       for (let i = 0; i < numParticles; i++) {
         let p = particles[i];
@@ -87,14 +87,13 @@ const NeuralBackground = () => {
         ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
         ctx.fill();
 
-        // Conectar con otras partículas
         for (let j = i + 1; j < numParticles; j++) {
           let p2 = particles[j];
           let dx = p.x - p2.x;
           let dy = p.y - p2.y;
           let dist = Math.sqrt(dx * dx + dy * dy);
 
-          if (dist < 130) { // Distancia de conexión
+          if (dist < 130) { 
             ctx.beginPath();
             ctx.moveTo(p.x, p.y);
             ctx.lineTo(p2.x, p2.y);
@@ -165,7 +164,7 @@ function AuditorDashboard() {
       dashboard: "Dashboard", panelPrin: "Panel Principal", panelDesc: "Resumen del rendimiento global de tu agencia.",
       saludG: "Salud Promedio", totAud: "Total Cuentas", fugasDet: "Fugas Críticas", oporMej: "Oportunidades",
       ultAud: "Últimas Auditorías", actRec: "Actividad Reciente", verTodas: "Ver todas", generada: "Se auditó la cuenta", hace: "Hace",
-      afectaA: "Afecta principalmente a:", buscarGlobal: "Buscar cuentas, reportes...", usoMensual: "Uso Mensual", ilimitado: "Ilimitado en tu plan",
+      afectaA: "Afecta principalmente a:", buscarGlobal: "Buscar cuenta por nombre...",
       nueva: "Auditor IA", clientes: "Panel de Clientes",
       reportes: "Reportes", feedback: "Sugerencias", configuracion: "Configuración General", facturacion: "Ver Facturación", salir: "Cerrar Sesión",
       placeholderNombre: "Nombre del Cliente o Cuenta", btnAnalizar: "Ejecutar Auditoría", btnAnalizando: "Analizando métricas...", exportar: "Exportar a PDF",
@@ -200,7 +199,7 @@ function AuditorDashboard() {
       dashboard: "Dashboard", panelPrin: "Main Dashboard", panelDesc: "Global overview of your agency's performance.",
       saludG: "Avg Health Score", totAud: "Total Accounts", fugasDet: "Critical Leaks", oporMej: "Opportunities",
       ultAud: "Recent Audits", actRec: "Recent Activity", verTodas: "View all", generada: "Audit generated for", hace: "Ago",
-      afectaA: "Mainly affecting:", buscarGlobal: "Search accounts, reports...", usoMensual: "Monthly Usage", ilimitado: "Unlimited on your plan",
+      afectaA: "Mainly affecting:", buscarGlobal: "Search account by name...",
       nueva: "AI Auditor", clientes: "Client Dashboard",
       reportes: "Reports", feedback: "Feedback", configuracion: "General Settings", facturacion: "Billing", salir: "Sign Out",
       placeholderNombre: "Client or Account Name", btnAnalizar: "Run Audit", btnAnalizando: "Analyzing metrics...", exportar: "Export to PDF",
@@ -346,6 +345,7 @@ function AuditorDashboard() {
       setReporte(parsedReporte);
       await supabase.from('historial_auditorias').insert([{ usuario_email: session.user.email, score: parsedReporte.score_general, reporte_json: parsedReporte, nombre_cuenta: nombreCuenta || "Sin nombre" }]);
       cargarHistorial(); 
+      setVista("reporte_lectura");
     } catch (error) {
       console.error("Error completo:", error);
       alert("Error al analizar los datos. Revisá la consola.");
@@ -422,11 +422,13 @@ function AuditorDashboard() {
             <button onClick={() => setIdioma(idioma === "es" ? "en" : "es")} className="text-sm font-bold text-slate-400 hover:text-white transition-colors flex items-center gap-2">
               <span className="w-4 h-4 flex items-center justify-center border border-slate-400 rounded-full text-[10px]">🌐</span> {idioma === "es" ? "ES" : "EN"}
             </button>
-            <button onClick={() => signIn("google")} className="text-[#0a0a0c] px-6 py-2.5 rounded-full font-bold text-sm hover:scale-105 transition-transform shadow-[0_0_15px_rgba(255,164,189,0.4)]" style={melocotonGradient}>
+            <button onClick={() => signIn("google", { prompt: "select_account" })} className="text-[#0a0a0c] px-6 py-2.5 rounded-full font-bold text-sm hover:scale-105 transition-transform shadow-[0_0_15px_rgba(255,164,189,0.4)]" style={melocotonGradient}>
               {t[idioma].login}
             </button>
           </div>
         </nav>
+
+        <div className="absolute top-[-10%] left-1/2 transform -translate-x-1/2 w-[800px] h-[600px] bg-[#FEAFAE] opacity-[0.07] blur-[120px] rounded-full pointer-events-none"></div>
 
         <FadeInOnScroll>
           <header className="flex flex-col items-center justify-center text-center px-4 pt-20 pb-20 max-w-4xl mx-auto relative z-10">
@@ -442,7 +444,7 @@ function AuditorDashboard() {
               {t[idioma].pland1}
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center w-full sm:w-auto">
-              <button onClick={() => signIn("google")} className="w-full sm:w-auto text-[#0a0a0c] px-10 py-5 rounded-full font-bold text-lg hover:scale-105 transition-transform shadow-[0_0_40px_rgba(255,164,189,0.3)] flex items-center justify-center gap-2" style={melocotonGradient}>
+              <button onClick={() => signIn("google", { prompt: "select_account" })} className="w-full sm:w-auto text-[#0a0a0c] px-10 py-5 rounded-full font-bold text-lg hover:scale-105 transition-transform shadow-[0_0_40px_rgba(255,164,189,0.3)] flex items-center justify-center gap-2" style={melocotonGradient}>
                 {t[idioma].btncomenzar} <ArrowRight size={20} />
               </button>
             </div>
@@ -524,7 +526,7 @@ function AuditorDashboard() {
                     <li className="flex items-center gap-3 text-slate-300"><CheckCircle2 size={18} className="text-slate-500" /> Exportación PDF estándar</li>
                   </ul>
                 </div>
-                <button onClick={() => signIn("google")} className="w-full bg-white/10 hover:bg-white/20 text-white font-bold py-4 rounded-xl transition-colors">{t[idioma].login}</button>
+                <button onClick={() => signIn("google", { prompt: "select_account" })} className="w-full bg-white/10 hover:bg-white/20 text-white font-bold py-4 rounded-xl transition-colors">{t[idioma].login}</button>
               </div>
               <div className="bg-[#0f0f13] border border-[#FEAFAE]/30 p-10 rounded-[2rem] relative shadow-[0_0_30px_rgba(255,164,189,0.1)] flex flex-col justify-between overflow-hidden hover:shadow-[0_0_50px_rgba(255,164,189,0.2)] transition-shadow">
                 <div className="absolute top-0 left-0 w-full h-1" style={melocotonGradient}></div>
@@ -538,7 +540,7 @@ function AuditorDashboard() {
                     <li className="flex items-center gap-3 text-white"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> Historial de Clientes infinito</li>
                   </ul>
                 </div>
-                <button onClick={() => signIn("google")} className="w-full text-[#0a0a0c] font-bold py-4 rounded-xl hover:scale-[1.02] transition-transform shadow-lg" style={melocotonGradient}>{t[idioma].btnUnete}</button>
+                <button onClick={() => signIn("google", { prompt: "select_account" })} className="w-full text-[#0a0a0c] font-bold py-4 rounded-xl hover:scale-[1.02] transition-transform shadow-lg" style={melocotonGradient}>{t[idioma].btnUnete}</button>
               </div>
             </div>
           </section>
@@ -574,7 +576,7 @@ function AuditorDashboard() {
         <NeuralBackground />
 
         {/* SIDEBAR */}
-        <aside className="w-64 bg-[#0a0a0c]/40 backdrop-blur-2xl border-r border-white/5 flex flex-col justify-between print:hidden z-20 relative">
+        <aside className="w-64 bg-[#0a0a0c]/40 backdrop-blur-2xl border-r border-white/5 flex flex-col justify-between print:hidden z-20 relative shadow-[10px_0_30px_rgba(0,0,0,0.5)]">
           <div>
             <div className="h-20 flex items-center px-6 border-b border-white/5 gap-3">
                <div className="w-8 h-8 rounded-lg flex items-center justify-center font-black text-black text-xl shadow-lg" style={melocotonGradient}>M</div>
@@ -600,16 +602,20 @@ function AuditorDashboard() {
             </div>
           </div>
           
-          {/* NUEVO WIDGET LATERAL: USO MENSUAL */}
+          {/* NUEVO WIDGET LATERAL: SOPORTE VIP */}
           <div className="mx-4 mb-6 p-4 rounded-xl bg-black/40 border border-white/5 relative z-10 backdrop-blur-md">
-             <div className="flex justify-between items-center mb-3">
-               <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t[idioma].usoMensual}</span>
-               <span className="text-xs text-[#FEAFAE] font-bold px-2 py-0.5 bg-[#FEAFAE]/10 rounded-md">Pro</span>
+             <div className="flex items-center gap-3 mb-2">
+               <div className="p-2 bg-[#FEAFAE]/10 rounded-lg text-[#FEAFAE]">
+                 <ShieldCheck size={18} />
+               </div>
+               <div>
+                 <p className="text-xs font-bold text-white">Soporte VIP</p>
+                 <p className="text-[10px] text-slate-400">Respuesta en 1h</p>
+               </div>
              </div>
-             <div className="w-full bg-white/5 rounded-full h-1.5 mb-2 overflow-hidden">
-               <div className="bg-gradient-to-r from-[#FCD5BF] to-[#FEAFAE] h-1.5 rounded-full" style={{width: '35%'}}></div>
-             </div>
-             <p className="text-[10px] text-slate-500 font-medium">{t[idioma].ilimitado}</p>
+             <button onClick={() => setVista("feedback")} className="w-full mt-2 py-1.5 text-xs font-bold text-[#0a0a0c] rounded-lg hover:opacity-90 transition-opacity" style={melocotonGradient}>
+               Contactar
+             </button>
           </div>
         </aside>
 
@@ -627,15 +633,22 @@ function AuditorDashboard() {
               {vista === 'facturacion' && t[idioma].facturacionTitulo}
             </h2>
 
-            {/* NUEVA BARRA DE BÚSQUEDA GLOBAL CENTRADA */}
+            {/* BARRA DE BÚSQUEDA GLOBAL CONECTADA */}
             <div className="hidden md:flex items-center justify-center flex-1 max-w-md mx-8">
                <div className="relative w-full group">
                   <Search size={14} className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-500 group-focus-within:text-[#FEAFAE] transition-colors" />
-                  <input type="text" placeholder={t[idioma].buscarGlobal} className="w-full bg-black/40 border border-white/10 rounded-full pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#FEAFAE]/50 focus:bg-black/60 transition-all placeholder:text-slate-500 shadow-inner" />
-                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex gap-1">
-                    <span className="text-[10px] text-slate-500 font-mono border border-white/10 rounded px-1.5 py-0.5">⌘</span>
-                    <span className="text-[10px] text-slate-500 font-mono border border-white/10 rounded px-1.5 py-0.5">K</span>
-                  </div>
+                  <input 
+                    type="text" 
+                    placeholder={t[idioma].buscarGlobal} 
+                    value={busqueda}
+                    onChange={(e) => {
+                      setBusqueda(e.target.value);
+                      if (vista !== "historial" && e.target.value !== "") {
+                        setVista("historial");
+                      }
+                    }}
+                    className="w-full bg-black/40 border border-white/10 rounded-full pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#FEAFAE]/50 focus:bg-black/60 transition-all placeholder:text-slate-500 shadow-inner" 
+                  />
                </div>
             </div>
             
@@ -644,37 +657,40 @@ function AuditorDashboard() {
                   <div className="text-right hidden lg:block">
                     <p className="text-sm font-bold text-white leading-tight">{session.user?.name}</p>
                     <div className="flex items-center justify-end gap-1.5 mt-0.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-green-400"></span>
-                      <p className="text-xs text-slate-400 font-medium">Sistemas Operativos</p>
+                      <span className="w-1.5 h-1.5 rounded-full bg-green-400 shadow-[0_0_5px_#4ade80]"></span>
+                      <p className="text-xs text-slate-400 font-medium">Operativo</p>
                     </div>
                   </div>
                   <img src={session.user?.image || ""} alt="Perfil" className="w-10 h-10 rounded-full border-2 border-[#FEAFAE] shadow-sm" />
                   <ChevronDown size={16} className="text-slate-400" />
                </button>
 
+               {/* CAPA INVISIBLE PARA CERRAR EL MENÚ */}
                {menuPerfil && (
-                 <div className="absolute right-0 mt-2 w-64 bg-[#0f0f13]/95 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-2xl py-2 z-50 animate-fade-custom">
-                    <div className="px-4 py-3 border-b border-white/5">
-                       <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">{t[idioma].suscripcion}</p>
-                       <div className="flex items-center gap-2 mb-1">
-                         <span className="w-2 h-2 rounded-full bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.5)]"></span>
-                         <span className="text-sm font-bold text-white">{t[idioma].activa} ({perfil?.plan === 'pro' ? 'Pro' : 'Free'})</span>
-                       </div>
-                    </div>
-                    <div className="py-2">
-                      <button onClick={() => { setVista("perfil"); setMenuPerfil(false); }} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5 hover:text-white transition-colors"><Settings size={16} /> {t[idioma].configuracion}</button>
-                      <button onClick={() => { setVista("facturacion"); setMenuPerfil(false); }} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5 hover:text-white transition-colors"><CreditCard size={16} /> {t[idioma].facturacion}</button>
-                      <button onClick={() => setIdioma(idioma === "es" ? "en" : "es")} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5 hover:text-white transition-colors"><span className="w-4 h-4 flex items-center justify-center border border-slate-400 rounded-full text-[10px]">🌐</span> Idioma: {idioma === "es" ? "ES" : "EN"}</button>
-                    </div>
-                    <div className="border-t border-white/5 mt-1 pt-2">
-                      <button onClick={() => signOut()} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 transition-colors font-medium"><LogOut size={16} /> {t[idioma].salir}</button>
-                    </div>
-                 </div>
+                 <>
+                   <div className="fixed inset-0 z-40 cursor-default" onClick={() => setMenuPerfil(false)}></div>
+                   <div className="absolute right-0 mt-2 w-64 bg-[#0f0f13]/95 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-2xl py-2 z-50 animate-fade-custom">
+                      <div className="px-4 py-3 border-b border-white/5">
+                         <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">{t[idioma].suscripcion}</p>
+                         <div className="flex items-center gap-2 mb-1">
+                           <span className="w-2 h-2 rounded-full bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.5)]"></span>
+                           <span className="text-sm font-bold text-white">{t[idioma].activa} ({perfil?.plan === 'pro' ? 'Pro' : 'Free'})</span>
+                         </div>
+                      </div>
+                      <div className="py-2">
+                        <button onClick={() => { setVista("perfil"); setMenuPerfil(false); }} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5 hover:text-white transition-colors"><Settings size={16} /> {t[idioma].configuracion}</button>
+                        <button onClick={() => { setVista("facturacion"); setMenuPerfil(false); }} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5 hover:text-white transition-colors"><CreditCard size={16} /> {t[idioma].facturacion}</button>
+                        <button onClick={() => setIdioma(idioma === "es" ? "en" : "es")} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5 hover:text-white transition-colors"><span className="w-4 h-4 flex items-center justify-center border border-slate-400 rounded-full text-[10px]">🌐</span> Idioma: {idioma === "es" ? "ES" : "EN"}</button>
+                      </div>
+                      <div className="border-t border-white/5 mt-1 pt-2">
+                        <button onClick={() => signOut()} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 transition-colors font-medium"><LogOut size={16} /> {t[idioma].salir}</button>
+                      </div>
+                   </div>
+                 </>
                )}
             </div>
           </header>
 
-          {/* AMPLIADO EL ANCHO MAXIMO DE 6XL A 7XL PARA LLENAR MARGENES */}
           <div className="p-8 pb-32 max-w-7xl mx-auto w-full print:p-0 print:pb-0" key={vista}>
             
             {vista === "dashboard" && (
@@ -885,10 +901,6 @@ function AuditorDashboard() {
                    </div>
 
                    <div className="flex flex-wrap items-center gap-3">
-                      <div className="relative">
-                        <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
-                        <input type="text" placeholder={t[idioma].buscar} className="pl-9 pr-4 py-2 bg-black/40 border border-white/5 rounded-xl text-sm text-white focus:outline-none focus:border-[#FEAFAE] transition-all w-48" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} />
-                      </div>
                       <div className="flex bg-black/40 p-1 rounded-xl border border-white/5">
                           <button onClick={() => setFiltroEstado("todos")} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${filtroEstado === 'todos' ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-white'}`}>{t[idioma].todos}</button>
                           <button onClick={() => setFiltroEstado("critico")} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-1 ${filtroEstado === 'critico' ? 'bg-red-500/20 text-red-400' : 'text-slate-400 hover:text-red-400'}`}><span className="w-2 h-2 rounded-full bg-red-400"></span> {t[idioma].criticos}</button>
@@ -1023,12 +1035,15 @@ function AuditorDashboard() {
 
           </div>
 
-          <button onClick={() => { setVista("feedback"); setReporte(null); setMenuPerfil(false); }} className="fixed bottom-8 right-8 bg-white/10 text-white px-5 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 transition-transform flex items-center gap-2 border border-white/20 print:hidden backdrop-blur-md relative z-10">
-            <MessageSquare size={18} /> {t[idioma].feedback}
-          </button>
-
         </main>
       </div>
+
+      {/* BOTÓN DE FEEDBACK FLOTANTE ARREGLADO (Z-50) */}
+      {session && (
+        <button onClick={() => { setVista("feedback"); setReporte(null); setMenuPerfil(false); }} className="fixed bottom-8 right-8 z-50 bg-white/10 text-white px-5 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 transition-transform flex items-center gap-2 border border-white/20 print:hidden backdrop-blur-md">
+          <MessageSquare size={18} /> {t[idioma].feedback}
+        </button>
+      )}
     </>
   );
 }
