@@ -6,7 +6,8 @@ import { createClient } from "@supabase/supabase-js";
 import { 
   Target, Users, Building2, MessageSquare, LogOut, ChevronDown, 
   Zap, AlertTriangle, CheckCircle2, CreditCard, Settings, 
-  Search, ArrowRight, ArrowLeft, TrendingUp, TrendingDown, LayoutPanelLeft 
+  Search, ArrowRight, ArrowLeft, TrendingUp, TrendingDown, LayoutPanelLeft,
+  FileText, BarChart3, ShieldCheck
 } from 'lucide-react';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -36,12 +37,10 @@ function AuditorDashboard() {
   const [filtroEstado, setFiltroEstado] = useState<"todos" | "critico" | "atencion" | "optimo">("todos");
   const [busqueda, setBusqueda] = useState(""); 
   
-  // RESTAURADO EL ESTADO DE MOSTRAR PAGOS
   const [mostrarPagos, setMostrarPagos] = useState(false);
   const [perfil, setPerfil] = useState<any>(null);
   const [menuPerfil, setMenuPerfil] = useState(false);
 
-  // ESTADOS DE CONFIGURACIÓN AVANZADA
   const [agenciaNombre, setAgenciaNombre] = useState("");
   const [agenciaLogo, setAgenciaLogo] = useState("");
   const [agenciaWeb, setAgenciaWeb] = useState("");
@@ -76,7 +75,14 @@ function AuditorDashboard() {
       facturacionTitulo: "Suscripción y Pagos", facturacionDesc: "Gestioná tu plan actual y métodos de pago de forma segura.", planActual: "Tu Plan Actual", gestionarStripe: "Gestionar en Stripe", pronto: "(Próximamente)",
       puntajeBasado: "Puntaje basado en rendimiento y estructura.",
       marcaBlanca: "Marca Blanca Visual", preferencias: "Preferencias de Trabajo",
-      sitioWeb: "Sitio Web (Aparecerá en PDF)", piePagina: "Pie de página legal (PDF)", monedaDef: "Moneda por defecto", metricaDef: "Métrica por defecto"
+      sitioWeb: "Sitio Web (Aparecerá en PDF)", piePagina: "Pie de página legal (PDF)", monedaDef: "Moneda por defecto", metricaDef: "Métrica por defecto",
+      // Textos Landing Page
+      feat1Tit: "Auditoría en Segundos", feat1Desc: "La IA procesa cientos de métricas y detecta fugas de presupuesto al instante.",
+      feat2Tit: "Marca Blanca Total", feat2Desc: "Exportá PDFs impecables con tu logo, colores y sitio web listos para enviar al cliente.",
+      feat3Tit: "Historial y Tendencias", feat3Desc: "Monitoreá el progreso de todas tus cuentas con scores evolutivos y alertas tempranas.",
+      todoLoQueNecesitas: "Todo lo que tu agencia necesita",
+      planes: "Planes simples y transparentes", planFree: "Plan Starter", planPro: "Plan Agency",
+      btnUnete: "Unite a Mora hoy"
     },
     en: {
       nueva: "AI Auditor", clientes: "Client Dashboard",
@@ -100,7 +106,14 @@ function AuditorDashboard() {
       facturacionTitulo: "Subscription & Billing", facturacionDesc: "Manage your current plan and payment methods securely.", planActual: "Your Current Plan", gestionarStripe: "Manage in Stripe", pronto: "(Coming Soon)",
       puntajeBasado: "Score based on performance and structure.",
       marcaBlanca: "Visual White Label", preferencias: "Workflow Preferences",
-      sitioWeb: "Website (Appears on PDF)", piePagina: "Legal Footer (PDF)", monedaDef: "Default Currency", metricaDef: "Default Metric"
+      sitioWeb: "Website (Appears on PDF)", piePagina: "Legal Footer (PDF)", monedaDef: "Default Currency", metricaDef: "Default Metric",
+      // Textos Landing Page
+      feat1Tit: "Audits in Seconds", feat1Desc: "Our AI processes hundreds of metrics and detects budget leaks instantly.",
+      feat2Tit: "Full White Label", feat2Desc: "Export flawless PDFs with your logo, colors, and website ready for your clients.",
+      feat3Tit: "History & Trends", feat3Desc: "Monitor the progress of all your accounts with evolutionary scores and early warnings.",
+      todoLoQueNecesitas: "Everything your agency needs",
+      planes: "Simple & transparent pricing", planFree: "Starter Plan", planPro: "Agency Plan",
+      btnUnete: "Join Mora today"
     }
   };
 
@@ -168,7 +181,7 @@ function AuditorDashboard() {
       alert("¡Ajustes guardados correctamente!");
       obtenerPerfil();
     } else {
-      alert("Error. Asegurate de haber creado las 4 columnas nuevas en Supabase.");
+      alert("Error guardando configuraciones.");
     }
     setLoading(false);
   };
@@ -238,38 +251,169 @@ function AuditorDashboard() {
 
   if (status === "loading") return <div className="h-screen w-full flex justify-center items-center text-xl font-bold text-white">Cargando...</div>;
 
+  // =========================================================================
+  // LANDING PAGE PREMIUM (Se muestra cuando no hay sesión iniciada)
+  // =========================================================================
   if (!session) {
     return (
-      <div className="min-h-screen w-full font-sans text-slate-200 relative overflow-hidden flex flex-col items-center">
-        <nav className="w-full max-w-6xl mx-auto px-6 py-6 flex justify-between items-center z-20">
+      <div className="min-h-screen w-full font-sans text-slate-200 overflow-y-auto overflow-x-hidden bg-[#0a0a0c] selection:bg-[#FEAFAE] selection:text-black">
+        
+        {/* Nav Superior */}
+        <nav className="w-full max-w-7xl mx-auto px-6 py-6 flex justify-between items-center z-50 relative">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center font-black text-black text-xl shadow-lg" style={melocotonGradient}>M</div>
-            <span className="font-bold text-xl tracking-wide">Mora</span>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-black text-2xl shadow-[0_0_15px_rgba(255,164,189,0.5)]" style={melocotonGradient}>M</div>
+            <span className="font-bold text-2xl tracking-wide text-white">Mora</span>
           </div>
-          <button onClick={() => signIn("google")} className="text-[#0a0a0c] px-6 py-2.5 rounded-full font-bold text-sm hover:scale-105 transition-transform shadow-[0_0_15px_rgba(255,164,189,0.5)]" style={melocotonGradient}>
-            Get Started
-          </button>
+          <div className="flex items-center gap-6">
+            <button onClick={() => setIdioma(idioma === "es" ? "en" : "es")} className="text-sm font-bold text-slate-400 hover:text-white transition-colors flex items-center gap-2">
+              <span className="w-4 h-4 flex items-center justify-center border border-slate-400 rounded-full text-[10px]">🌐</span> {idioma === "es" ? "EN" : "ES"}
+            </button>
+            <button onClick={() => signIn("google")} className="text-[#0a0a0c] px-6 py-2.5 rounded-full font-bold text-sm hover:scale-105 transition-transform shadow-[0_0_15px_rgba(255,164,189,0.4)]" style={melocotonGradient}>
+              Log In
+            </button>
+          </div>
         </nav>
 
-        <div className="flex-1 flex flex-col items-center justify-center text-center px-4 z-20 mt-10 max-w-3xl mx-auto">
-          <div className="border border-white/10 bg-white/5 backdrop-blur-md px-4 py-1.5 rounded-full text-xs font-bold tracking-widest uppercase mb-8 flex items-center gap-2">
-             <span className="w-2 h-2 rounded-full" style={melocotonGradient}></span>
+        {/* Decoración de Fondo Brillante */}
+        <div className="absolute top-[-10%] left-1/2 transform -translate-x-1/2 w-[800px] h-[600px] bg-[#FEAFAE] opacity-[0.07] blur-[120px] rounded-full pointer-events-none"></div>
+
+        {/* SECCIÓN 1: HERO */}
+        <header className="flex flex-col items-center justify-center text-center px-4 pt-24 pb-20 max-w-4xl mx-auto relative z-10">
+          <div className="border border-white/10 bg-white/5 backdrop-blur-md px-5 py-2 rounded-full text-xs font-bold tracking-widest uppercase mb-8 flex items-center gap-3 shadow-lg">
+             <span className="w-2.5 h-2.5 rounded-full animate-pulse" style={melocotonGradient}></span>
              {t[idioma].tituloland}
           </div>
-          <h1 className="text-5xl md:text-7xl font-bold mb-6 tracking-tight leading-tight text-white">
+          <h1 className="text-5xl md:text-7xl lg:text-[5rem] font-bold mb-8 tracking-tight leading-[1.1] text-white">
             {t[idioma].h1land1} <br />
             <span style={melocotonText}>{t[idioma].h1land2}</span>
           </h1>
-          <p className="text-slate-400 text-sm md:text-lg mb-10 max-w-xl mx-auto leading-relaxed">
+          <p className="text-slate-400 text-lg md:text-xl mb-12 max-w-2xl mx-auto leading-relaxed">
             {t[idioma].pland1}
           </p>
-          <button onClick={() => signIn("google")} className="text-[#0a0a0c] px-8 py-4 rounded-full font-bold text-lg hover:scale-105 transition-transform shadow-[0_0_30px_rgba(255,164,189,0.4)]" style={melocotonGradient}>
-            {t[idioma].btncomenzar}
-          </button>
-        </div>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center w-full sm:w-auto">
+            <button onClick={() => signIn("google")} className="w-full sm:w-auto text-[#0a0a0c] px-10 py-5 rounded-full font-bold text-lg hover:scale-105 transition-transform shadow-[0_0_40px_rgba(255,164,189,0.3)] flex items-center justify-center gap-2" style={melocotonGradient}>
+              {t[idioma].btncomenzar} <ArrowRight size={20} />
+            </button>
+          </div>
+        </header>
+
+        {/* SECCIÓN 2: MOCKUP VISUAL (La interfaz falsa) */}
+        <section className="max-w-6xl mx-auto px-4 mb-32 relative z-10">
+          <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)] bg-[#0f0f13]/80 backdrop-blur-xl aspect-[16/9] md:aspect-[21/9] flex flex-col">
+            <div className="h-10 border-b border-white/5 flex items-center px-4 gap-2 bg-black/40">
+              <div className="w-3 h-3 rounded-full bg-red-500/80"></div>
+              <div className="w-3 h-3 rounded-full bg-yellow-500/80"></div>
+              <div className="w-3 h-3 rounded-full bg-green-500/80"></div>
+            </div>
+            <div className="flex-1 p-8 flex flex-col md:flex-row gap-8 items-center justify-center opacity-60 pointer-events-none">
+              <div className="w-full md:w-1/3 space-y-4">
+                <div className="h-4 bg-white/10 rounded-full w-3/4"></div>
+                <div className="h-12 bg-white/5 rounded-xl w-full border border-white/5"></div>
+                <div className="h-12 bg-white/5 rounded-xl w-full border border-white/5"></div>
+                <div className="h-12" style={melocotonGradient}></div>
+              </div>
+              <div className="w-full md:w-2/3 h-full bg-white/5 rounded-2xl border border-white/5 p-6 space-y-6">
+                <div className="flex gap-4 items-center">
+                  <div className="w-16 h-16 rounded-full border-4 border-white/10"></div>
+                  <div className="space-y-2 flex-1">
+                    <div className="h-6 bg-white/10 rounded w-1/3"></div>
+                    <div className="h-4 bg-white/5 rounded w-1/4"></div>
+                  </div>
+                </div>
+                <div className="h-24 bg-red-500/10 border border-red-500/20 rounded-xl"></div>
+                <div className="h-24 bg-yellow-500/10 border border-yellow-500/20 rounded-xl"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* SECCIÓN 3: BENEFICIOS (Features) */}
+        <section className="max-w-6xl mx-auto px-4 mb-32 relative z-10">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-5xl font-bold text-white mb-4">{t[idioma].todoLoQueNecesitas}</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-white/5 border border-white/10 p-8 rounded-[2rem] hover:bg-white/10 transition-colors backdrop-blur-sm">
+              <div className="w-14 h-14 rounded-2xl bg-black/40 border border-white/10 flex items-center justify-center text-[#FEAFAE] mb-6">
+                <Zap size={28} />
+              </div>
+              <h3 className="text-xl font-bold text-white mb-3">{t[idioma].feat1Tit}</h3>
+              <p className="text-slate-400 leading-relaxed">{t[idioma].feat1Desc}</p>
+            </div>
+            <div className="bg-white/5 border border-white/10 p-8 rounded-[2rem] hover:bg-white/10 transition-colors backdrop-blur-sm">
+              <div className="w-14 h-14 rounded-2xl bg-black/40 border border-white/10 flex items-center justify-center text-[#FEAFAE] mb-6">
+                <FileText size={28} />
+              </div>
+              <h3 className="text-xl font-bold text-white mb-3">{t[idioma].feat2Tit}</h3>
+              <p className="text-slate-400 leading-relaxed">{t[idioma].feat2Desc}</p>
+            </div>
+            <div className="bg-white/5 border border-white/10 p-8 rounded-[2rem] hover:bg-white/10 transition-colors backdrop-blur-sm">
+              <div className="w-14 h-14 rounded-2xl bg-black/40 border border-white/10 flex items-center justify-center text-[#FEAFAE] mb-6">
+                <BarChart3 size={28} />
+              </div>
+              <h3 className="text-xl font-bold text-white mb-3">{t[idioma].feat3Tit}</h3>
+              <p className="text-slate-400 leading-relaxed">{t[idioma].feat3Desc}</p>
+            </div>
+          </div>
+        </section>
+
+        {/* SECCIÓN 4: PRECIOS (Pricing) */}
+        <section className="max-w-5xl mx-auto px-4 mb-32 relative z-10">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-5xl font-bold text-white mb-4">{t[idioma].planes}</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-3xl mx-auto">
+            
+            <div className="bg-white/5 border border-white/10 p-10 rounded-[2rem] flex flex-col justify-between">
+              <div>
+                <h3 className="text-2xl font-bold text-white mb-2">{t[idioma].planFree}</h3>
+                <p className="text-slate-400 mb-8">Ideal para probar la herramienta.</p>
+                <div className="text-5xl font-black text-white mb-8">$0<span className="text-lg text-slate-500 font-medium">/mes</span></div>
+                <ul className="space-y-4 mb-10">
+                  <li className="flex items-center gap-3 text-slate-300"><CheckCircle2 size={18} className="text-slate-500" /> 10 Auditorías mensuales</li>
+                  <li className="flex items-center gap-3 text-slate-300"><CheckCircle2 size={18} className="text-slate-500" /> Exportación PDF estándar</li>
+                </ul>
+              </div>
+              <button onClick={() => signIn("google")} className="w-full bg-white/10 hover:bg-white/20 text-white font-bold py-4 rounded-xl transition-colors">
+                Log In
+              </button>
+            </div>
+
+            <div className="bg-[#0f0f13] border border-[#FEAFAE]/30 p-10 rounded-[2rem] relative shadow-[0_0_30px_rgba(255,164,189,0.1)] flex flex-col justify-between overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-1" style={melocotonGradient}></div>
+              <div>
+                <h3 className="text-2xl font-bold text-white mb-2 flex justify-between items-center">
+                  {t[idioma].planPro} <span className="text-xs font-black px-3 py-1 bg-[#FEAFAE]/20 text-[#FEAFAE] rounded-full uppercase tracking-wider">Popular</span>
+                </h3>
+                <p className="text-slate-400 mb-8">Para agencias que escalan en serio.</p>
+                <div className="text-5xl font-black text-white mb-8">$49<span className="text-lg text-slate-500 font-medium">/mes</span></div>
+                <ul className="space-y-4 mb-10">
+                  <li className="flex items-center gap-3 text-white"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> Auditorías ilimitadas</li>
+                  <li className="flex items-center gap-3 text-white"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> Marca Blanca Total (PDF)</li>
+                  <li className="flex items-center gap-3 text-white"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> Historial de Clientes infinito</li>
+                </ul>
+              </div>
+              <button onClick={() => signIn("google")} className="w-full text-[#0a0a0c] font-bold py-4 rounded-xl hover:scale-[1.02] transition-transform shadow-lg" style={melocotonGradient}>
+                {t[idioma].btnUnete}
+              </button>
+            </div>
+
+          </div>
+        </section>
+
+        {/* FOOTER */}
+        <footer className="border-t border-white/5 py-12 text-center text-slate-500 text-sm">
+          <div className="flex items-center justify-center gap-2 mb-4">
+            <div className="w-6 h-6 rounded flex items-center justify-center font-black text-black text-xs" style={melocotonGradient}>M</div>
+            <span className="font-bold text-white">Mora Analytics</span>
+          </div>
+          <p>© {new Date().getFullYear()} Mora. All rights reserved.</p>
+        </footer>
+
       </div>
     );
   }
+  // =========================================================================
 
   return (
     <>
@@ -431,7 +575,7 @@ function AuditorDashboard() {
               </div>
             )}
 
-            {/* REPORTE COMPARTIDO (Se muestra en nueva o reporte_lectura) */}
+            {/* REPORTE COMPARTIDO */}
             {((vista === "nueva" && reporte) || (vista === "reporte_lectura" && reporte)) && (
               <div className="animate-fade-custom print:bg-white print:m-0 print:p-0">
                 
@@ -489,7 +633,6 @@ function AuditorDashboard() {
                     </div>
                   </div>
                   
-                  {/* PIE DE PAGINA DINAMICO */}
                   <div className="hidden print:block mt-16 pt-6 border-t border-slate-200 text-center">
                     <p className="text-xs text-slate-400 font-medium">{agenciaPie}</p>
                   </div>
