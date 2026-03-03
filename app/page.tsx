@@ -615,7 +615,7 @@ function AuditorDashboard() {
              </div>
              
              {perfil?.plan === 'pro' ? (
-               <button onClick={() => window.location.href = "mailto:soporte@tuagencia.com?subject=Soporte%20VIP%20Mora"} className="w-full mt-2 py-1.5 text-xs font-bold text-[#0a0a0c] rounded-lg hover:opacity-90 transition-opacity" style={melocotonGradient}>
+               <button onClick={() => window.location.href = "mailto:joelradolci@gmail.com?subject=Soporte%20VIP%20Mora"} className="w-full mt-2 py-1.5 text-xs font-bold text-[#0a0a0c] rounded-lg hover:opacity-90 transition-opacity" style={melocotonGradient}>
                  Contactar Soporte
                </button>
              ) : (
