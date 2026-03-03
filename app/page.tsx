@@ -196,7 +196,7 @@ function AuditorDashboard() {
       facturacionTitulo: "Suscripción y Pagos", facturacionDesc: "Gestioná tu plan actual y métodos de pago de forma segura.", planActual: "Tu Plan Actual", gestionarStripe: "Gestionar en Stripe", pronto: "(Próximamente)",
       puntajeBasado: "Puntaje basado en rendimiento y estructura.",
       marcaBlanca: "Marca Blanca Visual", preferencias: "Preferencias de Trabajo",
-      sitioWeb: "Sitio Web (Aparecerá en PDF)", piePagina: "Pie de página legal (PDF)", monedaDef: "Moneda por defecto", metricaDef: "Métrica por defecto",
+      sitioWeb: "Website (Appears on PDF)", piePagina: "Pie de página legal (PDF)", monedaDef: "Moneda por defecto", metricaDef: "Métrica por defecto",
       feat1Tit: "Auditoría en Segundos", feat1Desc: "La IA procesa cientos de métricas y detecta fugas de presupuesto al instante.",
       feat2Tit: "Marca Blanca Total", feat2Desc: "Exportá PDFs impecables con tu logo, colores y sitio web listos para enviar al cliente.",
       feat3Tit: "Historial y Tendencias", feat3Desc: "Monitoreá el progreso de todas tus cuentas con scores evolutivos y alertas tempranas.",
@@ -630,7 +630,7 @@ function AuditorDashboard() {
                </div>
                <div className="bg-white/5 border border-white/10 p-6 rounded-2xl">
                   <h4 className="text-lg font-bold text-white mb-2">¿Qué es exactamente la 'Marca Blanca Total'?</h4>
-                  <p className="text-slate-400 text-sm leading-relaxed">Exclusiva del Plan Agency, te permite exportar auditorías en PDF con el logo, colores y web de tu agencia. Tu cliente pensará que lo armó tu equipo.</p>
+                  <p className="text-slate-400 text-sm leading-relaxed">Exclusiva del Plan Agency, te permite exportar auditorías en PDF con el logo, colores y web de tu agencia. Ideal para entregar reportes de nivel corporativo y reforzar la autoridad de tu marca.</p>
                </div>
                <div className="bg-white/5 border border-white/10 p-6 rounded-2xl">
                   <h4 className="text-lg font-bold text-white mb-2">¿Mis datos están seguros?</h4>
@@ -1066,7 +1066,15 @@ function AuditorDashboard() {
                                        </div>
                                      </div>
                                    </div>
-                                   <button onClick={() => alert(t[idioma].msgAutoApply)} className="flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-[10px] uppercase tracking-wider bg-white/5 text-white hover:bg-white/10 border border-white/5 transition-all group">
+                                   <button 
+                                     onClick={() => {
+                                       const seguro = window.confirm("⚠️ ATENCIÓN: Estás por ejecutar cambios directos en el presupuesto y estado de las campañas de Google Ads.\n\n¿Confirmás que revisaste el impacto de esta acción?");
+                                       if (seguro) {
+                                         alert(t[idioma].msgAutoApply);
+                                       }
+                                     }} 
+                                     className="flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-[10px] uppercase tracking-wider bg-white/5 text-white hover:bg-white/10 border border-white/5 transition-all group"
+                                   >
                                       <Sparkles size={14} className="text-[#FEAFAE] group-hover:animate-pulse" /> {t[idioma].autoApply}
                                    </button>
                                 </div>
