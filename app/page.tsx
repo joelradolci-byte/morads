@@ -82,7 +82,8 @@ function AuditorDashboard() {
       feat3Tit: "Historial y Tendencias", feat3Desc: "Monitoreá el progreso de todas tus cuentas con scores evolutivos y alertas tempranas.",
       todoLoQueNecesitas: "Todo lo que tu agencia necesita",
       planes: "Planes simples y transparentes", planFree: "Plan Starter", planPro: "Plan Agency",
-      btnUnete: "Unite a Mora hoy"
+      btnUnete: "Unite a Mora hoy",
+      login: "Iniciar sesión"
     },
     en: {
       nueva: "AI Auditor", clientes: "Client Dashboard",
@@ -113,7 +114,8 @@ function AuditorDashboard() {
       feat3Tit: "History & Trends", feat3Desc: "Monitor the progress of all your accounts with evolutionary scores and early warnings.",
       todoLoQueNecesitas: "Everything your agency needs",
       planes: "Simple & transparent pricing", planFree: "Starter Plan", planPro: "Agency Plan",
-      btnUnete: "Join Mora today"
+      btnUnete: "Join Mora today",
+      login: "Log In"
     }
   };
 
@@ -252,7 +254,7 @@ function AuditorDashboard() {
   if (status === "loading") return <div className="h-screen w-full flex justify-center items-center text-xl font-bold text-white">Cargando...</div>;
 
   // =========================================================================
-  // LANDING PAGE PREMIUM (Se muestra cuando no hay sesión iniciada)
+  // LANDING PAGE PREMIUM
   // =========================================================================
   if (!session) {
     return (
@@ -265,11 +267,12 @@ function AuditorDashboard() {
             <span className="font-bold text-2xl tracking-wide text-white">Mora</span>
           </div>
           <div className="flex items-center gap-6">
+            {/* CORRECCIÓN 1: Botón de idioma ahora muestra el idioma actual */}
             <button onClick={() => setIdioma(idioma === "es" ? "en" : "es")} className="text-sm font-bold text-slate-400 hover:text-white transition-colors flex items-center gap-2">
-              <span className="w-4 h-4 flex items-center justify-center border border-slate-400 rounded-full text-[10px]">🌐</span> {idioma === "es" ? "EN" : "ES"}
+              <span className="w-4 h-4 flex items-center justify-center border border-slate-400 rounded-full text-[10px]">🌐</span> {idioma === "es" ? "ES" : "EN"}
             </button>
             <button onClick={() => signIn("google")} className="text-[#0a0a0c] px-6 py-2.5 rounded-full font-bold text-sm hover:scale-105 transition-transform shadow-[0_0_15px_rgba(255,164,189,0.4)]" style={melocotonGradient}>
-              Log In
+              {t[idioma].login}
             </button>
           </div>
         </nav>
@@ -297,7 +300,7 @@ function AuditorDashboard() {
           </div>
         </header>
 
-        {/* SECCIÓN 2: MOCKUP VISUAL (La interfaz falsa) */}
+        {/* SECCIÓN 2: MOCKUP VISUAL (La interfaz falsa B2B) */}
         <section className="max-w-6xl mx-auto px-4 mb-32 relative z-10">
           <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)] bg-[#0f0f13]/80 backdrop-blur-xl aspect-[16/9] md:aspect-[21/9] flex flex-col">
             <div className="h-10 border-b border-white/5 flex items-center px-4 gap-2 bg-black/40">
@@ -310,7 +313,7 @@ function AuditorDashboard() {
                 <div className="h-4 bg-white/10 rounded-full w-3/4"></div>
                 <div className="h-12 bg-white/5 rounded-xl w-full border border-white/5"></div>
                 <div className="h-12 bg-white/5 rounded-xl w-full border border-white/5"></div>
-                <div className="h-12" style={melocotonGradient}></div>
+                <div className="h-12 rounded-xl" style={melocotonGradient}></div>
               </div>
               <div className="w-full md:w-2/3 h-full bg-white/5 rounded-2xl border border-white/5 p-6 space-y-6">
                 <div className="flex gap-4 items-center">
@@ -374,8 +377,9 @@ function AuditorDashboard() {
                   <li className="flex items-center gap-3 text-slate-300"><CheckCircle2 size={18} className="text-slate-500" /> Exportación PDF estándar</li>
                 </ul>
               </div>
+              {/* CORRECCIÓN 2: El botón de Log In traducido */}
               <button onClick={() => signIn("google")} className="w-full bg-white/10 hover:bg-white/20 text-white font-bold py-4 rounded-xl transition-colors">
-                Log In
+                {t[idioma].login}
               </button>
             </div>
 
@@ -402,7 +406,7 @@ function AuditorDashboard() {
         </section>
 
         {/* FOOTER */}
-        <footer className="border-t border-white/5 py-12 text-center text-slate-500 text-sm">
+        <footer className="border-t border-white/5 py-12 text-center text-slate-500 text-sm relative z-10">
           <div className="flex items-center justify-center gap-2 mb-4">
             <div className="w-6 h-6 rounded flex items-center justify-center font-black text-black text-xs" style={melocotonGradient}>M</div>
             <span className="font-bold text-white">Mora Analytics</span>
@@ -429,7 +433,6 @@ function AuditorDashboard() {
 
       <div className="flex h-screen w-full font-sans text-slate-200 overflow-hidden print-container">
         
-        {/* SIDEBAR LIMPIO (Sin Configuración) */}
         <aside className="w-64 bg-white/[0.02] backdrop-blur-3xl border-r border-white/5 flex flex-col justify-between print:hidden z-20 shadow-2xl">
           <div>
             <div className="h-20 flex items-center px-6 border-b border-white/5 gap-3">
@@ -455,7 +458,6 @@ function AuditorDashboard() {
           </div>
         </aside>
 
-        {/* CONTENIDO PRINCIPAL */}
         <main className="flex-1 flex flex-col relative overflow-y-auto z-10 print:overflow-visible print:h-auto print:static">
           
           <header className="h-20 flex justify-between items-center px-8 print:hidden border-b border-white/5 bg-white/[0.01] backdrop-blur-md sticky top-0 z-30">
@@ -496,7 +498,7 @@ function AuditorDashboard() {
                         <CreditCard size={16} /> {t[idioma].facturacion}
                       </button>
                       <button onClick={() => setIdioma(idioma === "es" ? "en" : "es")} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5 hover:text-white transition-colors">
-                        <span className="w-4 h-4 flex items-center justify-center border border-slate-400 rounded-full text-[10px]">🌐</span> Idioma: {idioma === "es" ? "Español" : "English"}
+                        <span className="w-4 h-4 flex items-center justify-center border border-slate-400 rounded-full text-[10px]">🌐</span> Idioma: {idioma === "es" ? "ES" : "EN"}
                       </button>
                     </div>
 
@@ -512,7 +514,6 @@ function AuditorDashboard() {
 
           <div className="p-8 pb-32 max-w-6xl mx-auto w-full print:p-0 print:pb-0">
             
-            {/* VISTA: NUEVA AUDITORÍA */}
             {vista === "nueva" && (
               <div className="print:hidden">
                 <div className="bg-white/5 border border-white/10 backdrop-blur-2xl p-8 md:p-12 rounded-[2rem] shadow-2xl mb-8">
@@ -575,7 +576,6 @@ function AuditorDashboard() {
               </div>
             )}
 
-            {/* REPORTE COMPARTIDO */}
             {((vista === "nueva" && reporte) || (vista === "reporte_lectura" && reporte)) && (
               <div className="animate-fade-custom print:bg-white print:m-0 print:p-0">
                 
@@ -640,7 +640,6 @@ function AuditorDashboard() {
               </div>
             )}
 
-            {/* VISTA: HISTORIAL (PANEL DE CLIENTES) */}
             {vista === "historial" && (
               <div className="bg-white/5 border border-white/10 backdrop-blur-2xl p-8 rounded-[2rem] shadow-2xl animate-fade-custom flex flex-col min-h-[600px] print:hidden">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
@@ -712,7 +711,6 @@ function AuditorDashboard() {
               </div>
             )}
 
-            {/* VISTA: CONFIGURACIÓN GENERAL DIVIDIDA */}
             {vista === "perfil" && (
               <div className="bg-white/5 border border-white/10 backdrop-blur-2xl p-10 rounded-[2rem] shadow-2xl mx-auto animate-fade-custom print:hidden">
                 <div className="flex items-center gap-4 mb-8">
@@ -785,7 +783,6 @@ function AuditorDashboard() {
               </div>
             )}
 
-            {/* VISTA: FACTURACIÓN */}
             {vista === "facturacion" && (
               <div className="bg-white/5 border border-white/10 backdrop-blur-2xl p-10 rounded-[2rem] shadow-2xl max-w-2xl mx-auto animate-fade-custom print:hidden">
                 <div className="flex items-center gap-4 mb-8">
@@ -812,7 +809,6 @@ function AuditorDashboard() {
               </div>
             )}
 
-            {/* VISTA: FEEDBACK */}
             {vista === "feedback" && (
               <div className="bg-white/5 border border-white/10 backdrop-blur-2xl p-10 rounded-[2rem] shadow-2xl max-w-2xl mx-auto text-center animate-fade-custom print:hidden">
                 <div className="flex justify-center mb-6"><div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center text-white border border-white/10"><MessageSquare size={32} /></div></div>
