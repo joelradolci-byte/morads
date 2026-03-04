@@ -66,14 +66,19 @@ function TiltWrapper({ children }: { children: React.ReactNode }) {
   );
 }
 
-// --- COMPONENTE 1: GALAXIA NEURAL (Para la Landing Page) ---
+// --- COMPONENTE 1: GALAXIA NEURAL CON PARALAJE Y COMETAS (Para la Landing Page) ---
 const SpaceBackground = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const mouseRef = useRef({ x: -1000, y: -1000 });
+  // Usamos dos referencias para suavizar el movimiento de la cámara (interpolación)
+  const currentMouse = useRef({ x: -1000, y: -1000 });
+  const targetMouse = useRef({ x: -1000, y: -1000 });
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      mouseRef.current = { x: e.clientX, y: e.clientY };
+      targetMouse.current = { x: e.clientX, y: e.clientY };
+      if (currentMouse.current.x === -1000) {
+        currentMouse.current = { x: e.clientX, y: e.clientY };
+      }
     };
     window.addEventListener('mousemove', handleMouseMove);
 
@@ -91,7 +96,7 @@ const SpaceBackground = () => {
     const nodes: any[] = [];
     let shootingStars: any[] = [];
 
-    // 1. Polvo Cósmico
+    // 1. Polvo Cósmico (Fondo Lejano)
     for (let i = 0; i < 150; i++) {
       dustStars.push({
         x: Math.random() * width,
@@ -102,7 +107,7 @@ const SpaceBackground = () => {
       });
     }
 
-    // 2. Nodos Interactivos
+    // 2. Nodos Interactivos (Plano Medio)
     const numNodes = Math.floor((width * height) / 12000); 
     for (let i = 0; i < numNodes; i++) {
       nodes.push({
@@ -118,9 +123,22 @@ const SpaceBackground = () => {
 
     const render = () => {
       ctx.clearRect(0, 0, width, height);
-      const { x: mx, y: my } = mouseRef.current;
 
-      // Efecto Escáner: Luz que sigue al cursor
+      // Suavizado del movimiento del mouse (Efecto cámara de cine)
+      if (targetMouse.current.x !== -1000) {
+        currentMouse.current.x += (targetMouse.current.x - currentMouse.current.x) * 0.05;
+        currentMouse.current.y += (targetMouse.current.y - currentMouse.current.y) * 0.05;
+      }
+
+      const { x: mx, y: my } = currentMouse.current;
+      
+      // Calcular el desplazamiento 3D (Parallax) respecto al centro de la pantalla
+      const centerX = width / 2;
+      const centerY = height / 2;
+      const offsetX = mx !== -1000 ? (mx - centerX) : 0;
+      const offsetY = my !== -1000 ? (my - centerY) : 0;
+
+      // Efecto Escáner
       if (mx > 0 && my > 0) {
         const scannerLight = ctx.createRadialGradient(mx, my, 0, mx, my, 400);
         scannerLight.addColorStop(0, 'rgba(254, 175, 174, 0.05)');
@@ -129,7 +147,7 @@ const SpaceBackground = () => {
         ctx.fillRect(0, 0, width, height);
       }
 
-      // Dibujar Polvo Cósmico
+      // --- DIBUJAR CAPA 1: Polvo Cósmico (Se mueve poco = Lejos) ---
       ctx.fillStyle = '#ffffff';
       dustStars.forEach(star => {
         star.y += star.speed;
@@ -139,14 +157,18 @@ const SpaceBackground = () => {
         if (star.x < 0) star.x = width;
         if (star.x > width) star.x = 0;
         
+        // Multiplicador bajo (0.02) para dar sensación de lejanía
+        const px = star.x - offsetX * 0.02;
+        const py = star.y - offsetY * 0.02;
+
         ctx.globalAlpha = star.opacity * 0.4;
         ctx.beginPath();
-        ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+        ctx.arc(px, py, star.radius, 0, Math.PI * 2);
         ctx.fill();
       });
       ctx.globalAlpha = 1;
 
-      // Dibujar Nodos e Interacción Láser
+      // --- DIBUJAR CAPA 2: Nodos (Se mueven más = Medio) ---
       ctx.fillStyle = 'rgba(254, 175, 174, 0.8)';
       for (let i = 0; i < nodes.length; i++) {
         let p = nodes[i];
@@ -156,19 +178,26 @@ const SpaceBackground = () => {
         if (p.x < 0 || p.x > width) p.vx *= -1;
         if (p.y < 0 || p.y > height) p.vy *= -1;
 
+        // Multiplicador medio (0.06)
+        const px = p.x - offsetX * 0.06;
+        const py = p.y - offsetY * 0.06;
+
         ctx.beginPath();
-        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+        ctx.arc(px, py, p.radius, 0, Math.PI * 2);
         ctx.fill();
 
         for (let j = i + 1; j < nodes.length; j++) {
           let p2 = nodes[j];
-          let dx = p.x - p2.x;
-          let dy = p.y - p2.y;
+          const p2x = p2.x - offsetX * 0.06;
+          const p2y = p2.y - offsetY * 0.06;
+
+          let dx = px - p2x;
+          let dy = py - p2y;
           let dist = Math.sqrt(dx * dx + dy * dy);
 
           if (dist < 130) {
-            let mDx = p.x - mx;
-            let mDy = p.y - my;
+            let mDx = px - mx;
+            let mDy = py - my;
             let distToMouse = Math.sqrt(mDx * mDx + mDy * mDy);
             
             let interactiveAlpha = distToMouse < 200 ? 0.6 : 0.12; 
@@ -177,22 +206,23 @@ const SpaceBackground = () => {
             ctx.lineWidth = distToMouse < 200 ? 1.2 : 0.5; 
 
             ctx.beginPath();
-            ctx.moveTo(p.x, p.y);
-            ctx.lineTo(p2.x, p2.y);
+            ctx.moveTo(px, py);
+            ctx.lineTo(p2x, p2y);
             ctx.stroke();
           }
         }
       }
 
-      // --- CAPA 3: ESTRELLAS FUGACES VARIADAS ---
-      if (Math.random() < 0.007) { 
+      // --- DIBUJAR CAPA 3: ESTRELLAS FUGACES FÍSICAS (Primer Plano) ---
+      if (Math.random() < 0.008) { 
         const colors = ['#FFA9CC', '#FCD5BF', '#38BDF8', '#FBBF24', '#EF4444'];
+        const speed = Math.random() * 35 + 3; // Rango extremo: de 3 (tortuga) a 38 (rayo)
         
         shootingStars.push({
-          x: Math.random() * width,
-          y: 0,
-          length: Math.random() * 120 + 30, 
-          speed: Math.random() * 20 + 8,   
+          x: Math.random() * width * 1.5, // Pueden nacer más afuera de la pantalla
+          y: Math.random() * height * -0.5,
+          length: Math.random() * 350 + 50, // De 50px a 400px de largo
+          speed: speed,
           opacity: 1,
           color: colors[Math.floor(Math.random() * colors.length)]
         });
@@ -202,22 +232,29 @@ const SpaceBackground = () => {
         let s = shootingStars[i];
         s.x -= s.speed * 0.8; 
         s.y += s.speed; 
-        s.opacity -= 0.012; 
+        
+        // Las más rápidas se desvanecen más rápido
+        s.opacity -= (s.speed * 0.0008) + 0.005; 
 
-        if (s.opacity <= 0 || s.y > height) {
+        if (s.opacity <= 0 || s.y > height + s.length) {
           shootingStars.splice(i, 1);
           continue;
         }
 
-        const gradient = ctx.createLinearGradient(s.x, s.y, s.x + s.length, s.y - s.length);
-        gradient.addColorStop(0, `${s.color}${Math.floor(s.opacity * 255).toString(16).padStart(2, '0')}`); 
+        // Multiplicador alto (0.1) para que parezcan pasar por delante de la pantalla
+        const sx = s.x - offsetX * 0.1;
+        const sy = s.y - offsetY * 0.1;
+
+        const gradient = ctx.createLinearGradient(sx, sy, sx + s.length, sy - s.length);
+        gradient.addColorStop(0, `${s.color}${Math.floor(Math.max(0, s.opacity) * 255).toString(16).padStart(2, '0')}`); 
         gradient.addColorStop(1, `${s.color}00`); 
 
         ctx.strokeStyle = gradient;
-        ctx.lineWidth = Math.max(1, s.length / 50); 
+        ctx.lineWidth = Math.max(1, s.length / 60); // Las más largas son más gordas
+        ctx.lineCap = 'round';
         ctx.beginPath();
-        ctx.moveTo(s.x, s.y);
-        ctx.lineTo(s.x + s.length, s.y - s.length);
+        ctx.moveTo(sx, sy);
+        ctx.lineTo(sx + s.length, sy - s.length);
         ctx.stroke();
       }
 
@@ -403,7 +440,7 @@ function AuditorDashboard() {
       subeLogo: "Sube un logo", guardando: "Guardando...", guardarAj: "Guardar Ajustes",
       ayudanos: "Ayudanos a mejorar Mora", bug: "¿Encontraste un bug o tenés una idea genial?", escribiSug: "Escribí tu sugerencia acá...", enviando: "Enviando...", enviarSug: "Enviar Sugerencia",
       facturacionTitulo: "Suscripción y Pagos", facturacionDesc: "Gestioná tu plan actual y métodos de pago de forma segura.", planActual: "Tu Plan Actual", gestionarStripe: "Gestionar en Stripe", pronto: "(Próximamente)",
-      puntajeBasado: "Puntaje basado en rendimiento y structure.",
+      puntajeBasado: "Puntaje basado en rendimiento y estructura.",
       marcaBlanca: "Marca Blanca Visual", preferencias: "Preferencias de Trabajo",
       sitioWeb: "Website (Appears on PDF)", piePagina: "Pie de página legal (PDF)", monedaDef: "Moneda por defecto", metricaDef: "Métrica por defecto",
       feat1Tit: "Auditoría en Segundos", feat1Desc: "La IA procesa cientos de métricas y detecta fugas de presupuesto al instante.",
