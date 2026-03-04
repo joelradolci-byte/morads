@@ -353,22 +353,24 @@ const DashboardBackground = () => {
     <div className="fixed inset-0 w-full h-full pointer-events-none z-[1] print:hidden">
       <canvas ref={canvasRef} className="absolute inset-0 w-full h-full opacity-50" />
       
-      {/* MARCAS HUD (Visor Analítico) */}
-      <div className="absolute top-8 left-[18rem] w-8 h-8 border-t border-l border-slate-700/30"></div>
-      <div className="absolute top-8 right-8 w-8 h-8 border-t border-r border-slate-700/30"></div>
-      <div className="absolute bottom-8 left-[18rem] w-8 h-8 border-b border-l border-slate-700/30"></div>
-      <div className="absolute bottom-8 right-8 w-8 h-8 border-b border-r border-slate-700/30"></div>
+      {/* MARCAS HUD (Visor Analítico) - AHORA MÁS VISIBLES */}
+      {/* Esquinas (Corchetes de enfoque) */}
+      <div className="absolute top-8 left-[18rem] w-8 h-8 border-t-2 border-l-2 border-[#FEAFAE]/30"></div>
+      <div className="absolute top-8 right-8 w-8 h-8 border-t-2 border-r-2 border-[#FEAFAE]/30"></div>
+      <div className="absolute bottom-8 left-[18rem] w-8 h-8 border-b-2 border-l-2 border-[#FEAFAE]/30"></div>
+      <div className="absolute bottom-8 right-8 w-8 h-8 border-b-2 border-r-2 border-[#FEAFAE]/30"></div>
       
-      <div className="absolute top-10 left-[19.5rem] text-[9px] font-mono text-slate-600/50 tracking-[0.3em]">SYS.ON // AUDIT_MODE</div>
+      {/* Textos de sistema */}
+      <div className="absolute top-10 left-[19.5rem] text-[10px] font-mono text-slate-400/80 tracking-[0.3em]">SYS.ON // AUDIT_MODE</div>
       
-      <div className="absolute bottom-10 right-12 text-[9px] font-mono text-slate-600/50 tracking-[0.3em] text-right">
+      <div className="absolute bottom-10 right-12 text-[10px] font-mono text-slate-400/80 tracking-[0.3em] text-right">
         LAT 34.64°S<br/>
         LON 58.61°W
       </div>
       
-      {/* Cruces de calibración sutiles en el fondo */}
-      <div className="absolute top-[30%] right-[15%] text-slate-700/20 text-sm font-light">+</div>
-      <div className="absolute bottom-[25%] left-[30%] text-slate-700/20 text-sm font-light">+</div>
+      {/* Cruces de calibración */}
+      <div className="absolute top-[30%] right-[15%] text-[#FEAFAE]/40 text-xl font-light">+</div>
+      <div className="absolute bottom-[25%] left-[30%] text-[#FEAFAE]/40 text-xl font-light">+</div>
     </div>
   );
 };
