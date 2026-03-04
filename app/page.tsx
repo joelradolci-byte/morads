@@ -34,7 +34,33 @@ function FadeInOnScroll({ children, delay = 0 }: { children: React.ReactNode, de
   }, []);
 
   return (
-    <div ref={domRef} className={`transition-all duration-1000 ease-out ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'}`} style={{ transitionDelay: `${delay}ms` }}>
+    <div ref={domRef} className={`transition-all duration-1000 ease-out ${isVisible ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-24 scale-95'}`} style={{ transitionDelay: `${delay}ms` }}>
+      {children}
+    </div>
+  );
+}
+
+function TiltWrapper({ children }: { children: React.ReactNode }) {
+  const [transform, setTransform] = useState('perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)');
+  const [transition, setTransition] = useState('transform 0.5s ease-out');
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
+    const x = (e.clientX - left) / width;
+    const y = (e.clientY - top) / height;
+    const rotateX = (0.5 - y) * 15; 
+    const rotateY = (x - 0.5) * 15; 
+    setTransition('transform 0.1s ease-out'); 
+    setTransform(`perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.02, 1.02, 1.02)`);
+  };
+
+  const handleMouseLeave = () => {
+    setTransition('transform 0.5s ease-out'); 
+    setTransform('perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)');
+  };
+
+  return (
+    <div onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave} style={{ transform, transition }} className="w-full h-full will-change-transform">
       {children}
     </div>
   );
@@ -216,7 +242,6 @@ function AuditorDashboard() {
       escalar: "ESTRELLAS (Escalar)", apagar: "BASURA (Apagar)", observar: "DUDOSOS (Observar)", potenciales: "POTENCIALES (Testear)"
     },
     en: {
-      // (Omitiendo la traducción al inglés por espacio, es idéntica a la anterior)
       dashboard: "Dashboard", panelPrin: "Main Dashboard", panelDesc: "Global overview of your agency's performance.",
       saludG: "Avg Health Score", totAud: "Total Accounts", fugasDet: "Critical Leaks", oporMej: "Opportunities",
       ultAud: "Recent Audits", actRec: "Recent Activity", verTodas: "View all", generada: "Audit generated for", hace: "Ago",
@@ -544,6 +569,10 @@ function AuditorDashboard() {
     return (
       <div className="min-h-screen w-full font-sans text-slate-200 overflow-y-auto overflow-x-hidden bg-[#0a0a0c] selection:bg-[#FEAFAE] selection:text-black relative">
         <NeuralBackground />
+        
+        {/* EL ECLIPSE MORA AQUÍ */}
+        <div className="absolute top-[-10%] left-1/2 transform -translate-x-1/2 w-[600px] h-[600px] md:w-[1200px] md:h-[800px] bg-[#0a0a0c] rounded-[100%] border-[1px] border-[#FEAFAE]/20 shadow-[0_0_150px_rgba(255,164,189,0.15)] z-[1] pointer-events-none mix-blend-screen"></div>
+
         <nav className="w-full max-w-7xl mx-auto px-6 py-6 flex justify-between items-center z-50 relative">
           <div className="flex items-center gap-2">
             <div className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-black text-2xl shadow-[0_0_15px_rgba(255,164,189,0.5)]" style={melocotonGradient}>M</div>
@@ -609,36 +638,42 @@ function AuditorDashboard() {
           <section className="max-w-5xl mx-auto px-4 mb-32 relative z-10">
             <div className="text-center mb-16"><h2 className="text-3xl md:text-5xl font-bold text-white mb-4">Elegí tu camino</h2><p className="text-slate-400">Comenzá con 14 días gratis en cualquier plan.</p></div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-              <div className="bg-white/5 border border-white/10 p-10 rounded-[2rem] flex flex-col justify-between hover:border-white/20 transition-colors">
-                <div>
-                  <h3 className="text-2xl font-bold text-white mb-2">Plan Individual</h3>
-                  <p className="text-slate-400 mb-8 text-sm">Para emprendedores que gestionan sus propios anuncios.</p>
-                  <div className="text-5xl font-black text-white mb-8">$19<span className="text-lg text-slate-500 font-medium">/mes</span></div>
-                  <ul className="space-y-4 mb-10 text-sm">
-                    <li className="flex items-center gap-3 text-slate-300"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> 1 Cuenta publicitaria</li>
-                    <li className="flex items-center gap-3 text-slate-300"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> Traductor de Métricas IA</li>
-                    <li className="flex items-center gap-3 text-slate-300"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> Generador de Anuncios</li>
-                    <li className="flex items-center gap-3 text-slate-300"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> Checklist de Optimización</li>
-                  </ul>
-                </div>
-                <button onClick={() => signIn("google", { prompt: "select_account" })} className="w-full bg-white/10 hover:bg-white/20 text-white font-bold py-4 rounded-xl transition-colors border border-white/10">Iniciar prueba de 14 días</button>
-              </div>
               
-              <div className="bg-[#0f0f13] border border-[#FEAFAE]/30 p-10 rounded-[2rem] relative shadow-[0_0_30px_rgba(255,164,189,0.1)] flex flex-col justify-between overflow-hidden hover:shadow-[0_0_50px_rgba(255,164,189,0.2)] transition-shadow">
-                <div className="absolute top-0 left-0 w-full h-1" style={melocotonGradient}></div>
-                <div>
-                  <h3 className="text-2xl font-bold text-white mb-2 flex justify-between items-center">Plan Agency <span className="text-[10px] font-black px-3 py-1 bg-[#FEAFAE]/20 text-[#FEAFAE] rounded-full uppercase tracking-wider">Escala</span></h3>
-                  <p className="text-slate-400 mb-8 text-sm">El centro de comando para agencias de marketing.</p>
-                  <div className="text-5xl font-black text-white mb-8">$49<span className="text-lg text-slate-500 font-medium">/mes</span></div>
-                  <ul className="space-y-4 mb-10 text-sm">
-                    <li className="flex items-center gap-3 text-white"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> Cuentas ilimitadas</li>
-                    <li className="flex items-center gap-3 text-white"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> Marca Blanca Total (PDFs con logo)</li>
-                    <li className="flex items-center gap-3 text-white"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> Dashboard Global Multi-cliente</li>
-                    <li className="flex items-center gap-3 text-white"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> Matriz de Campañas</li>
-                  </ul>
+              <TiltWrapper>
+                <div className="bg-white/5 border border-white/10 p-10 rounded-[2rem] flex flex-col justify-between hover:border-white/20 transition-colors h-full">
+                  <div>
+                    <h3 className="text-2xl font-bold text-white mb-2">Plan Individual</h3>
+                    <p className="text-slate-400 mb-8 text-sm">Para emprendedores que gestionan sus propios anuncios.</p>
+                    <div className="text-5xl font-black text-white mb-8">$19<span className="text-lg text-slate-500 font-medium">/mes</span></div>
+                    <ul className="space-y-4 mb-10 text-sm">
+                      <li className="flex items-center gap-3 text-slate-300"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> 1 Cuenta publicitaria</li>
+                      <li className="flex items-center gap-3 text-slate-300"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> Traductor de Métricas IA</li>
+                      <li className="flex items-center gap-3 text-slate-300"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> Generador de Anuncios</li>
+                      <li className="flex items-center gap-3 text-slate-300"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> Checklist de Optimización</li>
+                    </ul>
+                  </div>
+                  <button onClick={() => signIn("google", { prompt: "select_account" })} className="w-full bg-white/10 hover:bg-white/20 text-white font-bold py-4 rounded-xl transition-colors border border-white/10 mt-auto">Iniciar prueba de 14 días</button>
                 </div>
-                <button onClick={() => signIn("google", { prompt: "select_account" })} className="w-full text-[#0a0a0c] font-bold py-4 rounded-xl hover:scale-[1.02] transition-transform shadow-lg" style={melocotonGradient}>Iniciar prueba de 14 días</button>
-              </div>
+              </TiltWrapper>
+              
+              <TiltWrapper>
+                <div className="bg-[#0f0f13] border border-[#FEAFAE]/30 p-10 rounded-[2rem] relative shadow-[0_0_30px_rgba(255,164,189,0.1)] flex flex-col justify-between overflow-hidden hover:shadow-[0_0_50px_rgba(255,164,189,0.2)] transition-shadow h-full">
+                  <div className="absolute top-0 left-0 w-full h-1" style={melocotonGradient}></div>
+                  <div>
+                    <h3 className="text-2xl font-bold text-white mb-2 flex justify-between items-center">Plan Agency <span className="text-[10px] font-black px-3 py-1 bg-[#FEAFAE]/20 text-[#FEAFAE] rounded-full uppercase tracking-wider">Escala</span></h3>
+                    <p className="text-slate-400 mb-8 text-sm">El centro de comando para agencias de marketing.</p>
+                    <div className="text-5xl font-black text-white mb-8">$49<span className="text-lg text-slate-500 font-medium">/mes</span></div>
+                    <ul className="space-y-4 mb-10 text-sm">
+                      <li className="flex items-center gap-3 text-white"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> Cuentas ilimitadas</li>
+                      <li className="flex items-center gap-3 text-white"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> Marca Blanca Total (PDFs con logo)</li>
+                      <li className="flex items-center gap-3 text-white"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> Dashboard Global Multi-cliente</li>
+                      <li className="flex items-center gap-3 text-white"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> Matriz de Campañas</li>
+                    </ul>
+                  </div>
+                  <button onClick={() => signIn("google", { prompt: "select_account" })} className="w-full text-[#0a0a0c] font-bold py-4 rounded-xl hover:scale-[1.02] transition-transform shadow-lg mt-auto" style={melocotonGradient}>Iniciar prueba de 14 días</button>
+                </div>
+              </TiltWrapper>
+              
             </div>
           </section>
         </FadeInOnScroll>
