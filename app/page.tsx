@@ -149,14 +149,19 @@ const NeuralBackground = () => {
   return <canvas ref={canvasRef} className="fixed inset-0 w-full h-full pointer-events-none z-[1] print:hidden opacity-50 mix-blend-screen" />;
 };
 
-/// NUEVO COMPONENTE: El Eclipse Premium con Imagen 3D
+// NUEVO COMPONENTE: El Eclipse Premium (Estilo "Corona / Amanecer")
 const EclipseBackground = () => {
   return (
     <div className="fixed inset-0 w-full h-full pointer-events-none z-0 overflow-hidden flex justify-center">
+      {/* Cambios clave:
+        1. top-[-200px] md:top-[-350px] -> Lo empuja fuertemente hacia arriba.
+        2. w-[700px] md:w-[1000px] -> Achica el diámetro para que no invada los costados.
+        3. opacity-75 -> Suaviza la luz para no matar el contraste del texto.
+      */}
       <img 
         src="/eclipse-bg.webp" 
         alt="Eclipse Mora" 
-        className="absolute top-[-5%] md:top-[-15%] w-[800px] md:w-[1300px] max-w-none mix-blend-screen opacity-80"
+        className="absolute top-[-200px] md:top-[-350px] w-[700px] md:w-[1000px] max-w-none mix-blend-screen opacity-75"
       />
     </div>
   );
