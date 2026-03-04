@@ -69,7 +69,6 @@ function TiltWrapper({ children }: { children: React.ReactNode }) {
 // --- COMPONENTE 1: GALAXIA NEURAL CON PARALAJE Y COMETAS (Para la Landing Page) ---
 const SpaceBackground = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  // Usamos dos referencias para suavizar el movimiento de la cámara (interpolación)
   const currentMouse = useRef({ x: -1000, y: -1000 });
   const targetMouse = useRef({ x: -1000, y: -1000 });
 
@@ -124,21 +123,17 @@ const SpaceBackground = () => {
     const render = () => {
       ctx.clearRect(0, 0, width, height);
 
-      // Suavizado del movimiento del mouse (Efecto cámara de cine)
       if (targetMouse.current.x !== -1000) {
         currentMouse.current.x += (targetMouse.current.x - currentMouse.current.x) * 0.05;
         currentMouse.current.y += (targetMouse.current.y - currentMouse.current.y) * 0.05;
       }
 
       const { x: mx, y: my } = currentMouse.current;
-      
-      // Calcular el desplazamiento 3D (Parallax) respecto al centro de la pantalla
       const centerX = width / 2;
       const centerY = height / 2;
       const offsetX = mx !== -1000 ? (mx - centerX) : 0;
       const offsetY = my !== -1000 ? (my - centerY) : 0;
 
-      // Efecto Escáner
       if (mx > 0 && my > 0) {
         const scannerLight = ctx.createRadialGradient(mx, my, 0, mx, my, 400);
         scannerLight.addColorStop(0, 'rgba(254, 175, 174, 0.05)');
@@ -147,7 +142,6 @@ const SpaceBackground = () => {
         ctx.fillRect(0, 0, width, height);
       }
 
-      // --- DIBUJAR CAPA 1: Polvo Cósmico (Se mueve poco = Lejos) ---
       ctx.fillStyle = '#ffffff';
       dustStars.forEach(star => {
         star.y += star.speed;
@@ -157,7 +151,6 @@ const SpaceBackground = () => {
         if (star.x < 0) star.x = width;
         if (star.x > width) star.x = 0;
         
-        // Multiplicador bajo (0.02) para dar sensación de lejanía
         const px = star.x - offsetX * 0.02;
         const py = star.y - offsetY * 0.02;
 
@@ -168,7 +161,6 @@ const SpaceBackground = () => {
       });
       ctx.globalAlpha = 1;
 
-      // --- DIBUJAR CAPA 2: Nodos (Se mueven más = Medio) ---
       ctx.fillStyle = 'rgba(254, 175, 174, 0.8)';
       for (let i = 0; i < nodes.length; i++) {
         let p = nodes[i];
@@ -178,7 +170,6 @@ const SpaceBackground = () => {
         if (p.x < 0 || p.x > width) p.vx *= -1;
         if (p.y < 0 || p.y > height) p.vy *= -1;
 
-        // Multiplicador medio (0.06)
         const px = p.x - offsetX * 0.06;
         const py = p.y - offsetY * 0.06;
 
@@ -191,8 +182,8 @@ const SpaceBackground = () => {
           const p2x = p2.x - offsetX * 0.06;
           const p2y = p2.y - offsetY * 0.06;
 
-          let dx = px - p2x;
-          let dy = py - p2y;
+          let dx = p.x - p2.x;
+          let dy = p.y - p2.y;
           let dist = Math.sqrt(dx * dx + dy * dy);
 
           if (dist < 130) {
@@ -213,15 +204,14 @@ const SpaceBackground = () => {
         }
       }
 
-      // --- DIBUJAR CAPA 3: ESTRELLAS FUGACES FÍSICAS (Primer Plano) ---
       if (Math.random() < 0.008) { 
         const colors = ['#FFA9CC', '#FCD5BF', '#38BDF8', '#FBBF24', '#EF4444'];
-        const speed = Math.random() * 35 + 3; // Rango extremo: de 3 (tortuga) a 38 (rayo)
+        const speed = Math.random() * 35 + 3; 
         
         shootingStars.push({
-          x: Math.random() * width * 1.5, // Pueden nacer más afuera de la pantalla
+          x: Math.random() * width * 1.5, 
           y: Math.random() * height * -0.5,
-          length: Math.random() * 350 + 50, // De 50px a 400px de largo
+          length: Math.random() * 350 + 50, 
           speed: speed,
           opacity: 1,
           color: colors[Math.floor(Math.random() * colors.length)]
@@ -232,8 +222,6 @@ const SpaceBackground = () => {
         let s = shootingStars[i];
         s.x -= s.speed * 0.8; 
         s.y += s.speed; 
-        
-        // Las más rápidas se desvanecen más rápido
         s.opacity -= (s.speed * 0.0008) + 0.005; 
 
         if (s.opacity <= 0 || s.y > height + s.length) {
@@ -241,7 +229,6 @@ const SpaceBackground = () => {
           continue;
         }
 
-        // Multiplicador alto (0.1) para que parezcan pasar por delante de la pantalla
         const sx = s.x - offsetX * 0.1;
         const sy = s.y - offsetY * 0.1;
 
@@ -250,7 +237,7 @@ const SpaceBackground = () => {
         gradient.addColorStop(1, `${s.color}00`); 
 
         ctx.strokeStyle = gradient;
-        ctx.lineWidth = Math.max(1, s.length / 60); // Las más largas son más gordas
+        ctx.lineWidth = Math.max(1, s.length / 60); 
         ctx.lineCap = 'round';
         ctx.beginPath();
         ctx.moveTo(sx, sy);
@@ -281,7 +268,7 @@ const SpaceBackground = () => {
   return <canvas ref={canvasRef} className="fixed inset-0 w-full h-full pointer-events-none z-[1] print:hidden opacity-90" />;
 };
 
-// --- COMPONENTE 2: RED NEURAL SUTIL (Para el Dashboard) ---
+// --- COMPONENTE 2: RED NEURAL SUTIL + MARCAS HUD (Para el Dashboard) ---
 const DashboardBackground = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -362,7 +349,28 @@ const DashboardBackground = () => {
     };
   }, []);
 
-  return <canvas ref={canvasRef} className="fixed inset-0 w-full h-full pointer-events-none z-[1] print:hidden opacity-50" />;
+  return (
+    <div className="fixed inset-0 w-full h-full pointer-events-none z-[1] print:hidden">
+      <canvas ref={canvasRef} className="absolute inset-0 w-full h-full opacity-50" />
+      
+      {/* MARCAS HUD (Visor Analítico) */}
+      <div className="absolute top-8 left-[18rem] w-8 h-8 border-t border-l border-slate-700/30"></div>
+      <div className="absolute top-8 right-8 w-8 h-8 border-t border-r border-slate-700/30"></div>
+      <div className="absolute bottom-8 left-[18rem] w-8 h-8 border-b border-l border-slate-700/30"></div>
+      <div className="absolute bottom-8 right-8 w-8 h-8 border-b border-r border-slate-700/30"></div>
+      
+      <div className="absolute top-10 left-[19.5rem] text-[9px] font-mono text-slate-600/50 tracking-[0.3em]">SYS.ON // AUDIT_MODE</div>
+      
+      <div className="absolute bottom-10 right-12 text-[9px] font-mono text-slate-600/50 tracking-[0.3em] text-right">
+        LAT 34.64°S<br/>
+        LON 58.61°W
+      </div>
+      
+      {/* Cruces de calibración sutiles en el fondo */}
+      <div className="absolute top-[30%] right-[15%] text-slate-700/20 text-sm font-light">+</div>
+      <div className="absolute bottom-[25%] left-[30%] text-slate-700/20 text-sm font-light">+</div>
+    </div>
+  );
 };
 
 
@@ -949,7 +957,8 @@ function AuditorDashboard() {
         ) : (
           /* --- VISTA PARA LOGUEADOS (DASHBOARD) --- */
           <>
-            <aside className="w-64 bg-[#0a0a0c]/40 backdrop-blur-2xl border-r border-white/5 flex flex-col justify-between print:hidden z-20 relative shadow-[10px_0_30px_rgba(0,0,0,0.5)]">
+            {/* Sombras extremas en la barra lateral */}
+            <aside className="w-64 bg-[#0a0a0c]/40 backdrop-blur-2xl border-r border-white/5 flex flex-col justify-between print:hidden z-20 relative shadow-[20px_0_50px_rgba(0,0,0,0.9)]">
               <div>
                 <div className="h-20 flex items-center px-6 border-b border-white/5 gap-3">
                    <div className="w-8 h-8 rounded-lg flex items-center justify-center font-black text-black text-xl shadow-lg" style={melocotonGradient}>M</div>
@@ -1110,7 +1119,9 @@ function AuditorDashboard() {
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                       <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px] hover:bg-white/10 transition-colors shadow-lg">
+                       {/* Tarjeta 1: Salud Promedio (Hover Verde) */}
+                       <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px] hover:border-green-500/30 transition-colors shadow-[0_20px_40px_rgba(0,0,0,0.6)] group">
+                          <div className="absolute -right-4 -top-4 w-24 h-24 bg-green-500/10 rounded-full blur-2xl transition-all duration-500 group-hover:scale-150 group-hover:bg-green-500/20"></div>
                           <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 relative z-10 flex items-center gap-2"><Activity size={16}/> {t[idioma].saludG}</p>
                           <div className="flex items-end gap-3 relative z-10">
                             <span className={`text-5xl font-black ${promedioScore >= 80 ? 'text-green-400' : promedioScore >= 50 ? 'text-yellow-400' : 'text-red-400'}`}>
@@ -1120,13 +1131,16 @@ function AuditorDashboard() {
                           </div>
                        </div>
 
-                       <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px] hover:bg-white/10 transition-colors shadow-lg">
+                       {/* Tarjeta 2: Total Cuentas (Hover Azul) */}
+                       <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px] hover:border-blue-500/30 transition-colors shadow-[0_20px_40px_rgba(0,0,0,0.6)] group">
+                          <div className="absolute -right-4 -top-4 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl transition-all duration-500 group-hover:scale-150 group-hover:bg-blue-500/20"></div>
                           <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 relative z-10 flex items-center gap-2"><Users size={16}/> {t[idioma].totAud}</p>
                           <span className="text-5xl font-black text-white relative z-10">{totalAuditorias}</span>
                        </div>
 
-                       <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px] hover:border-red-500/30 transition-colors shadow-lg">
-                          <div className="absolute -right-4 -top-4 w-24 h-24 bg-red-500/10 rounded-full blur-2xl"></div>
+                       {/* Tarjeta 3: Fugas Críticas (Hover Rojo) */}
+                       <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px] hover:border-red-500/30 transition-colors shadow-[0_20px_40px_rgba(0,0,0,0.6)] group">
+                          <div className="absolute -right-4 -top-4 w-24 h-24 bg-red-500/10 rounded-full blur-2xl transition-all duration-500 group-hover:scale-150 group-hover:bg-red-500/20"></div>
                           <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 relative z-10 flex items-center gap-2"><AlertTriangle size={16} className="text-red-400"/> {t[idioma].fugasDet}</p>
                           <div className="flex-1 flex flex-col">
                             <span className="text-5xl font-black text-white relative z-10 mb-4">{totalFugas}</span>
@@ -1135,9 +1149,9 @@ function AuditorDashboard() {
                                 <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">{t[idioma].afectaA}</p>
                                 <div className="space-y-1.5">
                                   {cuentasRojas.slice(0, 2).map((c,i) => (
-                                    <button key={i} onClick={() => { setReporte(c.reporte); setNombreCuenta(c.nombre); setVista("reporte_lectura"); }} className="w-full flex justify-between items-center text-xs hover:bg-white/10 p-1.5 -mx-1.5 rounded-lg transition-colors text-left group">
-                                       <span className="text-slate-300 group-hover:text-white truncate pr-2 transition-colors">{c.nombre}</span>
-                                       <span className="text-red-400 font-bold bg-red-500/10 group-hover:bg-red-500/20 px-2 py-0.5 rounded transition-colors">{c.cant}</span>
+                                    <button key={i} onClick={() => { setReporte(c.reporte); setNombreCuenta(c.nombre); setVista("reporte_lectura"); }} className="w-full flex justify-between items-center text-xs hover:bg-white/10 p-1.5 -mx-1.5 rounded-lg transition-colors text-left group/btn">
+                                       <span className="text-slate-300 group-hover/btn:text-white truncate pr-2 transition-colors">{c.nombre}</span>
+                                       <span className="text-red-400 font-bold bg-red-500/10 group-hover/btn:bg-red-500/20 px-2 py-0.5 rounded transition-colors">{c.cant}</span>
                                     </button>
                                   ))}
                                 </div>
@@ -1146,8 +1160,9 @@ function AuditorDashboard() {
                           </div>
                        </div>
 
-                       <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px] hover:border-yellow-500/30 transition-colors shadow-lg">
-                          <div className="absolute -right-4 -top-4 w-24 h-24 bg-yellow-500/10 rounded-full blur-2xl"></div>
+                       {/* Tarjeta 4: Oportunidades (Hover Amarillo) */}
+                       <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px] hover:border-yellow-500/30 transition-colors shadow-[0_20px_40px_rgba(0,0,0,0.6)] group">
+                          <div className="absolute -right-4 -top-4 w-24 h-24 bg-yellow-500/10 rounded-full blur-2xl transition-all duration-500 group-hover:scale-150 group-hover:bg-yellow-500/20"></div>
                           <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 relative z-10 flex items-center gap-2"><Zap size={16} className="text-yellow-400"/> {t[idioma].oporMej}</p>
                           <div className="flex-1 flex flex-col">
                             <span className="text-5xl font-black text-white relative z-10 mb-4">{totalOportunidades}</span>
@@ -1156,9 +1171,9 @@ function AuditorDashboard() {
                                 <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">{t[idioma].afectaA}</p>
                                 <div className="space-y-1.5">
                                   {cuentasAmarillas.slice(0, 2).map((c,i) => (
-                                    <button key={i} onClick={() => { setReporte(c.reporte); setNombreCuenta(c.nombre); setVista("reporte_lectura"); }} className="w-full flex justify-between items-center text-xs hover:bg-white/10 p-1.5 -mx-1.5 rounded-lg transition-colors text-left group">
-                                       <span className="text-slate-300 group-hover:text-white truncate pr-2 transition-colors">{c.nombre}</span>
-                                       <span className="text-yellow-400 font-bold bg-yellow-500/10 group-hover:bg-yellow-500/20 px-2 py-0.5 rounded transition-colors">{c.cant}</span>
+                                    <button key={i} onClick={() => { setReporte(c.reporte); setNombreCuenta(c.nombre); setVista("reporte_lectura"); }} className="w-full flex justify-between items-center text-xs hover:bg-white/10 p-1.5 -mx-1.5 rounded-lg transition-colors text-left group/btn">
+                                       <span className="text-slate-300 group-hover/btn:text-white truncate pr-2 transition-colors">{c.nombre}</span>
+                                       <span className="text-yellow-400 font-bold bg-yellow-500/10 group-hover/btn:bg-yellow-500/20 px-2 py-0.5 rounded transition-colors">{c.cant}</span>
                                     </button>
                                   ))}
                                 </div>
@@ -1169,7 +1184,7 @@ function AuditorDashboard() {
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        <div className="lg:col-span-2 bg-white/5 border border-white/10 rounded-[2rem] p-6 backdrop-blur-xl flex flex-col shadow-lg">
+                        <div className="lg:col-span-2 bg-white/5 border border-white/10 rounded-[2rem] p-6 backdrop-blur-xl flex flex-col shadow-[0_20px_40px_rgba(0,0,0,0.6)]">
                            <div className="flex justify-between items-center mb-6">
                              <h3 className="text-lg font-bold text-white">{t[idioma].ultAud}</h3>
                              <button onClick={() => setVista("historial")} className="text-sm font-bold text-[#FFA4BD] hover:text-white transition-colors">{t[idioma].verTodas}</button>
@@ -1205,7 +1220,7 @@ function AuditorDashboard() {
                            )}
                         </div>
 
-                        <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 backdrop-blur-xl shadow-lg">
+                        <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 backdrop-blur-xl shadow-[0_20px_40px_rgba(0,0,0,0.6)]">
                            <h3 className="text-lg font-bold text-white mb-6">{t[idioma].actRec}</h3>
                            {historial.length === 0 ? (
                              <div className="text-slate-500 text-sm font-medium text-center py-10">No hay actividad.</div>
@@ -1239,10 +1254,11 @@ function AuditorDashboard() {
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                       <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px] shadow-lg">
+                       <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px] shadow-[0_20px_40px_rgba(0,0,0,0.6)] hover:border-green-500/30 transition-colors group">
+                          <div className="absolute -right-4 -top-4 w-24 h-24 bg-green-500/10 rounded-full blur-2xl transition-all duration-500 group-hover:scale-150 group-hover:bg-green-500/20"></div>
                           <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 relative z-10 flex items-center gap-2"><Activity size={16}/> Salud de la Cuenta</p>
                           {ultimaAuditoria ? (
-                            <div className="flex-1 flex flex-col justify-end">
+                            <div className="flex-1 flex flex-col justify-end relative z-10">
                                <div className="flex items-end gap-3 mb-2">
                                  <span className={`text-6xl font-black ${ultimaAuditoria.score >= 80 ? 'text-green-400' : ultimaAuditoria.score >= 50 ? 'text-yellow-400' : 'text-red-400'}`}>
                                    {ultimaAuditoria.score}
@@ -1253,28 +1269,30 @@ function AuditorDashboard() {
                                </button>
                             </div>
                           ) : (
-                            <div className="flex-1 flex items-center justify-center text-slate-500 text-sm font-medium">No hay datos.</div>
+                            <div className="flex-1 flex items-center justify-center text-slate-500 text-sm font-medium relative z-10">No hay datos.</div>
                           )}
                        </div>
 
-                       <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px] shadow-lg">
+                       <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px] shadow-[0_20px_40px_rgba(0,0,0,0.6)] hover:border-red-500/30 transition-colors group">
+                          <div className="absolute -right-4 -top-4 w-24 h-24 bg-red-500/10 rounded-full blur-2xl transition-all duration-500 group-hover:scale-150 group-hover:bg-red-500/20"></div>
                           <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 relative z-10 flex items-center gap-2"><AlertTriangle size={16} className="text-red-400"/> Fugas Críticas</p>
                           {ultimaAuditoria ? (
-                            <div className="flex-1 flex flex-col">
+                            <div className="flex-1 flex flex-col relative z-10">
                               <span className="text-5xl font-black text-white mb-2">{fugasIndividuales}</span>
                               <p className="text-xs text-slate-400 leading-relaxed">Problemas graves que están consumiendo tu presupuesto ahora mismo.</p>
                             </div>
                           ) : (
-                             <div className="flex-1 flex items-center justify-center text-slate-500 text-sm font-medium">No hay datos.</div>
+                             <div className="flex-1 flex items-center justify-center text-slate-500 text-sm font-medium relative z-10">No hay datos.</div>
                           )}
                        </div>
 
-                       <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col justify-center items-center text-center relative overflow-hidden backdrop-blur-xl min-h-[200px] shadow-lg border-dashed hover:bg-white/10 transition-colors cursor-pointer group" onClick={() => setVista("nueva")}>
-                          <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                       <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col justify-center items-center text-center relative overflow-hidden backdrop-blur-xl min-h-[200px] shadow-[0_20px_40px_rgba(0,0,0,0.6)] border-dashed hover:border-[#FEAFAE]/40 transition-colors cursor-pointer group" onClick={() => setVista("nueva")}>
+                          <div className="absolute -right-4 -top-4 w-24 h-24 bg-[#FEAFAE]/10 rounded-full blur-2xl transition-all duration-500 group-hover:scale-150 group-hover:bg-[#FEAFAE]/20"></div>
+                          <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform relative z-10">
                              <Zap size={28} className="text-[#FEAFAE]" />
                           </div>
-                          <h3 className="font-bold text-white text-lg">Ejecutar Nueva Auditoría</h3>
-                          <p className="text-xs text-slate-400 mt-2 px-4">Actualizá los datos de tu cuenta para ver el score de hoy.</p>
+                          <h3 className="font-bold text-white text-lg relative z-10">Ejecutar Nueva Auditoría</h3>
+                          <p className="text-xs text-slate-400 mt-2 px-4 relative z-10">Actualizá los datos de tu cuenta para ver el score de hoy.</p>
                        </div>
                     </div>
 
@@ -1307,7 +1325,7 @@ function AuditorDashboard() {
                 {/* VISTA: NUEVA AUDITORÍA (CON NUEVOS CAMPOS) */}
                 {vista === "nueva" && (
                   <div className="animate-fade-custom print:hidden relative z-10">
-                    <div className="bg-white/5 border border-white/10 backdrop-blur-2xl p-8 md:p-12 rounded-[2rem] shadow-2xl mb-8 max-w-4xl mx-auto">
+                    <div className="bg-white/5 border border-white/10 backdrop-blur-2xl p-8 md:p-12 rounded-[2rem] shadow-[0_20px_60px_rgba(0,0,0,0.8)] mb-8 max-w-4xl mx-auto">
                       <div className="flex items-center gap-4 mb-8">
                         <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-black shadow-lg" style={melocotonGradient}><Zap size={24} /></div>
                         <div><h1 className="text-3xl font-bold text-white">{t[idioma].nueva}</h1><p className="text-slate-400 mt-1">{t[idioma].ingresaDatos}</p></div>
@@ -1344,17 +1362,16 @@ function AuditorDashboard() {
                     <div className="mb-6 flex justify-between items-center print:hidden">
                        <button onClick={() => setVista("dashboard")} className="flex items-center gap-2 text-slate-400 hover:text-white font-medium transition-colors"><ArrowLeft size={18} /> {t[idioma].volver}</button>
                        
-                       <div className="flex bg-black/40 border border-white/10 rounded-xl p-1 gap-1">
+                       <div className="flex bg-black/40 border border-white/10 rounded-xl p-1 gap-1 shadow-lg">
                           <button onClick={() => setSubVistaReporte("diagnostico")} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${subVistaReporte === 'diagnostico' ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-300'}`}><FileText size={16}/> {t[idioma].tabDiag}</button>
                           <button onClick={() => setSubVistaReporte("checklist")} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${subVistaReporte === 'checklist' ? 'bg-[#FEAFAE]/20 text-[#FEAFAE]' : 'text-slate-500 hover:text-slate-300'}`}><ListChecks size={16}/> {t[idioma].tabCheck}</button>
                           <button onClick={() => setSubVistaReporte("avanzado")} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${subVistaReporte === 'avanzado' ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-300'}`}><LayoutGrid size={16}/> {t[idioma].tabAvanzado}</button>
                        </div>
                     </div>
 
-                    <div className="bg-white/5 border border-white/10 backdrop-blur-2xl p-10 rounded-[2rem] shadow-2xl print:bg-white print:text-black print:border-none print:shadow-none print:p-0">
+                    <div className="bg-white/5 border border-white/10 backdrop-blur-2xl p-10 rounded-[2rem] shadow-[0_20px_60px_rgba(0,0,0,0.8)] print:bg-white print:text-black print:border-none print:shadow-none print:p-0">
                       
                       <div className="hidden print:flex justify-between items-center mb-10 border-b-2 border-slate-200 pb-6">
-                        {/* EN MODO INDIVIDUAL, NO MOSTRAMOS LOGO MARCA BLANCA EN EL PDF PARA DIFERENCIAR LOS PLANES */}
                         <div>{modoPlan === 'agencia' && perfil?.agencia_logo ? <img src={perfil.agencia_logo} alt="Logo Agencia" className="h-16 object-contain" /> : <div className="flex items-center gap-2"><span className="text-3xl">🐾</span><span className="text-3xl font-black text-slate-800">Mora</span></div>}</div>
                         <div className="text-right">
                           <h2 className="text-2xl font-black text-slate-800 tracking-tight">{modoPlan === 'agencia' && perfil?.agencia_nombre ? perfil.agencia_nombre : "Auditoría Estratégica"}</h2>
@@ -1371,7 +1388,6 @@ function AuditorDashboard() {
                             <div><h3 className="text-4xl font-black text-white print:text-slate-900">{t[idioma].score}</h3><p className="text-slate-400 text-sm mt-1 print:text-slate-500">{t[idioma].puntajeBasado}</p></div>
                           </div>
                         </div>
-                        {/* BOTON DE DESCARGAR PDF SOLO PARA AGENCIA (COMO INCENTIVO) O SI QUERES DEJALO PARA LOS DOS */}
                         {subVistaReporte === "diagnostico" && modoPlan === 'agencia' && <button onClick={descargarPDF} className="bg-white/5 border border-white/10 hover:bg-white/10 text-white px-6 py-3 rounded-xl font-bold transition-all print:hidden shadow-sm">{t[idioma].exportar}</button>}
                       </div>
                       
@@ -1508,7 +1524,7 @@ function AuditorDashboard() {
                 )}
 
                 {vista === "historial" && (
-                  <div className="animate-fade-custom bg-white/5 border border-white/10 backdrop-blur-2xl p-8 rounded-[2rem] shadow-2xl flex flex-col min-h-[600px] print:hidden relative z-10">
+                  <div className="animate-fade-custom bg-white/5 border border-white/10 backdrop-blur-2xl p-8 rounded-[2rem] shadow-[0_20px_60px_rgba(0,0,0,0.8)] flex flex-col min-h-[600px] print:hidden relative z-10">
                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
                        <div className="flex items-center gap-4">
                           <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-white border border-white/10"><Users size={24} /></div>
@@ -1577,7 +1593,7 @@ function AuditorDashboard() {
                 )}
 
                 {vista === "perfil" && (
-                  <div className="animate-fade-custom bg-white/5 border border-white/10 backdrop-blur-2xl p-10 rounded-[2rem] shadow-2xl mx-auto print:hidden relative z-10">
+                  <div className="animate-fade-custom bg-white/5 border border-white/10 backdrop-blur-2xl p-10 rounded-[2rem] shadow-[0_20px_60px_rgba(0,0,0,0.8)] mx-auto print:hidden relative z-10">
                     <div className="flex items-center gap-4 mb-8">
                        <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-white border border-white/10"><Settings size={24} /></div>
                        <div>
@@ -1620,7 +1636,7 @@ function AuditorDashboard() {
                 )}
 
                 {vista === "facturacion" && (
-                  <div className="animate-fade-custom bg-white/5 border border-white/10 backdrop-blur-2xl p-10 rounded-[2rem] shadow-2xl max-w-2xl mx-auto print:hidden relative z-10">
+                  <div className="animate-fade-custom bg-white/5 border border-white/10 backdrop-blur-2xl p-10 rounded-[2rem] shadow-[0_20px_60px_rgba(0,0,0,0.8)] max-w-2xl mx-auto print:hidden relative z-10">
                     <div className="flex items-center gap-4 mb-8">
                        <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-white border border-white/10"><CreditCard size={24} /></div>
                        <div>
@@ -1642,7 +1658,7 @@ function AuditorDashboard() {
                 )}
 
                 {vista === "feedback" && (
-                  <div className="animate-fade-custom bg-white/5 border border-white/10 backdrop-blur-2xl p-10 rounded-[2rem] shadow-2xl max-w-2xl mx-auto text-center print:hidden relative z-10">
+                  <div className="animate-fade-custom bg-white/5 border border-white/10 backdrop-blur-2xl p-10 rounded-[2rem] shadow-[0_20px_60px_rgba(0,0,0,0.8)] max-w-2xl mx-auto text-center print:hidden relative z-10">
                     <div className="flex justify-center mb-6"><div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center text-white border border-white/10"><MessageSquare size={32} /></div></div>
                     <h2 className="text-3xl font-bold mb-3 text-white">{t[idioma].ayudanos}</h2>
                     <p className="text-slate-400 mb-8 font-medium">{t[idioma].bug}</p>
