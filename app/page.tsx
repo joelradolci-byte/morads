@@ -146,13 +146,13 @@ const NeuralBackground = () => {
     };
   }, []);
 
-  return <canvas ref={canvasRef} className="fixed inset-0 w-full h-full pointer-events-none z-[-10] print:hidden opacity-50 mix-blend-screen" />;
+  return <canvas ref={canvasRef} className="fixed inset-0 w-full h-full pointer-events-none z-[1] print:hidden opacity-50 mix-blend-screen" />;
 };
 
 // NUEVO COMPONENTE: Fondo de Orbes/Auroras estilo "Eclipse Premium"
 const EclipseBackground = () => {
   return (
-    <div className="fixed inset-0 w-full h-full pointer-events-none z-[-20] overflow-hidden">
+    <div className="fixed inset-0 w-full h-full pointer-events-none z-0 overflow-hidden">
       {/* Mancha de luz Magenta superior */}
       <div className="absolute top-[-10%] left-[15%] w-[800px] h-[800px] rounded-full bg-[#FEAFAE]/15 blur-[120px] mix-blend-screen opacity-70"></div>
       
@@ -251,7 +251,7 @@ function AuditorDashboard() {
       tabDiag: "Diagnóstico IA", tabCheck: "Plan de Acción", tabAvanzado: "Análisis Avanzado",
       autoApply: "Corregir Ahora", msgAutoApply: "Para usar la ejecución en piloto automático (Auto-Apply), vinculá tu API de Google Ads en la sección de Integraciones. (Disponible próximamente)",
       pacingTit: "Pacing de Presupuesto", pacingDesc: "Ritmo de gasto proyectado",
-      matrizTit: "Matriz de Campañas", matrizDesc: "Distribución del gasto vs rendimiento",
+      matrizTit: "Campaign Matrix", matrizDesc: "Distribución del gasto vs rendimiento",
       escalar: "ESTRELLAS (Escalar)", apagar: "BASURA (Apagar)", observar: "DUDOSOS (Observar)", potenciales: "POTENCIALES (Testear)"
     },
     en: {
