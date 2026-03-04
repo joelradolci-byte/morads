@@ -146,7 +146,20 @@ const NeuralBackground = () => {
     };
   }, []);
 
-  return <canvas ref={canvasRef} className="fixed inset-0 w-full h-full pointer-events-none z-0 print:hidden opacity-50 mix-blend-screen" />;
+  return <canvas ref={canvasRef} className="fixed inset-0 w-full h-full pointer-events-none z-[-10] print:hidden opacity-50 mix-blend-screen" />;
+};
+
+// NUEVO COMPONENTE: Fondo de Orbes/Auroras estilo "Eclipse Premium"
+const EclipseBackground = () => {
+  return (
+    <div className="fixed inset-0 w-full h-full pointer-events-none z-[-20] overflow-hidden">
+      {/* Mancha de luz Magenta superior */}
+      <div className="absolute top-[-10%] left-[15%] w-[800px] h-[800px] rounded-full bg-[#FEAFAE]/15 blur-[120px] mix-blend-screen opacity-70"></div>
+      
+      {/* Mancha de luz Durazno central/derecha */}
+      <div className="absolute top-1/4 right-[-10%] w-[1000px] h-[1000px] rounded-full bg-[#FCD5BF]/15 blur-[150px] mix-blend-screen opacity-70"></div>
+    </div>
+  );
 };
 
 function AuditorDashboard() {
@@ -194,7 +207,7 @@ function AuditorDashboard() {
   const [mostrarConfirmacion, setMostrarConfirmacion] = useState(false);
   const [toastState, setToastState] = useState<{show: boolean, status: 'success' | 'undoing' | 'reverted', timeLeft: number}>({show: false, status: 'success', timeLeft: 15});
 
-  // NUEVO ESTADO: Switch para simular Plan Individual vs Agencia
+  // Switch para simular Plan Individual vs Agencia
   const [modoPlan, setModoPlan] = useState<"agencia" | "individual">("agencia");
 
   const t = {
@@ -569,10 +582,8 @@ function AuditorDashboard() {
     return (
       <div className="min-h-screen w-full font-sans text-slate-200 overflow-y-auto overflow-x-hidden bg-[#0a0a0c] selection:bg-[#FEAFAE] selection:text-black relative">
         <NeuralBackground />
+        <EclipseBackground />
         
-        {/* EL ECLIPSE MORA AQUÍ */}
-        <div className="absolute top-[-10%] left-1/2 transform -translate-x-1/2 w-[600px] h-[600px] md:w-[1200px] md:h-[800px] bg-[#0a0a0c] rounded-[100%] border-[1px] border-[#FEAFAE]/20 shadow-[0_0_150px_rgba(255,164,189,0.15)] z-[1] pointer-events-none mix-blend-screen"></div>
-
         <nav className="w-full max-w-7xl mx-auto px-6 py-6 flex justify-between items-center z-50 relative">
           <div className="flex items-center gap-2">
             <div className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-black text-2xl shadow-[0_0_15px_rgba(255,164,189,0.5)]" style={melocotonGradient}>M</div>
@@ -732,6 +743,7 @@ function AuditorDashboard() {
       <div className="flex h-screen w-full font-sans text-slate-200 overflow-hidden print-container relative bg-[#0a0a0c]">
         
         <NeuralBackground />
+        <EclipseBackground />
 
         <aside className="w-64 bg-[#0a0a0c]/40 backdrop-blur-2xl border-r border-white/5 flex flex-col justify-between print:hidden z-20 relative shadow-[10px_0_30px_rgba(0,0,0,0.5)]">
           <div>
