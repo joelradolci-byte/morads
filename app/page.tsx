@@ -66,7 +66,7 @@ function TiltWrapper({ children }: { children: React.ReactNode }) {
   );
 }
 
-// EL NUEVO COMPONENTE ESTRELLA: GALAXIA + ESCÁNER
+// --- COMPONENTE 1: GALAXIA NEURAL (Para la Landing Page) ---
 const SpaceBackground = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mouseRef = useRef({ x: -1000, y: -1000 });
@@ -87,12 +87,11 @@ const SpaceBackground = () => {
     canvas.width = width;
     canvas.height = height;
 
-    // Arrays para las 3 capas
     const dustStars: any[] = [];
     const nodes: any[] = [];
     let shootingStars: any[] = [];
 
-    // 1. Polvo Cósmico (Fondo lento)
+    // 1. Polvo Cósmico
     for (let i = 0; i < 150; i++) {
       dustStars.push({
         x: Math.random() * width,
@@ -103,7 +102,7 @@ const SpaceBackground = () => {
       });
     }
 
-    // 2. Nodos Interactivos (La Red de IA)
+    // 2. Nodos Interactivos
     const numNodes = Math.floor((width * height) / 12000); 
     for (let i = 0; i < numNodes; i++) {
       nodes.push({
@@ -119,14 +118,13 @@ const SpaceBackground = () => {
 
     const render = () => {
       ctx.clearRect(0, 0, width, height);
-
       const { x: mx, y: my } = mouseRef.current;
 
-      // Efecto Escáner: Un resplandor muy sutil que sigue al cursor
+      // Efecto Escáner: Luz que sigue al cursor
       if (mx > 0 && my > 0) {
         const scannerLight = ctx.createRadialGradient(mx, my, 0, mx, my, 400);
-        scannerLight.addColorStop(0, 'rgba(254, 175, 174, 0.05)'); // Luz durazno en el centro
-        scannerLight.addColorStop(1, 'rgba(10, 10, 12, 0)'); // Se funde con el fondo negro
+        scannerLight.addColorStop(0, 'rgba(254, 175, 174, 0.05)');
+        scannerLight.addColorStop(1, 'rgba(10, 10, 12, 0)');
         ctx.fillStyle = scannerLight;
         ctx.fillRect(0, 0, width, height);
       }
@@ -169,15 +167,14 @@ const SpaceBackground = () => {
           let dist = Math.sqrt(dx * dx + dy * dy);
 
           if (dist < 130) {
-            // El Escáner: Si el mouse está cerca, las líneas brillan más fuerte
             let mDx = p.x - mx;
             let mDy = p.y - my;
             let distToMouse = Math.sqrt(mDx * mDx + mDy * mDy);
             
-            let interactiveAlpha = distToMouse < 200 ? 0.5 : 0.1; // 0.5 brilla, 0.1 apagado
+            let interactiveAlpha = distToMouse < 200 ? 0.6 : 0.12; 
             
             ctx.strokeStyle = `rgba(254, 175, 174, ${(1 - dist / 130) * interactiveAlpha})`;
-            ctx.lineWidth = distToMouse < 200 ? 1 : 0.5; // La línea se engrosa al escanear
+            ctx.lineWidth = distToMouse < 200 ? 1.2 : 0.5; 
 
             ctx.beginPath();
             ctx.moveTo(p.x, p.y);
@@ -187,34 +184,37 @@ const SpaceBackground = () => {
         }
       }
 
-      // Estrellas Fugaces
-      if (Math.random() < 0.005) { // Posibilidad bajita de que aparezca una
+      // --- CAPA 3: ESTRELLAS FUGACES VARIADAS ---
+      if (Math.random() < 0.007) { 
+        const colors = ['#FFA9CC', '#FCD5BF', '#38BDF8', '#FBBF24', '#EF4444'];
+        
         shootingStars.push({
           x: Math.random() * width,
           y: 0,
-          length: Math.random() * 100 + 40,
-          speed: Math.random() * 15 + 10,
-          opacity: 1
+          length: Math.random() * 120 + 30, 
+          speed: Math.random() * 20 + 8,   
+          opacity: 1,
+          color: colors[Math.floor(Math.random() * colors.length)]
         });
       }
 
       for (let i = shootingStars.length - 1; i >= 0; i--) {
         let s = shootingStars[i];
-        s.x -= s.speed; // Cae en diagonal hacia la izquierda
-        s.y += s.speed; // Cae hacia abajo
-        s.opacity -= 0.015; // Se desvanece rápido
+        s.x -= s.speed * 0.8; 
+        s.y += s.speed; 
+        s.opacity -= 0.012; 
 
-        if (s.opacity <= 0) {
+        if (s.opacity <= 0 || s.y > height) {
           shootingStars.splice(i, 1);
           continue;
         }
 
         const gradient = ctx.createLinearGradient(s.x, s.y, s.x + s.length, s.y - s.length);
-        gradient.addColorStop(0, `rgba(255, 164, 189, ${s.opacity})`); // Magenta en la punta
-        gradient.addColorStop(1, 'rgba(255, 164, 189, 0)'); // Cola transparente
+        gradient.addColorStop(0, `${s.color}${Math.floor(s.opacity * 255).toString(16).padStart(2, '0')}`); 
+        gradient.addColorStop(1, `${s.color}00`); 
 
         ctx.strokeStyle = gradient;
-        ctx.lineWidth = 2;
+        ctx.lineWidth = Math.max(1, s.length / 50); 
         ctx.beginPath();
         ctx.moveTo(s.x, s.y);
         ctx.lineTo(s.x + s.length, s.y - s.length);
@@ -241,9 +241,93 @@ const SpaceBackground = () => {
     };
   }, []);
 
-  // z-[1] para que quede detrás de todo
   return <canvas ref={canvasRef} className="fixed inset-0 w-full h-full pointer-events-none z-[1] print:hidden opacity-90" />;
 };
+
+// --- COMPONENTE 2: RED NEURAL SUTIL (Para el Dashboard) ---
+const DashboardBackground = () => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    let width = window.innerWidth;
+    let height = window.innerHeight;
+    canvas.width = width;
+    canvas.height = height;
+
+    const particles: {x: number, y: number, vx: number, vy: number, radius: number}[] = [];
+    const numParticles = Math.floor((width * height) / 18000); 
+
+    for (let i = 0; i < numParticles; i++) {
+      particles.push({
+        x: Math.random() * width,
+        y: Math.random() * height,
+        vx: (Math.random() - 0.5) * 0.2, 
+        vy: (Math.random() - 0.5) * 0.2,
+        radius: Math.random() * 1.2 + 0.4 
+      });
+    }
+
+    let animationFrameId: number;
+
+    const render = () => {
+      ctx.clearRect(0, 0, width, height);
+      ctx.fillStyle = 'rgba(254, 175, 174, 0.4)'; 
+      ctx.strokeStyle = 'rgba(254, 175, 174, 0.08)'; 
+
+      for (let i = 0; i < particles.length; i++) {
+        let p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+
+        if (p.x < 0 || p.x > width) p.vx *= -1;
+        if (p.y < 0 || p.y > height) p.vy *= -1;
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+        ctx.fill();
+
+        for (let j = i + 1; j < particles.length; j++) {
+          let p2 = particles[j];
+          let dx = p.x - p2.x;
+          let dy = p.y - p2.y;
+          let dist = Math.sqrt(dx * dx + dy * dy);
+
+          if (dist < 110) { 
+            ctx.beginPath();
+            ctx.moveTo(p.x, p.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.lineWidth = (1 - dist / 110) * 0.7; 
+            ctx.stroke();
+          }
+        }
+      }
+      animationFrameId = requestAnimationFrame(render);
+    };
+
+    render();
+
+    const handleResize = () => {
+      width = window.innerWidth;
+      height = window.innerHeight;
+      canvas.width = width;
+      canvas.height = height;
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, []);
+
+  return <canvas ref={canvasRef} className="fixed inset-0 w-full h-full pointer-events-none z-[1] print:hidden opacity-50" />;
+};
+
 
 function AuditorDashboard() {
   const { data: session, status } = useSession();
@@ -319,7 +403,7 @@ function AuditorDashboard() {
       subeLogo: "Sube un logo", guardando: "Guardando...", guardarAj: "Guardar Ajustes",
       ayudanos: "Ayudanos a mejorar Mora", bug: "¿Encontraste un bug o tenés una idea genial?", escribiSug: "Escribí tu sugerencia acá...", enviando: "Enviando...", enviarSug: "Enviar Sugerencia",
       facturacionTitulo: "Suscripción y Pagos", facturacionDesc: "Gestioná tu plan actual y métodos de pago de forma segura.", planActual: "Tu Plan Actual", gestionarStripe: "Gestionar en Stripe", pronto: "(Próximamente)",
-      puntajeBasado: "Puntaje basado en rendimiento y estructura.",
+      puntajeBasado: "Puntaje basado en rendimiento y structure.",
       marcaBlanca: "Marca Blanca Visual", preferencias: "Preferencias de Trabajo",
       sitioWeb: "Website (Appears on PDF)", piePagina: "Pie de página legal (PDF)", monedaDef: "Moneda por defecto", metricaDef: "Métrica por defecto",
       feat1Tit: "Auditoría en Segundos", feat1Desc: "La IA procesa cientos de métricas y detecta fugas de presupuesto al instante.",
@@ -333,7 +417,7 @@ function AuditorDashboard() {
       tabDiag: "Diagnóstico IA", tabCheck: "Plan de Acción", tabAvanzado: "Análisis Avanzado",
       autoApply: "Corregir Ahora", msgAutoApply: "Para usar la ejecución en piloto automático (Auto-Apply), vinculá tu API de Google Ads en la sección de Integraciones. (Disponible próximamente)",
       pacingTit: "Pacing de Presupuesto", pacingDesc: "Ritmo de gasto proyectado",
-      matrizTit: "Campaign Matrix", matrizDesc: "Distribución del gasto vs rendimiento",
+      matrizTit: "Matriz de Campañas", matrizDesc: "Distribución del gasto vs rendimiento",
       escalar: "ESTRELLAS (Escalar)", apagar: "BASURA (Apagar)", observar: "DUDOSOS (Observar)", potenciales: "POTENCIALES (Testear)"
     },
     en: {
@@ -659,155 +743,6 @@ function AuditorDashboard() {
 
   if (status === "loading") return <div className="h-screen w-full flex justify-center items-center text-xl font-bold text-white bg-[#0a0a0c]">Cargando...</div>;
 
-  if (!session) {
-    return (
-      <div className="min-h-screen w-full font-sans text-slate-200 overflow-y-auto overflow-x-hidden bg-[#0a0a0c] selection:bg-[#FEAFAE] selection:text-black relative">
-        <SpaceBackground />
-        
-        <nav className="w-full max-w-7xl mx-auto px-6 py-6 flex justify-between items-center z-50 relative">
-          <div className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-black text-2xl shadow-[0_0_15px_rgba(255,164,189,0.5)]" style={melocotonGradient}>M</div>
-            <span className="font-bold text-2xl tracking-wide text-white">Mora</span>
-          </div>
-          <div className="flex items-center gap-6">
-            <button onClick={() => setIdioma(idioma === "es" ? "en" : "es")} className="text-sm font-bold text-slate-400 hover:text-white transition-colors flex items-center gap-2">
-              <span className="w-4 h-4 flex items-center justify-center border border-slate-400 rounded-full text-[10px]">🌐</span> {idioma === "es" ? "ES" : "EN"}
-            </button>
-            <button onClick={() => signIn("google", { prompt: "select_account" })} className="text-[#0a0a0c] px-6 py-2.5 rounded-full font-bold text-sm hover:scale-105 transition-transform shadow-[0_0_15px_rgba(255,164,189,0.4)]" style={melocotonGradient}>
-              {t[idioma].login}
-            </button>
-          </div>
-        </nav>
-
-        <FadeInOnScroll>
-          <header className="flex flex-col items-center justify-center text-center px-4 pt-20 pb-20 max-w-4xl mx-auto relative z-10">
-            <div className="border border-white/10 bg-white/5 backdrop-blur-md px-5 py-2 rounded-full text-xs font-bold tracking-widest uppercase mb-8 flex items-center gap-3 shadow-lg">
-               <span className="w-2.5 h-2.5 rounded-full animate-pulse" style={melocotonGradient}></span>
-               Auditorías con Inteligencia Artificial
-            </div>
-            <h1 className="text-5xl md:text-7xl lg:text-[5rem] font-bold mb-8 tracking-tight leading-[1.1] text-white">
-              Detectá fugas de dinero con <br />
-              <span style={melocotonText}>precisión quirúrgica.</span>
-            </h1>
-            <p className="text-slate-400 text-lg md:text-xl mb-12 max-w-2xl mx-auto leading-relaxed">
-              Conectá tu cuenta de Google Ads y dejá que nuestra IA audite tus campañas, traduzca las métricas y genere reportes marca blanca en segundos.
-            </p>
-            <div className="flex flex-col items-center w-full sm:w-auto">
-              <button onClick={() => signIn("google", { prompt: "select_account" })} className="w-full sm:w-auto text-[#0a0a0c] px-10 py-5 rounded-full font-bold text-lg hover:scale-105 transition-transform shadow-[0_0_40px_rgba(255,164,189,0.3)] flex items-center justify-center gap-2 mb-3" style={melocotonGradient}>
-                Comenzar prueba gratis <ArrowRight size={20} />
-              </button>
-              <p className="text-xs text-slate-500 font-medium">14 días de acceso total. Sin tarjeta de crédito.</p>
-            </div>
-          </header>
-        </FadeInOnScroll>
-
-        <FadeInOnScroll delay={200}>
-          <section className="max-w-6xl mx-auto px-4 mb-32 relative z-10">
-            <div className="text-center mb-16"><h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Optimización en 3 pasos</h2></div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
-               <div className="hidden md:block absolute top-12 left-[20%] right-[20%] h-0.5 bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
-               <div className="flex flex-col items-center text-center relative z-10">
-                  <div className="w-24 h-24 rounded-full bg-[#0f0f13] border border-white/10 flex items-center justify-center text-3xl font-black text-white mb-6 shadow-[0_0_30px_rgba(255,164,189,0.1)]">1</div>
-                  <h3 className="text-xl font-bold text-white mb-2">Conectá</h3>
-                  <p className="text-slate-400 text-sm leading-relaxed px-4">Vinculá tu cuenta de Google Ads de forma segura con un solo clic.</p>
-               </div>
-               <div className="flex flex-col items-center text-center relative z-10">
-                  <div className="w-24 h-24 rounded-full bg-[#0f0f13] border border-[#FEAFAE]/30 flex items-center justify-center text-3xl font-black text-[#FEAFAE] mb-6 shadow-[0_0_30px_rgba(255,164,189,0.2)]">2</div>
-                  <h3 className="text-xl font-bold text-white mb-2">Diagnosticá</h3>
-                  <p className="text-slate-400 text-sm leading-relaxed px-4">La IA analiza cientos de métricas y detecta dónde estás perdiendo presupuesto.</p>
-               </div>
-               <div className="flex flex-col items-center text-center relative z-10">
-                  <div className="w-24 h-24 rounded-full bg-[#0f0f13] border border-white/10 flex items-center justify-center text-3xl font-black text-white mb-6 shadow-[0_0_30px_rgba(255,164,189,0.1)]">3</div>
-                  <h3 className="text-xl font-bold text-white mb-2">Ejecutá</h3>
-                  <p className="text-slate-400 text-sm leading-relaxed px-4">Aplicá el plan de acción sugerido o exportá el reporte en PDF para tu cliente.</p>
-               </div>
-            </div>
-          </section>
-        </FadeInOnScroll>
-
-        <FadeInOnScroll>
-          <section className="max-w-5xl mx-auto px-4 mb-32 relative z-10">
-            <div className="text-center mb-16"><h2 className="text-3xl md:text-5xl font-bold text-white mb-4">Elegí tu camino</h2><p className="text-slate-400">Comenzá con 14 días gratis en cualquier plan.</p></div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-              
-              <TiltWrapper>
-                <div className="bg-white/5 border border-white/10 p-10 rounded-[2rem] flex flex-col justify-between hover:border-white/20 transition-colors h-full">
-                  <div>
-                    <h3 className="text-2xl font-bold text-white mb-2">Plan Individual</h3>
-                    <p className="text-slate-400 mb-8 text-sm">Para emprendedores que gestionan sus propios anuncios.</p>
-                    <div className="text-5xl font-black text-white mb-8">$19<span className="text-lg text-slate-500 font-medium">/mes</span></div>
-                    <ul className="space-y-4 mb-10 text-sm">
-                      <li className="flex items-center gap-3 text-slate-300"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> 1 Cuenta publicitaria</li>
-                      <li className="flex items-center gap-3 text-slate-300"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> Traductor de Métricas IA</li>
-                      <li className="flex items-center gap-3 text-slate-300"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> Generador de Anuncios</li>
-                      <li className="flex items-center gap-3 text-slate-300"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> Checklist de Optimización</li>
-                    </ul>
-                  </div>
-                  <button onClick={() => signIn("google", { prompt: "select_account" })} className="w-full bg-white/10 hover:bg-white/20 text-white font-bold py-4 rounded-xl transition-colors border border-white/10 mt-auto">Iniciar prueba de 14 días</button>
-                </div>
-              </TiltWrapper>
-              
-              <TiltWrapper>
-                <div className="bg-[#0f0f13] border border-[#FEAFAE]/30 p-10 rounded-[2rem] relative shadow-[0_0_30px_rgba(255,164,189,0.1)] flex flex-col justify-between overflow-hidden hover:shadow-[0_0_50px_rgba(255,164,189,0.2)] transition-shadow h-full">
-                  <div className="absolute top-0 left-0 w-full h-1" style={melocotonGradient}></div>
-                  <div>
-                    <h3 className="text-2xl font-bold text-white mb-2 flex justify-between items-center">Plan Agency <span className="text-[10px] font-black px-3 py-1 bg-[#FEAFAE]/20 text-[#FEAFAE] rounded-full uppercase tracking-wider">Escala</span></h3>
-                    <p className="text-slate-400 mb-8 text-sm">El centro de comando para agencias de marketing.</p>
-                    <div className="text-5xl font-black text-white mb-8">$49<span className="text-lg text-slate-500 font-medium">/mes</span></div>
-                    <ul className="space-y-4 mb-10 text-sm">
-                      <li className="flex items-center gap-3 text-white"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> Cuentas ilimitadas</li>
-                      <li className="flex items-center gap-3 text-white"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> Marca Blanca Total (PDFs con logo)</li>
-                      <li className="flex items-center gap-3 text-white"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> Dashboard Global Multi-cliente</li>
-                      <li className="flex items-center gap-3 text-white"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> Matriz de Campañas</li>
-                    </ul>
-                  </div>
-                  <button onClick={() => signIn("google", { prompt: "select_account" })} className="w-full text-[#0a0a0c] font-bold py-4 rounded-xl hover:scale-[1.02] transition-transform shadow-lg mt-auto" style={melocotonGradient}>Iniciar prueba de 14 días</button>
-                </div>
-              </TiltWrapper>
-              
-            </div>
-          </section>
-        </FadeInOnScroll>
-
-        <FadeInOnScroll>
-          <section className="max-w-4xl mx-auto px-4 mb-32 relative z-10">
-            <div className="text-center mb-16"><h2 className="text-3xl font-bold text-white">Preguntas Frecuentes</h2></div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-               <div className="bg-white/5 border border-white/10 p-6 rounded-2xl">
-                  <h4 className="text-lg font-bold text-white mb-2">¿Mora hace cambios en mis campañas sin avisar?</h4>
-                  <p className="text-slate-400 text-sm leading-relaxed">No. Mora audita y sugiere. Vos tenés el control total: podés aplicar los cambios con un clic o ignorarlos. Nunca tocaremos tu presupuesto sin permiso.</p>
-               </div>
-               <div className="bg-white/5 border border-white/10 p-6 rounded-2xl">
-                  <h4 className="text-lg font-bold text-white mb-2">¿Necesito ser un experto en Google Ads?</h4>
-                  <p className="text-slate-400 text-sm leading-relaxed">Para nada. Mora traduce métricas complejas a un lenguaje de negocios simple. Te decimos dónde estás perdiendo dinero y cómo solucionarlo.</p>
-               </div>
-               <div className="bg-white/5 border border-white/10 p-6 rounded-2xl">
-                  <h4 className="text-lg font-bold text-white mb-2">¿Qué es exactamente la 'Marca Blanca Total'?</h4>
-                  <p className="text-slate-400 text-sm leading-relaxed">Exclusiva del Plan Agency, te permite exportar auditorías en PDF con el logo, colores y web de tu agencia. Ideal para entregar reportes de nivel corporativo y reforzar la autoridad de tu marca.</p>
-               </div>
-               <div className="bg-white/5 border border-white/10 p-6 rounded-2xl">
-                  <h4 className="text-lg font-bold text-white mb-2">¿Mis datos están seguros?</h4>
-                  <p className="text-slate-400 text-sm leading-relaxed">100%. Solo solicitamos permisos de lectura oficiales de Google. No usamos tus datos ni los de tus clientes para entrenar modelos de IA públicos.</p>
-               </div>
-            </div>
-          </section>
-        </FadeInOnScroll>
-
-        <footer className="border-t border-white/5 py-12 text-center text-slate-500 text-sm relative z-10">
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <div className="w-6 h-6 rounded flex items-center justify-center font-black text-black text-xs" style={melocotonGradient}>M</div>
-            <span className="font-bold text-white">Mora Analytics</span>
-          </div>
-          <p className="mb-4">© {new Date().getFullYear()} Mora. All rights reserved.</p>
-          <div className="flex justify-center gap-6 text-xs">
-            <a href="/privacidad" className="hover:text-white transition-colors">Política de Privacidad</a>
-            <a href="/terminos" className="hover:text-white transition-colors">Términos y Condiciones</a>
-          </div>
-        </footer>
-      </div>
-    );
-  }
-
   return (
     <>
       <style dangerouslySetInnerHTML={{__html: `
@@ -820,715 +755,869 @@ function AuditorDashboard() {
         .animate-fade-custom { animation: fadeInCustom 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
       `}} />
 
-      <div className="flex h-screen w-full font-sans text-slate-200 overflow-hidden print-container relative bg-[#0a0a0c]">
+      <div className="flex h-screen w-full font-sans text-slate-200 overflow-hidden print-container relative bg-[#0a0a0c] selection:bg-[#FEAFAE] selection:text-black">
         
-        <SpaceBackground />
+        {/* --- CAMBIO DE FONDO DINÁMICO --- */}
+        {!session ? (
+          <SpaceBackground />
+        ) : (
+          <DashboardBackground />
+        )}
+        {/* ---------------------------------- */}
 
-        <aside className="w-64 bg-[#0a0a0c]/40 backdrop-blur-2xl border-r border-white/5 flex flex-col justify-between print:hidden z-20 relative shadow-[10px_0_30px_rgba(0,0,0,0.5)]">
-          <div>
-            <div className="h-20 flex items-center px-6 border-b border-white/5 gap-3">
-               <div className="w-8 h-8 rounded-lg flex items-center justify-center font-black text-black text-xl shadow-lg" style={melocotonGradient}>M</div>
-               <span className="text-xl font-black text-white tracking-wide">Mora</span>
-            </div>
-
-            <div className="px-4 mt-6 mb-2">
-              <button onClick={() => { setVista("nueva"); setReporte(null); setMostrarPagos(false); }} className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-[#0a0a0c] shadow-[0_0_15px_rgba(255,164,189,0.3)] hover:scale-[1.02] transition-transform" style={melocotonGradient}>
-                <Plus size={20} strokeWidth={3} /> {t[idioma].nueva}
-              </button>
-            </div>
-
-            <div className="p-4 space-y-2 mt-2">
-              {[ 
-                { icon: BarChart3, text: modoPlan === 'individual' ? "Mi Negocio" : t[idioma].dashboard, view: 'dashboard' }, 
-                { icon: Users, text: modoPlan === 'individual' ? "Mis Auditorías" : t[idioma].clientes, view: 'historial' }
-              ].map((link, idx) => (
-                <button key={idx} onClick={() => { setVista(link.view as any); setReporte(null); setMostrarPagos(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${ (vista === link.view || (vista === 'reporte_lectura' && link.view === 'historial')) ? "bg-white/10 text-white shadow-sm border border-white/5" : "text-slate-400 hover:bg-white/5 hover:text-white" }`}>
-                  <div className={(vista === link.view || (vista === 'reporte_lectura' && link.view === 'historial')) ? "text-[#FFA4BD]" : ""}><link.icon size={20} strokeWidth={(vista === link.view || (vista === 'reporte_lectura' && link.view === 'historial')) ? 2.5 : 2} /></div> 
-                  {link.text}
+        {/* --- VISTA PARA NO LOGUEADOS (LANDING) --- */}
+        {!session ? (
+          <div className="w-full h-full overflow-y-auto overflow-x-hidden relative z-10">
+            <nav className="w-full max-w-7xl mx-auto px-6 py-6 flex justify-between items-center z-50 relative">
+              <div className="flex items-center gap-2">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-black text-2xl shadow-[0_0_15px_rgba(255,164,189,0.5)]" style={melocotonGradient}>M</div>
+                <span className="font-bold text-2xl tracking-wide text-white">Mora</span>
+              </div>
+              <div className="flex items-center gap-6">
+                <button onClick={() => setIdioma(idioma === "es" ? "en" : "es")} className="text-sm font-bold text-slate-400 hover:text-white transition-colors flex items-center gap-2">
+                  <span className="w-4 h-4 flex items-center justify-center border border-slate-400 rounded-full text-[10px]">🌐</span> {idioma === "es" ? "ES" : "EN"}
                 </button>
-              ))}
-            </div>
-          </div>
-          
-          <div className="mx-4 mb-6 p-4 rounded-xl bg-black/40 border border-white/5 relative z-10 backdrop-blur-md">
-             <div className="flex items-center gap-3 mb-2">
-               <div className={`p-2 rounded-lg ${perfil?.plan === 'pro' || modoPlan === 'agencia' ? 'bg-[#FEAFAE]/10 text-[#FEAFAE]' : 'bg-white/5 text-slate-500'}`}>
-                 {perfil?.plan === 'pro' || modoPlan === 'agencia' ? <ShieldCheck size={18} /> : <Lock size={18} />}
-               </div>
-               <div>
-                 <p className={`text-xs font-bold ${perfil?.plan === 'pro' || modoPlan === 'agencia' ? 'text-white' : 'text-slate-400'}`}>Soporte VIP</p>
-                 <p className="text-[10px] text-slate-400">{perfil?.plan === 'pro' || modoPlan === 'agencia' ? 'Línea directa (1h)' : 'Exclusivo Plan Pro'}</p>
-               </div>
-             </div>
-             
-             {perfil?.plan === 'pro' || modoPlan === 'agencia' ? (
-               <button onClick={() => window.location.href = "mailto:soporte@tuagencia.com?subject=Soporte%20VIP%20Mora"} className="w-full mt-2 py-1.5 text-xs font-bold text-[#0a0a0c] rounded-lg hover:opacity-90 transition-opacity" style={melocotonGradient}>
-                 Contactar Soporte
-               </button>
-             ) : (
-               <button onClick={() => setVista("facturacion")} className="w-full mt-2 py-1.5 text-xs font-bold text-slate-300 bg-white/5 hover:bg-white/10 rounded-lg transition-colors border border-white/10">
-                 Desbloquear
-               </button>
-             )}
-          </div>
-        </aside>
-
-        <main className="flex-1 flex flex-col relative overflow-y-auto z-10 print:overflow-visible print:h-auto print:static">
-          
-          <header className="h-20 flex justify-between items-center px-8 print:hidden border-b border-white/5 bg-[#0a0a0c]/20 backdrop-blur-md sticky top-0 z-30">
-            <h2 className="text-2xl font-bold text-white tracking-tight min-w-[200px]">
-              {vista === 'dashboard' && (modoPlan === 'agencia' ? t[idioma].dashboard : 'Resumen')}
-              {vista === 'nueva' && t[idioma].nueva}
-              {vista === 'historial' && (modoPlan === 'agencia' ? t[idioma].clientes : 'Historial')}
-              {vista === 'reporte_lectura' && t[idioma].detalleCliente}
-              {vista === 'perfil' && t[idioma].configuracion}
-              {vista === 'feedback' && t[idioma].buzonSug}
-              {vista === 'facturacion' && t[idioma].facturacionTitulo}
-            </h2>
-
-            <div className="hidden md:flex items-center justify-center flex-1 max-w-md mx-8">
-               <div className="relative w-full group">
-                  <Search size={14} className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-500 group-focus-within:text-[#FEAFAE] transition-colors" />
-                  <input type="text" placeholder={modoPlan === 'agencia' ? t[idioma].buscarGlobal : "Buscar en historial..."} value={busqueda} onChange={(e) => {setBusqueda(e.target.value); if (vista !== "historial" && e.target.value !== "") setVista("historial"); }} className="w-full bg-black/40 border border-white/10 rounded-full pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#FEAFAE]/50 focus:bg-black/60 transition-all placeholder:text-slate-500 shadow-inner" />
-               </div>
-            </div>
-            
-            <div className="relative min-w-[200px] flex justify-end items-center gap-4">
-               
-               {/* DEV TOGGLE PARA PROBAR PLANES */}
-               <div className="hidden lg:flex items-center bg-black/40 border border-white/10 rounded-full p-1 mr-2" title="Toggle de desarrollo">
-                 <button onClick={() => setModoPlan('individual')} className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-colors ${modoPlan === 'individual' ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-300'}`}>Individual</button>
-                 <button onClick={() => setModoPlan('agencia')} className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-colors ${modoPlan === 'agencia' ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-300'}`}>Agencia</button>
-               </div>
-
-               <div className="relative">
-                 <button onClick={() => {setMenuNotificaciones(!menuNotificaciones); setMenuPerfil(false)}} className="p-2 hover:bg-white/5 rounded-full transition-colors relative">
-                   <Bell size={20} className="text-slate-400 hover:text-white" />
-                   {modoPlan === 'agencia' && <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-[#0a0a0c]"></span>}
-                 </button>
-
-                 {menuNotificaciones && (
-                   <>
-                     <div className="fixed inset-0 z-40 cursor-default" onClick={() => setMenuNotificaciones(false)}></div>
-                     <div className="absolute right-0 top-full mt-2 w-80 bg-[#0f0f13]/95 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-2xl py-2 z-50 animate-fade-custom">
-                        <div className="px-4 py-3 border-b border-white/5 flex justify-between items-center">
-                           <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">{t[idioma].notifTit}</p>
-                           <span className="px-2 py-0.5 bg-[#FEAFAE]/10 text-[#FEAFAE] text-[10px] font-bold rounded">Beta</span>
-                        </div>
-                        <div className="p-2 max-h-64 overflow-y-auto">
-                           {modoPlan === 'agencia' ? (
-                             <>
-                               <div className="p-3 hover:bg-white/5 rounded-xl transition-colors cursor-pointer border-l-2 border-red-500 bg-red-500/5 mb-1">
-                                 <p className="text-sm font-bold text-white mb-1">CPA Disparado (+45%)</p>
-                                 <p className="text-xs text-slate-400 leading-relaxed">Cliente: <b>Inmobiliaria VIP</b>. Detectamos un pico de gasto en la campaña 'Search'.</p>
-                                 <p className="text-[10px] text-slate-500 mt-2 flex items-center gap-1"><Clock size={10}/> Hace 2 horas</p>
-                               </div>
-                               <div className="p-3 hover:bg-white/5 rounded-xl transition-colors cursor-pointer border-l-2 border-yellow-500 mb-1">
-                                 <p className="text-sm font-bold text-white mb-1">Anuncio Rechazado</p>
-                                 <p className="text-xs text-slate-400 leading-relaxed">Cliente: <b>Teche</b>. Google rechazó 2 anuncios por 'Políticas de marca'.</p>
-                                 <p className="text-[10px] text-slate-500 mt-2 flex items-center gap-1"><Clock size={10}/> Ayer</p>
-                               </div>
-                             </>
-                           ) : (
-                             <div className="p-4 text-center text-sm text-slate-500">Todo en orden con tu cuenta. No hay alertas.</div>
-                           )}
-                        </div>
-                     </div>
-                   </>
-                 )}
-               </div>
-
-               <button onClick={() => {setMenuPerfil(!menuPerfil); setMenuNotificaciones(false)}} className="flex items-center gap-3 hover:bg-white/5 p-2 rounded-xl transition-colors border border-transparent hover:border-white/10">
-                  <div className="text-right hidden lg:block">
-                    <p className="text-sm font-bold text-white leading-tight">{session.user?.name}</p>
-                    <div className="flex items-center justify-end gap-1.5 mt-0.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-green-400 shadow-[0_0_5px_#4ade80]"></span>
-                      <p className="text-xs text-slate-400 font-medium">{modoPlan === 'agencia' ? 'Agency' : 'Individual'}</p>
-                    </div>
-                  </div>
-                  <img src={session.user?.image || ""} alt="Perfil" className="w-10 h-10 rounded-full border-2 border-[#FEAFAE] shadow-sm" />
-                  <ChevronDown size={16} className="text-slate-400" />
-               </button>
-
-               {menuPerfil && (
-                 <>
-                   <div className="fixed inset-0 z-40 cursor-default" onClick={() => setMenuPerfil(false)}></div>
-                   <div className="absolute right-0 top-full mt-2 w-64 bg-[#0f0f13]/95 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-2xl py-2 z-50 animate-fade-custom">
-                      <div className="px-4 py-3 border-b border-white/5">
-                         <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">{t[idioma].suscripcion}</p>
-                         <div className="flex items-center gap-2 mb-1">
-                           <span className="w-2 h-2 rounded-full bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.5)]"></span>
-                           <span className="text-sm font-bold text-white">{t[idioma].activa} ({modoPlan === 'agencia' ? 'Agency' : 'Indiv.'})</span>
-                         </div>
-                      </div>
-                      <div className="py-2">
-                        <button onClick={() => { setVista("perfil"); setMenuPerfil(false); }} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5 hover:text-white transition-colors"><Settings size={16} /> {t[idioma].configuracion}</button>
-                        <button onClick={() => { setVista("facturacion"); setMenuPerfil(false); }} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5 hover:text-white transition-colors"><CreditCard size={16} /> {t[idioma].facturacion}</button>
-                        <button onClick={() => setIdioma(idioma === "es" ? "en" : "es")} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5 hover:text-white transition-colors"><span className="w-4 h-4 flex items-center justify-center border border-slate-400 rounded-full text-[10px]">🌐</span> Idioma: {idioma === "es" ? "ES" : "EN"}</button>
-                      </div>
-                      <div className="border-t border-white/5 mt-1 pt-2">
-                        <button onClick={() => signOut()} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 transition-colors font-medium"><LogOut size={16} /> {t[idioma].salir}</button>
-                      </div>
-                   </div>
-                 </>
-               )}
-            </div>
-          </header>
-
-          <div className="p-8 pb-32 max-w-7xl mx-auto w-full print:p-0 print:pb-0" key={vista}>
-            
-            {vista === "dashboard" && modoPlan === "agencia" && (
-              <div className="animate-fade-custom print:hidden flex flex-col gap-8 relative z-10">
-                <div>
-                  <h2 className="text-3xl font-bold text-white">{t[idioma].panelPrin}</h2>
-                  <p className="text-slate-400 text-sm mt-1">{t[idioma].panelDesc}</p>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                   <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px] hover:bg-white/10 transition-colors shadow-lg">
-                      <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 relative z-10 flex items-center gap-2"><Activity size={16}/> {t[idioma].saludG}</p>
-                      <div className="flex items-end gap-3 relative z-10">
-                        <span className={`text-5xl font-black ${promedioScore >= 80 ? 'text-green-400' : promedioScore >= 50 ? 'text-yellow-400' : 'text-red-400'}`}>
-                          {promedioScore}
-                        </span>
-                        <span className="text-lg text-slate-500 font-bold mb-1">/100</span>
-                      </div>
-                   </div>
-
-                   <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px] hover:bg-white/10 transition-colors shadow-lg">
-                      <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 relative z-10 flex items-center gap-2"><Users size={16}/> {t[idioma].totAud}</p>
-                      <span className="text-5xl font-black text-white relative z-10">{totalAuditorias}</span>
-                   </div>
-
-                   <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px] hover:border-red-500/30 transition-colors shadow-lg">
-                      <div className="absolute -right-4 -top-4 w-24 h-24 bg-red-500/10 rounded-full blur-2xl"></div>
-                      <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 relative z-10 flex items-center gap-2"><AlertTriangle size={16} className="text-red-400"/> {t[idioma].fugasDet}</p>
-                      <div className="flex-1 flex flex-col">
-                        <span className="text-5xl font-black text-white relative z-10 mb-4">{totalFugas}</span>
-                        {cuentasRojas.length > 0 && (
-                          <div className="mt-auto border-t border-white/5 pt-3 relative z-10">
-                            <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">{t[idioma].afectaA}</p>
-                            <div className="space-y-1.5">
-                              {cuentasRojas.slice(0, 2).map((c,i) => (
-                                <button key={i} onClick={() => { setReporte(c.reporte); setNombreCuenta(c.nombre); setVista("reporte_lectura"); }} className="w-full flex justify-between items-center text-xs hover:bg-white/10 p-1.5 -mx-1.5 rounded-lg transition-colors text-left group">
-                                   <span className="text-slate-300 group-hover:text-white truncate pr-2 transition-colors">{c.nombre}</span>
-                                   <span className="text-red-400 font-bold bg-red-500/10 group-hover:bg-red-500/20 px-2 py-0.5 rounded transition-colors">{c.cant}</span>
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                   </div>
-
-                   <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px] hover:border-yellow-500/30 transition-colors shadow-lg">
-                      <div className="absolute -right-4 -top-4 w-24 h-24 bg-yellow-500/10 rounded-full blur-2xl"></div>
-                      <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 relative z-10 flex items-center gap-2"><Zap size={16} className="text-yellow-400"/> {t[idioma].oporMej}</p>
-                      <div className="flex-1 flex flex-col">
-                        <span className="text-5xl font-black text-white relative z-10 mb-4">{totalOportunidades}</span>
-                        {cuentasAmarillas.length > 0 && (
-                          <div className="mt-auto border-t border-white/5 pt-3 relative z-10">
-                            <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">{t[idioma].afectaA}</p>
-                            <div className="space-y-1.5">
-                              {cuentasAmarillas.slice(0, 2).map((c,i) => (
-                                <button key={i} onClick={() => { setReporte(c.reporte); setNombreCuenta(c.nombre); setVista("reporte_lectura"); }} className="w-full flex justify-between items-center text-xs hover:bg-white/10 p-1.5 -mx-1.5 rounded-lg transition-colors text-left group">
-                                   <span className="text-slate-300 group-hover:text-white truncate pr-2 transition-colors">{c.nombre}</span>
-                                   <span className="text-yellow-400 font-bold bg-yellow-500/10 group-hover:bg-yellow-500/20 px-2 py-0.5 rounded transition-colors">{c.cant}</span>
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                   </div>
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div className="lg:col-span-2 bg-white/5 border border-white/10 rounded-[2rem] p-6 backdrop-blur-xl flex flex-col shadow-lg">
-                       <div className="flex justify-between items-center mb-6">
-                         <h3 className="text-lg font-bold text-white">{t[idioma].ultAud}</h3>
-                         <button onClick={() => setVista("historial")} className="text-sm font-bold text-[#FFA4BD] hover:text-white transition-colors">{t[idioma].verTodas}</button>
-                       </div>
-                       {historial.length === 0 ? (
-                         <div className="flex-1 flex items-center justify-center text-slate-500 text-sm font-medium py-10 border border-dashed border-white/10 rounded-xl">{t[idioma].sinCuentas}</div>
-                       ) : (
-                         <div className="flex-1 bg-black/20 rounded-xl border border-white/5 overflow-hidden">
-                           <div className="grid grid-cols-5 gap-4 p-4 border-b border-white/10 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                             <div className="col-span-2 pl-2">{t[idioma].thCliente}</div>
-                             <div className="text-center">{t[idioma].score}</div>
-                             <div className="col-span-2 text-right pr-2">{t[idioma].thAccion}</div>
-                           </div>
-                           <div className="divide-y divide-white/5">
-                             {historial.slice(0, 5).map((item, index) => {
-                               const estado = getEstadoData(item.score);
-                               return (
-                                 <div key={index} className="grid grid-cols-5 gap-4 p-4 items-center hover:bg-white/5 transition-colors">
-                                   <div className="col-span-2 flex items-center gap-3 pl-2">
-                                     <div className={`w-2 h-2 rounded-full ${estado.bg.replace('/10','/50')}`}></div>
-                                     <p className="font-bold text-white text-sm truncate">{item.nombre_cuenta || t[idioma].cuentaSinNombre}</p>
-                                   </div>
-                                   <div className="text-center font-bold text-slate-300 text-sm">{item.score}</div>
-                                   <div className="col-span-2 flex justify-end items-center gap-3 pr-2">
-                                     <button onClick={() => { setReporte(item.reporte_json); setNombreCuenta(item.nombre_cuenta || t[idioma].cuentaSinNombre); setSubVistaReporte("diagnostico"); setVista("reporte_lectura"); }} className="text-xs font-bold bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-lg transition-colors">Ver PDF</button>
-                                     <button onClick={() => borrarAuditoria(item.id)} className="text-slate-500 hover:text-red-400 transition-colors p-1.5 rounded-lg hover:bg-red-500/10" title="Eliminar"><Trash2 size={16} /></button>
-                                   </div>
-                                 </div>
-                               )
-                             })}
-                           </div>
-                         </div>
-                       )}
-                    </div>
-
-                    <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 backdrop-blur-xl shadow-lg">
-                       <h3 className="text-lg font-bold text-white mb-6">{t[idioma].actRec}</h3>
-                       {historial.length === 0 ? (
-                         <div className="text-slate-500 text-sm font-medium text-center py-10">No hay actividad.</div>
-                       ) : (
-                         <ul className="space-y-6">
-                            {historial.slice(0, 4).map((item, i) => (
-                               <li key={i} className="flex gap-4 items-start relative">
-                                  {i !== historial.slice(0,4).length - 1 && <div className="absolute left-[11px] top-8 bottom-[-24px] w-px bg-white/10"></div>}
-                                  <div className="w-6 h-6 rounded-full bg-white/10 border-[3px] border-[#0a0a0c] z-10 flex items-center justify-center flex-shrink-0">
-                                     <div className={`w-2 h-2 rounded-full ${item.score >= 80 ? 'bg-green-400' : item.score >= 50 ? 'bg-yellow-400' : 'bg-red-400'}`}></div>
-                                  </div>
-                                  <div>
-                                     <p className="text-sm text-slate-300 font-medium leading-tight">{t[idioma].generada} <span className="text-white font-bold">{item.nombre_cuenta || t[idioma].cuentaSinNombre}</span></p>
-                                     <p className="text-[11px] text-slate-500 mt-1 flex items-center gap-1 font-bold tracking-wide"><Clock size={10} /> {parseDate(item.created_at)} • Score: {item.score}</p>
-                                  </div>
-                               </li>
-                            ))}
-                         </ul>
-                       )}
-                    </div>
-                </div>
+                <button onClick={() => signIn("google", { prompt: "select_account" })} className="text-[#0a0a0c] px-6 py-2.5 rounded-full font-bold text-sm hover:scale-105 transition-transform shadow-[0_0_15px_rgba(255,164,189,0.4)]" style={melocotonGradient}>
+                  {t[idioma].login}
+                </button>
               </div>
-            )}
+            </nav>
 
-            {/* DASHBOARD PARA PLAN INDIVIDUAL */}
-            {vista === "dashboard" && modoPlan === "individual" && (
-              <div className="animate-fade-custom print:hidden flex flex-col gap-8 relative z-10">
-                <div>
-                  <h2 className="text-3xl font-bold text-white">Resumen de Negocio</h2>
-                  <p className="text-slate-400 text-sm mt-1">El estado de tu cuenta de Google Ads y herramientas para crecer.</p>
+            <FadeInOnScroll>
+              <header className="flex flex-col items-center justify-center text-center px-4 pt-20 pb-20 max-w-4xl mx-auto relative z-10">
+                <div className="border border-white/10 bg-white/5 backdrop-blur-md px-5 py-2 rounded-full text-xs font-bold tracking-widest uppercase mb-8 flex items-center gap-3 shadow-lg">
+                   <span className="w-2.5 h-2.5 rounded-full animate-pulse" style={melocotonGradient}></span>
+                   Auditorías con Inteligencia Artificial
                 </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                   <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px] shadow-lg">
-                      <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 relative z-10 flex items-center gap-2"><Activity size={16}/> Salud de la Cuenta</p>
-                      {ultimaAuditoria ? (
-                        <div className="flex-1 flex flex-col justify-end">
-                           <div className="flex items-end gap-3 mb-2">
-                             <span className={`text-6xl font-black ${ultimaAuditoria.score >= 80 ? 'text-green-400' : ultimaAuditoria.score >= 50 ? 'text-yellow-400' : 'text-red-400'}`}>
-                               {ultimaAuditoria.score}
-                             </span>
-                           </div>
-                           <button onClick={() => { setReporte(ultimaAuditoria.reporte_json); setNombreCuenta(ultimaAuditoria.nombre_cuenta); setVista("reporte_lectura"); }} className="w-full text-xs font-bold bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded-xl transition-colors mt-2 text-left">
-                             Ver reporte completo <ArrowRight size={12} className="inline ml-1"/>
-                           </button>
-                        </div>
-                      ) : (
-                        <div className="flex-1 flex items-center justify-center text-slate-500 text-sm font-medium">No hay datos.</div>
-                      )}
-                   </div>
+                <h1 className="text-5xl md:text-7xl lg:text-[5rem] font-bold mb-8 tracking-tight leading-[1.1] text-white">
+                  Detectá fugas de dinero con <br />
+                  <span style={melocotonText}>precisión quirúrgica.</span>
+                </h1>
+                <p className="text-slate-400 text-lg md:text-xl mb-12 max-w-2xl mx-auto leading-relaxed">
+                  Conectá tu cuenta de Google Ads y dejá que nuestra IA audite tus campañas, traduzca las métricas y genere reportes marca blanca en segundos.
+                </p>
+                <div className="flex flex-col items-center w-full sm:w-auto">
+                  <button onClick={() => signIn("google", { prompt: "select_account" })} className="w-full sm:w-auto text-[#0a0a0c] px-10 py-5 rounded-full font-bold text-lg hover:scale-105 transition-transform shadow-[0_0_40px_rgba(255,164,189,0.3)] flex items-center justify-center gap-2 mb-3" style={melocotonGradient}>
+                    Comenzar prueba gratis <ArrowRight size={20} />
+                  </button>
+                  <p className="text-xs text-slate-500 font-medium">14 días de acceso total. Sin tarjeta de crédito.</p>
+                </div>
+              </header>
+            </FadeInOnScroll>
 
-                   <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px] shadow-lg">
-                      <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 relative z-10 flex items-center gap-2"><AlertTriangle size={16} className="text-red-400"/> Fugas Críticas</p>
-                      {ultimaAuditoria ? (
-                        <div className="flex-1 flex flex-col">
-                          <span className="text-5xl font-black text-white mb-2">{fugasIndividuales}</span>
-                          <p className="text-xs text-slate-400 leading-relaxed">Problemas graves que están consumiendo tu presupuesto ahora mismo.</p>
-                        </div>
-                      ) : (
-                         <div className="flex-1 flex items-center justify-center text-slate-500 text-sm font-medium">No hay datos.</div>
-                      )}
+            <FadeInOnScroll delay={200}>
+              <section className="max-w-6xl mx-auto px-4 mb-32 relative z-10">
+                <div className="text-center mb-16"><h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Optimización en 3 pasos</h2></div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
+                   <div className="hidden md:block absolute top-12 left-[20%] right-[20%] h-0.5 bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
+                   <div className="flex flex-col items-center text-center relative z-10">
+                      <div className="w-24 h-24 rounded-full bg-[#0f0f13] border border-white/10 flex items-center justify-center text-3xl font-black text-white mb-6 shadow-[0_0_30px_rgba(255,164,189,0.1)]">1</div>
+                      <h3 className="text-xl font-bold text-white mb-2">Conectá</h3>
+                      <p className="text-slate-400 text-sm leading-relaxed px-4">Vinculá tu cuenta de Google Ads de forma segura con un solo clic.</p>
                    </div>
+                   <div className="flex flex-col items-center text-center relative z-10">
+                      <div className="w-24 h-24 rounded-full bg-[#0f0f13] border border-[#FEAFAE]/30 flex items-center justify-center text-3xl font-black text-[#FEAFAE] mb-6 shadow-[0_0_30px_rgba(255,164,189,0.2)]">2</div>
+                      <h3 className="text-xl font-bold text-white mb-2">Diagnosticá</h3>
+                      <p className="text-slate-400 text-sm leading-relaxed px-4">La IA analiza cientos de métricas y detecta dónde estás perdiendo presupuesto.</p>
+                   </div>
+                   <div className="flex flex-col items-center text-center relative z-10">
+                      <div className="w-24 h-24 rounded-full bg-[#0f0f13] border border-white/10 flex items-center justify-center text-3xl font-black text-white mb-6 shadow-[0_0_30px_rgba(255,164,189,0.1)]">3</div>
+                      <h3 className="text-xl font-bold text-white mb-2">Ejecutá</h3>
+                      <p className="text-slate-400 text-sm leading-relaxed px-4">Aplicá el plan de acción sugerido o exportá el reporte en PDF para tu cliente.</p>
+                   </div>
+                </div>
+              </section>
+            </FadeInOnScroll>
 
-                   <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col justify-center items-center text-center relative overflow-hidden backdrop-blur-xl min-h-[200px] shadow-lg border-dashed hover:bg-white/10 transition-colors cursor-pointer group" onClick={() => setVista("nueva")}>
-                      <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                         <Zap size={28} className="text-[#FEAFAE]" />
+            <FadeInOnScroll>
+              <section className="max-w-5xl mx-auto px-4 mb-32 relative z-10">
+                <div className="text-center mb-16"><h2 className="text-3xl md:text-5xl font-bold text-white mb-4">Elegí tu camino</h2><p className="text-slate-400">Comenzá con 14 días gratis en cualquier plan.</p></div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+                  
+                  <TiltWrapper>
+                    <div className="bg-white/5 border border-white/10 p-10 rounded-[2rem] flex flex-col justify-between hover:border-white/20 transition-colors h-full">
+                      <div>
+                        <h3 className="text-2xl font-bold text-white mb-2">Plan Individual</h3>
+                        <p className="text-slate-400 mb-8 text-sm">Para emprendedores que gestionan sus propios anuncios.</p>
+                        <div className="text-5xl font-black text-white mb-8">$19<span className="text-lg text-slate-500 font-medium">/mes</span></div>
+                        <ul className="space-y-4 mb-10 text-sm">
+                          <li className="flex items-center gap-3 text-slate-300"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> 1 Cuenta publicitaria</li>
+                          <li className="flex items-center gap-3 text-slate-300"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> Traductor de Métricas IA</li>
+                          <li className="flex items-center gap-3 text-slate-300"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> Generador de Anuncios</li>
+                          <li className="flex items-center gap-3 text-slate-300"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> Checklist de Optimización</li>
+                        </ul>
                       </div>
-                      <h3 className="font-bold text-white text-lg">Ejecutar Nueva Auditoría</h3>
-                      <p className="text-xs text-slate-400 mt-2 px-4">Actualizá los datos de tu cuenta para ver el score de hoy.</p>
+                      <button onClick={() => signIn("google", { prompt: "select_account" })} className="w-full bg-white/10 hover:bg-white/20 text-white font-bold py-4 rounded-xl transition-colors border border-white/10 mt-auto">Iniciar prueba de 14 días</button>
+                    </div>
+                  </TiltWrapper>
+                  
+                  <TiltWrapper>
+                    <div className="bg-[#0f0f13] border border-[#FEAFAE]/30 p-10 rounded-[2rem] relative shadow-[0_0_30px_rgba(255,164,189,0.1)] flex flex-col justify-between overflow-hidden hover:shadow-[0_0_50px_rgba(255,164,189,0.2)] transition-shadow h-full">
+                      <div className="absolute top-0 left-0 w-full h-1" style={melocotonGradient}></div>
+                      <div>
+                        <h3 className="text-2xl font-bold text-white mb-2 flex justify-between items-center">Plan Agency <span className="text-[10px] font-black px-3 py-1 bg-[#FEAFAE]/20 text-[#FEAFAE] rounded-full uppercase tracking-wider">Escala</span></h3>
+                        <p className="text-slate-400 mb-8 text-sm">El centro de comando para agencias de marketing.</p>
+                        <div className="text-5xl font-black text-white mb-8">$49<span className="text-lg text-slate-500 font-medium">/mes</span></div>
+                        <ul className="space-y-4 mb-10 text-sm">
+                          <li className="flex items-center gap-3 text-white"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> Cuentas ilimitadas</li>
+                          <li className="flex items-center gap-3 text-white"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> Marca Blanca Total (PDFs con logo)</li>
+                          <li className="flex items-center gap-3 text-white"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> Dashboard Global Multi-cliente</li>
+                          <li className="flex items-center gap-3 text-white"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> Matriz de Campañas</li>
+                        </ul>
+                      </div>
+                      <button onClick={() => signIn("google", { prompt: "select_account" })} className="w-full text-[#0a0a0c] font-bold py-4 rounded-xl hover:scale-[1.02] transition-transform shadow-lg mt-auto" style={melocotonGradient}>Iniciar prueba de 14 días</button>
+                    </div>
+                  </TiltWrapper>
+                  
+                </div>
+              </section>
+            </FadeInOnScroll>
+
+            <FadeInOnScroll>
+              <section className="max-w-4xl mx-auto px-4 mb-32 relative z-10">
+                <div className="text-center mb-16"><h2 className="text-3xl font-bold text-white">Preguntas Frecuentes</h2></div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                   <div className="bg-white/5 border border-white/10 p-6 rounded-2xl">
+                      <h4 className="text-lg font-bold text-white mb-2">¿Mora hace cambios en mis campañas sin avisar?</h4>
+                      <p className="text-slate-400 text-sm leading-relaxed">No. Mora audita y sugiere. Vos tenés el control total: podés aplicar los cambios con un clic o ignorarlos. Nunca tocaremos tu presupuesto sin permiso.</p>
+                   </div>
+                   <div className="bg-white/5 border border-white/10 p-6 rounded-2xl">
+                      <h4 className="text-lg font-bold text-white mb-2">¿Necesito ser un experto en Google Ads?</h4>
+                      <p className="text-slate-400 text-sm leading-relaxed">Para nada. Mora traduce métricas complejas a un lenguaje de negocios simple. Te decimos dónde estás perdiendo dinero y cómo solucionarlo.</p>
+                   </div>
+                   <div className="bg-white/5 border border-white/10 p-6 rounded-2xl">
+                      <h4 className="text-lg font-bold text-white mb-2">¿Qué es exactamente la 'Marca Blanca Total'?</h4>
+                      <p className="text-slate-400 text-sm leading-relaxed">Exclusiva del Plan Agency, te permite exportar auditorías en PDF con el logo, colores y web de tu agencia. Ideal para entregar reportes de nivel corporativo y reforzar la autoridad de tu marca.</p>
+                   </div>
+                   <div className="bg-white/5 border border-white/10 p-6 rounded-2xl">
+                      <h4 className="text-lg font-bold text-white mb-2">¿Mis datos están seguros?</h4>
+                      <p className="text-slate-400 text-sm leading-relaxed">100%. Solo solicitamos permisos de lectura oficiales de Google. No usamos tus datos ni los de tus clientes para entrenar modelos de IA públicos.</p>
                    </div>
                 </div>
+              </section>
+            </FadeInOnScroll>
 
-                <div>
-                  <h3 className="text-xl font-bold text-white mb-6 mt-4">Herramientas Exclusivas</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                     <div className="bg-[#0f0f13] border border-white/5 rounded-2xl p-6 opacity-70 grayscale hover:grayscale-0 transition-all cursor-not-allowed">
-                        <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-400 mb-4"><BookOpen size={20}/></div>
-                        <h4 className="font-bold text-white mb-1">Traductor de Métricas IA</h4>
-                        <p className="text-xs text-slate-400 mb-4 leading-relaxed">Leé tu cuenta de Google Ads en lenguaje de negocios simple.</p>
-                        <span className="text-[10px] font-black uppercase tracking-wider px-2 py-1 bg-white/10 rounded-md text-white">Próximamente</span>
-                     </div>
-                     <div className="bg-[#0f0f13] border border-white/5 rounded-2xl p-6 opacity-70 grayscale hover:grayscale-0 transition-all cursor-not-allowed">
-                        <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-400 mb-4"><Type size={20}/></div>
-                        <h4 className="font-bold text-white mb-1">Generador de Anuncios</h4>
-                        <p className="text-xs text-slate-400 mb-4 leading-relaxed">Títulos y descripciones redactados por IA listos para copiar y pegar.</p>
-                        <span className="text-[10px] font-black uppercase tracking-wider px-2 py-1 bg-white/10 rounded-md text-white">Próximamente</span>
-                     </div>
-                     <div className="bg-[#0f0f13] border border-white/5 rounded-2xl p-6 opacity-70 grayscale hover:grayscale-0 transition-all cursor-not-allowed">
-                        <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center text-green-400 mb-4"><Calculator size={20}/></div>
-                        <h4 className="font-bold text-white mb-1">Simulador de Presupuesto</h4>
-                        <p className="text-xs text-slate-400 mb-4 leading-relaxed">Proyectá cuántas ventas tendrías si subís o bajás la inversión.</p>
-                        <span className="text-[10px] font-black uppercase tracking-wider px-2 py-1 bg-white/10 rounded-md text-white">Próximamente</span>
-                     </div>
-                  </div>
-                </div>
+            <footer className="border-t border-white/5 py-12 text-center text-slate-500 text-sm relative z-10">
+              <div className="flex items-center justify-center gap-2 mb-4">
+                <div className="w-6 h-6 rounded flex items-center justify-center font-black text-black text-xs" style={melocotonGradient}>M</div>
+                <span className="font-bold text-white">Mora Analytics</span>
               </div>
-            )}
+              <p className="mb-4">© {new Date().getFullYear()} Mora. All rights reserved.</p>
+              <div className="flex justify-center gap-6 text-xs">
+                <a href="/privacidad" className="hover:text-white transition-colors">Política de Privacidad</a>
+                <a href="/terminos" className="hover:text-white transition-colors">Términos y Condiciones</a>
+              </div>
+            </footer>
+          </div>
+        ) : (
+          /* --- VISTA PARA LOGUEADOS (DASHBOARD) --- */
+          <>
+            <aside className="w-64 bg-[#0a0a0c]/40 backdrop-blur-2xl border-r border-white/5 flex flex-col justify-between print:hidden z-20 relative shadow-[10px_0_30px_rgba(0,0,0,0.5)]">
+              <div>
+                <div className="h-20 flex items-center px-6 border-b border-white/5 gap-3">
+                   <div className="w-8 h-8 rounded-lg flex items-center justify-center font-black text-black text-xl shadow-lg" style={melocotonGradient}>M</div>
+                   <span className="text-xl font-black text-white tracking-wide">Mora</span>
+                </div>
 
-            {/* VISTA: NUEVA AUDITORÍA (CON NUEVOS CAMPOS) */}
-            {vista === "nueva" && (
-              <div className="animate-fade-custom print:hidden relative z-10">
-                <div className="bg-white/5 border border-white/10 backdrop-blur-2xl p-8 md:p-12 rounded-[2rem] shadow-2xl mb-8 max-w-4xl mx-auto">
-                  <div className="flex items-center gap-4 mb-8">
-                    <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-black shadow-lg" style={melocotonGradient}><Zap size={24} /></div>
-                    <div><h1 className="text-3xl font-bold text-white">{t[idioma].nueva}</h1><p className="text-slate-400 mt-1">{t[idioma].ingresaDatos}</p></div>
-                  </div>
-                  
-                  <div className="mb-6"><label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">{t[idioma].placeholderNombre}</label><input type="text" placeholder={t[idioma].placeholderNombre} className="w-full p-4 bg-black/40 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all" value={nombreCuenta} onChange={(e) => setNombreCuenta(e.target.value)} /></div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                    <div><label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">{t[idioma].presupuestoObj}</label><input type="number" placeholder={t[idioma].placeholderPres} className="w-full p-4 bg-black/20 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all" value={presupuestoObjetivo} onChange={(e) => setPresupuestoObjetivo(e.target.value)} /></div>
-                    <div><label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">{t[idioma].gastoAct}</label><input type="number" placeholder={t[idioma].placeholderGasto} className="w-full p-4 bg-black/20 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all" value={gastoActual} onChange={(e) => setGastoActual(e.target.value)} /></div>
-                    
-                    <div><label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">{t[idioma].conversiones}</label><input type="number" placeholder={t[idioma].placeholderConv} className="w-full p-4 bg-black/20 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all" value={conversiones} onChange={(e) => setConversiones(e.target.value)} /></div>
-                    <div><label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">{t[idioma].cparoas}</label><input type="text" placeholder={`Ej: ${metrica} objetivo...`} className="w-full p-4 bg-black/20 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all" value={cpaRoas} onChange={(e) => setCpaRoas(e.target.value)} /></div>
-                  </div>
-
-                  <div className="mb-6">
-                      <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">{t[idioma].tipoCamp}</label>
-                      <div className="relative"><select className="w-full p-4 bg-black/20 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all appearance-none cursor-pointer" value={tipoCampana} onChange={(e) => setTipoCampana(e.target.value)}><option value="Búsqueda (Search)" className="bg-[#0f0f13] text-white">Búsqueda (Search)</option><option value="Performance Max" className="bg-[#0f0f13] text-white">Performance Max</option><option value="Display" className="bg-[#0f0f13] text-white">Display</option><option value="Shopping" className="bg-[#0f0f13] text-white">Shopping</option><option value="Video (YouTube)" className="bg-[#0f0f13] text-white">Video (YouTube)</option><option value="Mix de Campañas" className="bg-[#0f0f13] text-white">Mix de Campañas</option></select><ChevronDown size={18} className="absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400 pointer-events-none" /></div>
-                  </div>
-
-                  <div className="mb-8"><label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">{t[idioma].contexto}</label><textarea className="w-full h-24 p-4 bg-black/20 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all resize-none" placeholder={t[idioma].placeholderContexto} value={notas} onChange={(e) => setNotas(e.target.value)} /></div>
-                  
-                  <button onClick={analizarCampaña} disabled={loading || !nombreCuenta || !presupuestoObjetivo || !gastoActual || !conversiones} className="w-full text-black px-6 py-4 rounded-2xl font-bold text-lg hover:scale-[1.01] disabled:opacity-50 disabled:hover:scale-100 transition-all shadow-lg flex justify-center items-center gap-2" style={melocotonGradient}>
-                    {loading ? <span className="animate-pulse">{t[idioma].btnAnalizando}</span> : <><Sparkles size={20}/> {t[idioma].btnAnalizar}</>}
+                <div className="px-4 mt-6 mb-2">
+                  <button onClick={() => { setVista("nueva"); setReporte(null); setMostrarPagos(false); }} className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-[#0a0a0c] shadow-[0_0_15px_rgba(255,164,189,0.3)] hover:scale-[1.02] transition-transform" style={melocotonGradient}>
+                    <Plus size={20} strokeWidth={3} /> {t[idioma].nueva}
                   </button>
                 </div>
-              </div>
-            )}
 
-            {/* VISTA: LECTURA DE REPORTE (CON PESTAÑAS ENTERPRISE Y CHECKLIST INTERACTIVO) */}
-            {vista === "reporte_lectura" && reporte && (
-              <div className="animate-fade-custom print:bg-white print:m-0 print:p-0 relative z-10">
-                
-                <div className="mb-6 flex justify-between items-center print:hidden">
-                   <button onClick={() => setVista("dashboard")} className="flex items-center gap-2 text-slate-400 hover:text-white font-medium transition-colors"><ArrowLeft size={18} /> {t[idioma].volver}</button>
-                   
-                   <div className="flex bg-black/40 border border-white/10 rounded-xl p-1 gap-1">
-                      <button onClick={() => setSubVistaReporte("diagnostico")} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${subVistaReporte === 'diagnostico' ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-300'}`}><FileText size={16}/> {t[idioma].tabDiag}</button>
-                      <button onClick={() => setSubVistaReporte("checklist")} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${subVistaReporte === 'checklist' ? 'bg-[#FEAFAE]/20 text-[#FEAFAE]' : 'text-slate-500 hover:text-slate-300'}`}><ListChecks size={16}/> {t[idioma].tabCheck}</button>
-                      <button onClick={() => setSubVistaReporte("avanzado")} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${subVistaReporte === 'avanzado' ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-300'}`}><LayoutGrid size={16}/> {t[idioma].tabAvanzado}</button>
+                <div className="p-4 space-y-2 mt-2">
+                  {[ 
+                    { icon: BarChart3, text: modoPlan === 'individual' ? "Mi Negocio" : t[idioma].dashboard, view: 'dashboard' }, 
+                    { icon: Users, text: modoPlan === 'individual' ? "Mis Auditorías" : t[idioma].clientes, view: 'historial' }
+                  ].map((link, idx) => (
+                    <button key={idx} onClick={() => { setVista(link.view as any); setReporte(null); setMostrarPagos(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${ (vista === link.view || (vista === 'reporte_lectura' && link.view === 'historial')) ? "bg-white/10 text-white shadow-sm border border-white/5" : "text-slate-400 hover:bg-white/5 hover:text-white" }`}>
+                      <div className={(vista === link.view || (vista === 'reporte_lectura' && link.view === 'historial')) ? "text-[#FFA4BD]" : ""}><link.icon size={20} strokeWidth={(vista === link.view || (vista === 'reporte_lectura' && link.view === 'historial')) ? 2.5 : 2} /></div> 
+                      {link.text}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              <div className="mx-4 mb-6 p-4 rounded-xl bg-black/40 border border-white/5 relative z-10 backdrop-blur-md">
+                 <div className="flex items-center gap-3 mb-2">
+                   <div className={`p-2 rounded-lg ${perfil?.plan === 'pro' || modoPlan === 'agencia' ? 'bg-[#FEAFAE]/10 text-[#FEAFAE]' : 'bg-white/5 text-slate-500'}`}>
+                     {perfil?.plan === 'pro' || modoPlan === 'agencia' ? <ShieldCheck size={18} /> : <Lock size={18} />}
+                   </div>
+                   <div>
+                     <p className={`text-xs font-bold ${perfil?.plan === 'pro' || modoPlan === 'agencia' ? 'text-white' : 'text-slate-400'}`}>Soporte VIP</p>
+                     <p className="text-[10px] text-slate-400">{perfil?.plan === 'pro' || modoPlan === 'agencia' ? 'Línea directa (1h)' : 'Exclusivo Plan Pro'}</p>
+                   </div>
+                 </div>
+                 
+                 {perfil?.plan === 'pro' || modoPlan === 'agencia' ? (
+                   <button onClick={() => window.location.href = "mailto:soporte@tuagencia.com?subject=Soporte%20VIP%20Mora"} className="w-full mt-2 py-1.5 text-xs font-bold text-[#0a0a0c] rounded-lg hover:opacity-90 transition-opacity" style={melocotonGradient}>
+                     Contactar Soporte
+                   </button>
+                 ) : (
+                   <button onClick={() => setVista("facturacion")} className="w-full mt-2 py-1.5 text-xs font-bold text-slate-300 bg-white/5 hover:bg-white/10 rounded-lg transition-colors border border-white/10">
+                     Desbloquear
+                   </button>
+                 )}
+              </div>
+            </aside>
+
+            <main className="flex-1 flex flex-col relative overflow-y-auto z-10 print:overflow-visible print:h-auto print:static">
+              
+              <header className="h-20 flex justify-between items-center px-8 print:hidden border-b border-white/5 bg-[#0a0a0c]/20 backdrop-blur-md sticky top-0 z-30">
+                <h2 className="text-2xl font-bold text-white tracking-tight min-w-[200px]">
+                  {vista === 'dashboard' && (modoPlan === 'agencia' ? t[idioma].dashboard : 'Resumen')}
+                  {vista === 'nueva' && t[idioma].nueva}
+                  {vista === 'historial' && (modoPlan === 'agencia' ? t[idioma].clientes : 'Historial')}
+                  {vista === 'reporte_lectura' && t[idioma].detalleCliente}
+                  {vista === 'perfil' && t[idioma].configuracion}
+                  {vista === 'feedback' && t[idioma].buzonSug}
+                  {vista === 'facturacion' && t[idioma].facturacionTitulo}
+                </h2>
+
+                <div className="hidden md:flex items-center justify-center flex-1 max-w-md mx-8">
+                   <div className="relative w-full group">
+                      <Search size={14} className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-500 group-focus-within:text-[#FEAFAE] transition-colors" />
+                      <input type="text" placeholder={modoPlan === 'agencia' ? t[idioma].buscarGlobal : "Buscar en historial..."} value={busqueda} onChange={(e) => {setBusqueda(e.target.value); if (vista !== "historial" && e.target.value !== "") setVista("historial"); }} className="w-full bg-black/40 border border-white/10 rounded-full pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#FEAFAE]/50 focus:bg-black/60 transition-all placeholder:text-slate-500 shadow-inner" />
                    </div>
                 </div>
+                
+                <div className="relative min-w-[200px] flex justify-end items-center gap-4">
+                   
+                   {/* DEV TOGGLE PARA PROBAR PLANES */}
+                   <div className="hidden lg:flex items-center bg-black/40 border border-white/10 rounded-full p-1 mr-2" title="Toggle de desarrollo">
+                     <button onClick={() => setModoPlan('individual')} className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-colors ${modoPlan === 'individual' ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-300'}`}>Individual</button>
+                     <button onClick={() => setModoPlan('agencia')} className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-colors ${modoPlan === 'agencia' ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-300'}`}>Agencia</button>
+                   </div>
 
-                <div className="bg-white/5 border border-white/10 backdrop-blur-2xl p-10 rounded-[2rem] shadow-2xl print:bg-white print:text-black print:border-none print:shadow-none print:p-0">
-                  
-                  <div className="hidden print:flex justify-between items-center mb-10 border-b-2 border-slate-200 pb-6">
-                    {/* EN MODO INDIVIDUAL, NO MOSTRAMOS LOGO MARCA BLANCA EN EL PDF PARA DIFERENCIAR LOS PLANES */}
-                    <div>{modoPlan === 'agencia' && perfil?.agencia_logo ? <img src={perfil.agencia_logo} alt="Logo Agencia" className="h-16 object-contain" /> : <div className="flex items-center gap-2"><span className="text-3xl">🐾</span><span className="text-3xl font-black text-slate-800">Mora</span></div>}</div>
-                    <div className="text-right">
-                      <h2 className="text-2xl font-black text-slate-800 tracking-tight">{modoPlan === 'agencia' && perfil?.agencia_nombre ? perfil.agencia_nombre : "Auditoría Estratégica"}</h2>
-                      {modoPlan === 'agencia' && agenciaWeb && <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-widest">{agenciaWeb}</p>}
-                      <p className="text-sm font-medium text-slate-500 mt-1">{new Date().toLocaleDateString()}</p>
-                    </div>
-                  </div>
+                   <div className="relative">
+                     <button onClick={() => {setMenuNotificaciones(!menuNotificaciones); setMenuPerfil(false)}} className="p-2 hover:bg-white/5 rounded-full transition-colors relative">
+                       <Bell size={20} className="text-slate-400 hover:text-white" />
+                       {modoPlan === 'agencia' && <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-[#0a0a0c]"></span>}
+                     </button>
 
-                  <div className="flex justify-between items-center mb-10 print:mb-12">
-                    <div>
-                      <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-3 print:text-slate-500 print:text-xs">{nombreCuenta || t[idioma].cuentaSinNombre}</h2>
-                      <div className="flex items-center gap-5">
-                        <div className="w-20 h-20 rounded-full flex items-center justify-center border-[6px] border-black/20 text-3xl font-black text-[#0a0a0c] shadow-lg print:border-slate-100 print:text-slate-800" style={melocotonGradient}>{reporte.score_general}</div>
-                        <div><h3 className="text-4xl font-black text-white print:text-slate-900">{t[idioma].score}</h3><p className="text-slate-400 text-sm mt-1 print:text-slate-500">{t[idioma].puntajeBasado}</p></div>
+                     {menuNotificaciones && (
+                       <>
+                         <div className="fixed inset-0 z-40 cursor-default" onClick={() => setMenuNotificaciones(false)}></div>
+                         <div className="absolute right-0 top-full mt-2 w-80 bg-[#0f0f13]/95 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-2xl py-2 z-50 animate-fade-custom">
+                            <div className="px-4 py-3 border-b border-white/5 flex justify-between items-center">
+                               <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">{t[idioma].notifTit}</p>
+                               <span className="px-2 py-0.5 bg-[#FEAFAE]/10 text-[#FEAFAE] text-[10px] font-bold rounded">Beta</span>
+                            </div>
+                            <div className="p-2 max-h-64 overflow-y-auto">
+                               {modoPlan === 'agencia' ? (
+                                 <>
+                                   <div className="p-3 hover:bg-white/5 rounded-xl transition-colors cursor-pointer border-l-2 border-red-500 bg-red-500/5 mb-1">
+                                     <p className="text-sm font-bold text-white mb-1">CPA Disparado (+45%)</p>
+                                     <p className="text-xs text-slate-400 leading-relaxed">Cliente: <b>Inmobiliaria VIP</b>. Detectamos un pico de gasto en la campaña 'Search'.</p>
+                                     <p className="text-[10px] text-slate-500 mt-2 flex items-center gap-1"><Clock size={10}/> Hace 2 horas</p>
+                                   </div>
+                                   <div className="p-3 hover:bg-white/5 rounded-xl transition-colors cursor-pointer border-l-2 border-yellow-500 mb-1">
+                                     <p className="text-sm font-bold text-white mb-1">Anuncio Rechazado</p>
+                                     <p className="text-xs text-slate-400 leading-relaxed">Cliente: <b>Teche</b>. Google rechazó 2 anuncios por 'Políticas de marca'.</p>
+                                     <p className="text-[10px] text-slate-500 mt-2 flex items-center gap-1"><Clock size={10}/> Ayer</p>
+                                   </div>
+                                 </>
+                               ) : (
+                                 <div className="p-4 text-center text-sm text-slate-500">Todo en orden con tu cuenta. No hay alertas.</div>
+                               )}
+                            </div>
+                         </div>
+                       </>
+                     )}
+                   </div>
+
+                   <button onClick={() => {setMenuPerfil(!menuPerfil); setMenuNotificaciones(false)}} className="flex items-center gap-3 hover:bg-white/5 p-2 rounded-xl transition-colors border border-transparent hover:border-white/10">
+                      <div className="text-right hidden lg:block">
+                        <p className="text-sm font-bold text-white leading-tight">{session.user?.name}</p>
+                        <div className="flex items-center justify-end gap-1.5 mt-0.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-green-400 shadow-[0_0_5px_#4ade80]"></span>
+                          <p className="text-xs text-slate-400 font-medium">{modoPlan === 'agencia' ? 'Agency' : 'Individual'}</p>
+                        </div>
                       </div>
-                    </div>
-                    {/* BOTON DE DESCARGAR PDF SOLO PARA AGENCIA (COMO INCENTIVO) O SI QUERES DEJALO PARA LOS DOS */}
-                    {subVistaReporte === "diagnostico" && modoPlan === 'agencia' && <button onClick={descargarPDF} className="bg-white/5 border border-white/10 hover:bg-white/10 text-white px-6 py-3 rounded-xl font-bold transition-all print:hidden shadow-sm">{t[idioma].exportar}</button>}
-                  </div>
-                  
-                  {subVistaReporte === "diagnostico" && (
-                    <div className="space-y-6 animate-fade-custom">
-                      {reporte.hallazgos?.graves_rojo?.length > 0 && (
-                        <div className="border-l-4 pl-6 bg-red-500/5 p-6 rounded-2xl border border-red-500/10 print:bg-red-50 print:border-red-100 print:shadow-sm" style={{ borderLeftColor: '#ef4444' }}>
-                          <h3 className="text-xl font-bold text-red-400 mb-4 flex items-center gap-2 print:text-red-700"><AlertTriangle size={24}/> {t[idioma].problemas}</h3>
-                          {reporte.hallazgos.graves_rojo.map((item: any, i: number) => (<p key={i} className="mb-4 text-slate-300 leading-relaxed print:text-slate-700 print:break-inside-avoid"><b className="text-white print:text-slate-900 text-lg">{item.titulo}:</b> <br/>{item.descripcion}</p>))}
-                        </div>
-                      )}
-                      {reporte.hallazgos?.debiles_amarillo?.length > 0 && (
-                        <div className="border-l-4 pl-6 bg-yellow-500/5 p-6 rounded-2xl border border-yellow-500/10 print:bg-amber-50 print:border-amber-100 print:shadow-sm" style={{ borderLeftColor: '#eab308' }}>
-                          <h3 className="text-xl font-bold text-yellow-400 mb-4 flex items-center gap-2 print:text-amber-700"><Zap size={24}/> {t[idioma].mejoras}</h3>
-                          {reporte.hallazgos.debiles_amarillo.map((item: any, i: number) => (<p key={i} className="mb-4 text-slate-300 leading-relaxed print:text-slate-700 print:break-inside-avoid"><b className="text-white print:text-slate-900 text-lg">{item.titulo}:</b> <br/>{item.descripcion}</p>))}
-                        </div>
-                      )}
-                      {reporte.hallazgos?.bien_verde?.length > 0 && (
-                        <div className="border-l-4 pl-6 bg-green-500/5 p-6 rounded-2xl border border-green-500/10 print:bg-emerald-50 print:border-emerald-100 print:shadow-sm" style={{ borderLeftColor: '#22c55e' }}>
-                          <h3 className="text-xl font-bold text-green-400 mb-4 flex items-center gap-2 print:text-emerald-700"><CheckCircle2 size={24}/> {t[idioma].aciertos}</h3>
-                          {reporte.hallazgos.bien_verde.map((item: any, i: number) => (<p key={i} className="mb-4 text-slate-300 leading-relaxed print:text-slate-700 print:break-inside-avoid"><b className="text-white print:text-slate-900 text-lg">{item.titulo}:</b> <br/>{item.descripcion}</p>))}
-                        </div>
-                      )}
-                    </div>
-                  )}
+                      <img src={session.user?.image || ""} alt="Perfil" className="w-10 h-10 rounded-full border-2 border-[#FEAFAE] shadow-sm" />
+                      <ChevronDown size={16} className="text-slate-400" />
+                   </button>
 
-                  {subVistaReporte === "checklist" && (
-                     <div className="animate-fade-custom bg-[#0f0f13]/60 backdrop-blur-md border border-white/5 rounded-2xl p-8 shadow-inner">
-                        <div className="flex items-center justify-between mb-8 pb-4 border-b border-white/5">
-                           <div>
-                             <h3 className="text-xl font-bold text-white flex items-center gap-2"><ListChecks size={24} className="text-[#FEAFAE]" /> Optimización de 20 Minutos</h3>
-                             <p className="text-slate-400 text-sm mt-1">Completá estas tareas en Google Ads para mejorar tu Score.</p>
-                           </div>
-                           <div className="text-right">
-                             <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Progreso</p>
-                             <p className="text-lg font-bold text-[#FEAFAE]">{tareasCompletadas.length} / {reporte.checklist?.length || 0}</p>
-                           </div>
-                        </div>
+                   {menuPerfil && (
+                     <>
+                       <div className="fixed inset-0 z-40 cursor-default" onClick={() => setMenuPerfil(false)}></div>
+                       <div className="absolute right-0 top-full mt-2 w-64 bg-[#0f0f13]/95 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-2xl py-2 z-50 animate-fade-custom">
+                          <div className="px-4 py-3 border-b border-white/5">
+                             <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">{t[idioma].suscripcion}</p>
+                             <div className="flex items-center gap-2 mb-1">
+                               <span className="w-2 h-2 rounded-full bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.5)]"></span>
+                               <span className="text-sm font-bold text-white">{t[idioma].activa} ({modoPlan === 'agencia' ? 'Agency' : 'Indiv.'})</span>
+                             </div>
+                          </div>
+                          <div className="py-2">
+                            <button onClick={() => { setVista("perfil"); setMenuPerfil(false); }} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5 hover:text-white transition-colors"><Settings size={16} /> {t[idioma].configuracion}</button>
+                            <button onClick={() => { setVista("facturacion"); setMenuPerfil(false); }} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5 hover:text-white transition-colors"><CreditCard size={16} /> {t[idioma].facturacion}</button>
+                            <button onClick={() => setIdioma(idioma === "es" ? "en" : "es")} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5 hover:text-white transition-colors"><span className="w-4 h-4 flex items-center justify-center border border-slate-400 rounded-full text-[10px]">🌐</span> Idioma: {idioma === "es" ? "ES" : "EN"}</button>
+                          </div>
+                          <div className="border-t border-white/5 mt-1 pt-2">
+                            <button onClick={() => signOut()} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 transition-colors font-medium"><LogOut size={16} /> {t[idioma].salir}</button>
+                          </div>
+                       </div>
+                     </>
+                   )}
+                </div>
+              </header>
 
-                        {reporte.checklist ? (
-                          <div className="space-y-3">
-                            {reporte.checklist.map((item: any, i: number) => {
-                              const esCompletada = tareasCompletadas.includes(i);
-                              return (
-                                <div key={i} className={`flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-xl border transition-all duration-300 ${esCompletada ? "bg-green-500/5 border-green-500/20 opacity-60" : "bg-white/5 border-white/10 hover:border-[#FEAFAE]/30"}`}>
-                                   <div className="flex items-start gap-4">
-                                     <button onClick={() => toggleTarea(i)} className={`mt-1 w-6 h-6 rounded-md border flex items-center justify-center transition-colors ${esCompletada ? "bg-green-500 border-green-500 text-black" : "border-slate-600 hover:border-[#FEAFAE]"}`}>
-                                        {esCompletada && <CheckSquare size={16} strokeWidth={3} />}
-                                     </button>
-                                     <div>
-                                       <p className={`font-bold text-white transition-all ${esCompletada ? "line-through text-slate-500" : "text-lg"}`}>{item.tarea}</p>
-                                       <div className="flex gap-2 mt-1">
-                                         <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded ${item.color === 'rojo' ? 'bg-red-500/10 text-red-400' : 'bg-yellow-500/10 text-yellow-400'}`}>Prioridad: {item.impacto}</span>
+              <div className="p-8 pb-32 max-w-7xl mx-auto w-full print:p-0 print:pb-0" key={vista}>
+                
+                {vista === "dashboard" && modoPlan === "agencia" && (
+                  <div className="animate-fade-custom print:hidden flex flex-col gap-8 relative z-10">
+                    <div>
+                      <h2 className="text-3xl font-bold text-white">{t[idioma].panelPrin}</h2>
+                      <p className="text-slate-400 text-sm mt-1">{t[idioma].panelDesc}</p>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                       <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px] hover:bg-white/10 transition-colors shadow-lg">
+                          <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 relative z-10 flex items-center gap-2"><Activity size={16}/> {t[idioma].saludG}</p>
+                          <div className="flex items-end gap-3 relative z-10">
+                            <span className={`text-5xl font-black ${promedioScore >= 80 ? 'text-green-400' : promedioScore >= 50 ? 'text-yellow-400' : 'text-red-400'}`}>
+                              {promedioScore}
+                            </span>
+                            <span className="text-lg text-slate-500 font-bold mb-1">/100</span>
+                          </div>
+                       </div>
+
+                       <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px] hover:bg-white/10 transition-colors shadow-lg">
+                          <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 relative z-10 flex items-center gap-2"><Users size={16}/> {t[idioma].totAud}</p>
+                          <span className="text-5xl font-black text-white relative z-10">{totalAuditorias}</span>
+                       </div>
+
+                       <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px] hover:border-red-500/30 transition-colors shadow-lg">
+                          <div className="absolute -right-4 -top-4 w-24 h-24 bg-red-500/10 rounded-full blur-2xl"></div>
+                          <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 relative z-10 flex items-center gap-2"><AlertTriangle size={16} className="text-red-400"/> {t[idioma].fugasDet}</p>
+                          <div className="flex-1 flex flex-col">
+                            <span className="text-5xl font-black text-white relative z-10 mb-4">{totalFugas}</span>
+                            {cuentasRojas.length > 0 && (
+                              <div className="mt-auto border-t border-white/5 pt-3 relative z-10">
+                                <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">{t[idioma].afectaA}</p>
+                                <div className="space-y-1.5">
+                                  {cuentasRojas.slice(0, 2).map((c,i) => (
+                                    <button key={i} onClick={() => { setReporte(c.reporte); setNombreCuenta(c.nombre); setVista("reporte_lectura"); }} className="w-full flex justify-between items-center text-xs hover:bg-white/10 p-1.5 -mx-1.5 rounded-lg transition-colors text-left group">
+                                       <span className="text-slate-300 group-hover:text-white truncate pr-2 transition-colors">{c.nombre}</span>
+                                       <span className="text-red-400 font-bold bg-red-500/10 group-hover:bg-red-500/20 px-2 py-0.5 rounded transition-colors">{c.cant}</span>
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                       </div>
+
+                       <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px] hover:border-yellow-500/30 transition-colors shadow-lg">
+                          <div className="absolute -right-4 -top-4 w-24 h-24 bg-yellow-500/10 rounded-full blur-2xl"></div>
+                          <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 relative z-10 flex items-center gap-2"><Zap size={16} className="text-yellow-400"/> {t[idioma].oporMej}</p>
+                          <div className="flex-1 flex flex-col">
+                            <span className="text-5xl font-black text-white relative z-10 mb-4">{totalOportunidades}</span>
+                            {cuentasAmarillas.length > 0 && (
+                              <div className="mt-auto border-t border-white/5 pt-3 relative z-10">
+                                <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">{t[idioma].afectaA}</p>
+                                <div className="space-y-1.5">
+                                  {cuentasAmarillas.slice(0, 2).map((c,i) => (
+                                    <button key={i} onClick={() => { setReporte(c.reporte); setNombreCuenta(c.nombre); setVista("reporte_lectura"); }} className="w-full flex justify-between items-center text-xs hover:bg-white/10 p-1.5 -mx-1.5 rounded-lg transition-colors text-left group">
+                                       <span className="text-slate-300 group-hover:text-white truncate pr-2 transition-colors">{c.nombre}</span>
+                                       <span className="text-yellow-400 font-bold bg-yellow-500/10 group-hover:bg-yellow-500/20 px-2 py-0.5 rounded transition-colors">{c.cant}</span>
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                       </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div className="lg:col-span-2 bg-white/5 border border-white/10 rounded-[2rem] p-6 backdrop-blur-xl flex flex-col shadow-lg">
+                           <div className="flex justify-between items-center mb-6">
+                             <h3 className="text-lg font-bold text-white">{t[idioma].ultAud}</h3>
+                             <button onClick={() => setVista("historial")} className="text-sm font-bold text-[#FFA4BD] hover:text-white transition-colors">{t[idioma].verTodas}</button>
+                           </div>
+                           {historial.length === 0 ? (
+                             <div className="flex-1 flex items-center justify-center text-slate-500 text-sm font-medium py-10 border border-dashed border-white/10 rounded-xl">{t[idioma].sinCuentas}</div>
+                           ) : (
+                             <div className="flex-1 bg-black/20 rounded-xl border border-white/5 overflow-hidden">
+                               <div className="grid grid-cols-5 gap-4 p-4 border-b border-white/10 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                                 <div className="col-span-2 pl-2">{t[idioma].thCliente}</div>
+                                 <div className="text-center">{t[idioma].score}</div>
+                                 <div className="col-span-2 text-right pr-2">{t[idioma].thAccion}</div>
+                               </div>
+                               <div className="divide-y divide-white/5">
+                                 {historial.slice(0, 5).map((item, index) => {
+                                   const estado = getEstadoData(item.score);
+                                   return (
+                                     <div key={index} className="grid grid-cols-5 gap-4 p-4 items-center hover:bg-white/5 transition-colors">
+                                       <div className="col-span-2 flex items-center gap-3 pl-2">
+                                         <div className={`w-2 h-2 rounded-full ${estado.bg.replace('/10','/50')}`}></div>
+                                         <p className="font-bold text-white text-sm truncate">{item.nombre_cuenta || t[idioma].cuentaSinNombre}</p>
+                                       </div>
+                                       <div className="text-center font-bold text-slate-300 text-sm">{item.score}</div>
+                                       <div className="col-span-2 flex justify-end items-center gap-3 pr-2">
+                                         <button onClick={() => { setReporte(item.reporte_json); setNombreCuenta(item.nombre_cuenta || t[idioma].cuentaSinNombre); setSubVistaReporte("diagnostico"); setVista("reporte_lectura"); }} className="text-xs font-bold bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-lg transition-colors">Ver PDF</button>
+                                         <button onClick={() => borrarAuditoria(item.id)} className="text-slate-500 hover:text-red-400 transition-colors p-1.5 rounded-lg hover:bg-red-500/10" title="Eliminar"><Trash2 size={16} /></button>
                                        </div>
                                      </div>
-                                   </div>
-                                   <button 
-                                     onClick={() => setMostrarConfirmacion(true)} 
-                                     className="flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-[10px] uppercase tracking-wider bg-white/5 text-white hover:bg-white/10 border border-white/5 transition-all group"
-                                   >
-                                      <Sparkles size={14} className="text-[#FEAFAE] group-hover:animate-pulse" /> {t[idioma].autoApply}
-                                   </button>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        ) : (
-                          <div className="text-center text-slate-500 py-10">Esta auditoría es antigua y no tiene Checklist. Generá una nueva.</div>
-                        )}
-                     </div>
-                  )}
-
-                  {subVistaReporte === "avanzado" && (
-                     <div className="animate-fade-custom grid grid-cols-1 lg:grid-cols-2 gap-8">
-                        
-                        {reporte.pacing ? (
-                          <div className="bg-[#0f0f13] border border-white/5 rounded-2xl p-8 flex flex-col justify-center relative overflow-hidden">
-                             <div className={`absolute top-0 right-0 w-32 h-32 ${reporte.pacing.bg}/10 blur-3xl rounded-full pointer-events-none`}></div>
-                             <h3 className="text-lg font-bold text-white mb-2 flex items-center gap-2"><Clock size={20} className={reporte.pacing.color}/> {t[idioma].pacingTit}</h3>
-                             <p className="text-sm text-slate-400 mb-8">{t[idioma].pacingDesc}</p>
-                             
-                             <div className="flex justify-between items-end mb-3">
-                                <div><p className="text-xs font-bold text-slate-500 uppercase">Gasto Actual</p><p className="text-3xl font-black text-white mt-1">${reporte.pacing.gasto}</p></div>
-                                <div className="text-right"><p className="text-xs font-bold text-slate-500 uppercase">Presupuesto</p><p className="text-xl font-bold text-slate-300 mt-1">${reporte.pacing.presupuesto}</p></div>
+                                   )
+                                 })}
+                               </div>
                              </div>
-                             <div className="w-full bg-white/5 rounded-full h-3 mb-4 border border-white/5 overflow-hidden">
-                               <div className={`${reporte.pacing.bg} h-3 rounded-full transition-all duration-1000`} style={{width: `${reporte.pacing.porcentajeActual}%`}}></div>
-                             </div>
-                             <p className={`text-xs font-bold ${reporte.pacing.color} ${reporte.pacing.bg.replace('bg-', 'bg-').replace('-400', '-500')}/10 inline-block px-3 py-1.5 rounded-lg self-start border border-${reporte.pacing.bg.replace('bg-', '')}/20`}>
-                               {reporte.pacing.mensaje}
-                             </p>
-                          </div>
-                        ) : (
-                          <div className="bg-[#0f0f13] border border-white/5 rounded-2xl p-8 flex items-center justify-center text-slate-500 text-sm text-center">
-                            Este reporte es antiguo y no tiene datos de presupuesto.
-                          </div>
-                        )}
-
-                        <div className="bg-[#0f0f13] border border-white/5 rounded-2xl p-8">
-                           <div className="flex justify-between items-start mb-6">
-                             <div>
-                               <h3 className="text-lg font-bold text-white mb-1 flex items-center gap-2"><LayoutGrid size={20} className="text-[#FEAFAE]"/> {t[idioma].matrizTit}</h3>
-                               <p className="text-sm text-slate-400">{t[idioma].matrizDesc}</p>
-                             </div>
-                             <span className="px-2 py-0.5 bg-[#FEAFAE]/10 text-[#FEAFAE] text-[10px] font-bold rounded">Próximamente</span>
-                           </div>
-                           
-                           <div className="grid grid-cols-2 gap-3 h-48 opacity-50 grayscale cursor-not-allowed">
-                              <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-3 flex flex-col justify-between">
-                                <span className="text-[10px] font-bold text-green-400">{t[idioma].escalar}</span>
-                                <span className="text-2xl font-black text-white">?</span>
-                              </div>
-                              <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3 flex flex-col justify-between">
-                                <span className="text-[10px] font-bold text-blue-400">{t[idioma].potenciales}</span>
-                                <span className="text-2xl font-black text-white">?</span>
-                              </div>
-                              <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-3 flex flex-col justify-between">
-                                <span className="text-[10px] font-bold text-yellow-400">{t[idioma].observar}</span>
-                                <span className="text-2xl font-black text-white">?</span>
-                              </div>
-                              <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 flex flex-col justify-between">
-                                <span className="text-[10px] font-bold text-red-400">{t[idioma].apagar}</span>
-                                <span className="text-2xl font-black text-white">?</span>
-                              </div>
-                           </div>
+                           )}
                         </div>
 
-                     </div>
-                  )}
-
-                  <div className="hidden print:block mt-16 pt-6 border-t border-slate-200 text-center"><p className="text-xs text-slate-400 font-medium">{agenciaPie}</p></div>
-                </div>
-              </div>
-            )}
-
-            {vista === "historial" && (
-              <div className="animate-fade-custom bg-white/5 border border-white/10 backdrop-blur-2xl p-8 rounded-[2rem] shadow-2xl flex flex-col min-h-[600px] print:hidden relative z-10">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
-                   <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-white border border-white/10"><Users size={24} /></div>
-                      <div>
-                        <h2 className="text-2xl font-bold text-white">{modoPlan === 'agencia' ? t[idioma].monitoreo : "Historial de Auditorías"}</h2>
-                        <p className="text-sm text-slate-400">{t[idioma].tenes} {historial.length} {t[idioma].registradas}</p>
-                      </div>
-                   </div>
-
-                   <div className="flex flex-wrap items-center gap-3">
-                      <div className="flex bg-black/40 p-1 rounded-xl border border-white/5">
-                          <button onClick={() => setFiltroEstado("todos")} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${filtroEstado === 'todos' ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-white'}`}>{t[idioma].todos}</button>
-                          <button onClick={() => setFiltroEstado("critico")} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-1 ${filtroEstado === 'critico' ? 'bg-red-500/20 text-red-400' : 'text-slate-400 hover:text-red-400'}`}><span className="w-2 h-2 rounded-full bg-red-400"></span> {t[idioma].criticos}</button>
-                          <button onClick={() => setFiltroEstado("atencion")} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-1 ${filtroEstado === 'atencion' ? 'bg-yellow-500/20 text-yellow-400' : 'text-slate-400 hover:text-yellow-400'}`}><span className="w-2 h-2 rounded-full bg-yellow-400"></span> {t[idioma].atencion}</button>
-                      </div>
-                   </div>
-                </div>
-                
-                <div className="flex-1 bg-black/20 rounded-2xl border border-white/5 overflow-hidden">
-                  <div className="grid grid-cols-12 gap-4 p-4 border-b border-white/10 text-xs font-bold text-slate-500 uppercase tracking-wider items-center">
-                    <div className="col-span-3 pl-2">{t[idioma].thCliente}</div>
-                    <div className="col-span-2 text-center">{t[idioma].thFecha}</div>
-                    <div className="col-span-2 text-center">{t[idioma].thEstado}</div>
-                    <div className="col-span-2 text-center">{t[idioma].thTendencia}</div>
-                    <div className="col-span-3 text-right pr-4">{t[idioma].thAccion}</div>
+                        <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 backdrop-blur-xl shadow-lg">
+                           <h3 className="text-lg font-bold text-white mb-6">{t[idioma].actRec}</h3>
+                           {historial.length === 0 ? (
+                             <div className="text-slate-500 text-sm font-medium text-center py-10">No hay actividad.</div>
+                           ) : (
+                             <ul className="space-y-6">
+                                {historial.slice(0, 4).map((item, i) => (
+                                   <li key={i} className="flex gap-4 items-start relative">
+                                      {i !== historial.slice(0,4).length - 1 && <div className="absolute left-[11px] top-8 bottom-[-24px] w-px bg-white/10"></div>}
+                                      <div className="w-6 h-6 rounded-full bg-white/10 border-[3px] border-[#0a0a0c] z-10 flex items-center justify-center flex-shrink-0">
+                                         <div className={`w-2 h-2 rounded-full ${item.score >= 80 ? 'bg-green-400' : item.score >= 50 ? 'bg-yellow-400' : 'bg-red-400'}`}></div>
+                                      </div>
+                                      <div>
+                                         <p className="text-sm text-slate-300 font-medium leading-tight">{t[idioma].generada} <span className="text-white font-bold">{item.nombre_cuenta || t[idioma].cuentaSinNombre}</span></p>
+                                         <p className="text-[11px] text-slate-500 mt-1 flex items-center gap-1 font-bold tracking-wide"><Clock size={10} /> {parseDate(item.created_at)} • Score: {item.score}</p>
+                                      </div>
+                                   </li>
+                                ))}
+                             </ul>
+                           )}
+                        </div>
+                    </div>
                   </div>
+                )}
 
-                  {clientesFiltrados.length === 0 ? (
-                    <div className="p-10 text-center text-slate-500 font-medium">{t[idioma].sinCuentas}</div>
-                  ) : (
-                    <div className="divide-y divide-white/5">
-                      {clientesFiltrados.map((item, index) => {
-                        const estado = getEstadoData(item.score);
-                        const StatusIcon = estado.icon;
-                        const fakeTrend = item.score > 60 ? { icon: TrendingUp, val: "+3", color: "text-green-400" } : { icon: TrendingDown, val: "-5", color: "text-red-400" };
+                {/* DASHBOARD PARA PLAN INDIVIDUAL */}
+                {vista === "dashboard" && modoPlan === "individual" && (
+                  <div className="animate-fade-custom print:hidden flex flex-col gap-8 relative z-10">
+                    <div>
+                      <h2 className="text-3xl font-bold text-white">Resumen de Negocio</h2>
+                      <p className="text-slate-400 text-sm mt-1">El estado de tu cuenta de Google Ads y herramientas para crecer.</p>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                       <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px] shadow-lg">
+                          <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 relative z-10 flex items-center gap-2"><Activity size={16}/> Salud de la Cuenta</p>
+                          {ultimaAuditoria ? (
+                            <div className="flex-1 flex flex-col justify-end">
+                               <div className="flex items-end gap-3 mb-2">
+                                 <span className={`text-6xl font-black ${ultimaAuditoria.score >= 80 ? 'text-green-400' : ultimaAuditoria.score >= 50 ? 'text-yellow-400' : 'text-red-400'}`}>
+                                   {ultimaAuditoria.score}
+                                 </span>
+                               </div>
+                               <button onClick={() => { setReporte(ultimaAuditoria.reporte_json); setNombreCuenta(ultimaAuditoria.nombre_cuenta); setVista("reporte_lectura"); }} className="w-full text-xs font-bold bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded-xl transition-colors mt-2 text-left">
+                                 Ver reporte completo <ArrowRight size={12} className="inline ml-1"/>
+                               </button>
+                            </div>
+                          ) : (
+                            <div className="flex-1 flex items-center justify-center text-slate-500 text-sm font-medium">No hay datos.</div>
+                          )}
+                       </div>
 
-                        return (
-                          <div key={index} className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-white/5 transition-colors group">
-                            <div className="col-span-3 flex items-center gap-3 pl-2">
-                              <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${estado.bg} ${estado.color} border ${estado.border} flex-shrink-0`}>{item.score}</div>
-                              <p className="font-bold text-white truncate pr-2">{item.nombre_cuenta || t[idioma].cuentaSinNombre}</p>
+                       <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px] shadow-lg">
+                          <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 relative z-10 flex items-center gap-2"><AlertTriangle size={16} className="text-red-400"/> Fugas Críticas</p>
+                          {ultimaAuditoria ? (
+                            <div className="flex-1 flex flex-col">
+                              <span className="text-5xl font-black text-white mb-2">{fugasIndividuales}</span>
+                              <p className="text-xs text-slate-400 leading-relaxed">Problemas graves que están consumiendo tu presupuesto ahora mismo.</p>
                             </div>
-                            <div className="col-span-2 text-center"><p className="text-sm text-slate-400">{parseDate(item.created_at)}</p></div>
-                            <div className="col-span-2 flex justify-center">
-                              <span className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${estado.bg} ${estado.color} ${estado.border}`}><StatusIcon size={12} /> {estado.label}</span>
-                            </div>
-                            <div className="col-span-2 flex justify-center items-center gap-1">
-                               <fakeTrend.icon size={14} className={fakeTrend.color} />
-                               <span className={`text-sm font-bold ${fakeTrend.color}`}>{fakeTrend.val} pts</span>
-                            </div>
-                            <div className="col-span-3 flex justify-end items-center gap-3 pr-2">
-                              <button onClick={() => { setReporte(item.reporte_json); setNombreCuenta(item.nombre_cuenta || t[idioma].cuentaSinNombre); setSubVistaReporte("diagnostico"); setVista("reporte_lectura"); }} className="text-xs font-bold text-[#FFA4BD] hover:text-white flex items-center gap-1 transition-colors bg-white/5 hover:bg-white/10 px-4 py-2.5 rounded-xl border border-white/5">
-                                {t[idioma].abrirAud} <ArrowRight size={14} />
-                              </button>
-                              <button onClick={() => borrarAuditoria(item.id)} className="text-slate-500 hover:text-red-400 transition-colors p-2 rounded-lg hover:bg-red-500/10" title="Eliminar auditoría">
-                                <Trash2 size={18} />
-                              </button>
-                            </div>
+                          ) : (
+                             <div className="flex-1 flex items-center justify-center text-slate-500 text-sm font-medium">No hay datos.</div>
+                          )}
+                       </div>
+
+                       <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col justify-center items-center text-center relative overflow-hidden backdrop-blur-xl min-h-[200px] shadow-lg border-dashed hover:bg-white/10 transition-colors cursor-pointer group" onClick={() => setVista("nueva")}>
+                          <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                             <Zap size={28} className="text-[#FEAFAE]" />
                           </div>
-                        )
-                      })}
+                          <h3 className="font-bold text-white text-lg">Ejecutar Nueva Auditoría</h3>
+                          <p className="text-xs text-slate-400 mt-2 px-4">Actualizá los datos de tu cuenta para ver el score de hoy.</p>
+                       </div>
                     </div>
-                  )}
-                </div>
-              </div>
-            )}
 
-            {vista === "perfil" && (
-              <div className="animate-fade-custom bg-white/5 border border-white/10 backdrop-blur-2xl p-10 rounded-[2rem] shadow-2xl mx-auto print:hidden relative z-10">
-                <div className="flex items-center gap-4 mb-8">
-                   <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-white border border-white/10"><Settings size={24} /></div>
-                   <div>
-                      <h2 className="text-3xl font-bold text-white">{t[idioma].configuracion}</h2>
-                      <p className="text-slate-400 mt-1">{t[idioma].persPdf}</p>
-                   </div>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                  <div className="space-y-6">
-                    <h3 className="text-lg font-bold text-[#FEAFAE] flex items-center gap-2 border-b border-white/5 pb-2"><Building2 size={18}/> {t[idioma].marcaBlanca}</h3>
-                    <div><label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wide">{t[idioma].nomAgencia}</label><input type="text" className="w-full p-4 bg-black/20 border border-white/10 rounded-xl text-white focus:border-[#FEAFAE] focus:outline-none transition-all" value={agenciaNombre} onChange={(e) => setAgenciaNombre(e.target.value)} /></div>
-                    <div><label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wide">{t[idioma].sitioWeb}</label><input type="text" placeholder="Ej: www.tuagencia.com" className="w-full p-4 bg-black/20 border border-white/10 rounded-xl text-white focus:border-[#FEAFAE] focus:outline-none transition-all" value={agenciaWeb} onChange={(e) => setAgenciaWeb(e.target.value)} /></div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wide">{t[idioma].logoPdf}</label>
-                      <div className="flex items-center gap-6 p-4 border border-white/10 rounded-xl bg-black/20">
-                        {agenciaLogo ? <img src={agenciaLogo} alt="Logo" className="w-16 h-16 object-contain rounded-xl bg-white p-2" /> : <div className="w-16 h-16 bg-white/5 rounded-xl flex items-center justify-center text-slate-500 text-xs text-center p-2 border border-dashed border-white/20">{t[idioma].subeLogo}</div>}
-                        <div className="flex-1"><input type="file" accept="image/*" onChange={subirLogo} disabled={uploading} className="w-full text-sm text-slate-400 cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-white/10 file:text-white hover:file:bg-white/20 transition-all" /></div>
+                      <h3 className="text-xl font-bold text-white mb-6 mt-4">Herramientas Exclusivas</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                         <div className="bg-[#0f0f13] border border-white/5 rounded-2xl p-6 opacity-70 grayscale hover:grayscale-0 transition-all cursor-not-allowed">
+                            <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-400 mb-4"><BookOpen size={20}/></div>
+                            <h4 className="font-bold text-white mb-1">Traductor de Métricas IA</h4>
+                            <p className="text-xs text-slate-400 mb-4 leading-relaxed">Leé tu cuenta de Google Ads en lenguaje de negocios simple.</p>
+                            <span className="text-[10px] font-black uppercase tracking-wider px-2 py-1 bg-white/10 rounded-md text-white">Próximamente</span>
+                         </div>
+                         <div className="bg-[#0f0f13] border border-white/5 rounded-2xl p-6 opacity-70 grayscale hover:grayscale-0 transition-all cursor-not-allowed">
+                            <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-400 mb-4"><Type size={20}/></div>
+                            <h4 className="font-bold text-white mb-1">Generador de Anuncios</h4>
+                            <p className="text-xs text-slate-400 mb-4 leading-relaxed">Títulos y descripciones redactados por IA listos para copiar y pegar.</p>
+                            <span className="text-[10px] font-black uppercase tracking-wider px-2 py-1 bg-white/10 rounded-md text-white">Próximamente</span>
+                         </div>
+                         <div className="bg-[#0f0f13] border border-white/5 rounded-2xl p-6 opacity-70 grayscale hover:grayscale-0 transition-all cursor-not-allowed">
+                            <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center text-green-400 mb-4"><Calculator size={20}/></div>
+                            <h4 className="font-bold text-white mb-1">Simulador de Presupuesto</h4>
+                            <p className="text-xs text-slate-400 mb-4 leading-relaxed">Proyectá cuántas ventas tendrías si subís o bajás la inversión.</p>
+                            <span className="text-[10px] font-black uppercase tracking-wider px-2 py-1 bg-white/10 rounded-md text-white">Próximamente</span>
+                         </div>
                       </div>
                     </div>
-                    <div><label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wide">{t[idioma].piePagina}</label><textarea className="w-full h-20 p-4 bg-black/20 border border-white/10 rounded-xl text-white text-sm focus:border-[#FEAFAE] focus:outline-none transition-all resize-none" value={agenciaPie} onChange={(e) => setAgenciaPie(e.target.value)} /></div>
                   </div>
+                )}
 
-                  <div className="space-y-6">
-                    <h3 className="text-lg font-bold text-[#FEAFAE] flex items-center gap-2 border-b border-white/5 pb-2"><LayoutPanelLeft size={18}/> {t[idioma].preferencias}</h3>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wide">{t[idioma].monedaDef}</label>
-                      <div className="relative"><select className="w-full p-4 bg-black/20 border border-white/10 rounded-xl text-white focus:border-[#FEAFAE] focus:outline-none transition-all appearance-none cursor-pointer" value={moneda} onChange={(e) => setMoneda(e.target.value)}><option value="USD ($)" className="bg-[#0f0f13]">Dólares USD ($)</option><option value="EUR (€)" className="bg-[#0f0f13]">Euros EUR (€)</option><option value="ARS ($)" className="bg-[#0f0f13]">Pesos Argentinos ARS ($)</option><option value="MXN ($)" className="bg-[#0f0f13]">Pesos Mexicanos MXN ($)</option></select><ChevronDown size={18} className="absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400 pointer-events-none" /></div>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wide">{t[idioma].metricaDef}</label>
-                      <div className="relative"><select className="w-full p-4 bg-black/20 border border-white/10 rounded-xl text-white focus:border-[#FEAFAE] focus:outline-none transition-all appearance-none cursor-pointer" value={metrica} onChange={(e) => setMetrica(e.target.value)}><option value="ROAS" className="bg-[#0f0f13]">ROAS (Retorno de Inversión)</option><option value="CPA" className="bg-[#0f0f13]">CPA (Costo por Adquisición)</option><option value="ROI" className="bg-[#0f0f13]">ROI</option></select><ChevronDown size={18} className="absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400 pointer-events-none" /></div>
-                    </div>
-                  </div>
-                </div>
-                <div className="border-t border-white/5 mt-10 pt-8">
-                  <button onClick={guardarAjustesAgencia} disabled={loading || uploading} className="w-full md:w-auto md:px-12 text-black px-8 py-4 rounded-xl font-bold hover:scale-[1.02] disabled:opacity-50 transition-all shadow-lg mx-auto block" style={melocotonGradient}>{loading ? t[idioma].guardando : t[idioma].guardarAj}</button>
-                </div>
-              </div>
-            )}
+                {/* VISTA: NUEVA AUDITORÍA (CON NUEVOS CAMPOS) */}
+                {vista === "nueva" && (
+                  <div className="animate-fade-custom print:hidden relative z-10">
+                    <div className="bg-white/5 border border-white/10 backdrop-blur-2xl p-8 md:p-12 rounded-[2rem] shadow-2xl mb-8 max-w-4xl mx-auto">
+                      <div className="flex items-center gap-4 mb-8">
+                        <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-black shadow-lg" style={melocotonGradient}><Zap size={24} /></div>
+                        <div><h1 className="text-3xl font-bold text-white">{t[idioma].nueva}</h1><p className="text-slate-400 mt-1">{t[idioma].ingresaDatos}</p></div>
+                      </div>
+                      
+                      <div className="mb-6"><label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">{t[idioma].placeholderNombre}</label><input type="text" placeholder={t[idioma].placeholderNombre} className="w-full p-4 bg-black/40 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all" value={nombreCuenta} onChange={(e) => setNombreCuenta(e.target.value)} /></div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                        <div><label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">{t[idioma].presupuestoObj}</label><input type="number" placeholder={t[idioma].placeholderPres} className="w-full p-4 bg-black/20 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all" value={presupuestoObjetivo} onChange={(e) => setPresupuestoObjetivo(e.target.value)} /></div>
+                        <div><label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">{t[idioma].gastoAct}</label><input type="number" placeholder={t[idioma].placeholderGasto} className="w-full p-4 bg-black/20 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all" value={gastoActual} onChange={(e) => setGastoActual(e.target.value)} /></div>
+                        
+                        <div><label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">{t[idioma].conversiones}</label><input type="number" placeholder={t[idioma].placeholderConv} className="w-full p-4 bg-black/20 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all" value={conversiones} onChange={(e) => setConversiones(e.target.value)} /></div>
+                        <div><label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">{t[idioma].cparoas}</label><input type="text" placeholder={`Ej: ${metrica} objetivo...`} className="w-full p-4 bg-black/20 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all" value={cpaRoas} onChange={(e) => setCpaRoas(e.target.value)} /></div>
+                      </div>
 
-            {vista === "facturacion" && (
-              <div className="animate-fade-custom bg-white/5 border border-white/10 backdrop-blur-2xl p-10 rounded-[2rem] shadow-2xl max-w-2xl mx-auto print:hidden relative z-10">
-                <div className="flex items-center gap-4 mb-8">
-                   <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-white border border-white/10"><CreditCard size={24} /></div>
-                   <div>
-                      <h2 className="text-3xl font-bold text-white">{t[idioma].facturacionTitulo}</h2>
-                      <p className="text-slate-400 mt-1">{t[idioma].facturacionDesc}</p>
-                   </div>
-                </div>
-                <div className="bg-black/20 border border-white/10 rounded-2xl p-6 mb-6 flex justify-between items-center">
-                  <div>
-                    <p className="text-sm font-bold text-slate-400 uppercase tracking-wide mb-1">{t[idioma].planActual}</p>
-                    <div className="flex items-center gap-3">
-                      <span className="text-3xl font-black text-white">{perfil?.plan === 'pro' ? 'Mora Pro' : 'Mora Free'}</span>
-                      <span className="px-3 py-1 rounded-full text-xs font-bold bg-green-500/20 text-green-400 border border-green-500/20">{t[idioma].activa}</span>
+                      <div className="mb-6">
+                          <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">{t[idioma].tipoCamp}</label>
+                          <div className="relative"><select className="w-full p-4 bg-black/20 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all appearance-none cursor-pointer" value={tipoCampana} onChange={(e) => setTipoCampana(e.target.value)}><option value="Búsqueda (Search)" className="bg-[#0f0f13] text-white">Búsqueda (Search)</option><option value="Performance Max" className="bg-[#0f0f13] text-white">Performance Max</option><option value="Display" className="bg-[#0f0f13] text-white">Display</option><option value="Shopping" className="bg-[#0f0f13] text-white">Shopping</option><option value="Video (YouTube)" className="bg-[#0f0f13] text-white">Video (YouTube)</option><option value="Mix de Campañas" className="bg-[#0f0f13] text-white">Mix de Campañas</option></select><ChevronDown size={18} className="absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400 pointer-events-none" /></div>
+                      </div>
+
+                      <div className="mb-8"><label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">{t[idioma].contexto}</label><textarea className="w-full h-24 p-4 bg-black/20 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all resize-none" placeholder={t[idioma].placeholderContexto} value={notas} onChange={(e) => setNotas(e.target.value)} /></div>
+                      
+                      <button onClick={analizarCampaña} disabled={loading || !nombreCuenta || !presupuestoObjetivo || !gastoActual || !conversiones} className="w-full text-black px-6 py-4 rounded-2xl font-bold text-lg hover:scale-[1.01] disabled:opacity-50 disabled:hover:scale-100 transition-all shadow-lg flex justify-center items-center gap-2" style={melocotonGradient}>
+                        {loading ? <span className="animate-pulse">{t[idioma].btnAnalizando}</span> : <><Sparkles size={20}/> {t[idioma].btnAnalizar}</>}
+                      </button>
                     </div>
                   </div>
-                </div>
-                <button className="w-full text-slate-300 bg-white/5 border border-white/10 px-8 py-4 rounded-xl font-bold hover:bg-white/10 transition-all shadow-lg mt-2 flex justify-center items-center gap-2 cursor-not-allowed opacity-80"><CreditCard size={20} /> {t[idioma].gestionarStripe} <span className="text-[#FFA4BD] text-xs font-black">{t[idioma].pronto}</span></button>
+                )}
+
+                {/* VISTA: LECTURA DE REPORTE (CON PESTAÑAS ENTERPRISE Y CHECKLIST INTERACTIVO) */}
+                {vista === "reporte_lectura" && reporte && (
+                  <div className="animate-fade-custom print:bg-white print:m-0 print:p-0 relative z-10">
+                    
+                    <div className="mb-6 flex justify-between items-center print:hidden">
+                       <button onClick={() => setVista("dashboard")} className="flex items-center gap-2 text-slate-400 hover:text-white font-medium transition-colors"><ArrowLeft size={18} /> {t[idioma].volver}</button>
+                       
+                       <div className="flex bg-black/40 border border-white/10 rounded-xl p-1 gap-1">
+                          <button onClick={() => setSubVistaReporte("diagnostico")} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${subVistaReporte === 'diagnostico' ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-300'}`}><FileText size={16}/> {t[idioma].tabDiag}</button>
+                          <button onClick={() => setSubVistaReporte("checklist")} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${subVistaReporte === 'checklist' ? 'bg-[#FEAFAE]/20 text-[#FEAFAE]' : 'text-slate-500 hover:text-slate-300'}`}><ListChecks size={16}/> {t[idioma].tabCheck}</button>
+                          <button onClick={() => setSubVistaReporte("avanzado")} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${subVistaReporte === 'avanzado' ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-300'}`}><LayoutGrid size={16}/> {t[idioma].tabAvanzado}</button>
+                       </div>
+                    </div>
+
+                    <div className="bg-white/5 border border-white/10 backdrop-blur-2xl p-10 rounded-[2rem] shadow-2xl print:bg-white print:text-black print:border-none print:shadow-none print:p-0">
+                      
+                      <div className="hidden print:flex justify-between items-center mb-10 border-b-2 border-slate-200 pb-6">
+                        {/* EN MODO INDIVIDUAL, NO MOSTRAMOS LOGO MARCA BLANCA EN EL PDF PARA DIFERENCIAR LOS PLANES */}
+                        <div>{modoPlan === 'agencia' && perfil?.agencia_logo ? <img src={perfil.agencia_logo} alt="Logo Agencia" className="h-16 object-contain" /> : <div className="flex items-center gap-2"><span className="text-3xl">🐾</span><span className="text-3xl font-black text-slate-800">Mora</span></div>}</div>
+                        <div className="text-right">
+                          <h2 className="text-2xl font-black text-slate-800 tracking-tight">{modoPlan === 'agencia' && perfil?.agencia_nombre ? perfil.agencia_nombre : "Auditoría Estratégica"}</h2>
+                          {modoPlan === 'agencia' && agenciaWeb && <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-widest">{agenciaWeb}</p>}
+                          <p className="text-sm font-medium text-slate-500 mt-1">{new Date().toLocaleDateString()}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-between items-center mb-10 print:mb-12">
+                        <div>
+                          <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-3 print:text-slate-500 print:text-xs">{nombreCuenta || t[idioma].cuentaSinNombre}</h2>
+                          <div className="flex items-center gap-5">
+                            <div className="w-20 h-20 rounded-full flex items-center justify-center border-[6px] border-black/20 text-3xl font-black text-[#0a0a0c] shadow-lg print:border-slate-100 print:text-slate-800" style={melocotonGradient}>{reporte.score_general}</div>
+                            <div><h3 className="text-4xl font-black text-white print:text-slate-900">{t[idioma].score}</h3><p className="text-slate-400 text-sm mt-1 print:text-slate-500">{t[idioma].puntajeBasado}</p></div>
+                          </div>
+                        </div>
+                        {/* BOTON DE DESCARGAR PDF SOLO PARA AGENCIA (COMO INCENTIVO) O SI QUERES DEJALO PARA LOS DOS */}
+                        {subVistaReporte === "diagnostico" && modoPlan === 'agencia' && <button onClick={descargarPDF} className="bg-white/5 border border-white/10 hover:bg-white/10 text-white px-6 py-3 rounded-xl font-bold transition-all print:hidden shadow-sm">{t[idioma].exportar}</button>}
+                      </div>
+                      
+                      {subVistaReporte === "diagnostico" && (
+                        <div className="space-y-6 animate-fade-custom">
+                          {reporte.hallazgos?.graves_rojo?.length > 0 && (
+                            <div className="border-l-4 pl-6 bg-red-500/5 p-6 rounded-2xl border border-red-500/10 print:bg-red-50 print:border-red-100 print:shadow-sm" style={{ borderLeftColor: '#ef4444' }}>
+                              <h3 className="text-xl font-bold text-red-400 mb-4 flex items-center gap-2 print:text-red-700"><AlertTriangle size={24}/> {t[idioma].problemas}</h3>
+                              {reporte.hallazgos.graves_rojo.map((item: any, i: number) => (<p key={i} className="mb-4 text-slate-300 leading-relaxed print:text-slate-700 print:break-inside-avoid"><b className="text-white print:text-slate-900 text-lg">{item.titulo}:</b> <br/>{item.descripcion}</p>))}
+                            </div>
+                          )}
+                          {reporte.hallazgos?.debiles_amarillo?.length > 0 && (
+                            <div className="border-l-4 pl-6 bg-yellow-500/5 p-6 rounded-2xl border border-yellow-500/10 print:bg-amber-50 print:border-amber-100 print:shadow-sm" style={{ borderLeftColor: '#eab308' }}>
+                              <h3 className="text-xl font-bold text-yellow-400 mb-4 flex items-center gap-2 print:text-amber-700"><Zap size={24}/> {t[idioma].mejoras}</h3>
+                              {reporte.hallazgos.debiles_amarillo.map((item: any, i: number) => (<p key={i} className="mb-4 text-slate-300 leading-relaxed print:text-slate-700 print:break-inside-avoid"><b className="text-white print:text-slate-900 text-lg">{item.titulo}:</b> <br/>{item.descripcion}</p>))}
+                            </div>
+                          )}
+                          {reporte.hallazgos?.bien_verde?.length > 0 && (
+                            <div className="border-l-4 pl-6 bg-green-500/5 p-6 rounded-2xl border border-green-500/10 print:bg-emerald-50 print:border-emerald-100 print:shadow-sm" style={{ borderLeftColor: '#22c55e' }}>
+                              <h3 className="text-xl font-bold text-green-400 mb-4 flex items-center gap-2 print:text-emerald-700"><CheckCircle2 size={24}/> {t[idioma].aciertos}</h3>
+                              {reporte.hallazgos.bien_verde.map((item: any, i: number) => (<p key={i} className="mb-4 text-slate-300 leading-relaxed print:text-slate-700 print:break-inside-avoid"><b className="text-white print:text-slate-900 text-lg">{item.titulo}:</b> <br/>{item.descripcion}</p>))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {subVistaReporte === "checklist" && (
+                         <div className="animate-fade-custom bg-[#0f0f13]/60 backdrop-blur-md border border-white/5 rounded-2xl p-8 shadow-inner">
+                            <div className="flex items-center justify-between mb-8 pb-4 border-b border-white/5">
+                               <div>
+                                 <h3 className="text-xl font-bold text-white flex items-center gap-2"><ListChecks size={24} className="text-[#FEAFAE]" /> Optimización de 20 Minutos</h3>
+                                 <p className="text-slate-400 text-sm mt-1">Completá estas tareas en Google Ads para mejorar tu Score.</p>
+                               </div>
+                               <div className="text-right">
+                                 <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Progreso</p>
+                                 <p className="text-lg font-bold text-[#FEAFAE]">{tareasCompletadas.length} / {reporte.checklist?.length || 0}</p>
+                               </div>
+                            </div>
+
+                            {reporte.checklist ? (
+                              <div className="space-y-3">
+                                {reporte.checklist.map((item: any, i: number) => {
+                                  const esCompletada = tareasCompletadas.includes(i);
+                                  return (
+                                    <div key={i} className={`flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-xl border transition-all duration-300 ${esCompletada ? "bg-green-500/5 border-green-500/20 opacity-60" : "bg-white/5 border-white/10 hover:border-[#FEAFAE]/30"}`}>
+                                       <div className="flex items-start gap-4">
+                                         <button onClick={() => toggleTarea(i)} className={`mt-1 w-6 h-6 rounded-md border flex items-center justify-center transition-colors ${esCompletada ? "bg-green-500 border-green-500 text-black" : "border-slate-600 hover:border-[#FEAFAE]"}`}>
+                                            {esCompletada && <CheckSquare size={16} strokeWidth={3} />}
+                                         </button>
+                                         <div>
+                                           <p className={`font-bold text-white transition-all ${esCompletada ? "line-through text-slate-500" : "text-lg"}`}>{item.tarea}</p>
+                                           <div className="flex gap-2 mt-1">
+                                             <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded ${item.color === 'rojo' ? 'bg-red-500/10 text-red-400' : 'bg-yellow-500/10 text-yellow-400'}`}>Prioridad: {item.impacto}</span>
+                                           </div>
+                                         </div>
+                                       </div>
+                                       <button 
+                                         onClick={() => setMostrarConfirmacion(true)} 
+                                         className="flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-[10px] uppercase tracking-wider bg-white/5 text-white hover:bg-white/10 border border-white/5 transition-all group"
+                                       >
+                                          <Sparkles size={14} className="text-[#FEAFAE] group-hover:animate-pulse" /> {t[idioma].autoApply}
+                                       </button>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <div className="text-center text-slate-500 py-10">Esta auditoría es antigua y no tiene Checklist. Generá una nueva.</div>
+                            )}
+                         </div>
+                      )}
+
+                      {subVistaReporte === "avanzado" && (
+                         <div className="animate-fade-custom grid grid-cols-1 lg:grid-cols-2 gap-8">
+                            
+                            {reporte.pacing ? (
+                              <div className="bg-[#0f0f13] border border-white/5 rounded-2xl p-8 flex flex-col justify-center relative overflow-hidden">
+                                 <div className={`absolute top-0 right-0 w-32 h-32 ${reporte.pacing.bg}/10 blur-3xl rounded-full pointer-events-none`}></div>
+                                 <h3 className="text-lg font-bold text-white mb-2 flex items-center gap-2"><Clock size={20} className={reporte.pacing.color}/> {t[idioma].pacingTit}</h3>
+                                 <p className="text-sm text-slate-400 mb-8">{t[idioma].pacingDesc}</p>
+                                 
+                                 <div className="flex justify-between items-end mb-3">
+                                    <div><p className="text-xs font-bold text-slate-500 uppercase">Gasto Actual</p><p className="text-3xl font-black text-white mt-1">${reporte.pacing.gasto}</p></div>
+                                    <div className="text-right"><p className="text-xs font-bold text-slate-500 uppercase">Presupuesto</p><p className="text-xl font-bold text-slate-300 mt-1">${reporte.pacing.presupuesto}</p></div>
+                                 </div>
+                                 <div className="w-full bg-white/5 rounded-full h-3 mb-4 border border-white/5 overflow-hidden">
+                                   <div className={`${reporte.pacing.bg} h-3 rounded-full transition-all duration-1000`} style={{width: `${reporte.pacing.porcentajeActual}%`}}></div>
+                                 </div>
+                                 <p className={`text-xs font-bold ${reporte.pacing.color} ${reporte.pacing.bg.replace('bg-', 'bg-').replace('-400', '-500')}/10 inline-block px-3 py-1.5 rounded-lg self-start border border-${reporte.pacing.bg.replace('bg-', '')}/20`}>
+                                   {reporte.pacing.mensaje}
+                                 </p>
+                              </div>
+                            ) : (
+                              <div className="bg-[#0f0f13] border border-white/5 rounded-2xl p-8 flex items-center justify-center text-slate-500 text-sm text-center">
+                                Este reporte es antiguo y no tiene datos de presupuesto.
+                              </div>
+                            )}
+
+                            <div className="bg-[#0f0f13] border border-white/5 rounded-2xl p-8">
+                               <div className="flex justify-between items-start mb-6">
+                                 <div>
+                                   <h3 className="text-lg font-bold text-white mb-1 flex items-center gap-2"><LayoutGrid size={20} className="text-[#FEAFAE]"/> {t[idioma].matrizTit}</h3>
+                                   <p className="text-sm text-slate-400">{t[idioma].matrizDesc}</p>
+                                 </div>
+                                 <span className="px-2 py-0.5 bg-[#FEAFAE]/10 text-[#FEAFAE] text-[10px] font-bold rounded">Próximamente</span>
+                               </div>
+                               
+                               <div className="grid grid-cols-2 gap-3 h-48 opacity-50 grayscale cursor-not-allowed">
+                                  <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-3 flex flex-col justify-between">
+                                    <span className="text-[10px] font-bold text-green-400">{t[idioma].escalar}</span>
+                                    <span className="text-2xl font-black text-white">?</span>
+                                  </div>
+                                  <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3 flex flex-col justify-between">
+                                    <span className="text-[10px] font-bold text-blue-400">{t[idioma].potenciales}</span>
+                                    <span className="text-2xl font-black text-white">?</span>
+                                  </div>
+                                  <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-3 flex flex-col justify-between">
+                                    <span className="text-[10px] font-bold text-yellow-400">{t[idioma].observar}</span>
+                                    <span className="text-2xl font-black text-white">?</span>
+                                  </div>
+                                  <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 flex flex-col justify-between">
+                                    <span className="text-[10px] font-bold text-red-400">{t[idioma].apagar}</span>
+                                    <span className="text-2xl font-black text-white">?</span>
+                                  </div>
+                               </div>
+                            </div>
+
+                         </div>
+                      )}
+
+                      <div className="hidden print:block mt-16 pt-6 border-t border-slate-200 text-center"><p className="text-xs text-slate-400 font-medium">{agenciaPie}</p></div>
+                    </div>
+                  </div>
+                )}
+
+                {vista === "historial" && (
+                  <div className="animate-fade-custom bg-white/5 border border-white/10 backdrop-blur-2xl p-8 rounded-[2rem] shadow-2xl flex flex-col min-h-[600px] print:hidden relative z-10">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+                       <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-white border border-white/10"><Users size={24} /></div>
+                          <div>
+                            <h2 className="text-2xl font-bold text-white">{modoPlan === 'agencia' ? t[idioma].monitoreo : "Historial de Auditorías"}</h2>
+                            <p className="text-sm text-slate-400">{t[idioma].tenes} {historial.length} {t[idioma].registradas}</p>
+                          </div>
+                       </div>
+
+                       <div className="flex flex-wrap items-center gap-3">
+                          <div className="flex bg-black/40 p-1 rounded-xl border border-white/5">
+                              <button onClick={() => setFiltroEstado("todos")} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${filtroEstado === 'todos' ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-white'}`}>{t[idioma].todos}</button>
+                              <button onClick={() => setFiltroEstado("critico")} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-1 ${filtroEstado === 'critico' ? 'bg-red-500/20 text-red-400' : 'text-slate-400 hover:text-red-400'}`}><span className="w-2 h-2 rounded-full bg-red-400"></span> {t[idioma].criticos}</button>
+                              <button onClick={() => setFiltroEstado("atencion")} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-1 ${filtroEstado === 'atencion' ? 'bg-yellow-500/20 text-yellow-400' : 'text-slate-400 hover:text-yellow-400'}`}><span className="w-2 h-2 rounded-full bg-yellow-400"></span> {t[idioma].atencion}</button>
+                          </div>
+                       </div>
+                    </div>
+                    
+                    <div className="flex-1 bg-black/20 rounded-2xl border border-white/5 overflow-hidden">
+                      <div className="grid grid-cols-12 gap-4 p-4 border-b border-white/10 text-xs font-bold text-slate-500 uppercase tracking-wider items-center">
+                        <div className="col-span-3 pl-2">{t[idioma].thCliente}</div>
+                        <div className="col-span-2 text-center">{t[idioma].thFecha}</div>
+                        <div className="col-span-2 text-center">{t[idioma].thEstado}</div>
+                        <div className="col-span-2 text-center">{t[idioma].thTendencia}</div>
+                        <div className="col-span-3 text-right pr-4">{t[idioma].thAccion}</div>
+                      </div>
+
+                      {clientesFiltrados.length === 0 ? (
+                        <div className="p-10 text-center text-slate-500 font-medium">{t[idioma].sinCuentas}</div>
+                      ) : (
+                        <div className="divide-y divide-white/5">
+                          {clientesFiltrados.map((item, index) => {
+                            const estado = getEstadoData(item.score);
+                            const StatusIcon = estado.icon;
+                            const fakeTrend = item.score > 60 ? { icon: TrendingUp, val: "+3", color: "text-green-400" } : { icon: TrendingDown, val: "-5", color: "text-red-400" };
+
+                            return (
+                              <div key={index} className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-white/5 transition-colors group">
+                                <div className="col-span-3 flex items-center gap-3 pl-2">
+                                  <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${estado.bg} ${estado.color} border ${estado.border} flex-shrink-0`}>{item.score}</div>
+                                  <p className="font-bold text-white truncate pr-2">{item.nombre_cuenta || t[idioma].cuentaSinNombre}</p>
+                                </div>
+                                <div className="col-span-2 text-center"><p className="text-sm text-slate-400">{parseDate(item.created_at)}</p></div>
+                                <div className="col-span-2 flex justify-center">
+                                  <span className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${estado.bg} ${estado.color} ${estado.border}`}><StatusIcon size={12} /> {estado.label}</span>
+                                </div>
+                                <div className="col-span-2 flex justify-center items-center gap-1">
+                                   <fakeTrend.icon size={14} className={fakeTrend.color} />
+                                   <span className={`text-sm font-bold ${fakeTrend.color}`}>{fakeTrend.val} pts</span>
+                                </div>
+                                <div className="col-span-3 flex justify-end items-center gap-3 pr-2">
+                                  <button onClick={() => { setReporte(item.reporte_json); setNombreCuenta(item.nombre_cuenta || t[idioma].cuentaSinNombre); setSubVistaReporte("diagnostico"); setVista("reporte_lectura"); }} className="text-xs font-bold text-[#FFA4BD] hover:text-white flex items-center gap-1 transition-colors bg-white/5 hover:bg-white/10 px-4 py-2.5 rounded-xl border border-white/5">
+                                    {t[idioma].abrirAud} <ArrowRight size={14} />
+                                  </button>
+                                  <button onClick={() => borrarAuditoria(item.id)} className="text-slate-500 hover:text-red-400 transition-colors p-2 rounded-lg hover:bg-red-500/10" title="Eliminar auditoría">
+                                    <Trash2 size={18} />
+                                  </button>
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {vista === "perfil" && (
+                  <div className="animate-fade-custom bg-white/5 border border-white/10 backdrop-blur-2xl p-10 rounded-[2rem] shadow-2xl mx-auto print:hidden relative z-10">
+                    <div className="flex items-center gap-4 mb-8">
+                       <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-white border border-white/10"><Settings size={24} /></div>
+                       <div>
+                          <h2 className="text-3xl font-bold text-white">{t[idioma].configuracion}</h2>
+                          <p className="text-slate-400 mt-1">{t[idioma].persPdf}</p>
+                       </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                      <div className="space-y-6">
+                        <h3 className="text-lg font-bold text-[#FEAFAE] flex items-center gap-2 border-b border-white/5 pb-2"><Building2 size={18}/> {t[idioma].marcaBlanca}</h3>
+                        <div><label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wide">{t[idioma].nomAgencia}</label><input type="text" className="w-full p-4 bg-black/20 border border-white/10 rounded-xl text-white focus:border-[#FEAFAE] focus:outline-none transition-all" value={agenciaNombre} onChange={(e) => setAgenciaNombre(e.target.value)} /></div>
+                        <div><label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wide">{t[idioma].sitioWeb}</label><input type="text" placeholder="Ej: www.tuagencia.com" className="w-full p-4 bg-black/20 border border-white/10 rounded-xl text-white focus:border-[#FEAFAE] focus:outline-none transition-all" value={agenciaWeb} onChange={(e) => setAgenciaWeb(e.target.value)} /></div>
+                        <div>
+                          <label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wide">{t[idioma].logoPdf}</label>
+                          <div className="flex items-center gap-6 p-4 border border-white/10 rounded-xl bg-black/20">
+                            {agenciaLogo ? <img src={agenciaLogo} alt="Logo" className="w-16 h-16 object-contain rounded-xl bg-white p-2" /> : <div className="w-16 h-16 bg-white/5 rounded-xl flex items-center justify-center text-slate-500 text-xs text-center p-2 border border-dashed border-white/20">{t[idioma].subeLogo}</div>}
+                            <div className="flex-1"><input type="file" accept="image/*" onChange={subirLogo} disabled={uploading} className="w-full text-sm text-slate-400 cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-white/10 file:text-white hover:file:bg-white/20 transition-all" /></div>
+                          </div>
+                        </div>
+                        <div><label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wide">{t[idioma].piePagina}</label><textarea className="w-full h-20 p-4 bg-black/20 border border-white/10 rounded-xl text-white text-sm focus:border-[#FEAFAE] focus:outline-none transition-all resize-none" value={agenciaPie} onChange={(e) => setAgenciaPie(e.target.value)} /></div>
+                      </div>
+
+                      <div className="space-y-6">
+                        <h3 className="text-lg font-bold text-[#FEAFAE] flex items-center gap-2 border-b border-white/5 pb-2"><LayoutPanelLeft size={18}/> {t[idioma].preferencias}</h3>
+                        <div>
+                          <label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wide">{t[idioma].monedaDef}</label>
+                          <div className="relative"><select className="w-full p-4 bg-black/20 border border-white/10 rounded-xl text-white focus:border-[#FEAFAE] focus:outline-none transition-all appearance-none cursor-pointer" value={moneda} onChange={(e) => setMoneda(e.target.value)}><option value="USD ($)" className="bg-[#0f0f13]">Dólares USD ($)</option><option value="EUR (€)" className="bg-[#0f0f13]">Euros EUR (€)</option><option value="ARS ($)" className="bg-[#0f0f13]">Pesos Argentinos ARS ($)</option><option value="MXN ($)" className="bg-[#0f0f13]">Pesos Mexicanos MXN ($)</option></select><ChevronDown size={18} className="absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400 pointer-events-none" /></div>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wide">{t[idioma].metricaDef}</label>
+                          <div className="relative"><select className="w-full p-4 bg-black/20 border border-white/10 rounded-xl text-white focus:border-[#FEAFAE] focus:outline-none transition-all appearance-none cursor-pointer" value={metrica} onChange={(e) => setMetrica(e.target.value)}><option value="ROAS" className="bg-[#0f0f13]">ROAS (Retorno de Inversión)</option><option value="CPA" className="bg-[#0f0f13]">CPA (Costo por Adquisición)</option><option value="ROI" className="bg-[#0f0f13]">ROI</option></select><ChevronDown size={18} className="absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400 pointer-events-none" /></div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="border-t border-white/5 mt-10 pt-8">
+                      <button onClick={guardarAjustesAgencia} disabled={loading || uploading} className="w-full md:w-auto md:px-12 text-black px-8 py-4 rounded-xl font-bold hover:scale-[1.02] disabled:opacity-50 transition-all shadow-lg mx-auto block" style={melocotonGradient}>{loading ? t[idioma].guardando : t[idioma].guardarAj}</button>
+                    </div>
+                  </div>
+                )}
+
+                {vista === "facturacion" && (
+                  <div className="animate-fade-custom bg-white/5 border border-white/10 backdrop-blur-2xl p-10 rounded-[2rem] shadow-2xl max-w-2xl mx-auto print:hidden relative z-10">
+                    <div className="flex items-center gap-4 mb-8">
+                       <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-white border border-white/10"><CreditCard size={24} /></div>
+                       <div>
+                          <h2 className="text-3xl font-bold text-white">{t[idioma].facturacionTitulo}</h2>
+                          <p className="text-slate-400 mt-1">{t[idioma].facturacionDesc}</p>
+                       </div>
+                    </div>
+                    <div className="bg-black/20 border border-white/10 rounded-2xl p-6 mb-6 flex justify-between items-center">
+                      <div>
+                        <p className="text-sm font-bold text-slate-400 uppercase tracking-wide mb-1">{t[idioma].planActual}</p>
+                        <div className="flex items-center gap-3">
+                          <span className="text-3xl font-black text-white">{perfil?.plan === 'pro' ? 'Mora Pro' : 'Mora Free'}</span>
+                          <span className="px-3 py-1 rounded-full text-xs font-bold bg-green-500/20 text-green-400 border border-green-500/20">{t[idioma].activa}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <button className="w-full text-slate-300 bg-white/5 border border-white/10 px-8 py-4 rounded-xl font-bold hover:bg-white/10 transition-all shadow-lg mt-2 flex justify-center items-center gap-2 cursor-not-allowed opacity-80"><CreditCard size={20} /> {t[idioma].gestionarStripe} <span className="text-[#FFA4BD] text-xs font-black">{t[idioma].pronto}</span></button>
+                  </div>
+                )}
+
+                {vista === "feedback" && (
+                  <div className="animate-fade-custom bg-white/5 border border-white/10 backdrop-blur-2xl p-10 rounded-[2rem] shadow-2xl max-w-2xl mx-auto text-center print:hidden relative z-10">
+                    <div className="flex justify-center mb-6"><div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center text-white border border-white/10"><MessageSquare size={32} /></div></div>
+                    <h2 className="text-3xl font-bold mb-3 text-white">{t[idioma].ayudanos}</h2>
+                    <p className="text-slate-400 mb-8 font-medium">{t[idioma].bug}</p>
+                    <textarea className="w-full h-32 p-4 bg-black/20 border border-white/10 rounded-2xl mb-6 text-white focus:border-[#FEAFAE] focus:outline-none resize-none transition-all" placeholder={t[idioma].escribiSug} value={mensajeFeedback} onChange={(e) => setMensajeFeedback(e.target.value)} />
+                    <button onClick={mandarFeedback} disabled={enviandoFeedback || !mensajeFeedback} className="w-full text-black px-8 py-4 rounded-xl font-bold disabled:opacity-50 transition-all shadow-lg hover:scale-[1.02]" style={melocotonGradient}>{enviandoFeedback ? t[idioma].enviando : t[idioma].enviarSug}</button>
+                  </div>
+                )}
+
               </div>
-            )}
-
-            {vista === "feedback" && (
-              <div className="animate-fade-custom bg-white/5 border border-white/10 backdrop-blur-2xl p-10 rounded-[2rem] shadow-2xl max-w-2xl mx-auto text-center print:hidden relative z-10">
-                <div className="flex justify-center mb-6"><div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center text-white border border-white/10"><MessageSquare size={32} /></div></div>
-                <h2 className="text-3xl font-bold mb-3 text-white">{t[idioma].ayudanos}</h2>
-                <p className="text-slate-400 mb-8 font-medium">{t[idioma].bug}</p>
-                <textarea className="w-full h-32 p-4 bg-black/20 border border-white/10 rounded-2xl mb-6 text-white focus:border-[#FEAFAE] focus:outline-none resize-none transition-all" placeholder={t[idioma].escribiSug} value={mensajeFeedback} onChange={(e) => setMensajeFeedback(e.target.value)} />
-                <button onClick={mandarFeedback} disabled={enviandoFeedback || !mensajeFeedback} className="w-full text-black px-8 py-4 rounded-xl font-bold disabled:opacity-50 transition-all shadow-lg hover:scale-[1.02]" style={melocotonGradient}>{enviandoFeedback ? t[idioma].enviando : t[idioma].enviarSug}</button>
-              </div>
-            )}
-
-          </div>
-
-        </main>
+            </main>
+          </>
+        )}
       </div>
 
       {/* MODAL DE CONFIRMACIÓN DE AUTO-APPLY */}
