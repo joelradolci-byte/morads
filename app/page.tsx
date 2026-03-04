@@ -66,29 +66,51 @@ function TiltWrapper({ children }: { children: React.ReactNode }) {
   );
 }
 
-const NeuralBackground = () => {
+// EL NUEVO COMPONENTE ESTRELLA: GALAXIA + ESCÁNER
+const SpaceBackground = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const mouseRef = useRef({ x: -1000, y: -1000 });
 
   useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      mouseRef.current = { x: e.clientX, y: e.clientY };
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    
+
     let width = window.innerWidth;
     let height = window.innerHeight;
     canvas.width = width;
     canvas.height = height;
 
-    const particles: {x: number, y: number, vx: number, vy: number, radius: number}[] = [];
-    const numParticles = Math.floor((width * height) / 12000); 
+    // Arrays para las 3 capas
+    const dustStars: any[] = [];
+    const nodes: any[] = [];
+    let shootingStars: any[] = [];
 
-    for (let i = 0; i < numParticles; i++) {
-      particles.push({
+    // 1. Polvo Cósmico (Fondo lento)
+    for (let i = 0; i < 150; i++) {
+      dustStars.push({
         x: Math.random() * width,
         y: Math.random() * height,
-        vx: (Math.random() - 0.5) * 0.4, 
-        vy: (Math.random() - 0.5) * 0.4,
+        radius: Math.random() * 1.5,
+        opacity: Math.random(),
+        speed: (Math.random() - 0.5) * 0.1
+      });
+    }
+
+    // 2. Nodos Interactivos (La Red de IA)
+    const numNodes = Math.floor((width * height) / 12000); 
+    for (let i = 0; i < numNodes; i++) {
+      nodes.push({
+        x: Math.random() * width,
+        y: Math.random() * height,
+        vx: (Math.random() - 0.5) * 0.3,
+        vy: (Math.random() - 0.5) * 0.3,
         radius: Math.random() * 1.5 + 0.5
       });
     }
@@ -97,11 +119,39 @@ const NeuralBackground = () => {
 
     const render = () => {
       ctx.clearRect(0, 0, width, height);
-      ctx.fillStyle = 'rgba(254, 175, 174, 0.6)'; 
-      ctx.strokeStyle = 'rgba(254, 175, 174, 0.12)'; 
 
-      for (let i = 0; i < numParticles; i++) {
-        let p = particles[i];
+      const { x: mx, y: my } = mouseRef.current;
+
+      // Efecto Escáner: Un resplandor muy sutil que sigue al cursor
+      if (mx > 0 && my > 0) {
+        const scannerLight = ctx.createRadialGradient(mx, my, 0, mx, my, 400);
+        scannerLight.addColorStop(0, 'rgba(254, 175, 174, 0.05)'); // Luz durazno en el centro
+        scannerLight.addColorStop(1, 'rgba(10, 10, 12, 0)'); // Se funde con el fondo negro
+        ctx.fillStyle = scannerLight;
+        ctx.fillRect(0, 0, width, height);
+      }
+
+      // Dibujar Polvo Cósmico
+      ctx.fillStyle = '#ffffff';
+      dustStars.forEach(star => {
+        star.y += star.speed;
+        star.x += star.speed;
+        if (star.y < 0) star.y = height;
+        if (star.y > height) star.y = 0;
+        if (star.x < 0) star.x = width;
+        if (star.x > width) star.x = 0;
+        
+        ctx.globalAlpha = star.opacity * 0.4;
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      ctx.globalAlpha = 1;
+
+      // Dibujar Nodos e Interacción Láser
+      ctx.fillStyle = 'rgba(254, 175, 174, 0.8)';
+      for (let i = 0; i < nodes.length; i++) {
+        let p = nodes[i];
         p.x += p.vx;
         p.y += p.vy;
 
@@ -112,21 +162,65 @@ const NeuralBackground = () => {
         ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
         ctx.fill();
 
-        for (let j = i + 1; j < numParticles; j++) {
-          let p2 = particles[j];
+        for (let j = i + 1; j < nodes.length; j++) {
+          let p2 = nodes[j];
           let dx = p.x - p2.x;
           let dy = p.y - p2.y;
           let dist = Math.sqrt(dx * dx + dy * dy);
 
-          if (dist < 130) { 
+          if (dist < 130) {
+            // El Escáner: Si el mouse está cerca, las líneas brillan más fuerte
+            let mDx = p.x - mx;
+            let mDy = p.y - my;
+            let distToMouse = Math.sqrt(mDx * mDx + mDy * mDy);
+            
+            let interactiveAlpha = distToMouse < 200 ? 0.5 : 0.1; // 0.5 brilla, 0.1 apagado
+            
+            ctx.strokeStyle = `rgba(254, 175, 174, ${(1 - dist / 130) * interactiveAlpha})`;
+            ctx.lineWidth = distToMouse < 200 ? 1 : 0.5; // La línea se engrosa al escanear
+
             ctx.beginPath();
             ctx.moveTo(p.x, p.y);
             ctx.lineTo(p2.x, p2.y);
-            ctx.lineWidth = 1 - dist / 130;
             ctx.stroke();
           }
         }
       }
+
+      // Estrellas Fugaces
+      if (Math.random() < 0.005) { // Posibilidad bajita de que aparezca una
+        shootingStars.push({
+          x: Math.random() * width,
+          y: 0,
+          length: Math.random() * 100 + 40,
+          speed: Math.random() * 15 + 10,
+          opacity: 1
+        });
+      }
+
+      for (let i = shootingStars.length - 1; i >= 0; i--) {
+        let s = shootingStars[i];
+        s.x -= s.speed; // Cae en diagonal hacia la izquierda
+        s.y += s.speed; // Cae hacia abajo
+        s.opacity -= 0.015; // Se desvanece rápido
+
+        if (s.opacity <= 0) {
+          shootingStars.splice(i, 1);
+          continue;
+        }
+
+        const gradient = ctx.createLinearGradient(s.x, s.y, s.x + s.length, s.y - s.length);
+        gradient.addColorStop(0, `rgba(255, 164, 189, ${s.opacity})`); // Magenta en la punta
+        gradient.addColorStop(1, 'rgba(255, 164, 189, 0)'); // Cola transparente
+
+        ctx.strokeStyle = gradient;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(s.x, s.y);
+        ctx.lineTo(s.x + s.length, s.y - s.length);
+        ctx.stroke();
+      }
+
       animationFrameId = requestAnimationFrame(render);
     };
 
@@ -141,30 +235,14 @@ const NeuralBackground = () => {
 
     window.addEventListener('resize', handleResize);
     return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('resize', handleResize);
       cancelAnimationFrame(animationFrameId);
     };
   }, []);
 
-  return <canvas ref={canvasRef} className="fixed inset-0 w-full h-full pointer-events-none z-[1] print:hidden opacity-50 mix-blend-screen" />;
-};
-
-// NUEVO COMPONENTE: El Eclipse Premium (Estilo "Corona / Amanecer")
-const EclipseBackground = () => {
-  return (
-    <div className="fixed inset-0 w-full h-full pointer-events-none z-0 overflow-hidden flex justify-center">
-      {/* Cambios clave:
-        1. top-[-200px] md:top-[-350px] -> Lo empuja fuertemente hacia arriba.
-        2. w-[700px] md:w-[1000px] -> Achica el diámetro para que no invada los costados.
-        3. opacity-75 -> Suaviza la luz para no matar el contraste del texto.
-      */}
-      <img 
-        src="/eclipse-bg.webp" 
-        alt="Eclipse Mora" 
-        className="absolute top-[-200px] md:top-[-350px] w-[700px] md:w-[1000px] max-w-none mix-blend-screen opacity-75"
-      />
-    </div>
-  );
+  // z-[1] para que quede detrás de todo
+  return <canvas ref={canvasRef} className="fixed inset-0 w-full h-full pointer-events-none z-[1] print:hidden opacity-90" />;
 };
 
 function AuditorDashboard() {
@@ -212,7 +290,6 @@ function AuditorDashboard() {
   const [mostrarConfirmacion, setMostrarConfirmacion] = useState(false);
   const [toastState, setToastState] = useState<{show: boolean, status: 'success' | 'undoing' | 'reverted', timeLeft: number}>({show: false, status: 'success', timeLeft: 15});
 
-  // Switch para simular Plan Individual vs Agencia
   const [modoPlan, setModoPlan] = useState<"agencia" | "individual">("agencia");
 
   const t = {
@@ -577,7 +654,6 @@ function AuditorDashboard() {
   cuentasRojas.sort((a,b) => b.cant - a.cant);
   cuentasAmarillas.sort((a,b) => b.cant - a.cant);
 
-  // Obtener datos para el Dashboard Individual
   const ultimaAuditoria = historial.length > 0 ? historial[0] : null;
   const fugasIndividuales = ultimaAuditoria?.reporte_json?.hallazgos?.graves_rojo?.length || 0;
 
@@ -586,8 +662,7 @@ function AuditorDashboard() {
   if (!session) {
     return (
       <div className="min-h-screen w-full font-sans text-slate-200 overflow-y-auto overflow-x-hidden bg-[#0a0a0c] selection:bg-[#FEAFAE] selection:text-black relative">
-        <NeuralBackground />
-        <EclipseBackground />
+        <SpaceBackground />
         
         <nav className="w-full max-w-7xl mx-auto px-6 py-6 flex justify-between items-center z-50 relative">
           <div className="flex items-center gap-2">
@@ -747,8 +822,7 @@ function AuditorDashboard() {
 
       <div className="flex h-screen w-full font-sans text-slate-200 overflow-hidden print-container relative bg-[#0a0a0c]">
         
-        <NeuralBackground />
-        <EclipseBackground />
+        <SpaceBackground />
 
         <aside className="w-64 bg-[#0a0a0c]/40 backdrop-blur-2xl border-r border-white/5 flex flex-col justify-between print:hidden z-20 relative shadow-[10px_0_30px_rgba(0,0,0,0.5)]">
           <div>
