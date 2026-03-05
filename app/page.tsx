@@ -79,7 +79,7 @@ function TiltWrapper({ children }: { children: React.ReactNode }) {
   );
 }
 
-// --- FONDO NARRATIVO: ESFERA DE AUDITORÍA CON ESCÁNER ---
+// --- FONDO NARRATIVO MEJORADO: ESFERA DE AUDITORÍA CON ESCÁNER Y NODOS REACTIVOS (Rojo/Verde) ---
 const AuditWireframeBackground = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -95,22 +95,24 @@ const AuditWireframeBackground = () => {
     canvas.height = height;
 
     const nodes: any[] = [];
-    const radius = width > 1024 ? 350 : 250; 
+    // Ajustamos radio para que cubra la zona derecha
+    const radius = width > 1024 ? width * 0.28 : width * 0.35; 
 
-    // Crear puntos de la esfera con algunos nodos designados como "Errores" (Fugas)
-    for (let i = 0; i <= 14; i++) {
-      let lat = Math.PI * i / 14;
-      for (let j = 0; j <= 28; j++) {
-        let lon = 2 * Math.PI * j / 28;
+    // Crear puntos de la esfera con mayor densidad para wireframe
+    for (let i = 0; i <= 16; i++) {
+      let lat = Math.PI * i / 16;
+      for (let j = 0; j <= 32; j++) {
+        let lon = 2 * Math.PI * j / 32;
         let x = radius * Math.sin(lat) * Math.cos(lon);
         let y = radius * Math.sin(lat) * Math.sin(lon);
         let z = radius * Math.cos(lat);
         
-        // Concentramos los errores en un sector específico para que se vea como un grupo de malas métricas
-        let isErrorCluster = (i > 8 && i < 12) && (j > 4 && j < 9);
-        let isError = isErrorCluster && Math.random() > 0.3; // 70% de chance de ser rojo en ese clúster
+        // Designamos dinámicamente algunos nodos como "Errores/Fugas" (Rojos)
+        // Usamos Math.random() en la creación para un patrón único pero estático por sesión
+        const isErrorCandidate = (i > 8 && i < 13) && (j > 3 && j < 11); // Un sector crítico
+        const isError = isErrorCandidate && Math.random() > 0.4;
         
-        nodes.push({ x, y, z, isError, glow: 0 });
+        nodes.push({ x, y, z, isError, glow: 0, scaleFactor: 1 });
       }
     }
 
@@ -121,17 +123,17 @@ const AuditWireframeBackground = () => {
 
     const render = () => {
       ctx.clearRect(0, 0, width, height);
-      angleX += 0.0008;
-      angleY += 0.0015;
+      angleX += 0.0006;
+      angleY += 0.0012;
       
-      // El escáner baja y luego se reinicia
-      scanY += 3.5; 
-      if (scanY > height * 1.2) {
-        scanY = -height * 0.5;
+      // El escáner baja y luego se reinicia (velocidad ajustada)
+      scanY += 4; 
+      if (scanY > height * 1.3) {
+        scanY = -height * 0.4;
       }
 
-      // Centro del objeto (mitad derecha de la pantalla)
-      const centerX = width * 0.75;
+      // Centro del objeto (Desplazado a la derecha)
+      const centerX = width > 1024 ? width * 0.76 : width * 0.5;
       const centerY = height * 0.5;
 
       const projectedNodes = nodes.map(node => {
@@ -145,80 +147,115 @@ const AuditWireframeBackground = () => {
         x = x; y = y2; z = z2;
 
         // Proyección 2D
-        const fov = 1000;
+        const fov = 1100; // Más FOV para menor distorsión
         const scale = fov / (fov + z);
         const x2d = (x * scale) + centerX;
         const y2d = (y * scale) + centerY;
         
-        // Lógica de Escaneo (si la línea de escaneo está cerca del nodo en el eje Y)
+        // --- LÓGICA DE AUDITORÍA (Nodos reactivos al Escáner) ---
         const distToScan = Math.abs(y2d - scanY);
-        if (distToScan < 30) {
-           node.glow = 1.0; // Se ilumina al máximo al ser escaneado
+        // Ancho del haz de escaneo
+        if (distToScan < 45) {
+           node.glow = 1.0; // Se ilumina al máximo (Verde/Rojo)
+           if (node.isError) {
+              node.scaleFactor = 1.6; // Los errores aumentan de tamaño
+           } else {
+              node.scaleFactor = 1.1; // Nodos sanos vibran ligeramente
+           }
         } else {
-           // Decae el brillo. Los errores retienen el brillo más tiempo
-           node.glow *= node.isError ? 0.96 : 0.88; 
+           // Decae el brillo. 
+           // Los errores (rojos) mantienen el brillo más tiempo (Bloom persistente)
+           node.glow *= node.isError ? 0.98 : 0.86; 
+           node.scaleFactor = 1 + (node.scaleFactor - 1) * 0.96; // Retorna a tamaño normal
         }
         
-        return { x: x2d, y: y2d, scale: scale, isError: node.isError, glow: node.glow };
+        return { 
+          x: x2d, y: y2d, 
+          scale: scale * node.scaleFactor, // Escalado compuesto
+          isError: node.isError, 
+          glow: Math.max(0.05, node.glow), // Mínimo brillo para que se vean grises
+          zZ: z // Usamos para orden de dibujado si fuera necesario
+        };
       });
 
-      // Dibujar línea de Escáner láser
-      if (scanY > 0 && scanY < height) {
-         const scanGradient = ctx.createLinearGradient(0, scanY - 20, 0, scanY + 20);
-         scanGradient.addColorStop(0, 'rgba(218, 235, 227, 0)');
-         scanGradient.addColorStop(0.5, 'rgba(218, 235, 227, 0.4)'); // Color menta del escáner
-         scanGradient.addColorStop(1, 'rgba(218, 235, 227, 0)');
-         ctx.fillStyle = scanGradient;
-         ctx.fillRect(centerX - radius * 1.5, scanY - 20, radius * 3, 40);
+      // --- DIBUJAR ESCÁNER CON PRESENCIA REAL (AZUL PASTEL/TURQUESA) ---
+      if (scanY > -100 && scanY < height + 100) {
+         // Degradado ancho de fondo del escáner
+         const scanGradient = ctx.createLinearGradient(centerX - radius*1.5, 0, centerX + radius*1.5, 0);
+         scanGradient.addColorStop(0, 'rgba(153, 205, 216, 0)');
+         scanGradient.addColorStop(0.3, 'rgba(153, 205, 216, 0.05)');
+         scanGradient.addColorStop(0.5, 'rgba(153, 205, 216, 0.2)'); // Color turquesa del escáner peak
+         scanGradient.addColorStop(0.7, 'rgba(153, 205, 216, 0.05)');
+         scanGradient.addColorStop(1, 'rgba(153, 205, 216, 0)');
          
-         // Línea dura central del escáner
+         ctx.fillStyle = scanGradient;
+         // Cubrimos toda la esfera a lo ancho
+         ctx.fillRect(centerX - radius * 2, scanY - 35, radius * 4, 70);
+         
+         // Línea dura central del láser (Turquesa brillante)
          ctx.beginPath();
-         ctx.strokeStyle = 'rgba(218, 235, 227, 0.8)';
-         ctx.lineWidth = 1;
-         ctx.moveTo(centerX - radius * 1.2, scanY);
-         ctx.lineTo(centerX + radius * 1.2, scanY);
+         ctx.strokeStyle = 'rgba(153, 205, 216, 0.8)';
+         ctx.lineWidth = 2;
+         ctx.moveTo(centerX - radius * 1.4, scanY);
+         ctx.lineTo(centerX + radius * 1.4, scanY);
          ctx.stroke();
       }
 
-      // Dibujar lineas (Wireframe) base
+      // Dibujar wireframe (Lineas grises sutiles)
       ctx.beginPath();
-      ctx.strokeStyle = `rgba(38, 43, 39, 0.12)`; // Gris oscuro de base
-      ctx.lineWidth = 0.8;
+      ctx.strokeStyle = `rgba(38, 43, 39, 0.15)`; // Gris oscuro sutil
+      ctx.lineWidth = 1;
+      // Dibujamos menos líneas para no saturar, priorizando meridianos
       for (let i = 0; i < projectedNodes.length; i++) {
-        for (let j = i + 1; j < projectedNodes.length; j++) {
-           const dist = Math.sqrt(
-             Math.pow(projectedNodes[i].x - projectedNodes[j].x, 2) + 
-             Math.pow(projectedNodes[i].y - projectedNodes[j].y, 2)
-           );
-           if (dist < (radius * 0.35)) { 
-             ctx.moveTo(projectedNodes[i].x, projectedNodes[i].y);
-             ctx.lineTo(projectedNodes[j].x, projectedNodes[j].y);
-           }
+        // Conectar con el siguiente nodo en el mismo paralelo
+        let nextInLat = i + 1;
+        if (i % 33 !== 32 && nextInLat < projectedNodes.length) {
+          ctx.moveTo(projectedNodes[i].x, projectedNodes[i].y);
+          ctx.lineTo(projectedNodes[nextInLat].x, projectedNodes[nextInLat].y);
+        }
+        // Conectar con el nodo en el paralelo de abajo
+        let nextInLon = i + 33;
+        if (nextInLon < projectedNodes.length) {
+          ctx.moveTo(projectedNodes[i].x, projectedNodes[i].y);
+          ctx.lineTo(projectedNodes[nextInLon].x, projectedNodes[nextInLon].y);
         }
       }
       ctx.stroke();
 
-      // Dibujar Nodos reactivos
+      // --- DIBUJAR NODOS REACTIVOS (Rojo Fuga / Verde Sano) ---
       projectedNodes.forEach(pn => {
-        let baseColor = 'rgba(38, 43, 39, 0.2)';
-        let activeColor = pn.isError ? `rgba(243, 195, 178, ${Math.max(0.2, pn.glow)})` : `rgba(218, 235, 227, ${pn.glow})`;
+        // Color por defecto (Gris base)
+        let fillColor = 'rgba(38, 43, 39, 0.2)';
+        
+        // Si el nodo está brillando intensamente por el escáner (o persistencia)
+        if (pn.glow > 0.06) {
+           if (pn.isError) {
+              // --- NODOS ROJO FUGA (Melocotón Brillante) ---
+              // Aumentamos opacidad y brillo base para presencia
+              fillColor = `rgba(243, 195, 178, ${0.4 + pn.glow * 0.6})`;
+              ctx.shadowBlur = 25 * pn.glow; // BLOOM INTENSO Y PERSISTENTE
+              ctx.shadowColor = `rgba(243, 195, 178, 1)`; // Brillo rojo/melocotón
+           } else {
+              // --- NODOS VERDE SANO (Menta Brillante) ---
+              fillColor = `rgba(218, 235, 227, ${pn.glow * 0.8})`;
+              ctx.shadowBlur = 8 * pn.glow; // Brillo sutil menta
+              ctx.shadowColor = `rgba(218, 235, 227, 0.6)`;
+           }
+        } else {
+           // Reseteamos sombras para grises base
+           ctx.shadowBlur = 0;
+           ctx.shadowColor = 'transparent';
+        }
         
         ctx.beginPath();
-        // Si el nodo está brillando, usa su color (Menta o Melocotón), si no, gris base
-        ctx.fillStyle = pn.glow > 0.05 ? activeColor : baseColor;
-        // Los errores brillan más grandes
-        let nodeSize = (pn.glow > 0.05) ? (pn.isError ? 3.5 : 2) : 1.5;
+        ctx.fillStyle = fillColor;
         
-        if (pn.glow > 0.05 && pn.isError) {
-          ctx.shadowBlur = 15;
-          ctx.shadowColor = pastelColors.peach;
-        } else {
-          ctx.shadowBlur = 0;
-        }
-
-        ctx.arc(pn.x, pn.y, nodeSize * pn.scale, 0, Math.PI * 2);
+        // Tamaño base incrementado para mayor presencia
+        let nodeRadius = (pn.glow > 0.06 && pn.isError) ? 3.5 : 2;
+        
+        ctx.arc(pn.x, pn.y, nodeRadius * pn.scale, 0, Math.PI * 2);
         ctx.fill();
-        ctx.shadowBlur = 0; // Reset
+        ctx.shadowBlur = 0; // Reset para el próximo nodo
       });
 
       animationFrameId = requestAnimationFrame(render);
@@ -226,12 +263,12 @@ const AuditWireframeBackground = () => {
 
     render();
 
-    const handleResize = () => { width = window.innerWidth; height = window.innerHeight; canvas.width = width; canvas.height = height; };
+    const handleResize = () => { width = window.innerWidth; height = window.innerHeight; canvas.width = width; canvas.height = height; radius = width > 1024 ? width * 0.28 : width * 0.35; };
     window.addEventListener('resize', handleResize);
     return () => { window.removeEventListener('resize', handleResize); cancelAnimationFrame(animationFrameId); };
   }, []);
 
-  return <canvas ref={canvasRef} className="fixed inset-0 w-full h-full pointer-events-none z-[1] print:hidden opacity-80" />;
+  return <canvas ref={canvasRef} className="fixed inset-0 w-full h-full pointer-events-none z-[1] print:hidden opacity-90" />;
 };
 
 // --- RED NEURAL OSCURA (Mantenida intacta para el Dashboard Logueado) ---
@@ -342,7 +379,7 @@ function AuditorDashboard() {
   const [modoPlan, setModoPlan] = useState<"agencia" | "individual">("agencia");
 
   const t = {
-    es: { dashboard: "Dashboard", panelPrin: "Panel Principal", panelDesc: "Resumen del rendimiento global.", saludG: "Salud Promedio", totAud: "Total Cuentas", fugasDet: "Fugas Críticas", oporMej: "Oportunidades", ultAud: "Últimas Auditorías", actRec: "Actividad Reciente", verTodas: "Ver todas", generada: "Se auditó la cuenta", hace: "Hace", afectaA: "Afecta principalmente a:", buscarGlobal: "Buscar cuenta por nombre...", nueva: "Auditor IA", clientes: "Panel de Clientes", reportes: "Reportes", feedback: "Sugerencias", configuracion: "Configuración General", facturacion: "Ver Facturación", salir: "Cerrar Sesión", placeholderNombre: "Nombre del Cliente o Cuenta", btnAnalizar: "Ejecutar Auditoría", btnAnalizando: "Analizando métricas...", exportar: "Exportar a PDF", score: "Score General", problemas: "Problemas Graves", mejoras: "Áreas Débiles", aciertos: "Puntos Fuertes", tituloland: "Auditorías Nivel Agencia", h1land1: "Detectá fugas de dinero con", h1land2: "Inteligencia Artificial.", pland1: "Conectá tu cuenta de Google Ads y dejá que nuestra Inteligencia Artificial audite tus campañas y genere reportes marca blanca en segundos.", btncomenzar: "Comenzar Gratis", detalleCliente: "Detalle del Cliente", buzonSug: "Buzón de Sugerencias", suscripcion: "Suscripción", activa: "Activa", renueva: "Renueva:", ingresaDatos: "Ingresá los datos clave de la campaña para un análisis preciso.", presupuestoObj: "Presupuesto Mensual", placeholderPres: "Ej: 1000", gastoAct: "Gasto Actual (Hasta hoy)", placeholderGasto: "Ej: 450", conversiones: "Conversiones", cparoas: "CPA o ROAS Actual", tipoCamp: "Tipo de Campaña", contexto: "Contexto y Notas del Cliente (Opcional)", placeholderConv: "Ej: 120", placeholderContexto: "Ej: El cliente quiere enfocarse en vender zapatos de invierno. Notamos muchos clics de países irrelevantes.", volver: "Volver al Panel", monitoreo: "Monitoreo de Cuentas", tenes: "Tenés", registradas: "auditorías registradas.", buscar: "Buscar cliente...", todos: "Todos", criticos: "Críticos", atencion: "Atención", optimos: "Óptimos", thCliente: "Cliente / Cuenta", thFecha: "Fecha", thEstado: "Estado IA", thTendencia: "Tendencia", thAccion: "Acción", abrirAud: "Abrir Auditoría", sinCuentas: "No se encontraron clientes.", cuentaSinNombre: "Cuenta sin nombre", persPdf: "Personalizá la identidad y las herramientas de tu agencia.", nomAgencia: "Nombre de la Agencia", logoPdf: "Logo (PDF)", subeLogo: "Sube un logo", guardando: "Guardando...", guardarAj: "Guardar Ajustes", ayudanos: "Ayudanos a mejorar Mora", bug: "¿Encontraste un bug o tenés una idea genial?", escribiSug: "Escribí tu sugerencia acá...", enviando: "Enviando...", enviarSug: "Enviar Sugerencia", facturacionTitulo: "Suscripción y Pagos", facturacionDesc: "Gestioná tu plan actual y métodos de pago de forma segura.", planActual: "Tu Plan Actual", gestionarStripe: "Gestionar en Stripe", pronto: "(Próximamente)", puntajeBasado: "Puntaje basado en rendimiento y estructura.", marcaBlanca: "Marca Blanca Visual", preferencias: "Preferencias de Trabajo", sitioWeb: "Website (Appears on PDF)", piePagina: "Pie de página legal (PDF)", monedaDef: "Moneda por defecto", metricaDef: "Métrica por defecto", feat1Tit: "Auditoría en Segundos", feat1Desc: "La IA procesa cientos de métricas y detecta fugas de presupuesto al instante.", feat2Tit: "Marca Blanca Total", feat2Desc: "Exportá PDFs impecables con tu logo, colores y sitio web listos para enviar al cliente.", feat3Tit: "Historial y Tendencias", feat3Desc: "Monitoreá el progreso de todas tus cuentas con scores evolutivos y alertas tempranas.", todoLoQueNecesitas: "Everything tu agencia necesita", planes: "Planes simples y transparentes", planFree: "Plan Starter", planPro: "Plan Agency", btnUnete: "Unite a Mora hoy", login: "Iniciar sesión", mockupTit: "Auditoría Finalizada", mockupScore: "Score de Salud", mockupCritico: "Fuga de Presupuesto", mockupCriticoDesc: "Detectamos $450/mes gastados en términos de búsqueda irrelevantes sin conversiones.", mockupOptimo: "Estructura Correcta", mockupOptimoDesc: "El seguimiento de conversiones está correctamente implementado en todas las campañas.", confirmarBorrar: "¿Seguro que querés eliminar esta auditoría? Esta acción no se puede deshacer.", notifTit: "Alertas del Guardián IA", notifVacio: "Todo en orden. No hay anomalías recientes.", tabDiag: "Diagnóstico IA", tabCheck: "Plan de Acción", tabAvanzado: "Análisis Avanzado", autoApply: "Corregir Ahora", msgAutoApply: "Para usar la ejecución en piloto automático (Auto-Apply), vinculá tu API de Google Ads en la sección de Integraciones. (Disponible próximamente)", pacingTit: "Pacing de Presupuesto", pacingDesc: "Ritmo de gasto proyectado", matrizTit: "Campaign Matrix", matrizDesc: "Distribución del gasto vs rendimiento", escalar: "ESTRELLAS (Escalar)", apagar: "BASURA (Apagar)", observar: "DUDOSOS (Observar)", potenciales: "POTENCIALES (Testear)" },
+    es: { dashboard: "Dashboard", panelPrin: "Panel Principal", panelDesc: "Resumen del rendimiento global.", saludG: "Salud Promedio", totAud: "Total Cuentas", fugasDet: "Fugas Críticas", oporMej: "Oportunidades", ultAud: "Últimas Auditorías", actRec: "Actividad Reciente", verTodas: "Ver todas", generada: "Se auditó la cuenta", hace: "Hace", afectaA: "Afecta principalmente a:", buscarGlobal: "Buscar cuenta por nombre...", nueva: "Auditor IA", clientes: "Panel de Clientes", reportes: "Reportes", feedback: "Sugerencias", configuracion: "Configuración General", facturacion: "Ver Facturación", salir: "Cerrar Sesión", placeholderNombre: "Nombre del Cliente o Cuenta", btnAnalizar: "Ejecutar Auditoría", btnAnalizando: "Analizando métricas...", exportar: "Exportar a PDF", score: "Score General", problemas: "Problemas Graves", mejoras: "Áreas Débiles", aciertos: "Puntos Fuertes", tituloland: "Auditorías Nivel Agencia", h1land1: "Detectá fugas de dinero con", h1land2: "Inteligencia Artificial.", pland1: "Conectá tu cuenta de Google Ads y dejá que nuestra Inteligencia Artificial audite tus campañas y genere reportes marca blanca en segundos.", btncomenzar: "Comenzar Gratis", detalleCliente: "Detalle del Cliente", buzonSug: "Buzón de Sugerencias", suscripcion: "Suscripción", activa: "Active", renueva: "Renueva:", ingresaDatos: "Ingresá los datos clave de la campaña para un análisis preciso.", presupuestoObj: "Presupuesto Mensual", placeholderPres: "Ej: 1000", gastoAct: "Gasto Actual (Hasta hoy)", placeholderGasto: "Ej: 450", conversiones: "Conversiones", cparoas: "CPA o ROAS Actual", tipoCamp: "Tipo de Campaña", contexto: "Contexto y Notas del Cliente (Opcional)", placeholderConv: "Ej: 120", placeholderContexto: "Ej: El cliente quiere enfocarse en vender zapatos de invierno. Notamos muchos clics de países irrelevantes.", volver: "Volver al Panel", monitoreo: "Monitoreo de Cuentas", tenes: "Tenés", registradas: "auditorías registradas.", buscar: "Buscar cliente...", todos: "Todos", criticos: "Críticos", atencion: "Atención", optimos: "Óptimos", thCliente: "Cliente / Cuenta", thFecha: "Fecha", thEstado: "Estado IA", thTendencia: "Tendencia", thAccion: "Acción", abrirAud: "Abrir Auditoría", sinCuentas: "No se encontraron clientes.", cuentaSinNombre: "Cuenta sin nombre", persPdf: "Personalizá la identidad y las herramientas de tu agencia.", nomAgencia: "Nombre de la Agencia", logoPdf: "Logo (PDF)", subeLogo: "Sube un logo", guardando: "Guardando...", guardarAj: "Guardar Ajustes", ayudanos: "Ayudanos a mejorar Mora", bug: "¿Encontraste un bug o tenés una idea genial?", escribiSug: "Escribí tu sugerencia acá...", enviando: "Enviando...", enviarSug: "Enviar Sugerencia", facturacionTitulo: "Suscripción y Pagos", facturacionDesc: "Gestioná tu plan actual y métodos de pago de forma segura.", planActual: "Tu Plan Actual", gestionarStripe: "Gestionar en Stripe", pronto: "(Próximamente)", puntajeBasado: "Puntaje basado en rendimiento y estructura.", marcaBlanca: "Marca Blanca Visual", preferencias: "Preferencias de Trabajo", sitioWeb: "Website (Appears on PDF)", piePagina: "Pie de página legal (PDF)", monedaDef: "Moneda por defecto", metricaDef: "Métrica por defecto", feat1Tit: "Auditoría en Segundos", feat1Desc: "La IA procesa cientos de métricas y detecta fugas de presupuesto al instante.", feat2Tit: "Marca Blanca Total", feat2Desc: "Exportá PDFs impecables con tu logo, colores y sitio web listos para enviar al cliente.", feat3Tit: "Historial y Tendencias", feat3Desc: "Monitoreá el progreso de todas tus cuentas con scores evolutivos y alertas tempranas.", todoLoQueNecesitas: "Everything tu agencia necesita", planes: "Planes simples y transparentes", planFree: "Plan Starter", planPro: "Plan Agency", btnUnete: "Unite a Mora hoy", login: "Iniciar sesión", mockupTit: "Auditoría Finalizada", mockupScore: "Score de Salud", mockupCritico: "Fuga de Presupuesto", mockupCriticoDesc: "Detectamos $450/mes gastados en términos de búsqueda irrelevantes sin conversiones.", mockupOptimo: "Estructura Correcta", mockupOptimoDesc: "El seguimiento de conversiones está correctamente implementado en todas las campañas.", confirmarBorrar: "¿Seguro que querés eliminar esta auditoría? Esta acción no se puede deshacer.", notifTit: "Alertas del Guardián IA", notifVacio: "Todo en orden. No hay anomalías recientes.", tabDiag: "Diagnóstico IA", tabCheck: "Plan de Acción", tabAvanzado: "Análisis Avanzado", autoApply: "Corregir Ahora", msgAutoApply: "Para usar la ejecución en piloto automático (Auto-Apply), vinculá tu API de Google Ads en la sección de Integraciones. (Disponible próximamente)", pacingTit: "Pacing de Presupuesto", pacingDesc: "Ritmo de gasto proyectado", matrizTit: "Campaign Matrix", matrizDesc: "Distribución del gasto vs rendimiento", escalar: "ESTRELLAS (Escalar)", apagar: "BASURA (Apagar)", observar: "DUDOSOS (Observar)", potenciales: "POTENCIALES (Testear)" },
     en: { dashboard: "Dashboard", panelPrin: "Main Dashboard", panelDesc: "Global overview of your agency's performance.", saludG: "Avg Health Score", totAud: "Total Accounts", fugasDet: "Critical Leaks", oporMej: "Opportunities", ultAud: "Recent Audits", actRec: "Recent Activity", verTodas: "View all", generada: "Audit generated for", hace: "Ago", afectaA: "Mainly affecting:", buscarGlobal: "Search account by name...", nueva: "AI Auditor", clientes: "Client Dashboard", reportes: "Reports", feedback: "Feedback", configuracion: "General Settings", facturacion: "Billing", salir: "Sign Out", placeholderNombre: "Client or Account Name", btnAnalizar: "Run Audit", btnAnalizando: "Analyzing metrics...", exportar: "Export to PDF", score: "Overall Score", problemas: "Critical Issues", mejoras: "Weak Areas", aciertos: "Strengths", tituloland: "Agency-Level Audits", h1land1: "Detect money leaks with", h1land2: "Artificial Intelligence.", pland1: "Connect your Google Ads account and let our AI audit your campaigns to generate white-label reports in seconds.", btncomenzar: "Start for Free", detalleCliente: "Client Details", buzonSug: "Suggestion Box", suscripcion: "Subscription", activa: "Active", renueva: "Renews:", ingresaDatos: "Enter key campaign data for a precise analysis.", presupuestoObj: "Target Monthly Budget", placeholderPres: "E.g. 1000", gastoAct: "Current Spend (To date)", placeholderGasto: "E.g. 450", conversiones: "Conversions", cparoas: "Current CPA or ROAS", tipoCamp: "Campaign Type", contexto: "Client Context & Notes (Optional)", placeholderConv: "E.g. 120", placeholderContexto: "E.g. The client wants to focus on selling winter shoes. We noticed many clicks from irrelevant countries.", volver: "Back to Dashboard", monitoreo: "Account Monitoring", tenes: "You have", registradas: "audits recorded.", buscar: "Search client...", todos: "All", criticos: "Critical", atencion: "Warning", optimos: "Optimal", thCliente: "Client / Account", thFecha: "Date", thEstado: "AI Status", thTendencia: "Trend", thAccion: "Action", abrirAud: "Open Audit", sinCuentas: "No clients found.", cuentaSinNombre: "Unnamed Account", persPdf: "Customize your agency's identity and workflow tools.", nomAgencia: "Agency Name", logoPdf: "Logo (PDF)", subeLogo: "Upload logo", guardando: "Saving...", guardarAj: "Save Settings", ayudanos: "Help us improve Mora", bug: "Found a bug or have a great idea?", escribiSug: "Write your suggestion here...", enviando: "Sending...", enviarSug: "Send Suggestion", facturacionTitulo: "Subscription & Billing", facturacionDesc: "Manage your current plan and payment methods securely.", planActual: "Your Current Plan", gestionarStripe: "Manage in Stripe", pronto: "(Coming Soon)", puntajeBasado: "Score based on performance and structure.", marcaBlanca: "Visual White Label", preferencias: "Workflow Preferences", sitioWeb: "Website (Appears on PDF)", piePagina: "Legal Footer (PDF)", monedaDef: "Default Currency", metricaDef: "Default Metric", feat1Tit: "Audits in Seconds", feat1Desc: "Our AI processes hundreds of metrics and detects budget leaks instantly.", feat2Tit: "Full White Label", feat2Desc: "Export flawless PDFs with your logo, colors, and website ready for your clients.", feat3Tit: "History & Trends", feat3Desc: "Monitor the progress of all your accounts with evolutionary scores and early warnings.", todoLoQueNecesitas: "Everything your agency needs", planes: "Simple & transparent pricing", planFree: "Starter Plan", planPro: "Agency Plan", btnUnete: "Join Mora today", login: "Log In", mockupTit: "Audit Completed", mockupScore: "Health Score", mockupCritico: "Budget Leak", mockupCriticoDesc: "We detected $450/mo spent on irrelevant search terms with 0 conversions.", mockupOptimo: "Correct Structure", mockupOptimoDesc: "Conversion tracking is correctly implemented across all active campaigns.", confirmarBorrar: "Are you sure you want to delete this audit? This action cannot be undone.", notifTit: "AI Guardian Alerts", notifVacio: "All clear. No recent anomalies.", tabDiag: "AI Diagnosis", tabCheck: "Action Plan", tabAvanzado: "Advanced Analysis", autoApply: "Auto-Apply", msgAutoApply: "To use the Auto-Apply execution, link your Google Ads API in the Integrations section. (Coming soon)", pacingTit: "Budget Pacing", pacingDesc: "Projected spend rhythm", matrizTit: "Campaign Matrix", matrizDesc: "Spend distribution vs performance", escalar: "STARS (Scale)", apagar: "TRASH (Pause)", observar: "DOUBTFUL (Observe)", potenciales: "POTENCIALES (Test)" }
   };
 
@@ -540,7 +577,7 @@ function AuditorDashboard() {
 
       <div className={`flex h-screen w-full font-sans overflow-hidden print-container relative ${!session ? "bg-[#FDE8D3] selection:bg-[#F3C3B2] selection:text-[#262B27] text-[#262B27]" : "bg-[#0a0a0c] selection:bg-[#FEAFAE] selection:text-black text-slate-200"}`}>
         
-        {/* --- NUEVO FONDO ABSTRACTO DE AUDITORÍA --- */}
+        {/* --- NUEVO FONDO NARRATIVO DE AUDITORÍA MEJORADO --- */}
         {!session ? (
           <AuditWireframeBackground />
         ) : (
@@ -548,7 +585,7 @@ function AuditorDashboard() {
         )}
 
         {/* ========================================================================= */}
-        {/* VISTA: LANDING PAGE (USUARIOS NO LOGUEADOS - TEMA CLARO Y PASTEL)         */}
+        {/* VISTA: LANDING PAGE (USUARIOS NO LOGUEADOS - TEMA CLARO Y PASTEL)         */ }
         {/* ========================================================================= */}
         {!session ? (
           <div className="w-full h-full overflow-y-auto overflow-x-hidden relative z-10">
