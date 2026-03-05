@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { SessionProvider, signIn, signOut, useSession } from "next-auth/react";
 import { createClient } from "@supabase/supabase-js";
+import Link from "next/link"; // <-- IMPORTACIÓN CLAVE DE NEXT.JS
 import { 
   Target, Users, Building2, MessageSquare, LogOut, ChevronDown, 
   Zap, AlertTriangle, CheckCircle2, CreditCard, Settings, 
@@ -78,7 +79,6 @@ function TiltWrapper({ children }: { children: React.ReactNode }) {
   );
 }
 
-// --- FONDO MEJORADO: OBJETO GEOMÉTRICO 3D EN GRIS OSCURO ---
 const WireframeBackground = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -96,7 +96,6 @@ const WireframeBackground = () => {
     const nodes: number[][] = [];
     const radius = width > 1024 ? 400 : 250; 
 
-    // Crear puntos de una esfera
     for (let i = 0; i <= 12; i++) {
       let lat = Math.PI * i / 12;
       for (let j = 0; j <= 24; j++) {
@@ -117,26 +116,21 @@ const WireframeBackground = () => {
       angleX += 0.001;
       angleY += 0.002;
 
-      // Centro del objeto en la pantalla (hacia la derecha)
       const centerX = width * 0.75;
       const centerY = height * 0.5;
 
-      // CAMBIO DE COLOR: Gris casi negro con 15% de opacidad
       ctx.strokeStyle = `rgba(38, 43, 39, 0.15)`; 
-      ctx.lineWidth = 0.8; // Un poco más grueso para que se note
+      ctx.lineWidth = 0.8; 
 
       const projectedNodes = nodes.map(node => {
-        // Rotación en Y
         let x = node[0] * Math.cos(angleY) - node[2] * Math.sin(angleY);
         let z = node[0] * Math.sin(angleY) + node[2] * Math.cos(angleY);
         let y = node[1];
 
-        // Rotación en X
         let y2 = y * Math.cos(angleX) - z * Math.sin(angleX);
         let z2 = y * Math.sin(angleX) + z * Math.cos(angleX);
         x = x; y = y2; z = z2;
 
-        // Proyección 3D a 2D simple
         const fov = 1000;
         const scale = fov / (fov + z);
         const x2d = (x * scale) + centerX;
@@ -145,7 +139,6 @@ const WireframeBackground = () => {
         return { x: x2d, y: y2d, scale: scale };
       });
 
-      // Dibujar lineas (Wireframe) uniendo puntos cercanos
       ctx.beginPath();
       for (let i = 0; i < projectedNodes.length; i++) {
         for (let j = i + 1; j < projectedNodes.length; j++) {
@@ -174,7 +167,6 @@ const WireframeBackground = () => {
   return <canvas ref={canvasRef} className="fixed inset-0 w-full h-full pointer-events-none z-[1] print:hidden opacity-80" />;
 };
 
-// --- RED NEURAL OSCURA (Mantenida intacta para el Dashboard Logueado) ---
 const DashboardBackground = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -442,7 +434,12 @@ function AuditorDashboard() {
   const ultimaAuditoria = historial.length > 0 ? historial[0] : null;
   const fugasIndividuales = ultimaAuditoria?.reporte_json?.hallazgos?.graves_rojo?.length || 0;
 
-  if (status === "loading") return <div className="h-screen w-full flex justify-center items-center text-xl font-bold text-white bg-[#0a0a0c]">Cargando...</div>;
+  // PANTALLA DE CARGA ACTUALIZADA AL MODO CLARO CON LOGO PULSANTE
+  if (status === "loading") return (
+    <div className="h-screen w-full flex justify-center items-center bg-[#FDE8D3]">
+      <div className="w-16 h-16 rounded-2xl flex items-center justify-center font-black text-[#262B27] text-4xl shadow-lg bg-[#F3C3B2] animate-pulse">M</div>
+    </div>
+  );
 
   return (
     <>
@@ -495,9 +492,9 @@ function AuditorDashboard() {
                 <span className="font-bold text-2xl tracking-tight text-[#262B27]">Mora</span>
               </div>
               <div className="hidden md:flex items-center gap-8 font-medium text-[#657166]">
-                <a href="/como-funciona" className="hover:text-[#262B27] transition-colors">Cómo funciona</a>
-                <a href="/precios" className="hover:text-[#262B27] transition-colors">Precios</a>
-                <a href="/faq" className="hover:text-[#262B27] transition-colors">FAQ</a>
+                <Link href="/como-funciona" className="hover:text-[#262B27] transition-colors">Cómo funciona</Link>
+                <Link href="/precios" className="hover:text-[#262B27] transition-colors">Precios</Link>
+                <Link href="/faq" className="hover:text-[#262B27] transition-colors">FAQ</Link>
               </div>
               <div className="flex items-center gap-4">
                 <button onClick={() => setIdioma(idioma === "es" ? "en" : "es")} className="text-sm font-bold text-[#657166] hover:text-[#262B27] transition-colors uppercase hidden sm:block">
@@ -642,9 +639,9 @@ function AuditorDashboard() {
                 </div>
 
                 <div className="mt-8 text-center md:text-left">
-                  <a href="/como-funciona" className="inline-flex items-center gap-2 text-[#657166] font-bold text-sm hover:text-[#262B27] transition-colors bg-[#CFD6C4]/20 px-4 py-2 rounded-lg border border-[#CFD6C4]/50">
+                  <Link href="/como-funciona" className="inline-flex items-center gap-2 text-[#657166] font-bold text-sm hover:text-[#262B27] transition-colors bg-[#CFD6C4]/20 px-4 py-2 rounded-lg border border-[#CFD6C4]/50">
                     Ver el recorrido de la plataforma en detalle <ArrowRight size={14}/>
-                  </a>
+                  </Link>
                 </div>
               </section>
             </FadeInOnScroll>
@@ -711,9 +708,9 @@ function AuditorDashboard() {
                 </div>
 
                 <div className="mt-12 text-center">
-                  <a href="/precios" className="inline-flex items-center gap-2 text-[#657166] font-bold text-sm hover:text-[#262B27] transition-colors bg-[#CFD6C4]/20 px-4 py-2 rounded-lg border border-[#CFD6C4]/50">
+                  <Link href="/precios" className="inline-flex items-center gap-2 text-[#657166] font-bold text-sm hover:text-[#262B27] transition-colors bg-[#CFD6C4]/20 px-4 py-2 rounded-lg border border-[#CFD6C4]/50">
                     Ver la tabla de comparación completa <ArrowRight size={14}/>
-                  </a>
+                  </Link>
                 </div>
               </section>
             </FadeInOnScroll>
@@ -744,9 +741,9 @@ function AuditorDashboard() {
                 </div>
 
                 <div className="mt-8 text-center">
-                  <a href="/faq" className="inline-flex items-center gap-2 text-[#657166] font-bold text-sm hover:text-[#262B27] transition-colors bg-[#CFD6C4]/20 px-4 py-2 rounded-lg border border-[#CFD6C4]/50">
+                  <Link href="/faq" className="inline-flex items-center gap-2 text-[#657166] font-bold text-sm hover:text-[#262B27] transition-colors bg-[#CFD6C4]/20 px-4 py-2 rounded-lg border border-[#CFD6C4]/50">
                     Leer todas las preguntas frecuentes <ArrowRight size={14}/>
-                  </a>
+                  </Link>
                 </div>
               </section>
             </FadeInOnScroll>
@@ -758,8 +755,8 @@ function AuditorDashboard() {
               </div>
               <p className="mb-4 font-medium">© {new Date().getFullYear()} Mora. All rights reserved.</p>
               <div className="flex justify-center gap-6 text-xs font-bold uppercase tracking-wider">
-                <a href="/privacidad" className="hover:text-[#262B27] transition-colors">Privacidad</a>
-                <a href="/terminos" className="hover:text-[#262B27] transition-colors">Términos</a>
+                <Link href="/privacidad" className="hover:text-[#262B27] transition-colors">Privacidad</Link>
+                <Link href="/terminos" className="hover:text-[#262B27] transition-colors">Términos</Link>
               </div>
             </footer>
           </div>
