@@ -8,7 +8,7 @@ import {
   Zap, AlertTriangle, CheckCircle2, CreditCard, Settings, 
   Search, ArrowRight, ArrowLeft, TrendingUp, TrendingDown, LayoutPanelLeft,
   FileText, BarChart3, ShieldCheck, Plus, Clock, Activity, Trash2, Lock, 
-  Bell, ListChecks, LayoutGrid, CheckSquare, Sparkles, Undo2, RefreshCcw, Type, Calculator, BookOpen
+  Bell, ListChecks, LayoutGrid, CheckSquare, Sparkles, Undo2, RefreshCcw, Type, Calculator, BookOpen, BarChart
 } from 'lucide-react';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -22,7 +22,8 @@ const melocotonText = { background: "linear-gradient(90deg, #FEECE3 0%, #FCD5BF 
 // --- NUEVA PALETA PASTEL (Para la Landing Page) ---
 const pastelColors = {
   bg: "#FDE8D3",       
-  text: "#657166",     
+  textDark: "#262B27", // Gris casi negro (NUEVO)
+  textMuted: "#657166",// Gris verdoso original
   peach: "#F3C3B2",    
   blue: "#99CDD8",     
   mint: "#DAEBE3",     
@@ -45,7 +46,7 @@ function FadeInOnScroll({ children, delay = 0 }: { children: React.ReactNode, de
   }, []);
 
   return (
-    <div ref={domRef} className={`transition-all duration-1000 ease-out ${isVisible ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-24 scale-95'}`} style={{ transitionDelay: `${delay}ms` }}>
+    <div ref={domRef} className={`transition-all duration-1000 ease-out ${isVisible ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-12 scale-95'}`} style={{ transitionDelay: `${delay}ms` }}>
       {children}
     </div>
   );
@@ -59,8 +60,8 @@ function TiltWrapper({ children }: { children: React.ReactNode }) {
     const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
     const x = (e.clientX - left) / width;
     const y = (e.clientY - top) / height;
-    const rotateX = (0.5 - y) * 15; 
-    const rotateY = (x - 0.5) * 15; 
+    const rotateX = (0.5 - y) * 10; 
+    const rotateY = (x - 0.5) * 10; 
     setTransition('transform 0.1s ease-out'); 
     setTransform(`perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.02, 1.02, 1.02)`);
   };
@@ -159,7 +160,7 @@ const PastelBackground = () => {
           let dist = Math.sqrt(dx * dx + dy * dy);
 
           if (dist < 120) {
-            ctx.strokeStyle = `${pastelColors.text}10`; 
+            ctx.strokeStyle = `${pastelColors.textMuted}15`; 
             ctx.lineWidth = 0.5; 
             ctx.beginPath();
             ctx.moveTo(px, py);
@@ -289,7 +290,6 @@ function AuditorDashboard() {
 
   const [presupuestoObjetivo, setPresupuestoObjetivo] = useState("");
   const [gastoActual, setGastoActual] = useState("");
-  
   const [conversiones, setConversiones] = useState("");
   const [cpaRoas, setCpaRoas] = useState("");
   const [tipoCampana, setTipoCampana] = useState("Búsqueda (Search)");
@@ -301,7 +301,6 @@ function AuditorDashboard() {
   
   const [historial, setHistorial] = useState<any[]>([]);
   const [cargandoHistorial, setCargandoHistorial] = useState(false);
-  
   const [filtroEstado, setFiltroEstado] = useState<"todos" | "critico" | "atencion" | "optimo">("todos");
   const [busqueda, setBusqueda] = useState(""); 
   
@@ -320,9 +319,7 @@ function AuditorDashboard() {
 
   const [mensajeFeedback, setMensajeFeedback] = useState("");
   const [enviandoFeedback, setEnviandoFeedback] = useState(false);
-  
   const [tareasCompletadas, setTareasCompletadas] = useState<number[]>([]);
-  
   const [mostrarConfirmacion, setMostrarConfirmacion] = useState(false);
   const [toastState, setToastState] = useState<{show: boolean, status: 'success' | 'undoing' | 'reverted', timeLeft: number}>({show: false, status: 'success', timeLeft: 15});
 
@@ -369,7 +366,7 @@ function AuditorDashboard() {
       tabDiag: "Diagnóstico IA", tabCheck: "Plan de Acción", tabAvanzado: "Análisis Avanzado",
       autoApply: "Corregir Ahora", msgAutoApply: "Para usar la ejecución en piloto automático (Auto-Apply), vinculá tu API de Google Ads en la sección de Integraciones. (Disponible próximamente)",
       pacingTit: "Pacing de Presupuesto", pacingDesc: "Ritmo de gasto proyectado",
-      matrizTit: "Matriz de Campañas", matrizDesc: "Distribución del gasto vs rendimiento",
+      matrizTit: "Campaign Matrix", matrizDesc: "Distribución del gasto vs rendimiento",
       escalar: "ESTRELLAS (Escalar)", apagar: "BASURA (Apagar)", observar: "DUDOSOS (Observar)", potenciales: "POTENCIALES (Testear)"
     },
     en: {
@@ -702,7 +699,7 @@ function AuditorDashboard() {
         
         /* Modificamos el font family SOLO para la landing (cuando NO hay sesión) */
         ${!session ? `
-          body { font-family: 'Inter', sans-serif; background-color: #FDE8D3 !important; }
+          body { font-family: 'Inter', sans-serif; background-color: #FDE8D3 !important; color: #262B27; }
           .font-serif { font-family: 'Playfair Display', serif; }
         ` : `
           @media print {
@@ -717,7 +714,7 @@ function AuditorDashboard() {
       `}} />
 
       {/* Controlamos el fondo de la pantalla base dependiendo de si hay sesión o no */}
-      <div className={`flex h-screen w-full font-sans overflow-hidden print-container relative ${!session ? "bg-[#FDE8D3] selection:bg-[#F3C3B2] selection:text-[#657166] text-[#657166]" : "bg-[#0a0a0c] selection:bg-[#FEAFAE] selection:text-black text-slate-200"}`}>
+      <div className={`flex h-screen w-full font-sans overflow-hidden print-container relative ${!session ? "bg-[#FDE8D3] selection:bg-[#F3C3B2] selection:text-[#262B27] text-[#262B27]" : "bg-[#0a0a0c] selection:bg-[#FEAFAE] selection:text-black text-slate-200"}`}>
         
         {/* --- CAMBIO DE FONDO DINÁMICO --- */}
         {!session ? (
@@ -732,14 +729,19 @@ function AuditorDashboard() {
           <div className="w-full h-full overflow-y-auto overflow-x-hidden relative z-10">
             <nav className="w-full max-w-[1400px] mx-auto px-6 py-6 flex justify-between items-center z-50 relative">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-[#657166] text-2xl shadow-sm bg-[#F3C3B2]">M</div>
-                <span className="font-bold text-2xl tracking-tight text-[#657166]">Mora</span>
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-[#262B27] text-2xl shadow-sm bg-[#F3C3B2]">M</div>
+                <span className="font-bold text-2xl tracking-tight text-[#262B27]">Mora</span>
+              </div>
+              <div className="hidden md:flex items-center gap-8 font-medium text-[#657166]">
+                <a href="#como-funciona" className="hover:text-[#262B27] transition-colors">Cómo funciona</a>
+                <a href="#precios" className="hover:text-[#262B27] transition-colors">Precios</a>
+                <a href="#faq" className="hover:text-[#262B27] transition-colors">FAQ</a>
               </div>
               <div className="flex items-center gap-4">
-                <button onClick={() => setIdioma(idioma === "es" ? "en" : "es")} className="text-sm font-bold text-[#657166]/60 hover:text-[#657166] transition-colors uppercase">
+                <button onClick={() => setIdioma(idioma === "es" ? "en" : "es")} className="text-sm font-bold text-[#657166] hover:text-[#262B27] transition-colors uppercase hidden sm:block">
                   {idioma}
                 </button>
-                <button onClick={() => signIn("google", { prompt: "select_account" })} className="bg-[#657166] text-[#FDE8D3] px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-[#657166]/90 transition-colors shadow-lg">
+                <button onClick={() => signIn("google", { prompt: "select_account" })} className="bg-[#262B27] text-[#FDE8D3] px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-[#262B27]/90 transition-colors shadow-lg border border-[#262B27]">
                   {t[idioma].login}
                 </button>
               </div>
@@ -750,98 +752,228 @@ function AuditorDashboard() {
               {/* Lado Izquierdo: Narrativa */}
               <FadeInOnScroll>
                 <div className="flex flex-col items-start text-left lg:pr-10">
-                  <div className="border border-[#657166]/20 bg-[#CFD6C4]/30 px-4 py-1.5 rounded-full text-[10px] font-bold tracking-widest uppercase mb-8 flex items-center gap-3 text-[#657166]">
+                  <div className="border border-[#CFD6C4]/80 bg-[#CFD6C4]/30 px-4 py-1.5 rounded-full text-[10px] font-bold tracking-widest uppercase mb-8 flex items-center gap-3 text-[#262B27]">
                      <span className="w-2 h-2 rounded-full bg-[#F3C3B2] animate-pulse"></span>
                      Auditorías con IA
                   </div>
-                  <h1 className="text-[3.5rem] md:text-7xl lg:text-[5rem] font-serif text-[#657166] font-black leading-[1.05] mb-6 tracking-tight">
+                  <h1 className="text-[3.5rem] md:text-7xl lg:text-[5rem] font-serif text-[#262B27] font-black leading-[1.05] mb-6 tracking-tight">
                     Detectá fugas de dinero con <span className="italic text-[#99CDD8]">precisión</span> quirúrgica.
                   </h1>
-                  <p className="text-[#657166]/80 text-lg md:text-xl mb-10 max-w-lg leading-relaxed font-medium">
+                  <p className="text-[#657166] text-lg md:text-xl mb-10 max-w-lg leading-relaxed font-medium">
                     Conectá tu cuenta de Google Ads y dejá que nuestra IA audite tus campañas, traduzca las métricas y genere reportes marca blanca en segundos.
                   </p>
-                  <button onClick={() => signIn("google", { prompt: "select_account" })} className="bg-[#F3C3B2] text-[#657166] px-8 py-4 rounded-2xl font-bold text-lg hover:scale-105 transition-transform shadow-[0_10px_30px_rgba(243,195,178,0.6)] flex items-center justify-center gap-2">
+                  <button onClick={() => signIn("google", { prompt: "select_account" })} className="bg-[#F3C3B2] text-[#262B27] px-8 py-4 rounded-2xl font-bold text-lg hover:scale-105 transition-transform shadow-[0_10px_30px_rgba(243,195,178,0.6)] flex items-center justify-center gap-2 w-full sm:w-auto">
                     Comenzar prueba gratis <ArrowRight size={20} />
                   </button>
 
-                  {/* Trust Stats */}
-                  <div className="flex flex-wrap items-center gap-8 md:gap-12 mt-12 pt-8 border-t border-[#657166]/10 w-full max-w-xl">
-                     <div>
-                        <p className="text-3xl font-black text-[#657166]">$2.4<span className="text-[#F3C3B2]">k</span></p>
-                        <p className="text-[10px] text-[#657166]/60 font-bold uppercase tracking-wider mt-1">Ahorro Promedio</p>
-                     </div>
-                     <div>
-                        <p className="text-3xl font-black text-[#657166]">3<span className="text-[#99CDD8]">min</span></p>
-                        <p className="text-[10px] text-[#657166]/60 font-bold uppercase tracking-wider mt-1">1ra Auditoría</p>
-                     </div>
-                     <div>
-                        <p className="text-3xl font-black text-[#657166]">840<span className="text-[#DAEBE3]">+</span></p>
-                        <p className="text-[10px] text-[#657166]/60 font-bold uppercase tracking-wider mt-1">Agencias</p>
-                     </div>
+                  {/* Trust Elements - Option C: Risk Reversal */}
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mt-8 text-[13px] text-[#657166] font-semibold w-full">
+                     <span className="flex items-center gap-2"><CheckCircle2 size={16} className="text-[#99CDD8]" strokeWidth={3} /> Sin tarjeta de crédito</span>
+                     <span className="flex items-center gap-2"><CheckCircle2 size={16} className="text-[#99CDD8]" strokeWidth={3} /> Setup en 1 minuto</span>
+                     <span className="flex items-center gap-2"><CheckCircle2 size={16} className="text-[#99CDD8]" strokeWidth={3} /> Cancelá cuando quieras</span>
                   </div>
                 </div>
               </FadeInOnScroll>
 
-              {/* Lado Derecho: Ventana al Producto */}
+              {/* Lado Derecho: Efecto Cascada 3D */}
               <FadeInOnScroll delay={200}>
-                <div className="relative w-full h-[500px] lg:h-[650px] flex justify-center items-center mt-10 lg:mt-0">
+                <div className="relative w-full h-[500px] lg:h-[650px] flex justify-center items-center mt-10 lg:mt-0 perspective-1000">
+                   
                    {/* Auras Pastel de Fondo */}
                    <div className="absolute top-10 right-10 w-72 h-72 bg-[#99CDD8]/50 blur-[90px] rounded-full"></div>
                    <div className="absolute bottom-10 left-10 w-72 h-72 bg-[#F3C3B2]/50 blur-[90px] rounded-full"></div>
 
-                   {/* Dashboard Mockup Card */}
+                   {/* TARJETA 1 (Fondo): Gráfico de barras */}
+                   <div className="absolute top-[10%] right-0 lg:right-[-5%] w-72 bg-white/60 backdrop-blur-xl border border-[#CFD6C4]/60 shadow-lg rounded-2xl p-6 transform rotate-6 scale-90 z-0">
+                      <p className="text-[10px] font-bold text-[#657166] uppercase tracking-widest mb-4">Gasto Diario</p>
+                      <div className="flex items-end gap-2 h-24">
+                        {[40, 60, 30, 80, 50, 90, 70].map((h, i) => (
+                           <div key={i} className="flex-1 bg-[#99CDD8]/40 rounded-t-sm" style={{height: `${h}%`}}></div>
+                        ))}
+                      </div>
+                   </div>
+
+                   {/* TARJETA 2 (Centro): Dashboard Principal */}
                    <TiltWrapper>
-                     <div className="relative w-full max-w-md lg:max-w-lg bg-white/90 backdrop-blur-2xl border border-[#CFD6C4]/50 shadow-[0_30px_60px_rgba(101,113,102,0.15)] rounded-[2rem] p-6 lg:p-8">
-                        <div className="flex justify-between items-center mb-8 border-b border-[#657166]/10 pb-4">
-                           <p className="font-bold text-[#657166] flex items-center gap-2"><LayoutGrid size={18}/> Auditoría en Vivo</p>
-                           <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider bg-[#DAEBE3]/50 text-[#657166] px-3 py-1.5 rounded-full"><span className="w-1.5 h-1.5 rounded-full bg-[#DAEBE3] border border-[#657166]/20 animate-pulse"></span> Search</span>
+                     <div className="relative z-10 w-full max-w-sm lg:max-w-md bg-white/95 backdrop-blur-2xl border border-[#CFD6C4]/80 shadow-[0_30px_60px_rgba(38,43,39,0.15)] rounded-[2rem] p-6 lg:p-8 transform -rotate-2">
+                        <div className="flex justify-between items-center mb-6 border-b border-[#CFD6C4]/50 pb-4">
+                           <p className="font-bold text-[#262B27] flex items-center gap-2"><LayoutGrid size={18}/> Rendimiento</p>
+                           <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider bg-[#DAEBE3]/50 text-[#262B27] px-3 py-1 rounded-full">
+                             <span className="w-1.5 h-1.5 rounded-full bg-[#DAEBE3] border border-[#262B27]/20 animate-pulse"></span> Search
+                           </span>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4 lg:gap-6 mb-8">
-                           <div className="bg-[#FDE8D3]/50 p-4 lg:p-5 rounded-2xl border border-[#CFD6C4]/30">
-                              <p className="text-[10px] font-bold text-[#657166]/60 uppercase tracking-wider mb-2">Gasto Total</p>
-                              <p className="text-3xl lg:text-4xl font-black text-[#657166] mb-3">$8,240</p>
-                              <p className="text-[10px] font-bold text-[#657166] flex items-center gap-1 bg-[#DAEBE3] inline-flex px-2 py-1 rounded-md"><TrendingUp size={12}/> 12% vs mes ant.</p>
-                           </div>
-                           <div className="bg-[#FDE8D3]/50 p-4 lg:p-5 rounded-2xl border border-[#CFD6C4]/30">
-                              <p className="text-[10px] font-bold text-[#657166]/60 uppercase tracking-wider mb-2">Desperdicio</p>
-                              <p className="text-3xl lg:text-4xl font-black text-[#657166] mb-3">$1,830</p>
-                              <p className="text-[10px] font-bold text-[#657166] flex items-center gap-1 bg-[#F3C3B2] inline-flex px-2 py-1 rounded-md"><AlertTriangle size={12}/> 22% del gasto</p>
+                        <div className="flex justify-center items-center flex-col py-4 mb-4">
+                           <p className="text-xs font-bold text-[#657166] uppercase tracking-widest mb-2">Score de Salud</p>
+                           <div className="w-32 h-32 rounded-full flex items-center justify-center border-[8px] border-[#FDE8D3] text-5xl font-black text-[#262B27] shadow-inner bg-[#DAEBE3]">
+                             84
                            </div>
                         </div>
 
-                        <div className="mb-6">
-                           <p className="text-[10px] font-bold text-[#657166]/60 uppercase tracking-wider mb-3">Fugas Detectadas por IA</p>
-                           <div className="space-y-3">
-                              <div className="flex justify-between items-center p-3.5 bg-white rounded-xl border border-[#CFD6C4]/40 shadow-sm">
-                                 <span className="text-sm font-bold text-[#657166]">Keywords de baja intención</span>
-                                 <span className="text-xs font-black text-[#657166] bg-[#F3C3B2]/40 px-2 py-1 rounded">-$620</span>
-                              </div>
-                              <div className="flex justify-between items-center p-3.5 bg-white rounded-xl border border-[#CFD6C4]/40 shadow-sm">
-                                 <span className="text-sm font-bold text-[#657166]">Horarios fuera de conversión</span>
-                                 <span className="text-xs font-black text-[#657166] bg-[#F3C3B2]/40 px-2 py-1 rounded">-$480</span>
-                              </div>
-                              <div className="flex justify-between items-center p-3.5 bg-white rounded-xl border border-[#CFD6C4]/40 shadow-sm">
-                                 <span className="text-sm font-bold text-[#657166]">Audiencias superpuestas</span>
-                                 <span className="text-xs font-black text-[#657166] bg-[#F3C3B2]/40 px-2 py-1 rounded">-$280</span>
-                              </div>
+                        <div className="grid grid-cols-2 gap-4">
+                           <div className="bg-[#FDE8D3]/50 p-4 rounded-xl border border-[#CFD6C4]/40">
+                              <p className="text-[10px] font-bold text-[#657166] uppercase tracking-wider mb-1">Gasto Total</p>
+                              <p className="text-2xl font-black text-[#262B27]">$8.2k</p>
+                           </div>
+                           <div className="bg-[#FDE8D3]/50 p-4 rounded-xl border border-[#CFD6C4]/40">
+                              <p className="text-[10px] font-bold text-[#657166] uppercase tracking-wider mb-1">Conversiones</p>
+                              <p className="text-2xl font-black text-[#262B27]">142</p>
                            </div>
                         </div>
                      </div>
                    </TiltWrapper>
+
+                   {/* TARJETA 3 (Frente): Alerta de Fuga */}
+                   <div className="absolute bottom-[10%] left-[-5%] lg:left-[-15%] z-20 w-64 bg-white/95 backdrop-blur-xl border border-[#F3C3B2] shadow-[0_15px_35px_rgba(243,195,178,0.5)] rounded-2xl p-4 transform -rotate-3 translate-y-4 hover:scale-105 transition-transform cursor-default">
+                      <div className="flex items-start gap-3">
+                         <div className="w-10 h-10 rounded-xl bg-[#F3C3B2]/30 flex items-center justify-center flex-shrink-0 border border-[#F3C3B2]/50">
+                            <AlertTriangle size={20} className="text-[#262B27]" />
+                         </div>
+                         <div>
+                            <p className="text-sm font-black text-[#262B27] leading-tight">Fuga Crítica Detectada</p>
+                            <p className="text-xs text-[#657166] mt-1 font-medium">Keywords de baja intención</p>
+                            <span className="inline-block mt-2 text-xs font-black text-[#262B27] bg-[#F3C3B2] px-2 py-1 rounded-md">-$620 / mes</span>
+                         </div>
+                      </div>
+                   </div>
+
                 </div>
               </FadeInOnScroll>
             </section>
 
-            <footer className="border-t border-[#657166]/10 py-12 text-center text-[#657166]/60 text-sm relative z-10">
+            {/* SECCIÓN CÓMO FUNCIONA (Layout Horizontal/Editorial) */}
+            <FadeInOnScroll delay={100}>
+              <section id="como-funciona" className="max-w-[1400px] mx-auto px-6 py-24 border-t border-[#CFD6C4]/40">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 mb-16 items-end">
+                   <div className="lg:col-span-1">
+                     <p className="text-[10px] font-bold tracking-widest uppercase text-[#99CDD8] mb-2">Cómo funciona</p>
+                     <h2 className="text-4xl md:text-5xl font-serif font-black text-[#262B27] leading-tight">Optimización en<br/>3 pasos concretos.</h2>
+                   </div>
+                   <div className="lg:col-span-2">
+                     <p className="text-lg text-[#657166] lg:max-w-xl font-medium">Sin configuraciones complicadas ni integraciones eternas. Conectás tu cuenta y en menos de 3 minutos tenés el primer reporte de fugas listo para actuar o compartir con tu cliente.</p>
+                   </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                   <div className="bg-white/60 backdrop-blur-sm border border-[#CFD6C4]/60 p-8 rounded-[2rem] hover:bg-white hover:border-[#99CDD8] transition-all shadow-sm group">
+                      <div className="w-14 h-14 rounded-2xl bg-[#CFD6C4]/40 flex items-center justify-center text-[#262B27] mb-6 group-hover:scale-110 transition-transform"><Users size={24} /></div>
+                      <h3 className="text-xl font-bold text-[#262B27] mb-3">1. Conectá tu cuenta</h3>
+                      <p className="text-[#657166] leading-relaxed font-medium">Vinculá Google Ads en un clic. Acceso de solo lectura, totalmente seguro y sin tocar tus campañas.</p>
+                   </div>
+                   <div className="bg-white/60 backdrop-blur-sm border border-[#CFD6C4]/60 p-8 rounded-[2rem] hover:bg-white hover:border-[#99CDD8] transition-all shadow-sm group">
+                      <div className="w-14 h-14 rounded-2xl bg-[#99CDD8]/40 flex items-center justify-center text-[#262B27] mb-6 group-hover:scale-110 transition-transform"><Search size={24} /></div>
+                      <h3 className="text-xl font-bold text-[#262B27] mb-3">2. La IA audita</h3>
+                      <p className="text-[#657166] leading-relaxed font-medium">Nuestros modelos analizan más de 200 señales ocultas para detectar exactamente dónde se desperdicia presupuesto.</p>
+                   </div>
+                   <div className="bg-white/60 backdrop-blur-sm border border-[#CFD6C4]/60 p-8 rounded-[2rem] hover:bg-white hover:border-[#99CDD8] transition-all shadow-sm group">
+                      <div className="w-14 h-14 rounded-2xl bg-[#F3C3B2]/40 flex items-center justify-center text-[#262B27] mb-6 group-hover:scale-110 transition-transform"><FileText size={24} /></div>
+                      <h3 className="text-xl font-bold text-[#262B27] mb-3">3. Reportes PDF</h3>
+                      <p className="text-[#657166] leading-relaxed font-medium">Generá documentos impecables, listos para enviar a tu cliente con tu propio logo, branding y colores.</p>
+                   </div>
+                </div>
+              </section>
+            </FadeInOnScroll>
+
+            {/* SECCIÓN PRECIOS (3 Columnas Pastel) */}
+            <FadeInOnScroll>
+              <section id="precios" className="max-w-[1400px] mx-auto px-6 py-24 border-t border-[#CFD6C4]/40">
+                <div className="text-center mb-16">
+                  <p className="text-[10px] font-bold tracking-widest uppercase text-[#99CDD8] mb-2">Precios</p>
+                  <h2 className="text-4xl md:text-5xl font-serif font-black text-[#262B27] mb-4">Sin sorpresas, sin letra chica.</h2>
+                  <p className="text-[#657166] font-medium">Todos los planes incluyen 14 días de prueba gratis. Cancelá cuando quieras.</p>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+                  
+                  {/* TIER FREE / STARTER */}
+                  <div className="bg-white/60 backdrop-blur-sm border border-[#CFD6C4]/60 p-10 rounded-[2rem] flex flex-col justify-between hover:bg-white transition-all shadow-sm">
+                    <div>
+                      <h3 className="text-xl font-bold text-[#262B27] mb-2">Plan Starter</h3>
+                      <p className="text-[#657166] mb-8 text-sm font-medium">Para probar el poder de la IA en tu negocio.</p>
+                      <div className="text-5xl font-black text-[#262B27] mb-8">$0<span className="text-lg text-[#657166] font-medium">/mes</span></div>
+                      <ul className="space-y-4 mb-10 text-sm font-medium text-[#262B27]">
+                        <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#CFD6C4]" strokeWidth={3} /> 1 Cuenta publicitaria</li>
+                        <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#CFD6C4]" strokeWidth={3} /> Auditoría Básica IA</li>
+                        <li className="flex items-center gap-3 text-[#657166]/50 line-through"><CheckCircle2 size={18} className="text-[#CFD6C4]/30" strokeWidth={3} /> Exportación PDF</li>
+                        <li className="flex items-center gap-3 text-[#657166]/50 line-through"><CheckCircle2 size={18} className="text-[#CFD6C4]/30" strokeWidth={3} /> Marca Blanca</li>
+                      </ul>
+                    </div>
+                    <button onClick={() => signIn("google")} className="w-full bg-[#CFD6C4]/30 hover:bg-[#CFD6C4]/60 text-[#262B27] font-bold py-4 rounded-xl transition-colors border border-[#CFD6C4]/50 mt-auto">Empezar gratis</button>
+                  </div>
+
+                  {/* TIER INDIVIDUAL (Destacado) */}
+                  <div className="bg-white border-2 border-[#99CDD8] p-10 rounded-[2rem] flex flex-col justify-between shadow-[0_20px_50px_rgba(153,205,216,0.2)] relative transform md:-translate-y-4">
+                    <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-[#99CDD8] text-[#262B27] px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest">Más Popular</div>
+                    <div>
+                      <h3 className="text-xl font-bold text-[#262B27] mb-2">Plan Individual</h3>
+                      <p className="text-[#657166] mb-8 text-sm font-medium">Para emprendedores gestionando sus anuncios.</p>
+                      <div className="text-5xl font-black text-[#262B27] mb-8">$19<span className="text-lg text-[#657166] font-medium">/mes</span></div>
+                      <ul className="space-y-4 mb-10 text-sm font-medium text-[#262B27]">
+                        <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#99CDD8]" strokeWidth={3} /> Hasta 3 Cuentas</li>
+                        <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#99CDD8]" strokeWidth={3} /> Auditorías Avanzadas</li>
+                        <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#99CDD8]" strokeWidth={3} /> Exportación PDF (Logo Mora)</li>
+                        <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#99CDD8]" strokeWidth={3} /> Historial y Tendencias</li>
+                      </ul>
+                    </div>
+                    <button onClick={() => signIn("google")} className="w-full bg-[#99CDD8] hover:bg-[#85b9c4] text-[#262B27] font-bold py-4 rounded-xl transition-colors shadow-md mt-auto">Iniciar prueba de 14 días</button>
+                  </div>
+
+                  {/* TIER AGENCIA */}
+                  <div className="bg-white/60 backdrop-blur-sm border border-[#CFD6C4]/60 p-10 rounded-[2rem] flex flex-col justify-between hover:bg-white transition-all shadow-sm">
+                    <div>
+                      <h3 className="text-xl font-bold text-[#262B27] mb-2">Plan Agency</h3>
+                      <p className="text-[#657166] mb-8 text-sm font-medium">El centro de comando para agencias.</p>
+                      <div className="text-5xl font-black text-[#262B27] mb-8">$49<span className="text-lg text-[#657166] font-medium">/mes</span></div>
+                      <ul className="space-y-4 mb-10 text-sm font-medium text-[#262B27]">
+                        <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#F3C3B2]" strokeWidth={3} /> Cuentas Ilimitadas</li>
+                        <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#F3C3B2]" strokeWidth={3} /> Marca Blanca Total (Tu Logo)</li>
+                        <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#F3C3B2]" strokeWidth={3} /> Dashboard Multi-Cliente</li>
+                        <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#F3C3B2]" strokeWidth={3} /> Soporte VIP Prioritario</li>
+                      </ul>
+                    </div>
+                    <button onClick={() => signIn("google")} className="w-full bg-[#F3C3B2] hover:bg-[#eab3a1] text-[#262B27] font-bold py-4 rounded-xl transition-colors shadow-md mt-auto">Iniciar prueba de 14 días</button>
+                  </div>
+
+                </div>
+              </section>
+            </FadeInOnScroll>
+
+            {/* SECCIÓN PREGUNTAS FRECUENTES (FAQ Pastel) */}
+            <FadeInOnScroll>
+              <section id="faq" className="max-w-4xl mx-auto px-6 py-24 mb-12 border-t border-[#CFD6C4]/40">
+                <div className="text-center mb-16">
+                  <h2 className="text-4xl font-serif font-black text-[#262B27]">Preguntas Frecuentes</h2>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                   <div className="bg-white/60 backdrop-blur-sm border border-[#CFD6C4]/60 p-6 rounded-2xl hover:bg-white transition-colors">
+                      <h4 className="text-lg font-bold text-[#262B27] mb-2">¿Mora hace cambios en mis campañas sin avisar?</h4>
+                      <p className="text-[#657166] text-sm leading-relaxed font-medium">No. Mora audita y sugiere. Vos tenés el control total: podés aplicar los cambios manualmente en Google Ads. Nunca tocaremos tu presupuesto sin permiso.</p>
+                   </div>
+                   <div className="bg-white/60 backdrop-blur-sm border border-[#CFD6C4]/60 p-6 rounded-2xl hover:bg-white transition-colors">
+                      <h4 className="text-lg font-bold text-[#262B27] mb-2">¿Necesito ser un experto en Google Ads?</h4>
+                      <p className="text-[#657166] text-sm leading-relaxed font-medium">Para nada. Mora traduce métricas complejas a un lenguaje de negocios simple. Te decimos dónde estás perdiendo dinero y cómo solucionarlo en español claro.</p>
+                   </div>
+                   <div className="bg-white/60 backdrop-blur-sm border border-[#CFD6C4]/60 p-6 rounded-2xl hover:bg-white transition-colors">
+                      <h4 className="text-lg font-bold text-[#262B27] mb-2">¿Qué es exactamente la 'Marca Blanca Total'?</h4>
+                      <p className="text-[#657166] text-sm leading-relaxed font-medium">Exclusiva del Plan Agency, te permite exportar auditorías en PDF con el logo, colores y web de tu agencia. Ideal para entregar reportes de nivel corporativo.</p>
+                   </div>
+                   <div className="bg-white/60 backdrop-blur-sm border border-[#CFD6C4]/60 p-6 rounded-2xl hover:bg-white transition-colors">
+                      <h4 className="text-lg font-bold text-[#262B27] mb-2">¿Mis datos están seguros?</h4>
+                      <p className="text-[#657166] text-sm leading-relaxed font-medium">100%. Solo solicitamos permisos de lectura oficiales de Google a través de OAuth. No usamos tus datos ni los de tus clientes para entrenar modelos de IA públicos.</p>
+                   </div>
+                </div>
+              </section>
+            </FadeInOnScroll>
+
+            <footer className="border-t border-[#CFD6C4]/50 bg-white/40 py-12 text-center text-[#657166] text-sm relative z-10">
               <div className="flex items-center justify-center gap-2 mb-4">
-                <div className="w-6 h-6 rounded flex items-center justify-center font-black text-[#657166] text-xs bg-[#F3C3B2]">M</div>
-                <span className="font-bold text-[#657166]">Mora Analytics</span>
+                <div className="w-6 h-6 rounded flex items-center justify-center font-black text-[#262B27] text-xs bg-[#F3C3B2]">M</div>
+                <span className="font-bold text-[#262B27]">Mora Analytics</span>
               </div>
-              <p className="mb-4">© {new Date().getFullYear()} Mora. All rights reserved.</p>
-              <div className="flex justify-center gap-6 text-xs">
-                <a href="/privacidad" className="hover:text-[#657166] transition-colors">Política de Privacidad</a>
-                <a href="/terminos" className="hover:text-[#657166] transition-colors">Términos y Condiciones</a>
+              <p className="mb-4 font-medium">© {new Date().getFullYear()} Mora. All rights reserved.</p>
+              <div className="flex justify-center gap-6 text-xs font-bold uppercase tracking-wider">
+                <a href="/privacidad" className="hover:text-[#262B27] transition-colors">Privacidad</a>
+                <a href="/terminos" className="hover:text-[#262B27] transition-colors">Términos</a>
               </div>
             </footer>
           </div>
@@ -1172,7 +1304,7 @@ function AuditorDashboard() {
                           )}
                        </div>
 
-                       <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col justify-center items-center text-center relative overflow-hidden backdrop-blur-xl min-h-[200px] shadow-lg border-dashed hover:bg-white/10 transition-colors cursor-pointer group" onClick={() => setVista("nueva")}>
+                       <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col justify-center items-center text-center relative overflow-hidden backdrop-blur-xl min-h-[200px] shadow-lg border-dashed hover:border-[#FEAFAE]/40 transition-colors cursor-pointer group" onClick={() => setVista("nueva")}>
                           <div className="absolute -right-4 -top-4 w-24 h-24 bg-[#FEAFAE]/10 rounded-full blur-2xl transition-all duration-500 group-hover:scale-150 group-hover:bg-[#FEAFAE]/20"></div>
                           <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform relative z-10">
                              <Zap size={28} className="text-[#FEAFAE]" />
