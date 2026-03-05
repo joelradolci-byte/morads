@@ -100,13 +100,12 @@ const OrbitalBackground = () => {
     canvas.width = width;
     canvas.height = height;
 
-    // Colores RGB que coinciden con tu pastelColors
-    const TEAL  = "78, 205, 196";   // turquesa
-    const PEACH = "243, 195, 178";  // salmón / #F3C3B2
-    const SAGE  = "153, 205, 216";  // azul claro / #99CDD8
-    const DARK  = "38, 43, 39";     // oscuro / #262B27
+    // Colores más saturados y oscuros para contrastar bien sobre el fondo crema
+    const TEAL   = "24, 168, 160";   // turquesa intenso
+    const SALMON = "196, 80, 55";    // salmón oscuro
+    const DARK   = "60, 60, 70";     // gris oscuro neutro
+    const NAVY   = "40, 60, 100";    // azul noche para el anillo exterior
 
-    // Proyección 3D → 2D con perspectiva
     const project = (
       x0: number, y0: number, z0: number,
       tiltX: number, tiltY: number,
@@ -142,39 +141,39 @@ const OrbitalBackground = () => {
       {
         r: 340, tx: 12, ty: 0, sp: 0.09, dir: 1, col: TEAL,
         dots: [
-          { ca: 0,                 sz: 5, lbl: "CTR 4.8%",  trail: [], proj: null },
-          { ca: (Math.PI * 2) / 3, sz: 4, lbl: "$8.2k",     trail: [], proj: null },
-          { ca: (Math.PI * 4) / 3, sz: 4, lbl: "CPC $0.42", trail: [], proj: null },
+          { ca: 0,                  sz: 6, lbl: "CTR 4.8%",  trail: [], proj: null },
+          { ca: (Math.PI * 2) / 3,  sz: 5, lbl: "$8.2k",     trail: [], proj: null },
+          { ca: (Math.PI * 4) / 3,  sz: 5, lbl: "CPC $0.42", trail: [], proj: null },
         ],
       },
       {
-        r: 275, tx: 72, ty: 18, sp: 0.16, dir: -1, col: PEACH,
+        r: 275, tx: 72, ty: 18, sp: 0.16, dir: -1, col: SALMON,
         dots: [
-          { ca: Math.PI / 3,       sz: 6, lbl: "ROAS 3.2",  trail: [], proj: null },
-          { ca: Math.PI * 1.1,     sz: 4, lbl: "+12.4%",    trail: [], proj: null },
-          { ca: Math.PI * 1.8,     sz: 5, lbl: "Score 84",  trail: [], proj: null },
+          { ca: Math.PI / 3,        sz: 7, lbl: "ROAS 3.2",  trail: [], proj: null },
+          { ca: Math.PI * 1.1,      sz: 5, lbl: "+12.4%",    trail: [], proj: null },
+          { ca: Math.PI * 1.8,      sz: 6, lbl: "Score 84",  trail: [], proj: null },
         ],
       },
       {
-        r: 210, tx: 45, ty: 65, sp: 0.25, dir: 1, col: SAGE,
+        r: 210, tx: 45, ty: 65, sp: 0.25, dir: 1, col: DARK,
         dots: [
-          { ca: Math.PI / 2,       sz: 5, lbl: "CPL $18",   trail: [], proj: null },
-          { ca: Math.PI * 1.5,     sz: 4, lbl: "Conv 142",  trail: [], proj: null },
+          { ca: Math.PI / 2,        sz: 6, lbl: "CPL $18",   trail: [], proj: null },
+          { ca: Math.PI * 1.5,      sz: 5, lbl: "Conv 142",  trail: [], proj: null },
         ],
       },
       {
-        r: 155, tx: 30, ty: -50, sp: 0.36, dir: -1, col: PEACH,
+        r: 155, tx: 30, ty: -50, sp: 0.36, dir: -1, col: SALMON,
         dots: [
-          { ca: Math.PI * 0.8,     sz: 5, lbl: "CPA $12",   trail: [], proj: null },
-          { ca: Math.PI * 1.9,     sz: 4, lbl: "$480/mes",  trail: [], proj: null },
+          { ca: Math.PI * 0.8,      sz: 6, lbl: "CPA $12",   trail: [], proj: null },
+          { ca: Math.PI * 1.9,      sz: 5, lbl: "$480/mes",  trail: [], proj: null },
         ],
       },
-      // Anillo exterior gigante — muy sutil
+      // Anillo exterior — sutil pero visible
       {
-        r: 360, tx: 60, ty: -20, sp: 0.05, dir: 1, col: DARK,
+        r: 360, tx: 60, ty: -20, sp: 0.05, dir: 1, col: NAVY,
         dots: [
-          { ca: Math.PI / 4,       sz: 3, lbl: "", trail: [], proj: null },
-          { ca: Math.PI * 1.25,    sz: 3, lbl: "", trail: [], proj: null },
+          { ca: Math.PI / 4,        sz: 4, lbl: "", trail: [], proj: null },
+          { ca: Math.PI * 1.25,     sz: 4, lbl: "", trail: [], proj: null },
         ],
       },
     ];
@@ -188,7 +187,6 @@ const OrbitalBackground = () => {
 
       ctx.clearRect(0, 0, width, height);
 
-      // Centro desplazado a la derecha — igual que el original de Gemini
       const cx = width > 1024 ? width * 0.72 : width * 0.5;
       const cy = height * 0.5;
 
@@ -197,7 +195,7 @@ const OrbitalBackground = () => {
         const tyr     = (ring.ty * Math.PI) / 180;
         const isOuter = ring.r > 350;
 
-        // ── Dibujar el anillo segmento a segmento (opacidad varía con profundidad) ──
+        // Anillo segmento a segmento — opacidad más fuerte
         const steps = 160;
         for (let i = 0; i < steps; i++) {
           const t1 = (i / steps) * Math.PI * 2;
@@ -205,44 +203,44 @@ const OrbitalBackground = () => {
           const p1 = project(ring.r * Math.cos(t1), ring.r * Math.sin(t1), 0, txr, tyr, cx, cy);
           const p2 = project(ring.r * Math.cos(t2), ring.r * Math.sin(t2), 0, txr, tyr, cx, cy);
           const alpha = isOuter
-            ? 0.04 + p1.depth * 0.07
-            : 0.08 + p1.depth * 0.22;
+            ? 0.06 + p1.depth * 0.12
+            : 0.18 + p1.depth * 0.38;  // mucho más visible
           ctx.beginPath();
           ctx.moveTo(p1.px, p1.py);
           ctx.lineTo(p2.px, p2.py);
           ctx.strokeStyle = `rgba(${ring.col}, ${alpha})`;
-          ctx.lineWidth   = isOuter ? 0.7 : 1.1;
+          ctx.lineWidth   = isOuter ? 0.8 : 1.4;
           ctx.stroke();
         }
 
-        // ── Puntos orbitando con estela ──
+        // Puntos orbitando con estela
         for (const dot of ring.dots) {
           dot.ca += ring.dir * ring.sp * dt;
 
           const p     = project(ring.r * Math.cos(dot.ca), ring.r * Math.sin(dot.ca), 0, txr, tyr, cx, cy);
-          const alpha = 0.45 + p.depth * 0.55;
-          const dsz   = dot.sz * p.sc * 0.78;
+          const alpha = 0.65 + p.depth * 0.35;  // casi siempre visible
+          const dsz   = dot.sz * p.sc * 0.9;
 
           // Estela tipo cometa
           if (dot.trail.length > 1) {
             for (let j = 1; j < dot.trail.length; j++) {
               const tp = dot.trail[j];
-              const ta = (j / dot.trail.length) * alpha * 0.3;
+              const ta = (j / dot.trail.length) * alpha * 0.4;
               ctx.beginPath();
-              ctx.arc(tp.px, tp.py, dsz * (j / dot.trail.length) * 0.75, 0, Math.PI * 2);
+              ctx.arc(tp.px, tp.py, dsz * (j / dot.trail.length) * 0.8, 0, Math.PI * 2);
               ctx.fillStyle = `rgba(${ring.col}, ${ta})`;
               ctx.fill();
             }
           }
           dot.trail.push({ px: p.px, py: p.py });
-          if (dot.trail.length > 20) dot.trail.shift();
+          if (dot.trail.length > 22) dot.trail.shift();
 
           // Glow exterior
-          const gr = ctx.createRadialGradient(p.px, p.py, 0, p.px, p.py, dsz * 4.5);
-          gr.addColorStop(0, `rgba(${ring.col}, ${alpha * 0.25})`);
+          const gr = ctx.createRadialGradient(p.px, p.py, 0, p.px, p.py, dsz * 5);
+          gr.addColorStop(0, `rgba(${ring.col}, ${alpha * 0.35})`);
           gr.addColorStop(1, `rgba(${ring.col}, 0)`);
           ctx.beginPath();
-          ctx.arc(p.px, p.py, dsz * 4.5, 0, Math.PI * 2);
+          ctx.arc(p.px, p.py, dsz * 5, 0, Math.PI * 2);
           ctx.fillStyle = gr;
           ctx.fill();
 
@@ -252,20 +250,46 @@ const OrbitalBackground = () => {
           ctx.fillStyle = `rgba(${ring.col}, ${alpha})`;
           ctx.fill();
 
-          // Label cuando está en primer plano
-          if (p.depth > 0.6 && dot.lbl) {
-            ctx.font      = "500 10px Inter, sans-serif";
-            ctx.fillStyle = `rgba(${ring.col}, ${alpha * 0.75})`;
-            ctx.fillText(dot.lbl, p.px + dsz + 5, p.py + 4);
+          // Label con fondo píldora — más grande y bold
+          if (p.depth > 0.5 && dot.lbl) {
+            const fontSize = 13;
+            ctx.font = `700 ${fontSize}px Inter, sans-serif`;
+            const textW = ctx.measureText(dot.lbl).width;
+            const padX  = 8;
+            const padY  = 5;
+            const bx    = p.px + dsz + 6;
+            const by    = p.py - fontSize / 2 - padY;
+            const bw    = textW + padX * 2;
+            const bh    = fontSize + padY * 2;
+            const br    = 6; // border radius
+
+            // Fondo blanco semitransparente
+            ctx.beginPath();
+            ctx.moveTo(bx + br, by);
+            ctx.lineTo(bx + bw - br, by);
+            ctx.quadraticCurveTo(bx + bw, by, bx + bw, by + br);
+            ctx.lineTo(bx + bw, by + bh - br);
+            ctx.quadraticCurveTo(bx + bw, by + bh, bx + bw - br, by + bh);
+            ctx.lineTo(bx + br, by + bh);
+            ctx.quadraticCurveTo(bx, by + bh, bx, by + bh - br);
+            ctx.lineTo(bx, by + br);
+            ctx.quadraticCurveTo(bx, by, bx + br, by);
+            ctx.closePath();
+            ctx.fillStyle = `rgba(255, 255, 255, ${0.75 * p.depth})`;
+            ctx.fill();
+
+            // Texto del label
+            ctx.fillStyle = `rgba(${ring.col}, ${alpha})`;
+            ctx.fillText(dot.lbl, bx + padX, p.py + fontSize / 2 - 1);
           }
 
           dot.proj = p;
         }
       }
 
-      // ── Conexiones dinámicas entre puntos cercanos ──
+      // Conexiones dinámicas entre puntos cercanos
       const allDots = rings.flatMap((r) => r.dots.map((d) => ({ proj: d.proj, col: r.col })));
-      ctx.lineWidth = 0.7;
+      ctx.lineWidth = 0.9;
       for (let i = 0; i < allDots.length; i++) {
         for (let j = i + 1; j < allDots.length; j++) {
           const a = allDots[i];
@@ -274,21 +298,21 @@ const OrbitalBackground = () => {
           const dx   = a.proj.px - b.proj.px;
           const dy   = a.proj.py - b.proj.py;
           const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < 80) {
+          if (dist < 85) {
             ctx.beginPath();
             ctx.moveTo(a.proj.px, a.proj.py);
             ctx.lineTo(b.proj.px, b.proj.py);
-            ctx.strokeStyle = `rgba(${a.col}, ${(1 - dist / 80) * 0.16})`;
+            ctx.strokeStyle = `rgba(${a.col}, ${(1 - dist / 85) * 0.25})`;
             ctx.stroke();
           }
         }
       }
 
-      // ── Nodo central con pulso ──
+      // Nodo central con pulso
       const pulse = Math.sin((ts / 1000) * 1.6) * 0.5 + 0.5;
       for (let i = 3; i >= 1; i--) {
-        const r  = 16 + i * 12 + pulse * 6;
-        const al = 0.05 - i * 0.012 + pulse * 0.04;
+        const r  = 18 + i * 14 + pulse * 7;
+        const al = 0.08 - i * 0.015 + pulse * 0.06;
         const cg = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
         cg.addColorStop(0, `rgba(${TEAL}, ${al})`);
         cg.addColorStop(1, `rgba(${TEAL}, 0)`);
@@ -298,8 +322,8 @@ const OrbitalBackground = () => {
         ctx.fill();
       }
       ctx.beginPath();
-      ctx.arc(cx, cy, 5.5, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(${TEAL}, 0.65)`;
+      ctx.arc(cx, cy, 6, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(${TEAL}, 0.8)`;
       ctx.fill();
 
       animationFrameId = requestAnimationFrame(render);
