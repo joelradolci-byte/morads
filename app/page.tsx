@@ -80,25 +80,13 @@ function TiltWrapper({ children }: { children: React.ReactNode }) {
 }
 
 // --- FONDO MEJORADO: MOTOR ORBITAL 3D (MODELO ATÓMICO CON ESTELAS) ---
-// =======================================================
-// REEMPLAZÁ SOLO ESTE BLOQUE EN TU CÓDIGO
-// Buscá "const OrbitalBackground" y seleccioná todo
-// hasta el }; que cierra esa función (antes de DashboardBackground)
-// =======================================================
-
-// =======================================================
-// REEMPLAZÁ SOLO ESTE BLOQUE EN TU CÓDIGO
-// Buscá "const OrbitalBackground" y seleccioná todo
-// hasta el }; que cierra esa función (antes de DashboardBackground)
-// =======================================================
-
 const OrbitalBackground = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
     let width = window.innerWidth;
@@ -106,355 +94,126 @@ const OrbitalBackground = () => {
     canvas.width = width;
     canvas.height = height;
 
-    const TEAL   = "24, 168, 160";
-    const SALMON = "196, 80, 55";
-    const DARK   = "60, 60, 70";
-    const NAVY   = "40, 60, 100";
+    const fov = 800;
+    let time = 0;
 
-    const project = (
-      x0: number, y0: number, z0: number,
-      tiltX: number, tiltY: number,
-      cx: number, cy: number
-    ) => {
-      const y1 = y0 * Math.cos(tiltX) - z0 * Math.sin(tiltX);
-      const z1 = y0 * Math.sin(tiltX) + z0 * Math.cos(tiltX);
-      const x2 = x0 * Math.cos(tiltY) + z1 * Math.sin(tiltY);
-      const z2 = -x0 * Math.sin(tiltY) + z1 * Math.cos(tiltY);
-      const fov = 900;
-      const sc  = fov / (fov + z2 * 0.25);
-      return {
-        px: cx + x2 * sc,
-        py: cy + y1 * sc,
-        depth: (z2 + 400) / 800,
-        sc,
-      };
+    // Convertimos un color hex a rgb para manejar la opacidad de la estela
+    const hexToRgb = (hex: string) => {
+      const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+      return result ? `${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}` : '0,0,0';
     };
 
-    type Proj = { px: number; py: number; depth: number; sc: number };
-    type Dot  = {
-      ca: number; sz: number; lbl: string;
-      trail: { px: number; py: number }[];
-      proj: Proj | null;
-    };
-    type Ring = {
-      r: number; tx: number; ty: number;
-      sp: number; dir: number; col: string;
-      dots: Dot[];
-    };
-
-    const rings: Ring[] = [
-      {
-        r: 340, tx: 12, ty: 0, sp: 0.09, dir: 1, col: TEAL,
-        dots: [
-          { ca: 0,                  sz: 6, lbl: "CTR 4.8%",  trail: [], proj: null },
-          { ca: (Math.PI * 2) / 3,  sz: 5, lbl: "$8.2k",     trail: [], proj: null },
-          { ca: (Math.PI * 4) / 3,  sz: 5, lbl: "CPC $0.42", trail: [], proj: null },
-        ],
-      },
-      {
-        r: 275, tx: 72, ty: 18, sp: 0.16, dir: -1, col: SALMON,
-        dots: [
-          { ca: Math.PI / 3,        sz: 7, lbl: "ROAS 3.2",  trail: [], proj: null },
-          { ca: Math.PI * 1.1,      sz: 5, lbl: "+12.4%",    trail: [], proj: null },
-          { ca: Math.PI * 1.8,      sz: 6, lbl: "Score 84",  trail: [], proj: null },
-        ],
-      },
-      {
-        r: 210, tx: 45, ty: 65, sp: 0.25, dir: 1, col: DARK,
-        dots: [
-          { ca: Math.PI / 2,        sz: 6, lbl: "CPL $18",   trail: [], proj: null },
-          { ca: Math.PI * 1.5,      sz: 5, lbl: "Conv 142",  trail: [], proj: null },
-        ],
-      },
-      {
-        r: 155, tx: 30, ty: -50, sp: 0.36, dir: -1, col: SALMON,
-        dots: [
-          { ca: Math.PI * 0.8,      sz: 6, lbl: "CPA $12",   trail: [], proj: null },
-          { ca: Math.PI * 1.9,      sz: 5, lbl: "$480/mes",  trail: [], proj: null },
-        ],
-      },
-      {
-        r: 360, tx: 60, ty: -20, sp: 0.05, dir: 1, col: NAVY,
-        dots: [
-          { ca: Math.PI / 4,        sz: 4, lbl: "", trail: [], proj: null },
-          { ca: Math.PI * 1.25,     sz: 4, lbl: "", trail: [], proj: null },
-        ],
-      },
+    // Configuración de los Anillos Orbitales (3 interiores y 1 exterior gigante)
+    const rings = [
+      { rx: 280, ry: 100, tiltX: 0.2, tiltY: 0.5, speed: 0.005, colorRGB: hexToRgb(pastelColors.blue), points: [{angle: 0}, {angle: Math.PI}, {angle: Math.PI/2}], trails: [[], [], []] },
+      { rx: 320, ry: 130, tiltX: -0.4, tiltY: -0.3, speed: -0.004, colorRGB: hexToRgb(pastelColors.peach), points: [{angle: Math.PI/3}, {angle: Math.PI*1.5}], trails: [[], []] },
+      { rx: 240, ry: 90, tiltX: 0.6, tiltY: -0.6, speed: 0.006, colorRGB: hexToRgb(pastelColors.mint), points: [{angle: 0}, {angle: Math.PI/1.5}, {angle: Math.PI*1.2}], trails: [[], [], []] },
+      { rx: 600, ry: 200, tiltX: -0.1, tiltY: 0.1, speed: 0.002, colorRGB: hexToRgb(pastelColors.sage), points: [{angle: 0}, {angle: Math.PI}], trails: [[], []] } // Exterior
     ];
 
-    let lastTime = 0;
-    let animationFrameId: number;
+    // Función matemática para proyectar 3D a 2D en el Canvas
+    const project3D = (x0: number, y0: number, z0: number, tiltX: number, tiltY: number, cx: number, cy: number) => {
+      // Rotación en X
+      let y1 = y0 * Math.cos(tiltX) - z0 * Math.sin(tiltX);
+      let z1 = y0 * Math.sin(tiltX) + z0 * Math.cos(tiltX);
+      // Rotación en Y
+      let x2 = x0 * Math.cos(tiltY) + z1 * Math.sin(tiltY);
+      let z2 = -x0 * Math.sin(tiltY) + z1 * Math.cos(tiltY);
 
-    // Dibuja la esfera sólida central
-    const drawSphere = (cx: number, cy: number, ts: number) => {
-      const radius = 72;
-      const pulse  = Math.sin((ts / 1000) * 1.2) * 0.5 + 0.5;
+      let scale = fov / (fov + z2);
+      let x = cx + x2 * scale;
+      let y = cy + y1 * scale;
 
-      // Halos de glow exterior — capas múltiples
-      const haloLayers = [
-        { r: radius * 3.2, a: 0.04 + pulse * 0.025 },
-        { r: radius * 2.2, a: 0.07 + pulse * 0.04  },
-        { r: radius * 1.5, a: 0.12 + pulse * 0.06  },
-      ];
-      for (const h of haloLayers) {
-        const hg = ctx.createRadialGradient(cx, cy, radius * 0.5, cx, cy, h.r);
-        hg.addColorStop(0, `rgba(${TEAL}, ${h.a})`);
-        hg.addColorStop(1, `rgba(${TEAL}, 0)`);
-        ctx.beginPath();
-        ctx.arc(cx, cy, h.r, 0, Math.PI * 2);
-        ctx.fillStyle = hg;
-        ctx.fill();
-      }
+      // Opacidad basada en la profundidad (Eje Z) - se desvanece al ir atrás
+      let alpha = Math.max(0.1, Math.min(1, (z2 + 500) / 1000));
 
-      // Sombra suave debajo
-      const shadowG = ctx.createRadialGradient(cx, cy + radius * 0.6, 0, cx, cy + radius * 0.6, radius * 1.2);
-      shadowG.addColorStop(0, "rgba(24, 168, 160, 0.12)");
-      shadowG.addColorStop(1, "rgba(24, 168, 160, 0)");
-      ctx.beginPath();
-      ctx.ellipse(cx, cy + radius * 0.75, radius * 1.1, radius * 0.3, 0, 0, Math.PI * 2);
-      ctx.fillStyle = shadowG;
-      ctx.fill();
-
-      // Esfera base — gradiente radial que simula volumen 3D
-      const sphereG = ctx.createRadialGradient(
-        cx - radius * 0.3, cy - radius * 0.3, radius * 0.05,
-        cx, cy, radius
-      );
-      sphereG.addColorStop(0,   "rgba(255, 255, 255, 0.55)");   // brillo especular
-      sphereG.addColorStop(0.2, "rgba(200, 240, 238, 0.45)");   // crema claro
-      sphereG.addColorStop(0.5, "rgba(24, 168, 160, 0.28)");    // turquesa medio
-      sphereG.addColorStop(0.8, "rgba(24, 168, 160, 0.18)");
-      sphereG.addColorStop(1,   "rgba(24, 100, 95,  0.35)");    // sombra borde
-
-      ctx.beginPath();
-      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-      ctx.fillStyle = sphereG;
-      ctx.fill();
-
-      // Borde sutil
-      const borderG = ctx.createLinearGradient(cx - radius, cy - radius, cx + radius, cy + radius);
-      borderG.addColorStop(0, `rgba(${TEAL}, 0.5)`);
-      borderG.addColorStop(1, `rgba(${TEAL}, 0.15)`);
-      ctx.beginPath();
-      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-      ctx.strokeStyle = borderG;
-      ctx.lineWidth   = 1.5;
-      ctx.stroke();
-
-      // Brillo especular pequeño (punto de luz arriba izquierda)
-      const specG = ctx.createRadialGradient(
-        cx - radius * 0.32, cy - radius * 0.32, 0,
-        cx - radius * 0.32, cy - radius * 0.32, radius * 0.38
-      );
-      specG.addColorStop(0,   "rgba(255, 255, 255, 0.65)");
-      specG.addColorStop(0.5, "rgba(255, 255, 255, 0.15)");
-      specG.addColorStop(1,   "rgba(255, 255, 255, 0)");
-      ctx.beginPath();
-      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-      ctx.fillStyle = specG;
-      ctx.fill();
-
-      // Líneas de latitud internas muy sutiles — dan sensación de globo
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-      ctx.clip();
-      ctx.strokeStyle = `rgba(${TEAL}, 0.12)`;
-      ctx.lineWidth   = 0.8;
-      for (let lat = -3; lat <= 3; lat++) {
-        const ly = cy + (lat / 3.5) * radius;
-        const lw = Math.sqrt(Math.max(0, radius * radius - (ly - cy) * (ly - cy)));
-        if (lw > 0) {
-          ctx.beginPath();
-          ctx.ellipse(cx, ly, lw, lw * 0.28, 0, 0, Math.PI * 2);
-          ctx.stroke();
-        }
-      }
-      // Línea del ecuador más visible
-      ctx.strokeStyle = `rgba(${TEAL}, 0.22)`;
-      ctx.lineWidth   = 1;
-      ctx.beginPath();
-      ctx.ellipse(cx, cy, radius, radius * 0.28, 0, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.restore();
+      return { x, y, scale, alpha, origX: x2, origY: y1, origZ: z2 };
     };
 
-    const render = (ts: number) => {
-      const dt = Math.min((ts - lastTime) / 1000, 0.05);
-      lastTime = ts;
+    let animationFrameId: number;
 
+    const render = () => {
       ctx.clearRect(0, 0, width, height);
+      time += 0.02;
 
-      const cx = width > 1024 ? width * 0.72 : width * 0.5;
+      // Posición del centro (Desplazado a la derecha como en tu mockup)
+      const cx = width > 1024 ? width * 0.7 : width * 0.5;
       const cy = height * 0.5;
 
-      // Primero dibujamos los anillos que están DETRÁS de la esfera (depth < 0.5)
-      // luego la esfera, luego los que están delante
+      // 1. Dibujar Nodo Central (Pulso IA)
+      const centerScale = 1 + Math.sin(time * 2) * 0.15;
+      ctx.shadowBlur = 30;
+      ctx.shadowColor = pastelColors.mint;
+      ctx.fillStyle = pastelColors.mint;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 6 * centerScale, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0; // Resetear sombra
 
-      // Colectamos puntos para conexiones
-      const allDots: { proj: Proj | null; col: string }[] = [];
+      let allPoints: any[] = [];
 
-      // PASO 1 — anillos traseros
-      for (const ring of rings) {
-        const txr     = (ring.tx * Math.PI) / 180;
-        const tyr     = (ring.ty * Math.PI) / 180;
-        const isOuter = ring.r > 350;
-
-        const steps = 160;
-        for (let i = 0; i < steps; i++) {
-          const t1 = (i / steps) * Math.PI * 2;
-          const t2 = ((i + 1) / steps) * Math.PI * 2;
-          const p1 = project(ring.r * Math.cos(t1), ring.r * Math.sin(t1), 0, txr, tyr, cx, cy);
-          const p2 = project(ring.r * Math.cos(t2), ring.r * Math.sin(t2), 0, txr, tyr, cx, cy);
-
-          // Solo segmentos traseros (depth < 0.52 = detrás del centro)
-          if (p1.depth >= 0.52) continue;
-
-          const alpha = isOuter
-            ? 0.04 + p1.depth * 0.08
-            : 0.12 + p1.depth * 0.25;
-          ctx.beginPath();
-          ctx.moveTo(p1.px, p1.py);
-          ctx.lineTo(p2.px, p2.py);
-          ctx.strokeStyle = `rgba(${ring.col}, ${alpha})`;
-          ctx.lineWidth   = isOuter ? 0.8 : 1.4;
-          ctx.stroke();
+      // 2. Procesar Anillos
+      rings.forEach((ring: any) => {
+        // Dibujar la elipse de la órbita
+        ctx.beginPath();
+        ctx.strokeStyle = `rgba(${hexToRgb(pastelColors.textMuted)}, 0.08)`;
+        ctx.lineWidth = 1;
+        for (let a = 0; a <= Math.PI * 2; a += 0.1) {
+          let p = project3D(ring.rx * Math.cos(a), ring.ry * Math.sin(a), 0, ring.tiltX, ring.tiltY, cx, cy);
+          if (a === 0) ctx.moveTo(p.x, p.y);
+          else ctx.lineTo(p.x, p.y);
         }
+        ctx.closePath();
+        ctx.stroke();
 
-        // Puntos traseros
-        for (const dot of ring.dots) {
-          if (dot.proj && dot.proj.depth < 0.52) {
-            const p     = dot.proj;
-            const alpha = 0.35 + p.depth * 0.3;
-            const dsz   = dot.sz * p.sc * 0.9;
+        // Procesar puntos en la órbita
+        ring.points.forEach((pObj: any, i: number) => {
+          pObj.angle += ring.speed;
+          let proj = project3D(ring.rx * Math.cos(pObj.angle), ring.ry * Math.sin(pObj.angle), 0, ring.tiltX, ring.tiltY, cx, cy);
+          
+          allPoints.push({ ...proj, colorRGB: ring.colorRGB });
+
+          // Actualizar estela (Cometa)
+          ring.trails[i].unshift(proj);
+          if (ring.trails[i].length > 25) ring.trails[i].pop(); // Largo de la estela
+
+          // Dibujar estela
+          if (ring.trails[i].length > 1) {
             ctx.beginPath();
-            ctx.arc(p.px, p.py, dsz * 0.7, 0, Math.PI * 2);
-            ctx.fillStyle = `rgba(${ring.col}, ${alpha})`;
-            ctx.fill();
-          }
-          allDots.push({ proj: dot.proj, col: ring.col });
-        }
-      }
-
-      // PASO 2 — esfera central
-      drawSphere(cx, cy, ts);
-
-      // PASO 3 — anillos frontales (encima de la esfera)
-      for (const ring of rings) {
-        const txr     = (ring.tx * Math.PI) / 180;
-        const tyr     = (ring.ty * Math.PI) / 180;
-        const isOuter = ring.r > 350;
-
-        const steps = 160;
-        for (let i = 0; i < steps; i++) {
-          const t1 = (i / steps) * Math.PI * 2;
-          const t2 = ((i + 1) / steps) * Math.PI * 2;
-          const p1 = project(ring.r * Math.cos(t1), ring.r * Math.sin(t1), 0, txr, tyr, cx, cy);
-          const p2 = project(ring.r * Math.cos(t2), ring.r * Math.sin(t2), 0, txr, tyr, cx, cy);
-
-          if (p1.depth < 0.52) continue;
-
-          const alpha = isOuter
-            ? 0.06 + p1.depth * 0.12
-            : 0.18 + p1.depth * 0.38;
-          ctx.beginPath();
-          ctx.moveTo(p1.px, p1.py);
-          ctx.lineTo(p2.px, p2.py);
-          ctx.strokeStyle = `rgba(${ring.col}, ${alpha})`;
-          ctx.lineWidth   = isOuter ? 0.8 : 1.4;
-          ctx.stroke();
-        }
-
-        // Avanzar ángulos y dibujar puntos frontales con estela y label
-        for (const dot of ring.dots) {
-          dot.ca += ring.dir * ring.sp * dt;
-
-          const p     = project(ring.r * Math.cos(dot.ca), ring.r * Math.sin(dot.ca), 0, txr, tyr, cx, cy);
-          dot.proj    = p;
-
-          if (p.depth < 0.52) continue;
-
-          const alpha = 0.65 + p.depth * 0.35;
-          const dsz   = dot.sz * p.sc * 0.9;
-
-          // Estela
-          if (dot.trail.length > 1) {
-            for (let j = 1; j < dot.trail.length; j++) {
-              const tp = dot.trail[j];
-              const ta = (j / dot.trail.length) * alpha * 0.4;
-              ctx.beginPath();
-              ctx.arc(tp.px, tp.py, dsz * (j / dot.trail.length) * 0.8, 0, Math.PI * 2);
-              ctx.fillStyle = `rgba(${ring.col}, ${ta})`;
-              ctx.fill();
+            for (let j = 0; j < ring.trails[i].length; j++) {
+              let tp = ring.trails[i][j];
+              // El final de la cola desaparece
+              let trailAlpha = (1 - j / 25) * tp.alpha * 0.8;
+              ctx.strokeStyle = `rgba(${ring.colorRGB}, ${trailAlpha})`;
+              ctx.lineWidth = 3 * tp.scale;
+              if (j === 0) ctx.moveTo(tp.x, tp.y);
+              else ctx.lineTo(tp.x, tp.y);
             }
+            ctx.stroke();
           }
-          dot.trail.push({ px: p.px, py: p.py });
-          if (dot.trail.length > 22) dot.trail.shift();
 
-          // Glow
-          const gr = ctx.createRadialGradient(p.px, p.py, 0, p.px, p.py, dsz * 5);
-          gr.addColorStop(0, `rgba(${ring.col}, ${alpha * 0.35})`);
-          gr.addColorStop(1, `rgba(${ring.col}, 0)`);
+          // Dibujar el punto (Planeta)
+          ctx.fillStyle = `rgba(${ring.colorRGB}, ${proj.alpha})`;
           ctx.beginPath();
-          ctx.arc(p.px, p.py, dsz * 5, 0, Math.PI * 2);
-          ctx.fillStyle = gr;
+          ctx.arc(proj.x, proj.y, 4 * proj.scale, 0, Math.PI * 2);
           ctx.fill();
+        });
+      });
 
-          // Punto principal
-          ctx.beginPath();
-          ctx.arc(p.px, p.py, dsz, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(${ring.col}, ${alpha})`;
-          ctx.fill();
+      // 3. Dibujar Conexiones Dinámicas (Sinapsis)
+      ctx.lineWidth = 0.5;
+      for (let i = 0; i < allPoints.length; i++) {
+        for (let j = i + 1; j < allPoints.length; j++) {
+          let p1 = allPoints[i];
+          let p2 = allPoints[j];
+          let dist = Math.sqrt(Math.pow(p1.origX - p2.origX, 2) + Math.pow(p1.origY - p2.origY, 2) + Math.pow(p1.origZ - p2.origZ, 2));
 
-          // Label con fondo píldora
-          if (p.depth > 0.5 && dot.lbl) {
-            const fontSize = 13;
-            ctx.font = `700 ${fontSize}px Inter, sans-serif`;
-            const textW = ctx.measureText(dot.lbl).width;
-            const padX  = 8;
-            const padY  = 5;
-            const bx    = p.px + dsz + 6;
-            const by    = p.py - fontSize / 2 - padY;
-            const bw    = textW + padX * 2;
-            const bh    = fontSize + padY * 2;
-            const br    = 6;
-
+          if (dist < 180) { // Distancia de umbral para conectar
+            let lineAlpha = (1 - dist / 180) * Math.min(p1.alpha, p2.alpha) * 0.4;
+            ctx.strokeStyle = `rgba(${p1.colorRGB}, ${lineAlpha})`;
             ctx.beginPath();
-            ctx.moveTo(bx + br, by);
-            ctx.lineTo(bx + bw - br, by);
-            ctx.quadraticCurveTo(bx + bw, by, bx + bw, by + br);
-            ctx.lineTo(bx + bw, by + bh - br);
-            ctx.quadraticCurveTo(bx + bw, by + bh, bx + bw - br, by + bh);
-            ctx.lineTo(bx + br, by + bh);
-            ctx.quadraticCurveTo(bx, by + bh, bx, by + bh - br);
-            ctx.lineTo(bx, by + br);
-            ctx.quadraticCurveTo(bx, by, bx + br, by);
-            ctx.closePath();
-            ctx.fillStyle = `rgba(255, 255, 255, ${0.78 * p.depth})`;
-            ctx.fill();
-
-            ctx.fillStyle = `rgba(${ring.col}, ${alpha})`;
-            ctx.fillText(dot.lbl, bx + padX, p.py + fontSize / 2 - 1);
-          }
-        }
-      }
-
-      // Conexiones dinámicas
-      ctx.lineWidth = 0.9;
-      for (let i = 0; i < allDots.length; i++) {
-        for (let j = i + 1; j < allDots.length; j++) {
-          const a = allDots[i];
-          const b = allDots[j];
-          if (!a.proj || !b.proj) continue;
-          if (a.proj.depth < 0.52 || b.proj.depth < 0.52) continue;
-          const dx   = a.proj.px - b.proj.px;
-          const dy   = a.proj.py - b.proj.py;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < 85) {
-            ctx.beginPath();
-            ctx.moveTo(a.proj.px, a.proj.py);
-            ctx.lineTo(b.proj.px, b.proj.py);
-            ctx.strokeStyle = `rgba(${a.col}, ${(1 - dist / 85) * 0.25})`;
+            ctx.moveTo(p1.x, p1.y);
+            ctx.lineTo(p2.x, p2.y);
             ctx.stroke();
           }
         }
@@ -463,27 +222,14 @@ const OrbitalBackground = () => {
       animationFrameId = requestAnimationFrame(render);
     };
 
-    animationFrameId = requestAnimationFrame(render);
+    render();
 
-    const handleResize = () => {
-      width  = window.innerWidth;
-      height = window.innerHeight;
-      canvas.width  = width;
-      canvas.height = height;
-    };
-    window.addEventListener("resize", handleResize);
-    return () => {
-      window.removeEventListener("resize", handleResize);
-      cancelAnimationFrame(animationFrameId);
-    };
+    const handleResize = () => { width = window.innerWidth; height = window.innerHeight; canvas.width = width; canvas.height = height; };
+    window.addEventListener('resize', handleResize);
+    return () => { window.removeEventListener('resize', handleResize); cancelAnimationFrame(animationFrameId); };
   }, []);
 
-  return (
-    <canvas
-      ref={canvasRef}
-      className="fixed inset-0 w-full h-full pointer-events-none z-[1] print:hidden opacity-90"
-    />
-  );
+  return <canvas ref={canvasRef} className="fixed inset-0 w-full h-full pointer-events-none z-[1] print:hidden opacity-90" />;
 };
 
 // --- RED NEURAL OSCURA (Mantenida intacta para el Dashboard Logueado) ---
