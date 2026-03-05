@@ -16,10 +16,7 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Paleta antigua (Mantenida para el botón principal)
-const melocotonGradient = { background: "linear-gradient(90deg, #FEECE3 0%, #FCD5BF 25%, #FEAFAE 50%, #FFA4BD 75%, #FFA9CC 100%)" };
-
-// --- NUEVA PALETA PASTEL (Landing Page) ---
+// --- PALETA PASTEL (Landing Page) ---
 const pastelColors = {
   bg: "#FDE8D3",       
   textDark: "#262B27", 
@@ -30,17 +27,17 @@ const pastelColors = {
   sage: "#CFD6C4"      
 };
 
-// --- NUEVA PALETA DASHBOARD (Off-Black Olive) ---
+// --- PALETA DASHBOARD (Off-Black Olive) ---
 const dashColors = {
-  bg: "#131714",       // Fondo principal
-  card: "#1A1F1B",     // Fondo tarjetas y sidebar
-  border: "#2C352E",   // Bordes sutiles
-  textPrimary: "#E8EBE4", // Texto principal
-  textMuted: "#8A968C",   // Texto secundario / Títulos pequeños
-  peach: "#F3C3B2",    // Acento principal
-  red: "#E66767",      // Crítico
-  green: "#99CDD8",    // Óptimo
-  yellow: "#EAB308"    // Atención
+  bg: "#131714",       
+  card: "#1A1F1B",     
+  border: "#2C352E",   
+  textPrimary: "#E8EBE4", 
+  textMuted: "#8A968C",   
+  peach: "#F3C3B2",    
+  red: "#E66767",      
+  green: "#99CDD8",    
+  yellow: "#EAB308"    
 };
 
 function FadeInOnScroll({ children, delay = 0 }: { children: React.ReactNode, delay?: number }) {
@@ -91,7 +88,7 @@ function TiltWrapper({ children }: { children: React.ReactNode }) {
   );
 }
 
-// --- FONDO NARRATIVO MEJORADO: ESFERA RÍGIDA OSCURA CON Z-DEPTH Y PULSOS ---
+// --- FONDO LANDING: ESFERA DE AUDITORÍA ---
 const AuditWireframeBackground = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -110,7 +107,6 @@ const AuditWireframeBackground = () => {
     const edges: number[][] = [];
     let radius = width > 1024 ? 400 : 280; 
 
-    // 1. Crear puntos de la esfera
     for (let i = 0; i <= 16; i++) {
       let lat = Math.PI * i / 16;
       for (let j = 0; j <= 32; j++) {
@@ -118,15 +114,12 @@ const AuditWireframeBackground = () => {
         let x = radius * Math.sin(lat) * Math.cos(lon);
         let y = radius * Math.sin(lat) * Math.sin(lon);
         let z = radius * Math.cos(lat);
-        
         const isErrorCandidate = (i > 8 && i < 13) && (j > 3 && j < 11);
         const isError = isErrorCandidate && Math.random() > 0.4;
-        
         nodes.push({ x, y, z, isError, glow: 0, scaleFactor: 1 });
       }
     }
 
-    // 2. Pre-calcular conexiones (edges)
     for (let i = 0; i < nodes.length; i++) {
       let nextInLat = i + 1;
       if (i % 33 !== 32 && nextInLat < nodes.length) edges.push([i, nextInLat]);
@@ -144,14 +137,12 @@ const AuditWireframeBackground = () => {
       ctx.clearRect(0, 0, width, height);
       angleX += 0.0006;
       angleY += 0.0012;
-      
       scanY += 3.5; 
       if (scanY > height * 1.3) scanY = -height * 0.4;
 
       const centerX = width > 1024 ? width * 0.76 : width * 0.5;
       const centerY = height * 0.5;
 
-      // --- PROYECCIÓN 3D Y Z-DEPTH AJUSTADO ---
       const projectedNodes = nodes.map(node => {
         let x = node.x * Math.cos(angleY) - node.z * Math.sin(angleY);
         let z = node.x * Math.sin(angleY) + node.z * Math.cos(angleY);
@@ -178,16 +169,9 @@ const AuditWireframeBackground = () => {
            node.scaleFactor = 1 + (node.scaleFactor - 1) * 0.96; 
         }
         
-        return { 
-          x: x2d, y: y2d, 
-          scale: scale * node.scaleFactor,
-          isError: node.isError, 
-          glow: Math.max(0.05, node.glow),
-          depthAlpha: depthAlpha
-        };
+        return { x: x2d, y: y2d, scale: scale * node.scaleFactor, isError: node.isError, glow: Math.max(0.05, node.glow), depthAlpha: depthAlpha };
       });
 
-      // --- DIBUJAR ESCÁNER ---
       if (scanY > -100 && scanY < height + 100) {
          const scanGradient = ctx.createLinearGradient(0, scanY - 20, 0, scanY + 20);
          scanGradient.addColorStop(0, 'rgba(218, 235, 227, 0)');
@@ -195,7 +179,6 @@ const AuditWireframeBackground = () => {
          scanGradient.addColorStop(1, 'rgba(218, 235, 227, 0)');
          ctx.fillStyle = scanGradient;
          ctx.fillRect(centerX - radius * 1.5, scanY - 20, radius * 3, 40);
-         
          ctx.beginPath();
          ctx.strokeStyle = 'rgba(218, 235, 227, 0.8)';
          ctx.lineWidth = 1.5;
@@ -204,13 +187,11 @@ const AuditWireframeBackground = () => {
          ctx.stroke();
       }
 
-      // --- DIBUJAR WIREFRAME MÁS OSCURO ---
       ctx.lineWidth = 1.2; 
       edges.forEach(edge => {
         const p1 = projectedNodes[edge[0]];
         const p2 = projectedNodes[edge[1]];
         const edgeAlpha = (p1.depthAlpha + p2.depthAlpha) / 2;
-        
         ctx.beginPath();
         ctx.strokeStyle = `rgba(38, 43, 39, ${0.35 * edgeAlpha})`; 
         ctx.moveTo(p1.x, p1.y);
@@ -218,26 +199,15 @@ const AuditWireframeBackground = () => {
         ctx.stroke();
       });
 
-      // --- PULSOS DE DATOS ---
       if (Math.random() < 0.08) {
         const randomEdge = edges[Math.floor(Math.random() * edges.length)];
-        pulses.push({
-           from: randomEdge[0], 
-           to: randomEdge[1], 
-           progress: 0, 
-           speed: 0.03 + Math.random() * 0.04 
-        });
+        pulses.push({ from: randomEdge[0], to: randomEdge[1], progress: 0, speed: 0.03 + Math.random() * 0.04 });
       }
 
       for (let i = pulses.length - 1; i >= 0; i--) {
         let pulse = pulses[i];
         pulse.progress += pulse.speed;
-        
-        if (pulse.progress >= 1) {
-           pulses.splice(i, 1); 
-           continue;
-        }
-
+        if (pulse.progress >= 1) { pulses.splice(i, 1); continue; }
         const p1 = projectedNodes[pulse.from];
         const p2 = projectedNodes[pulse.to];
         const pulseDepth = (p1.depthAlpha + p2.depthAlpha) / 2;
@@ -245,16 +215,13 @@ const AuditWireframeBackground = () => {
         if (pulseDepth > 0.5) {
            const curX = p1.x + (p2.x - p1.x) * pulse.progress;
            const curY = p1.y + (p2.y - p1.y) * pulse.progress;
-           
            const tailProg = Math.max(0, pulse.progress - 0.2);
            const tailX = p1.x + (p2.x - p1.x) * tailProg;
            const tailY = p1.y + (p2.y - p1.y) * tailProg;
-
            ctx.beginPath();
            const pulseGradient = ctx.createLinearGradient(curX, curY, tailX, tailY);
            pulseGradient.addColorStop(0, `rgba(153, 205, 216, ${0.9 * pulseDepth})`); 
            pulseGradient.addColorStop(1, `rgba(153, 205, 216, 0)`); 
-           
            ctx.strokeStyle = pulseGradient;
            ctx.lineWidth = 3 * p1.scale;
            ctx.lineCap = "round";
@@ -264,14 +231,11 @@ const AuditWireframeBackground = () => {
         }
       }
 
-      // --- DIBUJAR NODOS ---
       projectedNodes.forEach(pn => {
         let baseAlpha = 0.5 * pn.depthAlpha;
         let fillColor = `rgba(38, 43, 39, ${baseAlpha})`;
-        
         if (pn.glow > 0.08) {
            let glowStrength = pn.glow * pn.depthAlpha; 
-           
            if (pn.isError) {
               fillColor = `rgba(239, 68, 68, ${0.3 + glowStrength * 0.7})`;
               ctx.shadowBlur = 20 * glowStrength; 
@@ -285,33 +249,37 @@ const AuditWireframeBackground = () => {
            ctx.shadowBlur = 0;
            ctx.shadowColor = 'transparent';
         }
-        
         ctx.beginPath();
         ctx.fillStyle = fillColor;
         let nodeRadius = (pn.glow > 0.08) ? (pn.isError ? 3.5 : 2.2) : 1.8; 
-        
         ctx.arc(pn.x, pn.y, nodeRadius * pn.scale, 0, Math.PI * 2);
         ctx.fill();
         ctx.shadowBlur = 0; 
       });
-
       animationFrameId = requestAnimationFrame(render);
     };
 
     render();
-
-    const handleResize = () => { 
-      width = window.innerWidth; 
-      height = window.innerHeight; 
-      canvas.width = width; 
-      canvas.height = height; 
-      radius = width > 1024 ? 400 : 280; 
-    };
+    const handleResize = () => { width = window.innerWidth; height = window.innerHeight; canvas.width = width; canvas.height = height; radius = width > 1024 ? 400 : 280; };
     window.addEventListener('resize', handleResize);
     return () => { window.removeEventListener('resize', handleResize); cancelAnimationFrame(animationFrameId); };
   }, []);
 
   return <canvas ref={canvasRef} className="fixed inset-0 w-full h-full pointer-events-none z-[1] print:hidden opacity-90" />;
+};
+
+// --- FONDO DASHBOARD: RUIDO VISUAL (NOISE TEXTURE) PREMIUM ---
+const NoiseBackground = () => {
+  return (
+    <div className="fixed inset-0 w-full h-full pointer-events-none z-[1] print:hidden opacity-[0.03]" style={{ mixBlendMode: 'overlay' }}>
+      <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+        <filter id="noiseFilter">
+          <feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="3" stitchTiles="stitch" />
+        </filter>
+        <rect width="100%" height="100%" filter="url(#noiseFilter)" />
+      </svg>
+    </div>
+  );
 };
 
 
@@ -358,10 +326,10 @@ function AuditorDashboard() {
 
   const [modoPlan, setModoPlan] = useState<"agencia" | "individual">("agencia");
 
-  // Diccionario con traducciones actualizadas para el dashboard denso
+  // Diccionario con traducciones actualizadas (Incluye "detalleCliente" y "Ver reporte")
   const t = {
-    es: { dashboard: "Dashboard", panelPrin: "Panel Principal", panelDesc: "Resumen del rendimiento global de tus cuentas.", saludG: "Salud Promedio", totAud: "Total Cuentas", fugasDet: "Fugas Críticas", oporMej: "Oportunidades", ultAud: "Últimas Auditorías", actRec: "Actividad Reciente", verTodas: "Ver todas →", generada: "Se auditó la cuenta", hace: "Hace", afectaA: "Afecta principalmente a", buscarGlobal: "Buscar cuenta por nombre...", nueva: "Auditor IA", clientes: "Panel de Clientes", reportes: "Reportes", feedback: "Sugerencias", configuracion: "Configuración General", facturacion: "Ver Facturación", salir: "Cerrar Sesión", placeholderNombre: "Nombre del Cliente o Cuenta", btnAnalizar: "Ejecutar Auditoría", btnAnalizando: "Analizando métricas...", exportar: "Exportar a PDF", score: "Score", problemas: "Problemas Graves", mejoras: "Áreas Débiles", aciertos: "Puntos Fuertes", login: "Iniciar sesión", tabDiag: "Diagnóstico IA", tabCheck: "Plan de Acción", tabAvanzado: "Análisis Avanzado", autoApply: "Corregir Ahora", msgAutoApply: "Disponible próximamente", pacingTit: "Pacing de Presupuesto", pacingDesc: "Ritmo de gasto proyectado", matrizTit: "Campaign Matrix", matrizDesc: "Distribución del gasto vs rendimiento", escalar: "ESTRELLAS (Escalar)", apagar: "BASURA (Apagar)", observar: "DUDOSOS (Observar)", potenciales: "POTENCIALES (Testear)", abrirAud: "Ver PDF", thCliente: "Cliente / Cuenta", thFecha: "Fecha", thEstado: "Estado", thAccion: "Acción", cuentaSinNombre: "Cuenta sin nombre", ingresos: "Ingresa los datos", buzonSug: "Buzón de sugerencias", facturacionTitulo: "Facturación y Planes", facturacionDesc: "Administrá tu suscripción", planActual: "Plan Actual", activa: "Activa", gestionarStripe: "Gestionar en Stripe", pronto: "Pronto", ayudanos: "Ayudanos a mejorar", bug: "¿Encontraste un error?", escribiSug: "Escribí tu sugerencia aquí...", enviando: "Enviando...", enviarSug: "Enviar Sugerencia", persPdf: "Personalización de Marca Blanca", nomAgencia: "Nombre de Agencia", sitioWeb: "Sitio Web", logoPdf: "Logo PDF", subeLogo: "Subir", piePagina: "Pie de página legal", preferencias: "Preferencias Regionales", monedaDef: "Moneda Base", metricaDef: "Métrica Principal", guardando: "Guardando...", guardarAj: "Guardar Ajustes", puntajeBasado: "Puntaje de salud en base al rendimiento y estructura general.", ingresaDatos: "Completá los datos de la campaña a auditar.", presupuestoObj: "Presupuesto Mensual", placeholderPres: "Ej: 1000", gastoAct: "Gasto actual", placeholderGasto: "Ej: 450", conversiones: "Conversiones", cparoas: "CPA / ROAS Actual", tipoCamp: "Tipo de Campaña", contexto: "Contexto y Notas", placeholderConv: "Ej: 120", placeholderContexto: "Añadí contexto extra para la IA.", monitoreo: "Monitoreo", tenes: "Tenés", registradas: "cuentas registradas.", todos: "Todos", criticos: "Críticos", atencion: "Atención", optimos: "Óptimos", thTendencia: "Tendencia", volver: "Volver atrás", detalleCliente: "Detalle del Cliente" },
-    en: { dashboard: "Dashboard", panelPrin: "Main Dashboard", panelDesc: "Global overview of your accounts performance.", saludG: "Avg Health Score", totAud: "Total Accounts", fugasDet: "Critical Leaks", oporMej: "Opportunities", ultAud: "Recent Audits", actRec: "Recent Activity", verTodas: "View all →", generada: "Audit generated for", hace: "Ago", afectaA: "Mainly affecting", buscarGlobal: "Search account by name...", nueva: "AI Auditor", clientes: "Client Dashboard", reportes: "Reports", feedback: "Feedback", configuracion: "General Settings", facturacion: "Billing", salir: "Sign Out", placeholderNombre: "Client or Account Name", btnAnalizar: "Run Audit", btnAnalizando: "Analyzing metrics...", exportar: "Export to PDF", score: "Score", problemas: "Critical Issues", mejoras: "Weak Areas", aciertos: "Strengths", login: "Log In", tabDiag: "AI Diagnosis", tabCheck: "Action Plan", tabAvanzado: "Advanced Analysis", autoApply: "Auto-Apply", msgAutoApply: "Coming soon", pacingTit: "Budget Pacing", pacingDesc: "Projected spend rhythm", matrizTit: "Campaign Matrix", matrizDesc: "Spend distribution vs performance", escalar: "STARS (Scale)", apagar: "TRASH (Pause)", observar: "DOUBTFUL (Observe)", potenciales: "POTENCIALES (Test)", abrirAud: "View PDF", thCliente: "Client / Account", thFecha: "Date", thEstado: "Status", thAccion: "Action", cuentaSinNombre: "Unnamed Account", ingresos: "Enter details", buzonSug: "Suggestion Box", facturacionTitulo: "Billing and Plans", facturacionDesc: "Manage your subscription", planActual: "Current Plan", activa: "Active", gestionarStripe: "Manage on Stripe", pronto: "Soon", ayudanos: "Help us improve", bug: "Found a bug?", escribiSug: "Write your suggestion here...", enviando: "Sending...", enviarSug: "Send Suggestion", persPdf: "White Label Customization", nomAgencia: "Agency Name", sitioWeb: "Website", logoPdf: "PDF Logo", subeLogo: "Upload", piePagina: "Legal Footer", preferencias: "Regional Preferences", monedaDef: "Base Currency", metricaDef: "Main Metric", guardando: "Saving...", guardarAj: "Save Settings", puntajeBasado: "Health score based on overall performance and structure.", ingresaDatos: "Fill in the details for the campaign audit.", presupuestoObj: "Monthly Budget", placeholderPres: "E.g. 1000", gastoAct: "Current Spend", placeholderGasto: "E.g. 450", conversiones: "Conversions", cparoas: "Current CPA / ROAS", tipoCamp: "Campaign Type", contexto: "Context & Notes", placeholderConv: "E.g. 120", placeholderContexto: "Add extra context for the AI.", monitoreo: "Monitoring", tenes: "You have", registradas: "accounts registered.", todos: "All", criticos: "Critical", atencion: "Warning", optimos: "Optimal", thTendencia: "Trend", volver: "Go Back", detalleCliente: "Client Details" }
+    es: { dashboard: "Dashboard", panelPrin: "Panel Principal", panelDesc: "Resumen del rendimiento global de tus cuentas.", saludG: "Salud Promedio", totAud: "Total Cuentas", fugasDet: "Fugas Críticas", oporMej: "Oportunidades", ultAud: "Últimas Auditorías", actRec: "Actividad Reciente", verTodas: "Ver todas →", generada: "Se auditó la cuenta", hace: "Hace", afectaA: "Afecta principalmente a", buscarGlobal: "Buscar cuenta por nombre...", nueva: "Auditor IA", clientes: "Panel de Clientes", reportes: "Reportes", feedback: "Sugerencias", configuracion: "Configuración General", facturacion: "Ver Facturación", salir: "Cerrar Sesión", placeholderNombre: "Nombre del Cliente o Cuenta", btnAnalizar: "Ejecutar Auditoría", btnAnalizando: "Analizando métricas...", exportar: "Exportar a PDF", score: "Score", problemas: "Problemas Graves", mejoras: "Áreas Débiles", aciertos: "Puntos Fuertes", login: "Iniciar sesión", tabDiag: "Diagnóstico IA", tabCheck: "Plan de Acción", tabAvanzado: "Análisis Avanzado", autoApply: "Corregir Ahora", msgAutoApply: "Disponible próximamente", pacingTit: "Pacing de Presupuesto", pacingDesc: "Ritmo de gasto proyectado", matrizTit: "Campaign Matrix", matrizDesc: "Distribución del gasto vs rendimiento", escalar: "ESTRELLAS (Escalar)", apagar: "BASURA (Apagar)", observar: "DUDOSOS (Observar)", potenciales: "POTENCIALES (Testear)", abrirAud: "Ver reporte", thCliente: "Cliente / Cuenta", thFecha: "Fecha", thEstado: "Estado", thAccion: "Acción", cuentaSinNombre: "Cuenta sin nombre", ingresos: "Ingresa los datos", buzonSug: "Buzón de sugerencias", facturacionTitulo: "Facturación y Planes", facturacionDesc: "Administrá tu suscripción", planActual: "Plan Actual", activa: "Activa", gestionarStripe: "Gestionar en Stripe", pronto: "Pronto", ayudanos: "Ayudanos a mejorar", bug: "¿Encontraste un error?", escribiSug: "Escribí tu sugerencia aquí...", enviando: "Enviando...", enviarSug: "Enviar Sugerencia", persPdf: "Personalización de Marca Blanca", nomAgencia: "Nombre de Agencia", sitioWeb: "Sitio Web", logoPdf: "Logo PDF", subeLogo: "Subir", piePagina: "Pie de página legal", preferencias: "Preferencias Regionales", monedaDef: "Moneda Base", metricaDef: "Métrica Principal", guardando: "Guardando...", guardarAj: "Guardar Ajustes", puntajeBasado: "Puntaje de salud en base al rendimiento y estructura general.", ingresaDatos: "Completá los datos de la campaña a auditar.", presupuestoObj: "Presupuesto Mensual", placeholderPres: "Ej: 1000", gastoAct: "Gasto actual", placeholderGasto: "Ej: 450", conversiones: "Conversiones", cparoas: "CPA / ROAS Actual", tipoCamp: "Tipo de Campaña", contexto: "Contexto y Notas", placeholderConv: "Ej: 120", placeholderContexto: "Añadí contexto extra para la IA.", monitoreo: "Monitoreo", tenes: "Tenés", registradas: "cuentas registradas.", todos: "Todos", criticos: "Críticos", atencion: "Atención", optimos: "Óptimos", thTendencia: "Tendencia", volver: "Volver atrás", detalleCliente: "Detalle del Cliente" },
+    en: { dashboard: "Dashboard", panelPrin: "Main Dashboard", panelDesc: "Global overview of your accounts performance.", saludG: "Avg Health Score", totAud: "Total Accounts", fugasDet: "Critical Leaks", oporMej: "Opportunities", ultAud: "Recent Audits", actRec: "Recent Activity", verTodas: "View all →", generada: "Audit generated for", hace: "Ago", afectaA: "Mainly affecting", buscarGlobal: "Search account by name...", nueva: "AI Auditor", clientes: "Client Dashboard", reportes: "Reports", feedback: "Feedback", configuracion: "General Settings", facturacion: "Billing", salir: "Sign Out", placeholderNombre: "Client or Account Name", btnAnalizar: "Run Audit", btnAnalizando: "Analyzing metrics...", exportar: "Export to PDF", score: "Score", problemas: "Critical Issues", mejoras: "Weak Areas", aciertos: "Strengths", login: "Log In", tabDiag: "AI Diagnosis", tabCheck: "Action Plan", tabAvanzado: "Advanced Analysis", autoApply: "Auto-Apply", msgAutoApply: "Coming soon", pacingTit: "Budget Pacing", pacingDesc: "Projected spend rhythm", matrizTit: "Campaign Matrix", matrizDesc: "Spend distribution vs performance", escalar: "STARS (Scale)", apagar: "TRASH (Pause)", observar: "DOUBTFUL (Observe)", potenciales: "POTENCIALES (Test)", abrirAud: "View report", thCliente: "Client / Account", thFecha: "Date", thEstado: "Status", thAccion: "Action", cuentaSinNombre: "Unnamed Account", ingresos: "Enter details", buzonSug: "Suggestion Box", facturacionTitulo: "Billing and Plans", facturacionDesc: "Manage your subscription", planActual: "Current Plan", activa: "Active", gestionarStripe: "Manage on Stripe", pronto: "Soon", ayudanos: "Help us improve", bug: "Found a bug?", escribiSug: "Write your suggestion here...", enviando: "Sending...", enviarSug: "Send Suggestion", persPdf: "White Label Customization", nomAgencia: "Agency Name", sitioWeb: "Website", logoPdf: "PDF Logo", subeLogo: "Upload", piePagina: "Legal Footer", preferencias: "Regional Preferences", monedaDef: "Base Currency", metricaDef: "Main Metric", guardando: "Saving...", guardarAj: "Save Settings", puntajeBasado: "Health score based on overall performance and structure.", ingresaDatos: "Fill in the details for the campaign audit.", presupuestoObj: "Monthly Budget", placeholderPres: "E.g. 1000", gastoAct: "Current Spend", placeholderGasto: "E.g. 450", conversiones: "Conversions", cparoas: "Current CPA / ROAS", tipoCamp: "Campaign Type", contexto: "Context & Notes", placeholderConv: "E.g. 120", placeholderContexto: "Add extra context for the AI.", monitoreo: "Monitoring", tenes: "You have", registradas: "accounts registered.", todos: "All", criticos: "Critical", atencion: "Warning", optimos: "Optimal", thTendencia: "Trend", volver: "Go Back", detalleCliente: "Client Details" }
   };
 
   useEffect(() => {
@@ -490,7 +458,6 @@ function AuditorDashboard() {
     setLoading(false);
   };
 
-  // Función Helper para los estados de métricas (Nueva paleta)
   const getDashboardStatus = (score: number) => {
     if (score < 50) return { 
       label: "Crítico", color: "text-[#E66767]", bgTints: "bg-[#E66767]/10", 
@@ -545,6 +512,7 @@ function AuditorDashboard() {
 
   cuentasRojas.sort((a,b) => b.cant - a.cant); cuentasAmarillas.sort((a,b) => b.cant - a.cant);
   const ultimaAuditoria = historial.length > 0 ? historial[0] : null;
+  const fugasIndividuales = ultimaAuditoria?.reporte_json?.hallazgos?.graves_rojo?.length || 0;
 
   if (status === "loading") return (
     <div className="h-screen w-full flex justify-center items-center bg-[#FDE8D3]">
@@ -571,7 +539,7 @@ function AuditorDashboard() {
           .rotate-x-[15deg] { transform: rotateX(15deg) rotateY(-25deg); }
           .hover\\:rotate-x-[-5deg]:hover { transform: rotateX(-5deg) rotateY(5deg); }
         ` : `
-          /* Tema Dashboard SaaS: Limpio, oscuro verdoso, sin fondos que distraigan */
+          /* Tema Dashboard SaaS: Limpio, oscuro verdoso, sin fondos animados */
           body { font-family: 'Inter', sans-serif; background-color: #131714 !important; color: #E8EBE4; }
           @media print {
             body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; background: white !important; height: auto !important; }
@@ -592,8 +560,11 @@ function AuditorDashboard() {
 
       <div className={`flex h-screen w-full font-sans overflow-hidden print-container relative ${!session ? "bg-[#FDE8D3] selection:bg-[#F3C3B2] selection:text-[#262B27] text-[#262B27]" : "bg-[#131714] selection:bg-[#F3C3B2] selection:text-[#131714] text-[#E8EBE4]"}`}>
         
-        {/* FONDO LANDING (Solo se renderiza sin sesión) */}
+        {/* FONDO LANDING: Esfera de alambre */}
         {!session && <AuditWireframeBackground />}
+
+        {/* FONDO DASHBOARD: Ruido visual premium (Solo logueados) */}
+        {session && <NoiseBackground />}
 
         {/* ========================================================================= */}
         {/* VISTA: LANDING PAGE (USUARIOS NO LOGUEADOS - TEMA CLARO Y PASTEL)         */ }
@@ -620,7 +591,6 @@ function AuditorDashboard() {
               </div>
             </nav>
 
-            {/* HERO SECTION */}
             <section className="relative pt-12 pb-20 lg:pt-24 lg:pb-28 overflow-hidden z-10 px-6 max-w-[1400px] mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-8 items-center min-h-[75vh]">
               <FadeInOnScroll>
                 <div className="flex flex-col items-start text-left lg:pr-10">
@@ -711,7 +681,6 @@ function AuditorDashboard() {
               </FadeInOnScroll>
             </section>
 
-            {/* SECCIÓN RESUMEN: CÓMO FUNCIONA */}
             <FadeInOnScroll delay={100}>
               <section className="max-w-[1400px] mx-auto px-6 py-20 border-t border-[#CFD6C4]/40">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 mb-12 items-end">
@@ -750,7 +719,6 @@ function AuditorDashboard() {
               </section>
             </FadeInOnScroll>
 
-            {/* SECCIÓN RESUMEN: PRECIOS */}
             <FadeInOnScroll>
               <section className="max-w-[1400px] mx-auto px-6 py-20 border-t border-[#CFD6C4]/40">
                 <div className="text-center mb-16">
@@ -819,6 +787,38 @@ function AuditorDashboard() {
               </section>
             </FadeInOnScroll>
 
+            <FadeInOnScroll>
+              <section className="max-w-4xl mx-auto px-6 py-20 mb-12 border-t border-[#CFD6C4]/40">
+                <div className="text-center mb-12">
+                  <h2 className="text-4xl font-serif font-black text-[#262B27]">Preguntas Frecuentes</h2>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                   <div className="bg-white/60 backdrop-blur-sm border border-[#CFD6C4]/60 p-6 rounded-2xl hover:bg-white transition-colors">
+                      <h4 className="text-lg font-bold text-[#262B27] mb-2">¿Mora hace cambios en mis campañas sin avisar?</h4>
+                      <p className="text-[#657166] text-sm leading-relaxed font-medium">No. Mora audita y sugiere. Vos tenés el control total. Nunca tocaremos tu presupuesto sin permiso.</p>
+                   </div>
+                   <div className="bg-white/60 backdrop-blur-sm border border-[#CFD6C4]/60 p-6 rounded-2xl hover:bg-white transition-colors">
+                      <h4 className="text-lg font-bold text-[#262B27] mb-2">¿Necesito ser un experto en Google Ads?</h4>
+                      <p className="text-[#657166] text-sm leading-relaxed font-medium">Para nada. Te decimos dónde estás perdiendo dinero y cómo solucionarlo en español claro.</p>
+                   </div>
+                   <div className="bg-white/60 backdrop-blur-sm border border-[#CFD6C4]/60 p-6 rounded-2xl hover:bg-white transition-colors">
+                      <h4 className="text-lg font-bold text-[#262B27] mb-2">¿Qué es la 'Marca Blanca Total'?</h4>
+                      <p className="text-[#657166] text-sm leading-relaxed font-medium">Exclusiva del Plan Agency, te permite exportar auditorías en PDF con el logo, colores y web de tu agencia.</p>
+                   </div>
+                   <div className="bg-white/60 backdrop-blur-sm border border-[#CFD6C4]/60 p-6 rounded-2xl hover:bg-white transition-colors">
+                      <h4 className="text-lg font-bold text-[#262B27] mb-2">¿Mis datos están seguros?</h4>
+                      <p className="text-[#657166] text-sm leading-relaxed font-medium">100%. Solo solicitamos permisos de lectura. No usamos tus datos para entrenar modelos públicos.</p>
+                   </div>
+                </div>
+
+                <div className="mt-8 text-center">
+                  <Link href="/faq" className="inline-flex items-center gap-2 text-[#657166] font-bold text-sm hover:text-[#262B27] transition-colors bg-[#CFD6C4]/20 px-4 py-2 rounded-lg border border-[#CFD6C4]/50">
+                    Leer todas las preguntas frecuentes <ArrowRight size={14}/>
+                  </Link>
+                </div>
+              </section>
+            </FadeInOnScroll>
+
             <footer className="border-t border-[#CFD6C4]/50 bg-white/40 py-12 text-center text-[#657166] text-sm relative z-10">
               <div className="flex items-center justify-center gap-2 mb-4">
                 <div className="w-6 h-6 rounded flex items-center justify-center font-black text-[#262B27] text-xs bg-[#F3C3B2]">M</div>
@@ -865,16 +865,6 @@ function AuditorDashboard() {
                     </button>
                   ))}
                 </div>
-                
-                <div className="px-4 mt-6">
-                  <p className="text-[10px] font-bold text-[#8A968C] uppercase tracking-widest px-2 mb-2">Reportes</p>
-                  <button onClick={() => setVista("historial")} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${vista === 'reporte_lectura' ? 'text-[#E8EBE4]' : 'text-[#8A968C] hover:bg-[#2C352E]/50 hover:text-[#E8EBE4]'}`}>
-                    <FileText size={18} strokeWidth={2} /> Historial
-                  </button>
-                  <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-[#8A968C] hover:bg-[#2C352E]/50 hover:text-[#E8EBE4] transition-all">
-                    <Activity size={18} strokeWidth={2} /> Actividad
-                  </button>
-                </div>
               </div>
               
               <div className="mx-4 mb-6 p-4 rounded-xl bg-[#131714] border border-[#2C352E]">
@@ -890,7 +880,7 @@ function AuditorDashboard() {
               </div>
             </aside>
 
-            <main className="flex-1 flex flex-col relative overflow-y-auto z-10 print:overflow-visible print:h-auto print:static bg-[#131714]">
+            <main className="flex-1 flex flex-col relative overflow-y-auto z-10 print:overflow-visible print:h-auto print:static bg-transparent">
               
               <header className="h-20 flex justify-between items-center px-8 print:hidden border-b border-[#2C352E] bg-[#131714]/80 backdrop-blur-md sticky top-0 z-30">
                 <h2 className="text-xl font-bold text-[#E8EBE4] tracking-tight min-w-[200px]">
@@ -925,8 +915,12 @@ function AuditorDashboard() {
                    </div>
 
                    <button onClick={() => {setMenuPerfil(!menuPerfil); setMenuNotificaciones(false)}} className="flex items-center gap-3 hover:bg-[#1A1F1B] p-1.5 rounded-full transition-colors border border-transparent hover:border-[#2C352E] pr-3">
-                      <div className="w-8 h-8 rounded-full bg-[#99CDD8] flex items-center justify-center text-[#131714] font-bold text-xs">
-                        {session.user?.name?.charAt(0) || 'U'}
+                      <div className="relative">
+                        <div className="w-8 h-8 rounded-full bg-[#99CDD8] flex items-center justify-center text-[#131714] font-bold text-xs">
+                          {session.user?.name?.charAt(0) || 'U'}
+                        </div>
+                        {/* Puntito verde de estado Online/Plan Activo */}
+                        <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-[#131714] rounded-full"></span>
                       </div>
                       <div className="text-left hidden lg:block">
                         <p className="text-xs font-bold text-[#E8EBE4] leading-tight">{session.user?.name?.split(' ')[0] || "User"}</p>
@@ -953,7 +947,7 @@ function AuditorDashboard() {
 
               <div className="p-8 pb-32 max-w-[1400px] mx-auto w-full print:p-0 print:pb-0" key={vista}>
                 
-                {vista === "dashboard" && (
+                {vista === "dashboard" && modoPlan === "agencia" && (
                   <div className="animate-fade-custom print:hidden flex flex-col gap-8">
                     <div>
                       <h2 className="text-2xl font-bold text-[#E8EBE4]">{t[idioma].panelPrin}</h2>
@@ -964,40 +958,44 @@ function AuditorDashboard() {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                        
                        {/* 1. Salud Promedio */}
-                       <div className={`bg-[#1A1F1B] border border-[#2C352E] rounded-2xl p-6 flex flex-col justify-between min-h-[180px] border-l-4 ${avgStatus.borderLeft} ${avgStatus.bgTints}`}>
-                          <p className={`text-[10px] font-bold ${avgStatus.color} uppercase tracking-widest mb-2 flex items-center gap-2`}><Activity size={14}/> {t[idioma].saludG}</p>
-                          <div>
-                            <div className="flex items-baseline gap-1">
-                              <span className={`text-6xl font-black ${avgStatus.color} tracking-tighter leading-none`}>{promedioScore}</span>
-                              <span className="text-[#8A968C] font-bold text-lg">/100</span>
-                            </div>
-                            <p className={`text-xs mt-3 flex items-center gap-1.5 font-medium ${avgStatus.color}`}><avgStatus.icon size={12}/> {avgStatus.msg}</p>
+                       <div className={`bg-[#1A1F1B] border border-[#2C352E] rounded-2xl p-6 flex flex-col min-h-[180px] border-l-4 ${avgStatus.borderLeft} ${avgStatus.bgTints}`}>
+                          <p className={`text-[10px] font-bold ${avgStatus.color} uppercase tracking-widest mb-4 flex items-center gap-2`}><Activity size={14}/> {t[idioma].saludG}</p>
+                          <div className="flex items-baseline gap-1 mt-auto">
+                            {/* SCORE MASIVO */}
+                            <span className={`text-[5.5rem] font-black ${avgStatus.color} leading-[0.8] tracking-tighter`}>{promedioScore}</span>
+                            <span className="text-[#8A968C] font-bold text-xl mb-1">/100</span>
+                          </div>
+                          <div className="mt-5">
+                             {/* ALERTA DE PESO (Badge) */}
+                             <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold ${avgStatus.bgTints} ${avgStatus.color} border ${avgStatus.border}`}>
+                               <avgStatus.icon size={14}/> {avgStatus.msg}
+                             </span>
                           </div>
                        </div>
 
                        {/* 2. Total Cuentas */}
                        <div className="bg-[#1A1F1B] border border-[#2C352E] rounded-2xl p-6 flex flex-col justify-between min-h-[180px] border-l-4 border-l-[#99CDD8]">
                           <p className="text-[10px] font-bold text-[#8A968C] uppercase tracking-widest mb-2 flex items-center gap-2"><Users size={14}/> {t[idioma].totAud}</p>
-                          <div>
-                            <span className="text-6xl font-black text-[#E8EBE4] tracking-tighter leading-none">{totalAuditorias}</span>
+                          <div className="mt-auto">
+                            <span className="text-[4rem] font-black text-[#E8EBE4] tracking-tighter leading-none">{totalAuditorias}</span>
                             <p className="text-xs text-[#8A968C] mt-3 font-medium">Cuentas auditadas</p>
                           </div>
-                          {modoPlan === 'agencia' && totalAuditorias > 0 && (
+                          {totalAuditorias > 0 && (
                             <div className="mt-4 pt-4 border-t border-[#2C352E] grid grid-cols-2 gap-2 text-center">
-                               <div className="bg-[#E66767]/10 rounded py-1"><p className="text-[10px] font-bold text-[#E66767] uppercase">{totalCriticas} Críticas</p></div>
-                               <div className="bg-[#99CDD8]/10 rounded py-1"><p className="text-[10px] font-bold text-[#99CDD8] uppercase">{totalOptimas} Óptimas</p></div>
+                               <div className="bg-[#E66767]/10 rounded py-1 border border-[#E66767]/20"><p className="text-[10px] font-bold text-[#E66767] uppercase">{totalCriticas} Críticas</p></div>
+                               <div className="bg-[#99CDD8]/10 rounded py-1 border border-[#99CDD8]/20"><p className="text-[10px] font-bold text-[#99CDD8] uppercase">{totalOptimas} Óptimas</p></div>
                             </div>
                           )}
                        </div>
 
                        {/* 3. Fugas Críticas */}
-                       <div className="bg-[#1A1F1B] border border-[#2C352E] rounded-2xl p-6 flex flex-col justify-between min-h-[180px] border-l-4 border-l-[#EAB308]">
-                          <p className="text-[10px] font-bold text-[#EAB308] uppercase tracking-widest mb-2 flex items-center gap-2"><AlertTriangle size={14}/> {t[idioma].fugasDet}</p>
-                          <div>
-                            <span className="text-6xl font-black text-[#E8EBE4] tracking-tighter leading-none">{totalFugas}</span>
+                       <div className="bg-[#1A1F1B] border border-[#2C352E] rounded-2xl p-6 flex flex-col justify-between min-h-[180px] border-l-4 border-l-[#E66767]">
+                          <p className="text-[10px] font-bold text-[#E66767] uppercase tracking-widest mb-2 flex items-center gap-2"><AlertTriangle size={14}/> {t[idioma].fugasDet}</p>
+                          <div className="mt-auto">
+                            <span className="text-[4rem] font-black text-[#E8EBE4] tracking-tighter leading-none">{totalFugas}</span>
                             <p className="text-xs text-[#8A968C] mt-3 font-medium">Problemas activos</p>
                           </div>
-                          {modoPlan === 'agencia' && cuentasRojas.length > 0 && (
+                          {cuentasRojas.length > 0 && (
                             <div className="mt-4 pt-3 border-t border-[#2C352E]">
                               <p className="text-[9px] text-[#8A968C] uppercase tracking-widest mb-2">{t[idioma].afectaA}</p>
                               <div className="space-y-1.5">
@@ -1013,13 +1011,13 @@ function AuditorDashboard() {
                        </div>
 
                        {/* 4. Oportunidades */}
-                       <div className="bg-[#1A1F1B] border border-[#2C352E] rounded-2xl p-6 flex flex-col justify-between min-h-[180px] border-l-4 border-l-[#4ADE80]">
-                          <p className="text-[10px] font-bold text-[#4ADE80] uppercase tracking-widest mb-2 flex items-center gap-2"><Zap size={14}/> {t[idioma].oporMej}</p>
-                          <div>
-                            <span className="text-6xl font-black text-[#E8EBE4] tracking-tighter leading-none">{totalOportunidades}</span>
+                       <div className="bg-[#1A1F1B] border border-[#2C352E] rounded-2xl p-6 flex flex-col justify-between min-h-[180px] border-l-4 border-l-[#EAB308]">
+                          <p className="text-[10px] font-bold text-[#EAB308] uppercase tracking-widest mb-2 flex items-center gap-2"><Zap size={14}/> {t[idioma].oporMej}</p>
+                          <div className="mt-auto">
+                            <span className="text-[4rem] font-black text-[#E8EBE4] tracking-tighter leading-none">{totalOportunidades}</span>
                             <p className="text-xs text-[#8A968C] mt-3 font-medium">Áreas de mejora</p>
                           </div>
-                          {modoPlan === 'agencia' && cuentasAmarillas.length > 0 && (
+                          {cuentasAmarillas.length > 0 && (
                             <div className="mt-4 pt-3 border-t border-[#2C352E]">
                               <p className="text-[9px] text-[#8A968C] uppercase tracking-widest mb-2">{t[idioma].afectaA}</p>
                               <div className="space-y-1.5">
@@ -1050,7 +1048,7 @@ function AuditorDashboard() {
                                <div className="grid grid-cols-12 gap-4 py-3 border-b border-[#2C352E] text-[9px] font-bold text-[#8A968C] uppercase tracking-widest">
                                  <div className="col-span-5">{t[idioma].thCliente}</div>
                                  <div className="col-span-3 text-center">{t[idioma].score}</div>
-                                 <div className="col-span-2 text-center">Estado</div>
+                                 <div className="col-span-2 text-center">{t[idioma].thEstado}</div>
                                  <div className="col-span-2 text-right">{t[idioma].thAccion}</div>
                                </div>
                                <div className="divide-y divide-[#2C352E]">
@@ -1084,7 +1082,10 @@ function AuditorDashboard() {
                                        </div>
 
                                        <div className="col-span-2 flex justify-end items-center gap-2">
-                                         <button onClick={() => { setReporte(item.reporte_json); setNombreCuenta(item.nombre_cuenta || "Sin nombre"); setSubVistaReporte("diagnostico"); setVista("reporte_lectura"); }} className="text-xs font-medium border border-[#2C352E] hover:bg-[#2C352E] text-[#E8EBE4] px-3 py-1.5 rounded-lg transition-colors">Ver PDF</button>
+                                         {/* BOTÓN "VER REPORTE" EN VEZ DE PDF */}
+                                         <button onClick={() => { setReporte(item.reporte_json); setNombreCuenta(item.nombre_cuenta || "Sin nombre"); setSubVistaReporte("diagnostico"); setVista("reporte_lectura"); }} className="text-[10px] uppercase tracking-widest font-bold border border-[#2C352E] hover:bg-[#2C352E] text-[#E8EBE4] px-3 py-1.5 rounded transition-colors">
+                                           {t[idioma].abrirAud}
+                                         </button>
                                          <button onClick={() => borrarAuditoria(item.id)} className="text-[#8A968C] hover:text-[#E66767] p-1.5 transition-colors"><Trash2 size={14} /></button>
                                        </div>
 
@@ -1122,6 +1123,85 @@ function AuditorDashboard() {
                              </ul>
                            )}
                         </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* DASHBOARD INDIVIDUAL (Diseño Separado) */}
+                {vista === "dashboard" && modoPlan === "individual" && (
+                  <div className="animate-fade-custom print:hidden flex flex-col gap-8 relative z-10">
+                    <div>
+                      <h2 className="text-2xl font-bold text-[#E8EBE4]">Resumen de Negocio</h2>
+                      <p className="text-[#8A968C] text-sm mt-1">El estado de tu cuenta de Google Ads y herramientas para crecer.</p>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                       
+                       {/* SALUD DE LA CUENTA INDIVIDUAL */}
+                       <div className={`bg-[#1A1F1B] border border-[#2C352E] rounded-2xl p-6 flex flex-col min-h-[180px] border-l-4 ${ultimaAuditoria ? getDashboardStatus(ultimaAuditoria.score).borderLeft : 'border-[#2C352E]'}`}>
+                          <p className="text-[10px] font-bold text-[#8A968C] uppercase tracking-widest mb-4 flex items-center gap-2"><Activity size={14}/> Salud de la Cuenta</p>
+                          {ultimaAuditoria ? (
+                            <div className="flex flex-col h-full">
+                               <div className="flex items-baseline gap-1 mt-auto mb-4">
+                                 <span className={`text-[5rem] font-black leading-[0.8] tracking-tighter ${getDashboardStatus(ultimaAuditoria.score).color}`}>
+                                   {ultimaAuditoria.score}
+                                 </span>
+                                 <span className="text-[#8A968C] font-bold text-xl mb-1">/100</span>
+                               </div>
+                               <button onClick={() => { setReporte(ultimaAuditoria.reporte_json); setNombreCuenta(ultimaAuditoria.nombre_cuenta); setVista("reporte_lectura"); }} className="w-full text-[10px] uppercase tracking-widest font-bold border border-[#2C352E] bg-[#131714] hover:bg-[#2C352E] text-[#E8EBE4] px-4 py-2.5 rounded-lg transition-colors mt-auto text-center">
+                                 {t[idioma].abrirAud}
+                               </button>
+                            </div>
+                          ) : (
+                            <div className="flex-1 flex items-center justify-center text-[#8A968C] text-sm font-medium">No hay datos.</div>
+                          )}
+                       </div>
+
+                       {/* FUGAS CRÍTICAS */}
+                       <div className="bg-[#1A1F1B] border border-[#2C352E] rounded-2xl p-6 flex flex-col justify-between min-h-[180px] border-l-4 border-[#E66767]">
+                          <p className="text-[10px] font-bold text-[#E66767] uppercase tracking-widest mb-4 flex items-center gap-2"><AlertTriangle size={14}/> Fugas Críticas</p>
+                          {ultimaAuditoria ? (
+                            <div className="mt-auto">
+                              <span className="text-[4rem] font-black text-[#E8EBE4] tracking-tighter leading-none">{fugasIndividuales}</span>
+                              <p className="text-xs text-[#8A968C] mt-3 font-medium">Problemas consumiendo presupuesto ahora mismo.</p>
+                            </div>
+                          ) : (
+                             <div className="flex-1 flex items-center justify-center text-[#8A968C] text-sm font-medium">No hay datos.</div>
+                          )}
+                       </div>
+
+                       {/* EJECUTAR AUDITORÍA */}
+                       <div className="bg-[#1A1F1B] border border-dashed border-[#8A968C]/50 hover:border-[#F3C3B2] rounded-2xl p-6 flex flex-col justify-center items-center text-center min-h-[180px] transition-colors cursor-pointer group" onClick={() => setVista("nueva")}>
+                          <div className="w-12 h-12 rounded-full bg-[#131714] border border-[#2C352E] flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                             <Zap size={20} className="text-[#F3C3B2]" />
+                          </div>
+                          <h3 className="font-bold text-[#E8EBE4] text-sm">Ejecutar Nueva Auditoría</h3>
+                          <p className="text-xs text-[#8A968C] mt-2 px-2">Actualizá los datos de tu cuenta para ver el score de hoy.</p>
+                       </div>
+                    </div>
+
+                    <div>
+                      <h3 className="text-[10px] font-bold text-[#8A968C] uppercase tracking-widest mb-4 mt-6 px-2">Herramientas Exclusivas</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                         <div className="bg-[#1A1F1B] border border-[#2C352E] rounded-xl p-6 opacity-60 grayscale hover:grayscale-0 transition-all cursor-not-allowed relative overflow-hidden group">
+                            <div className="absolute top-4 right-4"><span className="text-[8px] font-bold uppercase tracking-widest px-2 py-1 bg-[#131714] border border-[#2C352E] rounded text-[#8A968C] group-hover:text-[#F3C3B2] group-hover:border-[#F3C3B2]/50 transition-colors">Pronto</span></div>
+                            <div className="w-8 h-8 rounded-lg bg-[#99CDD8]/10 flex items-center justify-center text-[#99CDD8] mb-4"><BookOpen size={16}/></div>
+                            <h4 className="font-bold text-[#E8EBE4] text-sm mb-1">Traductor de Métricas IA</h4>
+                            <p className="text-xs text-[#8A968C] leading-relaxed">Leé tu cuenta de Google Ads en lenguaje de negocios simple.</p>
+                         </div>
+                         <div className="bg-[#1A1F1B] border border-[#2C352E] rounded-xl p-6 opacity-60 grayscale hover:grayscale-0 transition-all cursor-not-allowed relative overflow-hidden group">
+                            <div className="absolute top-4 right-4"><span className="text-[8px] font-bold uppercase tracking-widest px-2 py-1 bg-[#131714] border border-[#2C352E] rounded text-[#8A968C] group-hover:text-[#F3C3B2] group-hover:border-[#F3C3B2]/50 transition-colors">Pronto</span></div>
+                            <div className="w-8 h-8 rounded-lg bg-[#F3C3B2]/10 flex items-center justify-center text-[#F3C3B2] mb-4"><Type size={16}/></div>
+                            <h4 className="font-bold text-[#E8EBE4] text-sm mb-1">Generador de Anuncios</h4>
+                            <p className="text-xs text-[#8A968C] leading-relaxed">Títulos y descripciones redactados por IA listos para usar.</p>
+                         </div>
+                         <div className="bg-[#1A1F1B] border border-[#2C352E] rounded-xl p-6 opacity-60 grayscale hover:grayscale-0 transition-all cursor-not-allowed relative overflow-hidden group">
+                            <div className="absolute top-4 right-4"><span className="text-[8px] font-bold uppercase tracking-widest px-2 py-1 bg-[#131714] border border-[#2C352E] rounded text-[#8A968C] group-hover:text-[#F3C3B2] group-hover:border-[#F3C3B2]/50 transition-colors">Pronto</span></div>
+                            <div className="w-8 h-8 rounded-lg bg-[#4ADE80]/10 flex items-center justify-center text-[#4ADE80] mb-4"><Calculator size={16}/></div>
+                            <h4 className="font-bold text-[#E8EBE4] text-sm mb-1">Simulador de Presupuesto</h4>
+                            <p className="text-xs text-[#8A968C] leading-relaxed">Proyectá cuántas ventas tendrías si subís o bajás la inversión.</p>
+                         </div>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -1186,7 +1266,7 @@ function AuditorDashboard() {
 
                       <div className="flex justify-between items-center mb-10 pb-10 border-b border-[#2C352E] print:border-slate-200 print:mb-12">
                         <div>
-                          <h2 className="text-[10px] font-bold text-[#8A968C] uppercase tracking-widest mb-2 print:text-slate-500 print:text-xs">{nombreCuenta || "Sin nombre"}</h2>
+                          <h2 className="text-[10px] font-bold text-[#8A968C] uppercase tracking-widest mb-2 print:text-slate-500 print:text-xs">{nombreCuenta || t[idioma].cuentaSinNombre}</h2>
                           <div className="flex items-center gap-5">
                             <div className={`w-16 h-16 rounded-xl flex items-center justify-center border-2 border-[#2C352E] text-2xl font-black text-[#E8EBE4] print:border-slate-300 print:text-slate-800`}>{reporte.score_general}</div>
                             <div><h3 className="text-2xl font-bold text-[#E8EBE4] print:text-slate-900">{t[idioma].score}</h3><p className="text-[#8A968C] text-xs mt-1 print:text-slate-500">{t[idioma].puntajeBasado}</p></div>
@@ -1359,7 +1439,7 @@ function AuditorDashboard() {
                               <div key={index} className="grid grid-cols-12 gap-4 py-4 items-center hover:bg-[#2C352E]/30 transition-colors px-4 rounded-lg">
                                 <div className="col-span-4 flex items-center gap-3">
                                   <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${st.bgTints} ${st.color} border border-transparent flex-shrink-0`}>{item.score}</div>
-                                  <p className="font-bold text-[#E8EBE4] text-sm truncate">{item.nombre_cuenta || "Sin nombre"}</p>
+                                  <p className="font-bold text-[#E8EBE4] text-sm truncate">{item.nombre_cuenta || t[idioma].cuentaSinNombre}</p>
                                 </div>
                                 <div className="col-span-2 text-center"><p className="text-xs text-[#8A968C] font-medium">{parseDate(item.created_at)}</p></div>
                                 
@@ -1374,8 +1454,8 @@ function AuditorDashboard() {
                                 </div>
 
                                 <div className="col-span-2 flex justify-end items-center gap-3">
-                                  <button onClick={() => { setReporte(item.reporte_json); setNombreCuenta(item.nombre_cuenta || "Sin nombre"); setSubVistaReporte("diagnostico"); setVista("reporte_lectura"); }} className="text-[10px] uppercase tracking-widest font-bold text-[#8A968C] border border-[#2C352E] hover:text-[#E8EBE4] hover:bg-[#2C352E] px-3 py-1.5 rounded transition-colors">
-                                    Ver PDF
+                                  <button onClick={() => { setReporte(item.reporte_json); setNombreCuenta(item.nombre_cuenta || t[idioma].cuentaSinNombre); setSubVistaReporte("diagnostico"); setVista("reporte_lectura"); }} className="text-[10px] uppercase tracking-widest font-bold text-[#8A968C] border border-[#2C352E] hover:text-[#E8EBE4] hover:bg-[#2C352E] px-3 py-1.5 rounded transition-colors">
+                                    {t[idioma].abrirAud}
                                   </button>
                                   <button onClick={() => borrarAuditoria(item.id)} className="text-[#8A968C] hover:text-[#E66767] transition-colors p-1" title="Eliminar">
                                     <Trash2 size={14} />
@@ -1451,6 +1531,8 @@ function AuditorDashboard() {
                           <span className="text-2xl font-black text-[#E8EBE4]">{perfil?.plan === 'pro' ? 'Mora Pro' : 'Mora Free'}</span>
                           <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#99CDD8]/10 text-[#99CDD8] uppercase tracking-widest">{t[idioma].activa}</span>
                         </div>
+                        {/* FECHA DE RENOVACIÓN AÑADIDA */}
+                        <p className="text-xs text-[#8A968C] mt-2 font-medium">Renueva el 14 de Abril, 2026</p>
                       </div>
                     </div>
                     <button className="w-full text-[#E8EBE4] bg-[#2C352E] px-6 py-3.5 rounded-xl text-sm font-bold transition-colors mt-2 flex justify-center items-center gap-2 cursor-not-allowed opacity-70"><CreditCard size={16} /> {t[idioma].gestionarStripe} <span className="text-[#F3C3B2] text-[9px] uppercase tracking-widest ml-2">{t[idioma].pronto}</span></button>
@@ -1473,6 +1555,13 @@ function AuditorDashboard() {
           </>
         )}
       </div>
+
+      {/* BOTÓN FLOTANTE DE FEEDBACK (Vuelve a estar activo si hay sesión) */}
+      {session && (
+        <button onClick={() => { setVista("feedback"); setReporte(null); setMenuPerfil(false); }} className="fixed bottom-8 right-8 z-50 bg-[#F3C3B2] text-[#131714] hover:bg-[#eab3a1] px-5 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 transition-transform flex items-center gap-2 border border-[#F3C3B2]/20 print:hidden">
+          <MessageSquare size={18} /> {t[idioma].feedback}
+        </button>
+      )}
 
       {/* MODAL CONFIRMACIÓN AUTO-APPLY */}
       {mostrarConfirmacion && (
