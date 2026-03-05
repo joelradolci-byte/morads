@@ -80,6 +80,7 @@ function TiltWrapper({ children }: { children: React.ReactNode }) {
 }
 
 // --- FONDO NARRATIVO MEJORADO: ESFERA DE AUDITORÍA CON ESCÁNER Y NODOS REACTIVOS (Rojo/Verde) ---
+// --- FONDO NARRATIVO MEJORADO: ESFERA DE AUDITORÍA CON ESCÁNER Y NODOS REACTIVOS ---
 const AuditWireframeBackground = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -95,10 +96,10 @@ const AuditWireframeBackground = () => {
     canvas.height = height;
 
     const nodes: any[] = [];
-    // Ajustamos radio para que cubra la zona derecha
-    let radius = width > 1024 ? width * 0.28 : width * 0.35; 
+    // TAMAÑO INTERMEDIO: Ni tan chico como al principio, ni tan gigante como antes.
+    let radius = width > 1024 ? 400 : 280; 
 
-    // Crear puntos de la esfera con mayor densidad para wireframe
+    // Crear puntos de la esfera
     for (let i = 0; i <= 16; i++) {
       let lat = Math.PI * i / 16;
       for (let j = 0; j <= 32; j++) {
@@ -107,9 +108,8 @@ const AuditWireframeBackground = () => {
         let y = radius * Math.sin(lat) * Math.sin(lon);
         let z = radius * Math.cos(lat);
         
-        // Designamos dinámicamente algunos nodos como "Errores/Fugas" (Rojos)
-        // Usamos Math.random() en la creación para un patrón único pero estático por sesión
-        const isErrorCandidate = (i > 8 && i < 13) && (j > 3 && j < 11); // Un sector crítico
+        // Concentramos los errores en un sector
+        const isErrorCandidate = (i > 8 && i < 13) && (j > 3 && j < 11);
         const isError = isErrorCandidate && Math.random() > 0.4;
         
         nodes.push({ x, y, z, isError, glow: 0, scaleFactor: 1 });
@@ -126,8 +126,8 @@ const AuditWireframeBackground = () => {
       angleX += 0.0006;
       angleY += 0.0012;
       
-      // El escáner baja y luego se reinicia (velocidad ajustada)
-      scanY += 4; 
+      // El escáner baja y luego se reinicia
+      scanY += 3.5; 
       if (scanY > height * 1.3) {
         scanY = -height * 0.4;
       }
@@ -137,7 +137,6 @@ const AuditWireframeBackground = () => {
       const centerY = height * 0.5;
 
       const projectedNodes = nodes.map(node => {
-        // Rotación 3D
         let x = node.x * Math.cos(angleY) - node.z * Math.sin(angleY);
         let z = node.x * Math.sin(angleY) + node.z * Math.cos(angleY);
         let y = node.y;
@@ -146,74 +145,56 @@ const AuditWireframeBackground = () => {
         let z2 = y * Math.sin(angleX) + z * Math.cos(angleX);
         x = x; y = y2; z = z2;
 
-        // Proyección 2D
-        const fov = 1100; // Más FOV para menor distorsión
+        const fov = 1100;
         const scale = fov / (fov + z);
         const x2d = (x * scale) + centerX;
         const y2d = (y * scale) + centerY;
         
-        // --- LÓGICA DE AUDITORÍA (Nodos reactivos al Escáner) ---
+        // Lógica de Escaneo
         const distToScan = Math.abs(y2d - scanY);
-        // Ancho del haz de escaneo
         if (distToScan < 45) {
-           node.glow = 1.0; // Se ilumina al máximo (Verde/Rojo)
-           if (node.isError) {
-              node.scaleFactor = 1.6; // Los errores aumentan de tamaño
-           } else {
-              node.scaleFactor = 1.1; // Nodos sanos vibran ligeramente
-           }
+           node.glow = 1.0; // Se ilumina al máximo
+           node.scaleFactor = node.isError ? 1.6 : 1.2; 
         } else {
-           // Decae el brillo. 
-           // Los errores (rojos) mantienen el brillo más tiempo (Bloom persistente)
-           node.glow *= node.isError ? 0.98 : 0.86; 
-           node.scaleFactor = 1 + (node.scaleFactor - 1) * 0.96; // Retorna a tamaño normal
+           node.glow *= node.isError ? 0.98 : 0.88; 
+           node.scaleFactor = 1 + (node.scaleFactor - 1) * 0.96; 
         }
         
         return { 
           x: x2d, y: y2d, 
-          scale: scale * node.scaleFactor, // Escalado compuesto
+          scale: scale * node.scaleFactor,
           isError: node.isError, 
-          glow: Math.max(0.05, node.glow), // Mínimo brillo para que se vean grises
-          zZ: z // Usamos para orden de dibujado si fuera necesario
+          glow: Math.max(0.05, node.glow)
         };
       });
 
-      // --- DIBUJAR ESCÁNER CON PRESENCIA REAL (AZUL PASTEL/TURQUESA) ---
+      // --- ESCÁNER ORIGINAL MÁS SUTIL Y LIMPIO ---
       if (scanY > -100 && scanY < height + 100) {
-         // Degradado ancho de fondo del escáner
-         const scanGradient = ctx.createLinearGradient(centerX - radius*1.5, 0, centerX + radius*1.5, 0);
-         scanGradient.addColorStop(0, 'rgba(153, 205, 216, 0)');
-         scanGradient.addColorStop(0.3, 'rgba(153, 205, 216, 0.05)');
-         scanGradient.addColorStop(0.5, 'rgba(153, 205, 216, 0.2)'); // Color turquesa del escáner peak
-         scanGradient.addColorStop(0.7, 'rgba(153, 205, 216, 0.05)');
-         scanGradient.addColorStop(1, 'rgba(153, 205, 216, 0)');
-         
+         const scanGradient = ctx.createLinearGradient(0, scanY - 20, 0, scanY + 20);
+         scanGradient.addColorStop(0, 'rgba(218, 235, 227, 0)');
+         scanGradient.addColorStop(0.5, 'rgba(218, 235, 227, 0.4)'); // Color menta
+         scanGradient.addColorStop(1, 'rgba(218, 235, 227, 0)');
          ctx.fillStyle = scanGradient;
-         // Cubrimos toda la esfera a lo ancho
-         ctx.fillRect(centerX - radius * 2, scanY - 35, radius * 4, 70);
+         ctx.fillRect(centerX - radius * 1.5, scanY - 20, radius * 3, 40);
          
-         // Línea dura central del láser (Turquesa brillante)
          ctx.beginPath();
-         ctx.strokeStyle = 'rgba(153, 205, 216, 0.8)';
-         ctx.lineWidth = 2;
-         ctx.moveTo(centerX - radius * 1.4, scanY);
-         ctx.lineTo(centerX + radius * 1.4, scanY);
+         ctx.strokeStyle = 'rgba(218, 235, 227, 0.8)';
+         ctx.lineWidth = 1;
+         ctx.moveTo(centerX - radius * 1.2, scanY);
+         ctx.lineTo(centerX + radius * 1.2, scanY);
          ctx.stroke();
       }
 
       // Dibujar wireframe (Lineas grises sutiles)
       ctx.beginPath();
-      ctx.strokeStyle = `rgba(38, 43, 39, 0.15)`; // Gris oscuro sutil
+      ctx.strokeStyle = `rgba(38, 43, 39, 0.15)`; 
       ctx.lineWidth = 1;
-      // Dibujamos menos líneas para no saturar, priorizando meridianos
       for (let i = 0; i < projectedNodes.length; i++) {
-        // Conectar con el siguiente nodo en el mismo paralelo
         let nextInLat = i + 1;
         if (i % 33 !== 32 && nextInLat < projectedNodes.length) {
           ctx.moveTo(projectedNodes[i].x, projectedNodes[i].y);
           ctx.lineTo(projectedNodes[nextInLat].x, projectedNodes[nextInLat].y);
         }
-        // Conectar con el nodo en el paralelo de abajo
         let nextInLon = i + 33;
         if (nextInLon < projectedNodes.length) {
           ctx.moveTo(projectedNodes[i].x, projectedNodes[i].y);
@@ -222,40 +203,34 @@ const AuditWireframeBackground = () => {
       }
       ctx.stroke();
 
-      // --- DIBUJAR NODOS REACTIVOS (Rojo Fuga / Verde Sano) ---
+      // --- NODOS CON COLORES INTENSOS ---
       projectedNodes.forEach(pn => {
-        // Color por defecto (Gris base)
         let fillColor = 'rgba(38, 43, 39, 0.2)';
         
-        // Si el nodo está brillando intensamente por el escáner (o persistencia)
-        if (pn.glow > 0.06) {
+        if (pn.glow > 0.08) {
            if (pn.isError) {
-              // --- NODOS ROJO FUGA (Melocotón Brillante) ---
-              // Aumentamos opacidad y brillo base para presencia
-              fillColor = `rgba(243, 195, 178, ${0.4 + pn.glow * 0.6})`;
-              ctx.shadowBlur = 25 * pn.glow; // BLOOM INTENSO Y PERSISTENTE
-              ctx.shadowColor = `rgba(243, 195, 178, 1)`; // Brillo rojo/melocotón
+              // ROJO INTENSO
+              fillColor = `rgba(239, 68, 68, ${0.4 + pn.glow * 0.6})`;
+              ctx.shadowBlur = 20 * pn.glow; 
+              ctx.shadowColor = `rgba(239, 68, 68, 1)`; 
            } else {
-              // --- NODOS VERDE SANO (Menta Brillante) ---
-              fillColor = `rgba(218, 235, 227, ${pn.glow * 0.8})`;
-              ctx.shadowBlur = 8 * pn.glow; // Brillo sutil menta
-              ctx.shadowColor = `rgba(218, 235, 227, 0.6)`;
+              // VERDE INTENSO
+              fillColor = `rgba(74, 222, 128, ${0.3 + pn.glow * 0.7})`;
+              ctx.shadowBlur = 12 * pn.glow; 
+              ctx.shadowColor = `rgba(74, 222, 128, 0.8)`;
            }
         } else {
-           // Reseteamos sombras para grises base
            ctx.shadowBlur = 0;
            ctx.shadowColor = 'transparent';
         }
         
         ctx.beginPath();
         ctx.fillStyle = fillColor;
-        
-        // Tamaño base incrementado para mayor presencia
-        let nodeRadius = (pn.glow > 0.06 && pn.isError) ? 3.5 : 2;
+        let nodeRadius = (pn.glow > 0.08) ? (pn.isError ? 3.5 : 2.2) : 1.5;
         
         ctx.arc(pn.x, pn.y, nodeRadius * pn.scale, 0, Math.PI * 2);
         ctx.fill();
-        ctx.shadowBlur = 0; // Reset para el próximo nodo
+        ctx.shadowBlur = 0; 
       });
 
       animationFrameId = requestAnimationFrame(render);
@@ -263,7 +238,13 @@ const AuditWireframeBackground = () => {
 
     render();
 
-    const handleResize = () => { width = window.innerWidth; height = window.innerHeight; canvas.width = width; canvas.height = height; radius = width > 1024 ? width * 0.28 : width * 0.35; };
+    const handleResize = () => { 
+      width = window.innerWidth; 
+      height = window.innerHeight; 
+      canvas.width = width; 
+      canvas.height = height; 
+      radius = width > 1024 ? 400 : 280; 
+    };
     window.addEventListener('resize', handleResize);
     return () => { window.removeEventListener('resize', handleResize); cancelAnimationFrame(animationFrameId); };
   }, []);
