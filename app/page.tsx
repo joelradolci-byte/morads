@@ -16,11 +16,10 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Paleta antigua (Mantenida para el Dashboard actual)
+// Paleta antigua (Mantenida para el botón principal)
 const melocotonGradient = { background: "linear-gradient(90deg, #FEECE3 0%, #FCD5BF 25%, #FEAFAE 50%, #FFA4BD 75%, #FFA9CC 100%)" };
-const melocotonText = { background: "linear-gradient(90deg, #FEECE3 0%, #FCD5BF 25%, #FEAFAE 50%, #FFA4BD 75%, #FFA9CC 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" };
 
-// --- NUEVA PALETA PASTEL ---
+// --- NUEVA PALETA PASTEL (Landing Page) ---
 const pastelColors = {
   bg: "#FDE8D3",       
   textDark: "#262B27", 
@@ -29,6 +28,19 @@ const pastelColors = {
   blue: "#99CDD8",     
   mint: "#DAEBE3",     
   sage: "#CFD6C4"      
+};
+
+// --- NUEVA PALETA DASHBOARD (Off-Black Olive) ---
+const dashColors = {
+  bg: "#131714",       // Fondo principal
+  card: "#1A1F1B",     // Fondo tarjetas y sidebar
+  border: "#2C352E",   // Bordes sutiles
+  textPrimary: "#E8EBE4", // Texto principal
+  textMuted: "#8A968C",   // Texto secundario / Títulos pequeños
+  peach: "#F3C3B2",    // Acento principal
+  red: "#E66767",      // Crítico
+  green: "#99CDD8",    // Óptimo
+  yellow: "#EAB308"    // Atención
 };
 
 function FadeInOnScroll({ children, delay = 0 }: { children: React.ReactNode, delay?: number }) {
@@ -79,9 +91,6 @@ function TiltWrapper({ children }: { children: React.ReactNode }) {
   );
 }
 
-// --- FONDO NARRATIVO MEJORADO: ESFERA DE AUDITORÍA CON ESCÁNER Y NODOS REACTIVOS (Rojo/Verde) ---
-// --- FONDO NARRATIVO MEJORADO: ESFERA DE AUDITORÍA CON ESCÁNER Y NODOS REACTIVOS ---
-// --- FONDO NARRATIVO MEJORADO: ESFERA RÍGIDA CON Z-DEPTH EXTREMO Y PULSOS DE DATOS ---
 // --- FONDO NARRATIVO MEJORADO: ESFERA RÍGIDA OSCURA CON Z-DEPTH Y PULSOS ---
 const AuditWireframeBackground = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -157,13 +166,9 @@ const AuditWireframeBackground = () => {
         const x2d = (x * scale) + centerX;
         const y2d = (y * scale) + centerY;
         
-        // CÁLCULO DE PROFUNDIDAD (Ajustado para que sea MUCHO más oscuro al frente)
-        // zNormalized va de 0 (fondo) a 1 (frente).
         const zNormalized = (z2 + radius) / (radius * 2);
-        // Ahora el alpha mínimo es 0.15 (atrás) y el máximo es 1.0 (frente)
         const depthAlpha = 0.15 + 0.85 * zNormalized; 
         
-        // Lógica de Escaneo
         const distToScan = Math.abs(y2d - scanY);
         if (distToScan < 45) {
            node.glow = 1.0; 
@@ -200,14 +205,13 @@ const AuditWireframeBackground = () => {
       }
 
       // --- DIBUJAR WIREFRAME MÁS OSCURO ---
-      ctx.lineWidth = 1.2; // Líneas un poquito más gruesas
+      ctx.lineWidth = 1.2; 
       edges.forEach(edge => {
         const p1 = projectedNodes[edge[0]];
         const p2 = projectedNodes[edge[1]];
         const edgeAlpha = (p1.depthAlpha + p2.depthAlpha) / 2;
         
         ctx.beginPath();
-        // Aumentamos la opacidad base de 0.15 a 0.35 para que el gris casi negro resalte
         ctx.strokeStyle = `rgba(38, 43, 39, ${0.35 * edgeAlpha})`; 
         ctx.moveTo(p1.x, p1.y);
         ctx.lineTo(p2.x, p2.y);
@@ -262,7 +266,6 @@ const AuditWireframeBackground = () => {
 
       // --- DIBUJAR NODOS ---
       projectedNodes.forEach(pn => {
-        // Base mucho más sólida (0.5 en lugar de 0.2)
         let baseAlpha = 0.5 * pn.depthAlpha;
         let fillColor = `rgba(38, 43, 39, ${baseAlpha})`;
         
@@ -285,7 +288,7 @@ const AuditWireframeBackground = () => {
         
         ctx.beginPath();
         ctx.fillStyle = fillColor;
-        let nodeRadius = (pn.glow > 0.08) ? (pn.isError ? 3.5 : 2.2) : 1.8; // Nodos base un poquito más grandes
+        let nodeRadius = (pn.glow > 0.08) ? (pn.isError ? 3.5 : 2.2) : 1.8; 
         
         ctx.arc(pn.x, pn.y, nodeRadius * pn.scale, 0, Math.PI * 2);
         ctx.fill();
@@ -309,69 +312,6 @@ const AuditWireframeBackground = () => {
   }, []);
 
   return <canvas ref={canvasRef} className="fixed inset-0 w-full h-full pointer-events-none z-[1] print:hidden opacity-90" />;
-};
-
-// --- RED NEURAL OSCURA (Mantenida intacta para el Dashboard Logueado) ---
-const DashboardBackground = () => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    
-    let width = window.innerWidth;
-    let height = window.innerHeight;
-    canvas.width = width;
-    canvas.height = height;
-
-    const particles: {x: number, y: number, vx: number, vy: number, radius: number}[] = [];
-    const numParticles = Math.floor((width * height) / 18000); 
-
-    for (let i = 0; i < numParticles; i++) {
-      particles.push({ x: Math.random() * width, y: Math.random() * height, vx: (Math.random() - 0.5) * 0.2, vy: (Math.random() - 0.5) * 0.2, radius: Math.random() * 1.2 + 0.4 });
-    }
-
-    let animationFrameId: number;
-
-    const render = () => {
-      ctx.clearRect(0, 0, width, height);
-      ctx.fillStyle = 'rgba(254, 175, 174, 0.4)'; 
-      ctx.strokeStyle = 'rgba(254, 175, 174, 0.08)'; 
-
-      for (let i = 0; i < particles.length; i++) {
-        let p = particles[i];
-        p.x += p.vx; p.y += p.vy;
-        if (p.x < 0 || p.x > width) p.vx *= -1;
-        if (p.y < 0 || p.y > height) p.vy *= -1;
-
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-        ctx.fill();
-
-        for (let j = i + 1; j < particles.length; j++) {
-          let p2 = particles[j];
-          let dx = p.x - p2.x; let dy = p.y - p2.y;
-          let dist = Math.sqrt(dx * dx + dy * dy);
-
-          if (dist < 110) { 
-            ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p2.x, p2.y);
-            ctx.lineWidth = (1 - dist / 110) * 0.7; ctx.stroke();
-          }
-        }
-      }
-      animationFrameId = requestAnimationFrame(render);
-    };
-
-    render();
-
-    const handleResize = () => { width = window.innerWidth; height = window.innerHeight; canvas.width = width; canvas.height = height; };
-    window.addEventListener('resize', handleResize);
-    return () => { window.removeEventListener('resize', handleResize); cancelAnimationFrame(animationFrameId); };
-  }, []);
-
-  return <div className="fixed inset-0 w-full h-full pointer-events-none z-[1] print:hidden"><canvas ref={canvasRef} className="absolute inset-0 w-full h-full opacity-50" /></div>;
 };
 
 
@@ -418,9 +358,10 @@ function AuditorDashboard() {
 
   const [modoPlan, setModoPlan] = useState<"agencia" | "individual">("agencia");
 
+  // Diccionario con traducciones actualizadas para el dashboard denso
   const t = {
-    es: { dashboard: "Dashboard", panelPrin: "Panel Principal", panelDesc: "Resumen del rendimiento global.", saludG: "Salud Promedio", totAud: "Total Cuentas", fugasDet: "Fugas Críticas", oporMej: "Oportunidades", ultAud: "Últimas Auditorías", actRec: "Actividad Reciente", verTodas: "Ver todas", generada: "Se auditó la cuenta", hace: "Hace", afectaA: "Afecta principalmente a:", buscarGlobal: "Buscar cuenta por nombre...", nueva: "Auditor IA", clientes: "Panel de Clientes", reportes: "Reportes", feedback: "Sugerencias", configuracion: "Configuración General", facturacion: "Ver Facturación", salir: "Cerrar Sesión", placeholderNombre: "Nombre del Cliente o Cuenta", btnAnalizar: "Ejecutar Auditoría", btnAnalizando: "Analizando métricas...", exportar: "Exportar a PDF", score: "Score General", problemas: "Problemas Graves", mejoras: "Áreas Débiles", aciertos: "Puntos Fuertes", tituloland: "Auditorías Nivel Agencia", h1land1: "Detectá fugas de dinero con", h1land2: "Inteligencia Artificial.", pland1: "Conectá tu cuenta de Google Ads y dejá que nuestra Inteligencia Artificial audite tus campañas y genere reportes marca blanca en segundos.", btncomenzar: "Comenzar Gratis", detalleCliente: "Detalle del Cliente", buzonSug: "Buzón de Sugerencias", suscripcion: "Suscripción", activa: "Active", renueva: "Renueva:", ingresaDatos: "Ingresá los datos clave de la campaña para un análisis preciso.", presupuestoObj: "Presupuesto Mensual", placeholderPres: "Ej: 1000", gastoAct: "Gasto Actual (Hasta hoy)", placeholderGasto: "Ej: 450", conversiones: "Conversiones", cparoas: "CPA o ROAS Actual", tipoCamp: "Tipo de Campaña", contexto: "Contexto y Notas del Cliente (Opcional)", placeholderConv: "Ej: 120", placeholderContexto: "Ej: El cliente quiere enfocarse en vender zapatos de invierno. Notamos muchos clics de países irrelevantes.", volver: "Volver al Panel", monitoreo: "Monitoreo de Cuentas", tenes: "Tenés", registradas: "auditorías registradas.", buscar: "Buscar cliente...", todos: "Todos", criticos: "Críticos", atencion: "Atención", optimos: "Óptimos", thCliente: "Cliente / Cuenta", thFecha: "Fecha", thEstado: "Estado IA", thTendencia: "Tendencia", thAccion: "Acción", abrirAud: "Abrir Auditoría", sinCuentas: "No se encontraron clientes.", cuentaSinNombre: "Cuenta sin nombre", persPdf: "Personalizá la identidad y las herramientas de tu agencia.", nomAgencia: "Nombre de la Agencia", logoPdf: "Logo (PDF)", subeLogo: "Sube un logo", guardando: "Guardando...", guardarAj: "Guardar Ajustes", ayudanos: "Ayudanos a mejorar Mora", bug: "¿Encontraste un bug o tenés una idea genial?", escribiSug: "Escribí tu sugerencia acá...", enviando: "Enviando...", enviarSug: "Enviar Sugerencia", facturacionTitulo: "Suscripción y Pagos", facturacionDesc: "Gestioná tu plan actual y métodos de pago de forma segura.", planActual: "Tu Plan Actual", gestionarStripe: "Gestionar en Stripe", pronto: "(Próximamente)", puntajeBasado: "Puntaje basado en rendimiento y estructura.", marcaBlanca: "Marca Blanca Visual", preferencias: "Preferencias de Trabajo", sitioWeb: "Website (Appears on PDF)", piePagina: "Pie de página legal (PDF)", monedaDef: "Moneda por defecto", metricaDef: "Métrica por defecto", feat1Tit: "Auditoría en Segundos", feat1Desc: "La IA procesa cientos de métricas y detecta fugas de presupuesto al instante.", feat2Tit: "Marca Blanca Total", feat2Desc: "Exportá PDFs impecables con tu logo, colores y sitio web listos para enviar al cliente.", feat3Tit: "Historial y Tendencias", feat3Desc: "Monitoreá el progreso de todas tus cuentas con scores evolutivos y alertas tempranas.", todoLoQueNecesitas: "Everything tu agencia necesita", planes: "Planes simples y transparentes", planFree: "Plan Starter", planPro: "Plan Agency", btnUnete: "Unite a Mora hoy", login: "Iniciar sesión", mockupTit: "Auditoría Finalizada", mockupScore: "Score de Salud", mockupCritico: "Fuga de Presupuesto", mockupCriticoDesc: "Detectamos $450/mes gastados en términos de búsqueda irrelevantes sin conversiones.", mockupOptimo: "Estructura Correcta", mockupOptimoDesc: "El seguimiento de conversiones está correctamente implementado en todas las campañas.", confirmarBorrar: "¿Seguro que querés eliminar esta auditoría? Esta acción no se puede deshacer.", notifTit: "Alertas del Guardián IA", notifVacio: "Todo en orden. No hay anomalías recientes.", tabDiag: "Diagnóstico IA", tabCheck: "Plan de Acción", tabAvanzado: "Análisis Avanzado", autoApply: "Corregir Ahora", msgAutoApply: "Para usar la ejecución en piloto automático (Auto-Apply), vinculá tu API de Google Ads en la sección de Integraciones. (Disponible próximamente)", pacingTit: "Pacing de Presupuesto", pacingDesc: "Ritmo de gasto proyectado", matrizTit: "Campaign Matrix", matrizDesc: "Distribución del gasto vs rendimiento", escalar: "ESTRELLAS (Escalar)", apagar: "BASURA (Apagar)", observar: "DUDOSOS (Observar)", potenciales: "POTENCIALES (Testear)" },
-    en: { dashboard: "Dashboard", panelPrin: "Main Dashboard", panelDesc: "Global overview of your agency's performance.", saludG: "Avg Health Score", totAud: "Total Accounts", fugasDet: "Critical Leaks", oporMej: "Opportunities", ultAud: "Recent Audits", actRec: "Recent Activity", verTodas: "View all", generada: "Audit generated for", hace: "Ago", afectaA: "Mainly affecting:", buscarGlobal: "Search account by name...", nueva: "AI Auditor", clientes: "Client Dashboard", reportes: "Reports", feedback: "Feedback", configuracion: "General Settings", facturacion: "Billing", salir: "Sign Out", placeholderNombre: "Client or Account Name", btnAnalizar: "Run Audit", btnAnalizando: "Analyzing metrics...", exportar: "Export to PDF", score: "Overall Score", problemas: "Critical Issues", mejoras: "Weak Areas", aciertos: "Strengths", tituloland: "Agency-Level Audits", h1land1: "Detect money leaks with", h1land2: "Artificial Intelligence.", pland1: "Connect your Google Ads account and let our AI audit your campaigns to generate white-label reports in seconds.", btncomenzar: "Start for Free", detalleCliente: "Client Details", buzonSug: "Suggestion Box", suscripcion: "Subscription", activa: "Active", renueva: "Renews:", ingresaDatos: "Enter key campaign data for a precise analysis.", presupuestoObj: "Target Monthly Budget", placeholderPres: "E.g. 1000", gastoAct: "Current Spend (To date)", placeholderGasto: "E.g. 450", conversiones: "Conversions", cparoas: "Current CPA or ROAS", tipoCamp: "Campaign Type", contexto: "Client Context & Notes (Optional)", placeholderConv: "E.g. 120", placeholderContexto: "E.g. The client wants to focus on selling winter shoes. We noticed many clicks from irrelevant countries.", volver: "Back to Dashboard", monitoreo: "Account Monitoring", tenes: "You have", registradas: "audits recorded.", buscar: "Search client...", todos: "All", criticos: "Critical", atencion: "Warning", optimos: "Optimal", thCliente: "Client / Account", thFecha: "Date", thEstado: "AI Status", thTendencia: "Trend", thAccion: "Action", abrirAud: "Open Audit", sinCuentas: "No clients found.", cuentaSinNombre: "Unnamed Account", persPdf: "Customize your agency's identity and workflow tools.", nomAgencia: "Agency Name", logoPdf: "Logo (PDF)", subeLogo: "Upload logo", guardando: "Saving...", guardarAj: "Save Settings", ayudanos: "Help us improve Mora", bug: "Found a bug or have a great idea?", escribiSug: "Write your suggestion here...", enviando: "Sending...", enviarSug: "Send Suggestion", facturacionTitulo: "Subscription & Billing", facturacionDesc: "Manage your current plan and payment methods securely.", planActual: "Your Current Plan", gestionarStripe: "Manage in Stripe", pronto: "(Coming Soon)", puntajeBasado: "Score based on performance and structure.", marcaBlanca: "Visual White Label", preferencias: "Workflow Preferences", sitioWeb: "Website (Appears on PDF)", piePagina: "Legal Footer (PDF)", monedaDef: "Default Currency", metricaDef: "Default Metric", feat1Tit: "Audits in Seconds", feat1Desc: "Our AI processes hundreds of metrics and detects budget leaks instantly.", feat2Tit: "Full White Label", feat2Desc: "Export flawless PDFs with your logo, colors, and website ready for your clients.", feat3Tit: "History & Trends", feat3Desc: "Monitor the progress of all your accounts with evolutionary scores and early warnings.", todoLoQueNecesitas: "Everything your agency needs", planes: "Simple & transparent pricing", planFree: "Starter Plan", planPro: "Agency Plan", btnUnete: "Join Mora today", login: "Log In", mockupTit: "Audit Completed", mockupScore: "Health Score", mockupCritico: "Budget Leak", mockupCriticoDesc: "We detected $450/mo spent on irrelevant search terms with 0 conversions.", mockupOptimo: "Correct Structure", mockupOptimoDesc: "Conversion tracking is correctly implemented across all active campaigns.", confirmarBorrar: "Are you sure you want to delete this audit? This action cannot be undone.", notifTit: "AI Guardian Alerts", notifVacio: "All clear. No recent anomalies.", tabDiag: "AI Diagnosis", tabCheck: "Action Plan", tabAvanzado: "Advanced Analysis", autoApply: "Auto-Apply", msgAutoApply: "To use the Auto-Apply execution, link your Google Ads API in the Integrations section. (Coming soon)", pacingTit: "Budget Pacing", pacingDesc: "Projected spend rhythm", matrizTit: "Campaign Matrix", matrizDesc: "Spend distribution vs performance", escalar: "STARS (Scale)", apagar: "TRASH (Pause)", observar: "DOUBTFUL (Observe)", potenciales: "POTENCIALES (Test)" }
+    es: { dashboard: "Dashboard", panelPrin: "Panel Principal", panelDesc: "Resumen del rendimiento global de tus cuentas.", saludG: "Salud Promedio", totAud: "Total Cuentas", fugasDet: "Fugas Críticas", oporMej: "Oportunidades", ultAud: "Últimas Auditorías", actRec: "Actividad Reciente", verTodas: "Ver todas →", generada: "Se auditó la cuenta", hace: "Hace", afectaA: "Afecta principalmente a", buscarGlobal: "Buscar cuenta por nombre...", nueva: "Auditor IA", clientes: "Panel de Clientes", reportes: "Reportes", feedback: "Sugerencias", configuracion: "Configuración General", facturacion: "Ver Facturación", salir: "Cerrar Sesión", placeholderNombre: "Nombre del Cliente o Cuenta", btnAnalizar: "Ejecutar Auditoría", btnAnalizando: "Analizando métricas...", exportar: "Exportar a PDF", score: "Score", problemas: "Problemas Graves", mejoras: "Áreas Débiles", aciertos: "Puntos Fuertes", login: "Iniciar sesión", tabDiag: "Diagnóstico IA", tabCheck: "Plan de Acción", tabAvanzado: "Análisis Avanzado", autoApply: "Corregir Ahora", msgAutoApply: "Disponible próximamente", pacingTit: "Pacing de Presupuesto", pacingDesc: "Ritmo de gasto proyectado", matrizTit: "Campaign Matrix", matrizDesc: "Distribución del gasto vs rendimiento", escalar: "ESTRELLAS (Escalar)", apagar: "BASURA (Apagar)", observar: "DUDOSOS (Observar)", potenciales: "POTENCIALES (Testear)", abrirAud: "Ver PDF", thCliente: "Cliente / Cuenta", thFecha: "Fecha", thEstado: "Estado", thAccion: "Acción", cuentaSinNombre: "Cuenta sin nombre", ingresos: "Ingresa los datos", buzonSug: "Buzón de sugerencias", facturacionTitulo: "Facturación y Planes", facturacionDesc: "Administrá tu suscripción", planActual: "Plan Actual", activa: "Activa", gestionarStripe: "Gestionar en Stripe", pronto: "Pronto", ayudanos: "Ayudanos a mejorar", bug: "¿Encontraste un error?", escribiSug: "Escribí tu sugerencia aquí...", enviando: "Enviando...", enviarSug: "Enviar Sugerencia", persPdf: "Personalización de Marca Blanca", nomAgencia: "Nombre de Agencia", sitioWeb: "Sitio Web", logoPdf: "Logo PDF", subeLogo: "Subir", piePagina: "Pie de página legal", preferencias: "Preferencias Regionales", monedaDef: "Moneda Base", metricaDef: "Métrica Principal", guardando: "Guardando...", guardarAj: "Guardar Ajustes", puntajeBasado: "Puntaje de salud en base al rendimiento y estructura general.", ingresaDatos: "Completá los datos de la campaña a auditar.", presupuestoObj: "Presupuesto Mensual", placeholderPres: "Ej: 1000", gastoAct: "Gasto actual", placeholderGasto: "Ej: 450", conversiones: "Conversiones", cparoas: "CPA / ROAS Actual", tipoCamp: "Tipo de Campaña", contexto: "Contexto y Notas", placeholderConv: "Ej: 120", placeholderContexto: "Añadí contexto extra para la IA.", monitoreo: "Monitoreo", tenes: "Tenés", registradas: "cuentas registradas.", todos: "Todos", criticos: "Críticos", atencion: "Atención", optimos: "Óptimos", thTendencia: "Tendencia", volver: "Volver atrás", detalleCliente: "Detalle del Cliente" },
+    en: { dashboard: "Dashboard", panelPrin: "Main Dashboard", panelDesc: "Global overview of your accounts performance.", saludG: "Avg Health Score", totAud: "Total Accounts", fugasDet: "Critical Leaks", oporMej: "Opportunities", ultAud: "Recent Audits", actRec: "Recent Activity", verTodas: "View all →", generada: "Audit generated for", hace: "Ago", afectaA: "Mainly affecting", buscarGlobal: "Search account by name...", nueva: "AI Auditor", clientes: "Client Dashboard", reportes: "Reports", feedback: "Feedback", configuracion: "General Settings", facturacion: "Billing", salir: "Sign Out", placeholderNombre: "Client or Account Name", btnAnalizar: "Run Audit", btnAnalizando: "Analyzing metrics...", exportar: "Export to PDF", score: "Score", problemas: "Critical Issues", mejoras: "Weak Areas", aciertos: "Strengths", login: "Log In", tabDiag: "AI Diagnosis", tabCheck: "Action Plan", tabAvanzado: "Advanced Analysis", autoApply: "Auto-Apply", msgAutoApply: "Coming soon", pacingTit: "Budget Pacing", pacingDesc: "Projected spend rhythm", matrizTit: "Campaign Matrix", matrizDesc: "Spend distribution vs performance", escalar: "STARS (Scale)", apagar: "TRASH (Pause)", observar: "DOUBTFUL (Observe)", potenciales: "POTENCIALES (Test)", abrirAud: "View PDF", thCliente: "Client / Account", thFecha: "Date", thEstado: "Status", thAccion: "Action", cuentaSinNombre: "Unnamed Account", ingresos: "Enter details", buzonSug: "Suggestion Box", facturacionTitulo: "Billing and Plans", facturacionDesc: "Manage your subscription", planActual: "Current Plan", activa: "Active", gestionarStripe: "Manage on Stripe", pronto: "Soon", ayudanos: "Help us improve", bug: "Found a bug?", escribiSug: "Write your suggestion here...", enviando: "Sending...", enviarSug: "Send Suggestion", persPdf: "White Label Customization", nomAgencia: "Agency Name", sitioWeb: "Website", logoPdf: "PDF Logo", subeLogo: "Upload", piePagina: "Legal Footer", preferencias: "Regional Preferences", monedaDef: "Base Currency", metricaDef: "Main Metric", guardando: "Saving...", guardarAj: "Save Settings", puntajeBasado: "Health score based on overall performance and structure.", ingresaDatos: "Fill in the details for the campaign audit.", presupuestoObj: "Monthly Budget", placeholderPres: "E.g. 1000", gastoAct: "Current Spend", placeholderGasto: "E.g. 450", conversiones: "Conversions", cparoas: "Current CPA / ROAS", tipoCamp: "Campaign Type", contexto: "Context & Notes", placeholderConv: "E.g. 120", placeholderContexto: "Add extra context for the AI.", monitoreo: "Monitoring", tenes: "You have", registradas: "accounts registered.", todos: "All", criticos: "Critical", atencion: "Warning", optimos: "Optimal", thTendencia: "Trend", volver: "Go Back", detalleCliente: "Client Details" }
   };
 
   useEffect(() => {
@@ -460,7 +401,7 @@ function AuditorDashboard() {
   };
 
   const borrarAuditoria = async (id: number) => {
-    if (!window.confirm(t[idioma].confirmarBorrar)) return;
+    if (!window.confirm("¿Seguro que querés eliminar esta auditoría? Esta acción no se puede deshacer.")) return;
     const { error } = await supabase.from('historial_auditorias').delete().eq('id', id);
     if (!error) { setHistorial(historial.filter(item => item.id !== id)); if (vista === "reporte_lectura") setVista("historial"); } 
     else { alert("Error al eliminar la auditoría."); }
@@ -521,10 +462,10 @@ function AuditorDashboard() {
       const spendPercentage = presObj > 0 ? Math.round((projectedSpend / presObj) * 100) : 0;
       const currentPercentage = presObj > 0 ? Math.min(Math.round((gastoAct / presObj) * 100), 100) : 0;
 
-      let pacingStatus = "optimo", pacingColor = "text-green-400", pacingBg = "bg-green-400", pacingMsg = idioma === 'es' ? `🟢 Pacing Perfecto: Proyecta gastar $${projectedSpend}` : `🟢 Perfect Pacing: Projected spend $${projectedSpend}`;
+      let pacingStatus = "optimo", pacingColor = "text-[#99CDD8]", pacingBg = "bg-[#99CDD8]", pacingMsg = idioma === 'es' ? `🟢 Pacing Perfecto: Proyecta gastar $${projectedSpend}` : `🟢 Perfect Pacing: Projected spend $${projectedSpend}`;
 
-      if (spendPercentage > 110) { pacingStatus = "overspend"; pacingColor = "text-red-400"; pacingBg = "bg-red-500"; pacingMsg = idioma === 'es' ? `🔴 Peligro Overspend: Proyecta gastar $${projectedSpend} (${spendPercentage}%)` : `🔴 Overspend Warning: Projected spend $${projectedSpend} (${spendPercentage}%)`; } 
-      else if (spendPercentage < 90) { pacingStatus = "underspend"; pacingColor = "text-yellow-400"; pacingBg = "bg-yellow-400"; pacingMsg = idioma === 'es' ? `🟡 Peligro Underspend: Proyecta gastar solo $${projectedSpend}` : `🟡 Underspend Warning: Projected spend only $${projectedSpend}`; }
+      if (spendPercentage > 110) { pacingStatus = "overspend"; pacingColor = "text-[#E66767]"; pacingBg = "bg-[#E66767]"; pacingMsg = idioma === 'es' ? `🔴 Peligro Overspend: Proyecta gastar $${projectedSpend} (${spendPercentage}%)` : `🔴 Overspend Warning: Projected spend $${projectedSpend} (${spendPercentage}%)`; } 
+      else if (spendPercentage < 90) { pacingStatus = "underspend"; pacingColor = "text-[#EAB308]"; pacingBg = "bg-[#EAB308]"; pacingMsg = idioma === 'es' ? `🟡 Peligro Underspend: Proyecta gastar solo $${projectedSpend}` : `🟡 Underspend Warning: Projected spend only $${projectedSpend}`; }
 
       const pacingData = { presupuesto: presObj, gasto: gastoAct, proyectado: projectedSpend, porcentajeProyectado: spendPercentage, porcentajeActual: currentPercentage, estado: pacingStatus, color: pacingColor, bg: pacingBg, mensaje: pacingMsg };
 
@@ -549,10 +490,23 @@ function AuditorDashboard() {
     setLoading(false);
   };
 
-  const getEstadoData = (score: number) => {
-    if (score < 50) return { label: t[idioma].criticos, color: "text-red-400", bg: "bg-red-500/10", border: "border-red-500/20", icon: AlertTriangle };
-    if (score < 80) return { label: t[idioma].atencion, color: "text-yellow-400", bg: "bg-yellow-500/10", border: "border-yellow-500/20", icon: Zap };
-    return { label: t[idioma].optimos, color: "text-green-400", bg: "bg-green-500/10", border: "border-green-500/20", icon: CheckCircle2 };
+  // Función Helper para los estados de métricas (Nueva paleta)
+  const getDashboardStatus = (score: number) => {
+    if (score < 50) return { 
+      label: "Crítico", color: "text-[#E66767]", bgTints: "bg-[#E66767]/10", 
+      border: "border-[#E66767]/20", borderLeft: "border-l-[#E66767]", icon: AlertTriangle, 
+      msg: "Atención urgente requerida" 
+    };
+    if (score < 80) return { 
+      label: "Atención", color: "text-[#EAB308]", bgTints: "bg-[#EAB308]/10", 
+      border: "border-[#EAB308]/20", borderLeft: "border-l-[#EAB308]", icon: Zap, 
+      msg: "Métricas bajo observación" 
+    };
+    return { 
+      label: "Óptimo", color: "text-[#99CDD8]", bgTints: "bg-[#99CDD8]/10", 
+      border: "border-[#99CDD8]/20", borderLeft: "border-l-[#99CDD8]", icon: CheckCircle2, 
+      msg: "Cuentas estables y sanas" 
+    };
   };
 
   const parseDate = (dateString: string) => { if (!dateString) return new Date().toLocaleDateString(); return new Date(dateString).toLocaleDateString(); };
@@ -566,18 +520,31 @@ function AuditorDashboard() {
 
   const totalAuditorias = historial.length;
   const promedioScore = totalAuditorias > 0 ? Math.round(historial.reduce((acc, curr) => acc + curr.score, 0) / totalAuditorias) : 0;
+  const avgStatus = getDashboardStatus(promedioScore);
+  
   let totalFugas = 0; let totalOportunidades = 0;
-  const cuentasRojas: {nombre: string, cant: number, reporte: any}[] = []; const cuentasAmarillas: {nombre: string, cant: number, reporte: any}[] = [];
+  let totalCriticas = 0; let totalOptimas = 0;
+  
+  const cuentasRojas: {nombre: string, cant: number, reporte: any}[] = []; 
+  const cuentasAmarillas: {nombre: string, cant: number, reporte: any}[] = [];
 
   historial.forEach(h => {
       const nombre = h.nombre_cuenta || t[idioma].cuentaSinNombre;
-      if (h.reporte_json?.hallazgos?.graves_rojo) { const cantRojas = h.reporte_json.hallazgos.graves_rojo.length; if (cantRojas > 0) { totalFugas += cantRojas; cuentasRojas.push({ nombre, cant: cantRojas, reporte: h.reporte_json }); } }
-      if (h.reporte_json?.hallazgos?.debiles_amarillo) { const cantAma = h.reporte_json.hallazgos.debiles_amarillo.length; if (cantAma > 0) { totalOportunidades += cantAma; cuentasAmarillas.push({ nombre, cant: cantAma, reporte: h.reporte_json }); } }
+      if (h.score < 50) totalCriticas++;
+      if (h.score >= 80) totalOptimas++;
+
+      if (h.reporte_json?.hallazgos?.graves_rojo) { 
+        const cantRojas = h.reporte_json.hallazgos.graves_rojo.length; 
+        if (cantRojas > 0) { totalFugas += cantRojas; cuentasRojas.push({ nombre, cant: cantRojas, reporte: h.reporte_json }); } 
+      }
+      if (h.reporte_json?.hallazgos?.debiles_amarillo) { 
+        const cantAma = h.reporte_json.hallazgos.debiles_amarillo.length; 
+        if (cantAma > 0) { totalOportunidades += cantAma; cuentasAmarillas.push({ nombre, cant: cantAma, reporte: h.reporte_json }); } 
+      }
   });
 
   cuentasRojas.sort((a,b) => b.cant - a.cant); cuentasAmarillas.sort((a,b) => b.cant - a.cant);
   const ultimaAuditoria = historial.length > 0 ? historial[0] : null;
-  const fugasIndividuales = ultimaAuditoria?.reporte_json?.hallazgos?.graves_rojo?.length || 0;
 
   if (status === "loading") return (
     <div className="h-screen w-full flex justify-center items-center bg-[#FDE8D3]">
@@ -588,7 +555,7 @@ function AuditorDashboard() {
   return (
     <>
       <style dangerouslySetInnerHTML={{__html: `
-        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Inter:wght@400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Inter:wght@400;500;600;700;900&display=swap');
         
         /* Tema de la Landing Page (Solo activo cuando no hay sesión) */
         ${!session ? `
@@ -604,6 +571,8 @@ function AuditorDashboard() {
           .rotate-x-[15deg] { transform: rotateX(15deg) rotateY(-25deg); }
           .hover\\:rotate-x-[-5deg]:hover { transform: rotateX(-5deg) rotateY(5deg); }
         ` : `
+          /* Tema Dashboard SaaS: Limpio, oscuro verdoso, sin fondos que distraigan */
+          body { font-family: 'Inter', sans-serif; background-color: #131714 !important; color: #E8EBE4; }
           @media print {
             body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; background: white !important; height: auto !important; }
             @page { margin: 15mm; }
@@ -611,18 +580,20 @@ function AuditorDashboard() {
           }
         `}
 
-        @keyframes fadeInCustom { 0% { opacity: 0; transform: translateY(15px); } 100% { opacity: 1; transform: translateY(0); } }
-        .animate-fade-custom { animation: fadeInCustom 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @keyframes fadeInCustom { 0% { opacity: 0; transform: translateY(10px); } 100% { opacity: 1; transform: translateY(0); } }
+        .animate-fade-custom { animation: fadeInCustom 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        
+        /* Custom Scrollbar for Dashboard */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #2C352E; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #8A968C; }
       `}} />
 
-      <div className={`flex h-screen w-full font-sans overflow-hidden print-container relative ${!session ? "bg-[#FDE8D3] selection:bg-[#F3C3B2] selection:text-[#262B27] text-[#262B27]" : "bg-[#0a0a0c] selection:bg-[#FEAFAE] selection:text-black text-slate-200"}`}>
+      <div className={`flex h-screen w-full font-sans overflow-hidden print-container relative ${!session ? "bg-[#FDE8D3] selection:bg-[#F3C3B2] selection:text-[#262B27] text-[#262B27]" : "bg-[#131714] selection:bg-[#F3C3B2] selection:text-[#131714] text-[#E8EBE4]"}`}>
         
-        {/* --- NUEVO FONDO NARRATIVO DE AUDITORÍA MEJORADO --- */}
-        {!session ? (
-          <AuditWireframeBackground />
-        ) : (
-          <DashboardBackground />
-        )}
+        {/* FONDO LANDING (Solo se renderiza sin sesión) */}
+        {!session && <AuditWireframeBackground />}
 
         {/* ========================================================================= */}
         {/* VISTA: LANDING PAGE (USUARIOS NO LOGUEADOS - TEMA CLARO Y PASTEL)         */ }
@@ -649,9 +620,8 @@ function AuditorDashboard() {
               </div>
             </nav>
 
-            {/* HERO SECTION 50/50 CON INTERFAZ EXPLOTADA 3D */}
+            {/* HERO SECTION */}
             <section className="relative pt-12 pb-20 lg:pt-24 lg:pb-28 overflow-hidden z-10 px-6 max-w-[1400px] mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-8 items-center min-h-[75vh]">
-              {/* Lado Izquierdo: Narrativa */}
               <FadeInOnScroll>
                 <div className="flex flex-col items-start text-left lg:pr-10">
                   <div className="border border-[#CFD6C4]/80 bg-[#CFD6C4]/30 px-4 py-1.5 rounded-full text-[10px] font-bold tracking-widest uppercase mb-8 flex items-center gap-3 text-[#262B27]">
@@ -676,14 +646,10 @@ function AuditorDashboard() {
                 </div>
               </FadeInOnScroll>
 
-              {/* Lado Derecho: Interfaz Explotada en 3D */}
               <FadeInOnScroll delay={200}>
                 <div className="relative w-full h-[500px] lg:h-[650px] flex justify-center items-center mt-10 lg:mt-0 perspective-1000">
-                   
-                   {/* Contenedor 3D que rota entero */}
                    <div className="relative w-full max-w-sm lg:max-w-md transform-style-3d transition-transform duration-[1000ms] hover:rotate-x-[-5deg] rotate-x-[15deg]">
                       
-                      {/* TARJETA 1 (Fondo Lejano): Gráfico de barras */}
                       <div className="absolute top-[-60px] left-[-80px] w-64 bg-white/60 backdrop-blur-md border border-[#CFD6C4]/60 shadow-[0_20px_40px_rgba(207,214,196,0.3)] rounded-2xl p-6 translate-z-[-60px]">
                          <p className="text-[10px] font-bold text-[#657166] uppercase tracking-widest mb-4">Gasto Diario</p>
                          <div className="flex items-end gap-2 h-20 opacity-80">
@@ -693,7 +659,6 @@ function AuditorDashboard() {
                          </div>
                       </div>
 
-                      {/* TARJETA 2 (Centro): Dashboard Principal */}
                       <div className="relative z-10 w-full bg-white/95 backdrop-blur-2xl border border-[#CFD6C4]/80 shadow-[0_30px_60px_rgba(38,43,39,0.15)] rounded-[2rem] p-6 translate-z-[0px]">
                          <div className="flex justify-between items-center mb-6 border-b border-[#CFD6C4]/50 pb-4">
                             <p className="font-bold text-[#262B27] flex items-center gap-2"><LayoutGrid size={18}/> Rendimiento</p>
@@ -719,7 +684,6 @@ function AuditorDashboard() {
                          </div>
                       </div>
 
-                      {/* TARJETA 3 (Frente Derecha): Alerta de Fuga */}
                       <div className="absolute bottom-[-40px] right-[-50px] z-20 w-72 bg-white/95 backdrop-blur-xl border border-[#F3C3B2] shadow-[0_20px_40px_rgba(243,195,178,0.5)] rounded-2xl p-5 translate-z-[80px]">
                          <div className="flex items-start gap-4">
                             <div className="w-10 h-10 rounded-xl bg-[#F3C3B2]/30 flex items-center justify-center flex-shrink-0 border border-[#F3C3B2]/50">
@@ -733,19 +697,16 @@ function AuditorDashboard() {
                          </div>
                       </div>
 
-                      {/* MINI TARJETA 4 (Frente Arriba): Badge Conexión */}
                       <div className="absolute top-[-25px] right-[20px] z-30 bg-[#DAEBE3] text-[#262B27] px-4 py-2 rounded-full font-bold text-[10px] uppercase shadow-lg border border-[#CFD6C4] translate-z-[40px] flex items-center gap-2">
                         <span className="w-2 h-2 bg-[#262B27] rounded-full animate-pulse"></span> Sincronizado
                       </div>
 
-                      {/* MINI TARJETA 5 (Frente Abajo Izquierda): ROAS */}
                       <div className="absolute bottom-[60px] left-[-40px] z-30 bg-[#99CDD8] text-[#262B27] p-4 rounded-2xl shadow-[0_15px_30px_rgba(153,205,216,0.6)] translate-z-[60px] flex flex-col border border-[#CFD6C4]">
                         <p className="text-[10px] font-bold uppercase tracking-widest opacity-80">ROAS Proyectado</p>
                         <p className="text-2xl font-black flex items-center gap-1"><TrendingUp size={16} strokeWidth={4}/> +12.4%</p>
                       </div>
 
                    </div>
-
                 </div>
               </FadeInOnScroll>
             </section>
@@ -858,39 +819,6 @@ function AuditorDashboard() {
               </section>
             </FadeInOnScroll>
 
-            {/* SECCIÓN RESUMEN: FAQ */}
-            <FadeInOnScroll>
-              <section className="max-w-4xl mx-auto px-6 py-20 mb-12 border-t border-[#CFD6C4]/40">
-                <div className="text-center mb-12">
-                  <h2 className="text-4xl font-serif font-black text-[#262B27]">Preguntas Frecuentes</h2>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                   <div className="bg-white/60 backdrop-blur-sm border border-[#CFD6C4]/60 p-6 rounded-2xl hover:bg-white transition-colors">
-                      <h4 className="text-lg font-bold text-[#262B27] mb-2">¿Mora hace cambios en mis campañas sin avisar?</h4>
-                      <p className="text-[#657166] text-sm leading-relaxed font-medium">No. Mora audita y sugiere. Vos tenés el control total. Nunca tocaremos tu presupuesto sin permiso.</p>
-                   </div>
-                   <div className="bg-white/60 backdrop-blur-sm border border-[#CFD6C4]/60 p-6 rounded-2xl hover:bg-white transition-colors">
-                      <h4 className="text-lg font-bold text-[#262B27] mb-2">¿Necesito ser un experto en Google Ads?</h4>
-                      <p className="text-[#657166] text-sm leading-relaxed font-medium">Para nada. Te decimos dónde estás perdiendo dinero y cómo solucionarlo en español claro.</p>
-                   </div>
-                   <div className="bg-white/60 backdrop-blur-sm border border-[#CFD6C4]/60 p-6 rounded-2xl hover:bg-white transition-colors">
-                      <h4 className="text-lg font-bold text-[#262B27] mb-2">¿Qué es la 'Marca Blanca Total'?</h4>
-                      <p className="text-[#657166] text-sm leading-relaxed font-medium">Exclusiva del Plan Agency, te permite exportar auditorías en PDF con el logo, colores y web de tu agencia.</p>
-                   </div>
-                   <div className="bg-white/60 backdrop-blur-sm border border-[#CFD6C4]/60 p-6 rounded-2xl hover:bg-white transition-colors">
-                      <h4 className="text-lg font-bold text-[#262B27] mb-2">¿Mis datos están seguros?</h4>
-                      <p className="text-[#657166] text-sm leading-relaxed font-medium">100%. Solo solicitamos permisos de lectura. No usamos tus datos para entrenar modelos públicos.</p>
-                   </div>
-                </div>
-
-                <div className="mt-8 text-center">
-                  <Link href="/faq" className="inline-flex items-center gap-2 text-[#657166] font-bold text-sm hover:text-[#262B27] transition-colors bg-[#CFD6C4]/20 px-4 py-2 rounded-lg border border-[#CFD6C4]/50">
-                    Leer todas las preguntas frecuentes <ArrowRight size={14}/>
-                  </Link>
-                </div>
-              </section>
-            </FadeInOnScroll>
-
             <footer className="border-t border-[#CFD6C4]/50 bg-white/40 py-12 text-center text-[#657166] text-sm relative z-10">
               <div className="flex items-center justify-center gap-2 mb-4">
                 <div className="w-6 h-6 rounded flex items-center justify-center font-black text-[#262B27] text-xs bg-[#F3C3B2]">M</div>
@@ -906,65 +834,69 @@ function AuditorDashboard() {
         ) : (
           
           /* ========================================================================= */
-          /* VISTA: DASHBOARD LOGUEADO (TEMA OSCURO ORIGINAL INTACTO)                  */
+          /* VISTA: DASHBOARD LOGUEADO (NUEVO TEMA SAAS EMPRESARIAL)                   */
           /* ========================================================================= */
           <>
-            <aside className="w-64 bg-[#0a0a0c]/40 backdrop-blur-2xl border-r border-white/5 flex flex-col justify-between print:hidden z-20 relative shadow-[10px_0_30px_rgba(0,0,0,0.5)]">
+            <aside className="w-64 bg-[#1A1F1B] border-r border-[#2C352E] flex flex-col justify-between print:hidden z-20 relative shadow-2xl">
               <div>
-                <div className="h-20 flex items-center px-6 border-b border-white/5 gap-3">
-                   <div className="w-8 h-8 rounded-lg flex items-center justify-center font-black text-black text-xl shadow-lg" style={melocotonGradient}>M</div>
-                   <span className="text-xl font-black text-white tracking-wide">Mora</span>
+                <div className="h-20 flex items-center px-6 border-b border-[#2C352E] gap-3">
+                   <div className="w-8 h-8 rounded-lg flex items-center justify-center font-black text-[#262B27] text-xl shadow-sm bg-[#F3C3B2]">M</div>
+                   <span className="text-xl font-bold text-[#E8EBE4] tracking-wide">Mora</span>
                 </div>
 
-                <div className="px-4 mt-6 mb-2">
-                  <button onClick={() => { setVista("nueva"); setReporte(null); setMostrarPagos(false); }} className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-[#0a0a0c] shadow-[0_0_15px_rgba(255,164,189,0.3)] hover:scale-[1.02] transition-transform" style={melocotonGradient}>
-                    <Plus size={20} strokeWidth={3} /> {t[idioma].nueva}
+                <div className="px-4 mt-6 mb-4">
+                  <button onClick={() => { setVista("nueva"); setReporte(null); setMostrarPagos(false); }} className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-[#262B27] bg-[#F3C3B2] hover:bg-[#eab3a1] transition-colors">
+                    <Plus size={18} strokeWidth={3} /> {t[idioma].nueva}
                   </button>
                 </div>
 
-                <div className="p-4 space-y-2 mt-2">
+                <div className="px-4 mb-2 mt-6">
+                  <p className="text-[10px] font-bold text-[#8A968C] uppercase tracking-widest px-2 mb-2">Principal</p>
                   {[ 
-                    { icon: BarChart3, text: modoPlan === 'individual' ? "Mi Negocio" : t[idioma].dashboard, view: 'dashboard' }, 
-                    { icon: Users, text: modoPlan === 'individual' ? "Mis Auditorías" : t[idioma].clientes, view: 'historial' }
+                    { icon: LayoutGrid, text: t[idioma].dashboard, view: 'dashboard' }, 
+                    { icon: Users, text: t[idioma].clientes, view: 'historial' }
                   ].map((link, idx) => (
-                    <button key={idx} onClick={() => { setVista(link.view as any); setReporte(null); setMostrarPagos(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${ (vista === link.view || (vista === 'reporte_lectura' && link.view === 'historial')) ? "bg-white/10 text-white shadow-sm border border-white/5" : "text-slate-400 hover:bg-white/5 hover:text-white" }`}>
-                      <div className={(vista === link.view || (vista === 'reporte_lectura' && link.view === 'historial')) ? "text-[#FFA4BD]" : ""}><link.icon size={20} strokeWidth={(vista === link.view || (vista === 'reporte_lectura' && link.view === 'historial')) ? 2.5 : 2} /></div> 
+                    <button key={idx} onClick={() => { setVista(link.view as any); setReporte(null); setMostrarPagos(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${ (vista === link.view || (vista === 'reporte_lectura' && link.view === 'historial')) ? "bg-[#2C352E] text-[#E8EBE4]" : "text-[#8A968C] hover:bg-[#2C352E]/50 hover:text-[#E8EBE4]" }`}>
+                      <link.icon size={18} strokeWidth={2} className={(vista === link.view || (vista === 'reporte_lectura' && link.view === 'historial')) ? "text-[#99CDD8]" : ""} /> 
                       {link.text}
+                      {link.view === 'historial' && totalAuditorias > 0 && (
+                        <span className="ml-auto bg-[#E66767] text-[#131714] text-[10px] font-bold px-2 py-0.5 rounded-full">{totalAuditorias}</span>
+                      )}
                     </button>
                   ))}
                 </div>
+                
+                <div className="px-4 mt-6">
+                  <p className="text-[10px] font-bold text-[#8A968C] uppercase tracking-widest px-2 mb-2">Reportes</p>
+                  <button onClick={() => setVista("historial")} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${vista === 'reporte_lectura' ? 'text-[#E8EBE4]' : 'text-[#8A968C] hover:bg-[#2C352E]/50 hover:text-[#E8EBE4]'}`}>
+                    <FileText size={18} strokeWidth={2} /> Historial
+                  </button>
+                  <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-[#8A968C] hover:bg-[#2C352E]/50 hover:text-[#E8EBE4] transition-all">
+                    <Activity size={18} strokeWidth={2} /> Actividad
+                  </button>
+                </div>
               </div>
               
-              <div className="mx-4 mb-6 p-4 rounded-xl bg-black/40 border border-white/5 relative z-10 backdrop-blur-md">
-                 <div className="flex items-center gap-3 mb-2">
-                   <div className={`p-2 rounded-lg ${perfil?.plan === 'pro' || modoPlan === 'agencia' ? 'bg-[#FEAFAE]/10 text-[#FEAFAE]' : 'bg-white/5 text-slate-500'}`}>
-                     {perfil?.plan === 'pro' || modoPlan === 'agencia' ? <ShieldCheck size={18} /> : <Lock size={18} />}
-                   </div>
+              <div className="mx-4 mb-6 p-4 rounded-xl bg-[#131714] border border-[#2C352E]">
+                 <div className="flex items-center gap-3 mb-3">
                    <div>
-                     <p className={`text-xs font-bold ${perfil?.plan === 'pro' || modoPlan === 'agencia' ? 'text-white' : 'text-slate-400'}`}>Soporte VIP</p>
-                     <p className="text-[10px] text-slate-400">{perfil?.plan === 'pro' || modoPlan === 'agencia' ? 'Línea directa (1h)' : 'Exclusivo Plan Pro'}</p>
+                     <p className={`text-xs font-bold text-[#E8EBE4]`}>Soporte VIP</p>
+                     <p className="text-[10px] text-[#8A968C] mt-0.5">Línea directa · 1h respuesta</p>
                    </div>
                  </div>
-                 
-                 {perfil?.plan === 'pro' || modoPlan === 'agencia' ? (
-                   <button onClick={() => window.location.href = "mailto:soporte@tuagencia.com?subject=Soporte%20VIP%20Mora"} className="w-full mt-2 py-1.5 text-xs font-bold text-[#0a0a0c] rounded-lg hover:opacity-90 transition-opacity" style={melocotonGradient}>
-                     Contactar Soporte
-                   </button>
-                 ) : (
-                   <button onClick={() => setVista("facturacion")} className="w-full mt-2 py-1.5 text-xs font-bold text-slate-300 bg-white/5 hover:bg-white/10 rounded-lg transition-colors border border-white/10">
-                     Desbloquear
-                   </button>
-                 )}
+                 <button onClick={() => window.location.href = "mailto:soporte@tuagencia.com"} className="w-full py-2 text-xs font-bold text-[#F3C3B2] border border-[#F3C3B2]/30 bg-[#F3C3B2]/5 hover:bg-[#F3C3B2]/10 rounded-lg transition-colors">
+                   Contactar Soporte
+                 </button>
               </div>
             </aside>
 
-            <main className="flex-1 flex flex-col relative overflow-y-auto z-10 print:overflow-visible print:h-auto print:static">
+            <main className="flex-1 flex flex-col relative overflow-y-auto z-10 print:overflow-visible print:h-auto print:static bg-[#131714]">
               
-              <header className="h-20 flex justify-between items-center px-8 print:hidden border-b border-white/5 bg-[#0a0a0c]/20 backdrop-blur-md sticky top-0 z-30">
-                <h2 className="text-2xl font-bold text-white tracking-tight min-w-[200px]">
-                  {vista === 'dashboard' && (modoPlan === 'agencia' ? t[idioma].dashboard : 'Resumen')}
+              <header className="h-20 flex justify-between items-center px-8 print:hidden border-b border-[#2C352E] bg-[#131714]/80 backdrop-blur-md sticky top-0 z-30">
+                <h2 className="text-xl font-bold text-[#E8EBE4] tracking-tight min-w-[200px]">
+                  {vista === 'dashboard' && t[idioma].dashboard}
                   {vista === 'nueva' && t[idioma].nueva}
-                  {vista === 'historial' && (modoPlan === 'agencia' ? t[idioma].clientes : 'Historial')}
+                  {vista === 'historial' && t[idioma].clientes}
                   {vista === 'reporte_lectura' && t[idioma].detalleCliente}
                   {vista === 'perfil' && t[idioma].configuracion}
                   {vista === 'feedback' && t[idioma].buzonSug}
@@ -973,86 +905,45 @@ function AuditorDashboard() {
 
                 <div className="hidden md:flex items-center justify-center flex-1 max-w-md mx-8">
                    <div className="relative w-full group">
-                      <Search size={14} className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-500 group-focus-within:text-[#FEAFAE] transition-colors" />
-                      <input type="text" placeholder={modoPlan === 'agencia' ? t[idioma].buscarGlobal : "Buscar en historial..."} value={busqueda} onChange={(e) => {setBusqueda(e.target.value); if (vista !== "historial" && e.target.value !== "") setVista("historial"); }} className="w-full bg-black/40 border border-white/10 rounded-full pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#FEAFAE]/50 focus:bg-black/60 transition-all placeholder:text-slate-500 shadow-inner" />
+                      <Search size={14} className="absolute left-4 top-1/2 transform -translate-y-1/2 text-[#8A968C] group-focus-within:text-[#E8EBE4] transition-colors" />
+                      <input type="text" placeholder={t[idioma].buscarGlobal} value={busqueda} onChange={(e) => {setBusqueda(e.target.value); if (vista !== "historial" && e.target.value !== "") setVista("historial"); }} className="w-full bg-[#1A1F1B] border border-[#2C352E] rounded-full pl-10 pr-4 py-2 text-sm text-[#E8EBE4] focus:outline-none focus:border-[#8A968C] transition-all placeholder:text-[#8A968C]" />
                    </div>
                 </div>
                 
                 <div className="relative min-w-[200px] flex justify-end items-center gap-4">
                    
-                   {/* DEV TOGGLE PARA PROBAR PLANES */}
-                   <div className="hidden lg:flex items-center bg-black/40 border border-white/10 rounded-full p-1 mr-2" title="Toggle de desarrollo">
-                     <button onClick={() => setModoPlan('individual')} className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-colors ${modoPlan === 'individual' ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-300'}`}>Individual</button>
-                     <button onClick={() => setModoPlan('agencia')} className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-colors ${modoPlan === 'agencia' ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-300'}`}>Agencia</button>
+                   <div className="hidden lg:flex items-center bg-[#1A1F1B] border border-[#2C352E] rounded-full p-1 mr-2">
+                     <button onClick={() => setModoPlan('individual')} className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest transition-colors ${modoPlan === 'individual' ? 'bg-[#2C352E] text-[#E8EBE4]' : 'text-[#8A968C] hover:text-[#E8EBE4]'}`}>Individual</button>
+                     <button onClick={() => setModoPlan('agencia')} className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest transition-colors ${modoPlan === 'agencia' ? 'bg-[#2C352E] text-[#E8EBE4]' : 'text-[#8A968C] hover:text-[#E8EBE4]'}`}>Agencia</button>
                    </div>
 
                    <div className="relative">
-                     <button onClick={() => {setMenuNotificaciones(!menuNotificaciones); setMenuPerfil(false)}} className="p-2 hover:bg-white/5 rounded-full transition-colors relative">
-                       <Bell size={20} className="text-slate-400 hover:text-white" />
-                       {modoPlan === 'agencia' && <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-[#0a0a0c]"></span>}
+                     <button onClick={() => {setMenuNotificaciones(!menuNotificaciones); setMenuPerfil(false)}} className="p-2 hover:bg-[#1A1F1B] border border-transparent hover:border-[#2C352E] rounded-full transition-colors relative">
+                       <Bell size={18} className="text-[#8A968C] hover:text-[#E8EBE4]" />
+                       {totalCriticas > 0 && <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#E66767] rounded-full border border-[#131714]"></span>}
                      </button>
-
-                     {menuNotificaciones && (
-                       <>
-                         <div className="fixed inset-0 z-40 cursor-default" onClick={() => setMenuNotificaciones(false)}></div>
-                         <div className="absolute right-0 top-full mt-2 w-80 bg-[#0f0f13]/95 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-2xl py-2 z-50 animate-fade-custom">
-                            <div className="px-4 py-3 border-b border-white/5 flex justify-between items-center">
-                               <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">{t[idioma].notifTit}</p>
-                               <span className="px-2 py-0.5 bg-[#FEAFAE]/10 text-[#FEAFAE] text-[10px] font-bold rounded">Beta</span>
-                            </div>
-                            <div className="p-2 max-h-64 overflow-y-auto">
-                               {modoPlan === 'agencia' ? (
-                                 <>
-                                   <div className="p-3 hover:bg-white/5 rounded-xl transition-colors cursor-pointer border-l-2 border-red-500 bg-red-500/5 mb-1">
-                                     <p className="text-sm font-bold text-white mb-1">CPA Disparado (+45%)</p>
-                                     <p className="text-xs text-slate-400 leading-relaxed">Cliente: <b>Inmobiliaria VIP</b>. Detectamos un pico de gasto en la campaña 'Search'.</p>
-                                     <p className="text-[10px] text-slate-500 mt-2 flex items-center gap-1"><Clock size={10}/> Hace 2 horas</p>
-                                   </div>
-                                   <div className="p-3 hover:bg-white/5 rounded-xl transition-colors cursor-pointer border-l-2 border-yellow-500 mb-1">
-                                     <p className="text-sm font-bold text-white mb-1">Anuncio Rechazado</p>
-                                     <p className="text-xs text-slate-400 leading-relaxed">Cliente: <b>Teche</b>. Google rechazó 2 anuncios por 'Políticas de marca'.</p>
-                                     <p className="text-[10px] text-slate-500 mt-2 flex items-center gap-1"><Clock size={10}/> Ayer</p>
-                                   </div>
-                                 </>
-                               ) : (
-                                 <div className="p-4 text-center text-sm text-slate-500">Todo en orden con tu cuenta. No hay alertas.</div>
-                               )}
-                            </div>
-                         </div>
-                       </>
-                     )}
                    </div>
 
-                   <button onClick={() => {setMenuPerfil(!menuPerfil); setMenuNotificaciones(false)}} className="flex items-center gap-3 hover:bg-white/5 p-2 rounded-xl transition-colors border border-transparent hover:border-white/10">
-                      <div className="text-right hidden lg:block">
-                        <p className="text-sm font-bold text-white leading-tight">{session.user?.name}</p>
-                        <div className="flex items-center justify-end gap-1.5 mt-0.5">
-                          <span className="w-1.5 h-1.5 rounded-full bg-green-400 shadow-[0_0_5px_#4ade80]"></span>
-                          <p className="text-xs text-slate-400 font-medium">{modoPlan === 'agencia' ? 'Agency' : 'Individual'}</p>
-                        </div>
+                   <button onClick={() => {setMenuPerfil(!menuPerfil); setMenuNotificaciones(false)}} className="flex items-center gap-3 hover:bg-[#1A1F1B] p-1.5 rounded-full transition-colors border border-transparent hover:border-[#2C352E] pr-3">
+                      <div className="w-8 h-8 rounded-full bg-[#99CDD8] flex items-center justify-center text-[#131714] font-bold text-xs">
+                        {session.user?.name?.charAt(0) || 'U'}
                       </div>
-                      <img src={session.user?.image || ""} alt="Perfil" className="w-10 h-10 rounded-full border-2 border-[#FEAFAE] shadow-sm" />
-                      <ChevronDown size={16} className="text-slate-400" />
+                      <div className="text-left hidden lg:block">
+                        <p className="text-xs font-bold text-[#E8EBE4] leading-tight">{session.user?.name?.split(' ')[0] || "User"}</p>
+                        <p className="text-[10px] text-[#8A968C] font-medium mt-0.5">{modoPlan === 'agencia' ? 'Agency' : 'Individual'} <ChevronDown size={10} className="inline ml-1"/></p>
+                      </div>
                    </button>
 
                    {menuPerfil && (
                      <>
                        <div className="fixed inset-0 z-40 cursor-default" onClick={() => setMenuPerfil(false)}></div>
-                       <div className="absolute right-0 top-full mt-2 w-64 bg-[#0f0f13]/95 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-2xl py-2 z-50 animate-fade-custom">
-                          <div className="px-4 py-3 border-b border-white/5">
-                             <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">{t[idioma].suscripcion}</p>
-                             <div className="flex items-center gap-2 mb-1">
-                               <span className="w-2 h-2 rounded-full bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.5)]"></span>
-                               <span className="text-sm font-bold text-white">{t[idioma].activa} ({modoPlan === 'agencia' ? 'Agency' : 'Indiv.'})</span>
-                             </div>
+                       <div className="absolute right-0 top-full mt-2 w-56 bg-[#1A1F1B] border border-[#2C352E] rounded-xl shadow-2xl py-2 z-50 animate-fade-custom">
+                          <div className="py-1">
+                            <button onClick={() => { setVista("perfil"); setMenuPerfil(false); }} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-[#8A968C] hover:bg-[#2C352E]/50 hover:text-[#E8EBE4] transition-colors"><Settings size={16} /> {t[idioma].configuracion}</button>
+                            <button onClick={() => { setVista("facturacion"); setMenuPerfil(false); }} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-[#8A968C] hover:bg-[#2C352E]/50 hover:text-[#E8EBE4] transition-colors"><CreditCard size={16} /> {t[idioma].facturacion}</button>
                           </div>
-                          <div className="py-2">
-                            <button onClick={() => { setVista("perfil"); setMenuPerfil(false); }} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5 hover:text-white transition-colors"><Settings size={16} /> {t[idioma].configuracion}</button>
-                            <button onClick={() => { setVista("facturacion"); setMenuPerfil(false); }} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5 hover:text-white transition-colors"><CreditCard size={16} /> {t[idioma].facturacion}</button>
-                            <button onClick={() => setIdioma(idioma === "es" ? "en" : "es")} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-white/5 hover:text-white transition-colors"><span className="w-4 h-4 flex items-center justify-center border border-slate-400 rounded-full text-[10px]">🌐</span> Idioma: {idioma === "es" ? "ES" : "EN"}</button>
-                          </div>
-                          <div className="border-t border-white/5 mt-1 pt-2">
-                            <button onClick={() => signOut()} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 transition-colors font-medium"><LogOut size={16} /> {t[idioma].salir}</button>
+                          <div className="border-t border-[#2C352E] mt-1 pt-2">
+                            <button onClick={() => signOut()} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-[#E66767] hover:bg-[#E66767]/10 transition-colors font-medium"><LogOut size={16} /> {t[idioma].salir}</button>
                           </div>
                        </div>
                      </>
@@ -1060,105 +951,143 @@ function AuditorDashboard() {
                 </div>
               </header>
 
-              <div className="p-8 pb-32 max-w-7xl mx-auto w-full print:p-0 print:pb-0" key={vista}>
+              <div className="p-8 pb-32 max-w-[1400px] mx-auto w-full print:p-0 print:pb-0" key={vista}>
                 
-                {vista === "dashboard" && modoPlan === "agencia" && (
-                  <div className="animate-fade-custom print:hidden flex flex-col gap-8 relative z-10">
+                {vista === "dashboard" && (
+                  <div className="animate-fade-custom print:hidden flex flex-col gap-8">
                     <div>
-                      <h2 className="text-3xl font-bold text-white">{t[idioma].panelPrin}</h2>
-                      <p className="text-slate-400 text-sm mt-1">{t[idioma].panelDesc}</p>
+                      <h2 className="text-2xl font-bold text-[#E8EBE4]">{t[idioma].panelPrin}</h2>
+                      <p className="text-[#8A968C] text-sm mt-1">{t[idioma].panelDesc}</p>
                     </div>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                       <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px] hover:bg-white/10 transition-colors shadow-lg group">
-                          <div className="absolute -right-4 -top-4 w-24 h-24 bg-green-500/10 rounded-full blur-2xl transition-all duration-500 group-hover:scale-150 group-hover:bg-green-500/20"></div>
-                          <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 relative z-10 flex items-center gap-2"><Activity size={16}/> {t[idioma].saludG}</p>
-                          <div className="flex items-end gap-3 relative z-10">
-                            <span className={`text-5xl font-black ${promedioScore >= 80 ? 'text-green-400' : promedioScore >= 50 ? 'text-yellow-400' : 'text-red-400'}`}>
-                              {promedioScore}
-                            </span>
-                            <span className="text-lg text-slate-500 font-bold mb-1">/100</span>
+                    {/* METRIC CARDS SUPERIORES */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                       
+                       {/* 1. Salud Promedio */}
+                       <div className={`bg-[#1A1F1B] border border-[#2C352E] rounded-2xl p-6 flex flex-col justify-between min-h-[180px] border-l-4 ${avgStatus.borderLeft} ${avgStatus.bgTints}`}>
+                          <p className={`text-[10px] font-bold ${avgStatus.color} uppercase tracking-widest mb-2 flex items-center gap-2`}><Activity size={14}/> {t[idioma].saludG}</p>
+                          <div>
+                            <div className="flex items-baseline gap-1">
+                              <span className={`text-6xl font-black ${avgStatus.color} tracking-tighter leading-none`}>{promedioScore}</span>
+                              <span className="text-[#8A968C] font-bold text-lg">/100</span>
+                            </div>
+                            <p className={`text-xs mt-3 flex items-center gap-1.5 font-medium ${avgStatus.color}`}><avgStatus.icon size={12}/> {avgStatus.msg}</p>
                           </div>
                        </div>
 
-                       <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px] hover:bg-white/10 transition-colors shadow-lg group">
-                          <div className="absolute -right-4 -top-4 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl transition-all duration-500 group-hover:scale-150 group-hover:bg-blue-500/20"></div>
-                          <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 relative z-10 flex items-center gap-2"><Users size={16}/> {t[idioma].totAud}</p>
-                          <span className="text-5xl font-black text-white relative z-10">{totalAuditorias}</span>
+                       {/* 2. Total Cuentas */}
+                       <div className="bg-[#1A1F1B] border border-[#2C352E] rounded-2xl p-6 flex flex-col justify-between min-h-[180px] border-l-4 border-l-[#99CDD8]">
+                          <p className="text-[10px] font-bold text-[#8A968C] uppercase tracking-widest mb-2 flex items-center gap-2"><Users size={14}/> {t[idioma].totAud}</p>
+                          <div>
+                            <span className="text-6xl font-black text-[#E8EBE4] tracking-tighter leading-none">{totalAuditorias}</span>
+                            <p className="text-xs text-[#8A968C] mt-3 font-medium">Cuentas auditadas</p>
+                          </div>
+                          {modoPlan === 'agencia' && totalAuditorias > 0 && (
+                            <div className="mt-4 pt-4 border-t border-[#2C352E] grid grid-cols-2 gap-2 text-center">
+                               <div className="bg-[#E66767]/10 rounded py-1"><p className="text-[10px] font-bold text-[#E66767] uppercase">{totalCriticas} Críticas</p></div>
+                               <div className="bg-[#99CDD8]/10 rounded py-1"><p className="text-[10px] font-bold text-[#99CDD8] uppercase">{totalOptimas} Óptimas</p></div>
+                            </div>
+                          )}
                        </div>
 
-                       <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px] hover:bg-white/10 transition-colors shadow-lg group">
-                          <div className="absolute -right-4 -top-4 w-24 h-24 bg-red-500/10 rounded-full blur-2xl transition-all duration-500 group-hover:scale-150 group-hover:bg-red-500/20"></div>
-                          <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 relative z-10 flex items-center gap-2"><AlertTriangle size={16} className="text-red-400"/> {t[idioma].fugasDet}</p>
-                          <div className="flex-1 flex flex-col">
-                            <span className="text-5xl font-black text-white relative z-10 mb-4">{totalFugas}</span>
-                            {cuentasRojas.length > 0 && (
-                              <div className="mt-auto border-t border-white/5 pt-3 relative z-10">
-                                <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">{t[idioma].afectaA}</p>
-                                <div className="space-y-1.5">
-                                  {cuentasRojas.slice(0, 2).map((c,i) => (
-                                    <button key={i} onClick={() => { setReporte(c.reporte); setNombreCuenta(c.nombre); setVista("reporte_lectura"); }} className="w-full flex justify-between items-center text-xs hover:bg-white/10 p-1.5 -mx-1.5 rounded-lg transition-colors text-left group/btn">
-                                       <span className="text-slate-300 group-hover/btn:text-white truncate pr-2 transition-colors">{c.nombre}</span>
-                                       <span className="text-red-400 font-bold bg-red-500/10 group-hover/btn:bg-red-500/20 px-2 py-0.5 rounded transition-colors">{c.cant}</span>
-                                    </button>
-                                  ))}
-                                </div>
+                       {/* 3. Fugas Críticas */}
+                       <div className="bg-[#1A1F1B] border border-[#2C352E] rounded-2xl p-6 flex flex-col justify-between min-h-[180px] border-l-4 border-l-[#EAB308]">
+                          <p className="text-[10px] font-bold text-[#EAB308] uppercase tracking-widest mb-2 flex items-center gap-2"><AlertTriangle size={14}/> {t[idioma].fugasDet}</p>
+                          <div>
+                            <span className="text-6xl font-black text-[#E8EBE4] tracking-tighter leading-none">{totalFugas}</span>
+                            <p className="text-xs text-[#8A968C] mt-3 font-medium">Problemas activos</p>
+                          </div>
+                          {modoPlan === 'agencia' && cuentasRojas.length > 0 && (
+                            <div className="mt-4 pt-3 border-t border-[#2C352E]">
+                              <p className="text-[9px] text-[#8A968C] uppercase tracking-widest mb-2">{t[idioma].afectaA}</p>
+                              <div className="space-y-1.5">
+                                {cuentasRojas.slice(0, 2).map((c,i) => (
+                                  <div key={i} className="flex justify-between items-center text-xs">
+                                     <span className="text-[#E8EBE4] truncate pr-2">{c.nombre}</span>
+                                     <span className="text-[#E66767] font-bold bg-[#E66767]/10 px-1.5 rounded">{c.cant}</span>
+                                  </div>
+                                ))}
                               </div>
-                            )}
-                          </div>
+                            </div>
+                          )}
                        </div>
 
-                       <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px] hover:bg-white/10 transition-colors shadow-lg group">
-                          <div className="absolute -right-4 -top-4 w-24 h-24 bg-yellow-500/10 rounded-full blur-2xl transition-all duration-500 group-hover:scale-150 group-hover:bg-yellow-500/20"></div>
-                          <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 relative z-10 flex items-center gap-2"><Zap size={16} className="text-yellow-400"/> {t[idioma].oporMej}</p>
-                          <div className="flex-1 flex flex-col">
-                            <span className="text-5xl font-black text-white relative z-10 mb-4">{totalOportunidades}</span>
-                            {cuentasAmarillas.length > 0 && (
-                              <div className="mt-auto border-t border-white/5 pt-3 relative z-10">
-                                <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">{t[idioma].afectaA}</p>
-                                <div className="space-y-1.5">
-                                  {cuentasAmarillas.slice(0, 2).map((c,i) => (
-                                    <button key={i} onClick={() => { setReporte(c.reporte); setNombreCuenta(c.nombre); setVista("reporte_lectura"); }} className="w-full flex justify-between items-center text-xs hover:bg-white/10 p-1.5 -mx-1.5 rounded-lg transition-colors text-left group/btn">
-                                       <span className="text-slate-300 group-hover/btn:text-white truncate pr-2 transition-colors">{c.nombre}</span>
-                                       <span className="text-yellow-400 font-bold bg-yellow-500/10 group-hover/btn:bg-yellow-500/20 px-2 py-0.5 rounded transition-colors">{c.cant}</span>
-                                    </button>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
+                       {/* 4. Oportunidades */}
+                       <div className="bg-[#1A1F1B] border border-[#2C352E] rounded-2xl p-6 flex flex-col justify-between min-h-[180px] border-l-4 border-l-[#4ADE80]">
+                          <p className="text-[10px] font-bold text-[#4ADE80] uppercase tracking-widest mb-2 flex items-center gap-2"><Zap size={14}/> {t[idioma].oporMej}</p>
+                          <div>
+                            <span className="text-6xl font-black text-[#E8EBE4] tracking-tighter leading-none">{totalOportunidades}</span>
+                            <p className="text-xs text-[#8A968C] mt-3 font-medium">Áreas de mejora</p>
                           </div>
+                          {modoPlan === 'agencia' && cuentasAmarillas.length > 0 && (
+                            <div className="mt-4 pt-3 border-t border-[#2C352E]">
+                              <p className="text-[9px] text-[#8A968C] uppercase tracking-widest mb-2">{t[idioma].afectaA}</p>
+                              <div className="space-y-1.5">
+                                {cuentasAmarillas.slice(0, 2).map((c,i) => (
+                                  <div key={i} className="flex justify-between items-center text-xs">
+                                     <span className="text-[#E8EBE4] truncate pr-2">{c.nombre}</span>
+                                     <span className="text-[#EAB308] font-bold bg-[#EAB308]/10 px-1.5 rounded">{c.cant}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                        </div>
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        <div className="lg:col-span-2 bg-white/5 border border-white/10 rounded-[2rem] p-6 backdrop-blur-xl flex flex-col shadow-lg">
+                        {/* TABLA DE AUDITORÍAS DENSA */}
+                        <div className="lg:col-span-2 bg-[#1A1F1B] border border-[#2C352E] rounded-2xl p-6 flex flex-col">
                            <div className="flex justify-between items-center mb-6">
-                             <h3 className="text-lg font-bold text-white">{t[idioma].ultAud}</h3>
-                             <button onClick={() => setVista("historial")} className="text-sm font-bold text-[#FFA4BD] hover:text-white transition-colors">{t[idioma].verTodas}</button>
+                             <h3 className="text-lg font-bold text-[#E8EBE4]">{t[idioma].ultAud}</h3>
+                             <button onClick={() => setVista("historial")} className="text-xs font-bold text-[#8A968C] hover:text-[#E8EBE4] transition-colors">{t[idioma].verTodas}</button>
                            </div>
+                           
                            {historial.length === 0 ? (
-                             <div className="flex-1 flex items-center justify-center text-slate-500 text-sm font-medium py-10 border border-dashed border-white/10 rounded-xl">{t[idioma].sinCuentas}</div>
+                             <div className="flex-1 flex items-center justify-center text-[#8A968C] text-sm font-medium py-10 border border-dashed border-[#2C352E] rounded-xl">No hay auditorías recientes.</div>
                            ) : (
-                             <div className="flex-1 bg-black/20 rounded-xl border border-white/5 overflow-hidden">
-                               <div className="grid grid-cols-5 gap-4 p-4 border-b border-white/10 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                                 <div className="col-span-2 pl-2">{t[idioma].thCliente}</div>
-                                 <div className="text-center">{t[idioma].score}</div>
-                                 <div className="col-span-2 text-right pr-2">{t[idioma].thAccion}</div>
+                             <div className="flex-1 border-t border-[#2C352E]">
+                               <div className="grid grid-cols-12 gap-4 py-3 border-b border-[#2C352E] text-[9px] font-bold text-[#8A968C] uppercase tracking-widest">
+                                 <div className="col-span-5">{t[idioma].thCliente}</div>
+                                 <div className="col-span-3 text-center">{t[idioma].score}</div>
+                                 <div className="col-span-2 text-center">Estado</div>
+                                 <div className="col-span-2 text-right">{t[idioma].thAccion}</div>
                                </div>
-                               <div className="divide-y divide-white/5">
+                               <div className="divide-y divide-[#2C352E]">
                                  {historial.slice(0, 5).map((item, index) => {
-                                   const estado = getEstadoData(item.score);
+                                   const st = getDashboardStatus(item.score);
                                    return (
-                                     <div key={index} className="grid grid-cols-5 gap-4 p-4 items-center hover:bg-white/5 transition-colors">
-                                       <div className="col-span-2 flex items-center gap-3 pl-2">
-                                         <div className={`w-2 h-2 rounded-full ${estado.bg.replace('/10','/50')}`}></div>
-                                         <p className="font-bold text-white text-sm truncate">{item.nombre_cuenta || t[idioma].cuentaSinNombre}</p>
+                                     <div key={index} className="grid grid-cols-12 gap-4 py-4 items-center hover:bg-[#2C352E]/30 transition-colors -mx-4 px-4 rounded-lg">
+                                       
+                                       <div className="col-span-5 flex items-center gap-3">
+                                         <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${st.bgTints} ${st.color} border border-transparent`}>{item.score}</div>
+                                         <div>
+                                           <p className="font-bold text-[#E8EBE4] text-sm truncate">{item.nombre_cuenta || "Sin nombre"}</p>
+                                           <p className="text-[10px] text-[#8A968C] mt-0.5">{parseDate(item.created_at)}</p>
+                                         </div>
                                        </div>
-                                       <div className="text-center font-bold text-slate-300 text-sm">{item.score}</div>
-                                       <div className="col-span-2 flex justify-end items-center gap-3 pr-2">
-                                         <button onClick={() => { setReporte(item.reporte_json); setNombreCuenta(item.nombre_cuenta || t[idioma].cuentaSinNombre); setSubVistaReporte("diagnostico"); setVista("reporte_lectura"); }} className="text-xs font-bold bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-lg transition-colors">Ver PDF</button>
-                                         <button onClick={() => borrarAuditoria(item.id)} className="text-slate-500 hover:text-red-400 transition-colors p-1.5 rounded-lg hover:bg-red-500/10" title="Eliminar"><Trash2 size={16} /></button>
+                                       
+                                       <div className="col-span-3 flex flex-col justify-center px-4">
+                                          <div className="flex justify-between items-end mb-1">
+                                            <span className={`text-sm font-bold ${st.color}`}>{item.score}</span>
+                                            <span className="text-[9px] text-[#8A968C]">/100</span>
+                                          </div>
+                                          <div className="w-full h-1.5 bg-[#131714] rounded-full overflow-hidden border border-[#2C352E]/50">
+                                            <div className={`h-full rounded-full transition-all`} style={{width: `${item.score}%`, backgroundColor: st.color.replace('text-[', '').replace(']', '')}}></div>
+                                          </div>
                                        </div>
+
+                                       <div className="col-span-2 flex justify-center">
+                                          <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-[10px] font-bold ${st.bgTints} ${st.color}`}>
+                                            <span className={`w-1.5 h-1.5 rounded-full bg-current`}></span> {st.label}
+                                          </span>
+                                       </div>
+
+                                       <div className="col-span-2 flex justify-end items-center gap-2">
+                                         <button onClick={() => { setReporte(item.reporte_json); setNombreCuenta(item.nombre_cuenta || "Sin nombre"); setSubVistaReporte("diagnostico"); setVista("reporte_lectura"); }} className="text-xs font-medium border border-[#2C352E] hover:bg-[#2C352E] text-[#E8EBE4] px-3 py-1.5 rounded-lg transition-colors">Ver PDF</button>
+                                         <button onClick={() => borrarAuditoria(item.id)} className="text-[#8A968C] hover:text-[#E66767] p-1.5 transition-colors"><Trash2 size={14} /></button>
+                                       </div>
+
                                      </div>
                                    )
                                  })}
@@ -1167,24 +1096,29 @@ function AuditorDashboard() {
                            )}
                         </div>
 
-                        <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 backdrop-blur-xl shadow-lg">
-                           <h3 className="text-lg font-bold text-white mb-6">{t[idioma].actRec}</h3>
+                        {/* ACTIVIDAD RECIENTE */}
+                        <div className="bg-[#1A1F1B] border border-[#2C352E] rounded-2xl p-6">
+                           <h3 className="text-sm font-bold text-[#E8EBE4] mb-6">{t[idioma].actRec}</h3>
                            {historial.length === 0 ? (
-                             <div className="text-slate-500 text-sm font-medium text-center py-10">No hay actividad.</div>
+                             <div className="text-[#8A968C] text-sm font-medium text-center py-10">No hay actividad.</div>
                            ) : (
                              <ul className="space-y-6">
-                                {historial.slice(0, 4).map((item, i) => (
-                                   <li key={i} className="flex gap-4 items-start relative">
-                                      {i !== historial.slice(0,4).length - 1 && <div className="absolute left-[11px] top-8 bottom-[-24px] w-px bg-white/10"></div>}
-                                      <div className="w-6 h-6 rounded-full bg-white/10 border-[3px] border-[#0a0a0c] z-10 flex items-center justify-center flex-shrink-0">
-                                         <div className={`w-2 h-2 rounded-full ${item.score >= 80 ? 'bg-green-400' : item.score >= 50 ? 'bg-yellow-400' : 'bg-red-400'}`}></div>
-                                      </div>
-                                      <div>
-                                         <p className="text-sm text-slate-300 font-medium leading-tight">{t[idioma].generada} <span className="text-white font-bold">{item.nombre_cuenta || t[idioma].cuentaSinNombre}</span></p>
-                                         <p className="text-[11px] text-slate-500 mt-1 flex items-center gap-1 font-bold tracking-wide"><Clock size={10} /> {parseDate(item.created_at)} • Score: {item.score}</p>
-                                      </div>
-                                   </li>
-                                ))}
+                                {historial.slice(0, 5).map((item, i) => {
+                                   const st = getDashboardStatus(item.score);
+                                   return (
+                                     <li key={i} className="flex gap-4 items-start relative">
+                                        {i !== historial.slice(0,5).length - 1 && <div className="absolute left-[3px] top-4 bottom-[-24px] w-px bg-[#2C352E]"></div>}
+                                        <div className={`w-2 h-2 mt-1.5 rounded-full z-10 flex-shrink-0`} style={{backgroundColor: st.color.replace('text-[', '').replace(']', '')}}></div>
+                                        <div>
+                                           <p className="text-xs text-[#8A968C] font-medium leading-tight">Se auditó la cuenta <span className="text-[#E8EBE4] font-bold">{item.nombre_cuenta || "Sin nombre"}</span></p>
+                                           <div className="flex items-center gap-2 mt-1.5">
+                                             <p className="text-[10px] text-[#8A968C]">{parseDate(item.created_at)}</p>
+                                             <span className={`text-[9px] font-bold px-1.5 rounded ${st.color} ${st.bgTints}`}>Score {item.score}</span>
+                                           </div>
+                                        </div>
+                                     </li>
+                                   )
+                                })}
                              </ul>
                            )}
                         </div>
@@ -1192,131 +1126,54 @@ function AuditorDashboard() {
                   </div>
                 )}
 
-                {/* DASHBOARD PARA PLAN INDIVIDUAL */}
-                {vista === "dashboard" && modoPlan === "individual" && (
-                  <div className="animate-fade-custom print:hidden flex flex-col gap-8 relative z-10">
-                    <div>
-                      <h2 className="text-3xl font-bold text-white">Resumen de Negocio</h2>
-                      <p className="text-slate-400 text-sm mt-1">El estado de tu cuenta de Google Ads y herramientas para crecer.</p>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                       <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px] shadow-lg hover:bg-white/10 transition-colors group">
-                          <div className="absolute -right-4 -top-4 w-24 h-24 bg-green-500/10 rounded-full blur-2xl transition-all duration-500 group-hover:scale-150 group-hover:bg-green-500/20"></div>
-                          <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 relative z-10 flex items-center gap-2"><Activity size={16}/> Salud de la Cuenta</p>
-                          {ultimaAuditoria ? (
-                            <div className="flex-1 flex flex-col justify-end relative z-10">
-                               <div className="flex items-end gap-3 mb-2">
-                                 <span className={`text-6xl font-black ${ultimaAuditoria.score >= 80 ? 'text-green-400' : ultimaAuditoria.score >= 50 ? 'text-yellow-400' : 'text-red-400'}`}>
-                                   {ultimaAuditoria.score}
-                                 </span>
-                               </div>
-                               <button onClick={() => { setReporte(ultimaAuditoria.reporte_json); setNombreCuenta(ultimaAuditoria.nombre_cuenta); setVista("reporte_lectura"); }} className="w-full text-xs font-bold bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded-xl transition-colors mt-2 text-left">
-                                 Ver reporte completo <ArrowRight size={12} className="inline ml-1"/>
-                               </button>
-                            </div>
-                          ) : (
-                            <div className="flex-1 flex items-center justify-center text-slate-500 text-sm font-medium relative z-10">No hay datos.</div>
-                          )}
-                       </div>
-
-                       <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px] shadow-lg hover:bg-white/10 transition-colors group">
-                          <div className="absolute -right-4 -top-4 w-24 h-24 bg-red-500/10 rounded-full blur-2xl transition-all duration-500 group-hover:scale-150 group-hover:bg-red-500/20"></div>
-                          <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 relative z-10 flex items-center gap-2"><AlertTriangle size={16} className="text-red-400"/> Fugas Críticas</p>
-                          {ultimaAuditoria ? (
-                            <div className="flex-1 flex flex-col relative z-10">
-                              <span className="text-5xl font-black text-white mb-2">{fugasIndividuales}</span>
-                              <p className="text-xs text-slate-400 leading-relaxed">Problemas graves que están consumiendo tu presupuesto ahora mismo.</p>
-                            </div>
-                          ) : (
-                             <div className="flex-1 flex items-center justify-center text-slate-500 text-sm font-medium relative z-10">No hay datos.</div>
-                          )}
-                       </div>
-
-                       <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col justify-center items-center text-center relative overflow-hidden backdrop-blur-xl min-h-[200px] shadow-lg border-dashed hover:border-[#FEAFAE]/40 transition-colors cursor-pointer group" onClick={() => setVista("nueva")}>
-                          <div className="absolute -right-4 -top-4 w-24 h-24 bg-[#FEAFAE]/10 rounded-full blur-2xl transition-all duration-500 group-hover:scale-150 group-hover:bg-[#FEAFAE]/20"></div>
-                          <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform relative z-10">
-                             <Zap size={28} className="text-[#FEAFAE]" />
-                          </div>
-                          <h3 className="font-bold text-white text-lg relative z-10">Ejecutar Nueva Auditoría</h3>
-                          <p className="text-xs text-slate-400 mt-2 px-4 relative z-10">Actualizá los datos de tu cuenta para ver el score de hoy.</p>
-                       </div>
-                    </div>
-
-                    <div>
-                      <h3 className="text-xl font-bold text-white mb-6 mt-4">Herramientas Exclusivas</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                         <div className="bg-[#0f0f13] border border-white/5 rounded-2xl p-6 opacity-70 grayscale hover:grayscale-0 transition-all cursor-not-allowed">
-                            <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-400 mb-4"><BookOpen size={20}/></div>
-                            <h4 className="font-bold text-white mb-1">Traductor de Métricas IA</h4>
-                            <p className="text-xs text-slate-400 mb-4 leading-relaxed">Leé tu cuenta de Google Ads en lenguaje de negocios simple.</p>
-                            <span className="text-[10px] font-black uppercase tracking-wider px-2 py-1 bg-white/10 rounded-md text-white">Próximamente</span>
-                         </div>
-                         <div className="bg-[#0f0f13] border border-white/5 rounded-2xl p-6 opacity-70 grayscale hover:grayscale-0 transition-all cursor-not-allowed">
-                            <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-400 mb-4"><Type size={20}/></div>
-                            <h4 className="font-bold text-white mb-1">Generador de Anuncios</h4>
-                            <p className="text-xs text-slate-400 mb-4 leading-relaxed">Títulos y descripciones redactados por IA listos para copiar y pegar.</p>
-                            <span className="text-[10px] font-black uppercase tracking-wider px-2 py-1 bg-white/10 rounded-md text-white">Próximamente</span>
-                         </div>
-                         <div className="bg-[#0f0f13] border border-white/5 rounded-2xl p-6 opacity-70 grayscale hover:grayscale-0 transition-all cursor-not-allowed">
-                            <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center text-green-400 mb-4"><Calculator size={20}/></div>
-                            <h4 className="font-bold text-white mb-1">Simulador de Presupuesto</h4>
-                            <p className="text-xs text-slate-400 mb-4 leading-relaxed">Proyectá cuántas ventas tendrías si subís o bajás la inversión.</p>
-                            <span className="text-[10px] font-black uppercase tracking-wider px-2 py-1 bg-white/10 rounded-md text-white">Próximamente</span>
-                         </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* VISTA: NUEVA AUDITORÍA (CON NUEVOS CAMPOS) */}
+                {/* VISTA: NUEVA AUDITORÍA */}
                 {vista === "nueva" && (
                   <div className="animate-fade-custom print:hidden relative z-10">
-                    <div className="bg-white/5 border border-white/10 backdrop-blur-2xl p-8 md:p-12 rounded-[2rem] shadow-2xl mb-8 max-w-4xl mx-auto">
-                      <div className="flex items-center gap-4 mb-8">
-                        <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-black shadow-lg" style={melocotonGradient}><Zap size={24} /></div>
-                        <div><h1 className="text-3xl font-bold text-white">{t[idioma].nueva}</h1><p className="text-slate-400 mt-1">{t[idioma].ingresaDatos}</p></div>
+                    <div className="bg-[#1A1F1B] border border-[#2C352E] p-8 md:p-12 rounded-[2rem] shadow-xl mb-8 max-w-4xl mx-auto">
+                      <div className="flex items-center gap-4 mb-8 pb-8 border-b border-[#2C352E]">
+                        <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-[#262B27] shadow-sm bg-[#F3C3B2]"><Zap size={24} /></div>
+                        <div><h1 className="text-2xl font-bold text-[#E8EBE4]">{t[idioma].nueva}</h1><p className="text-[#8A968C] text-sm mt-1">{t[idioma].ingresaDatos}</p></div>
                       </div>
                       
-                      <div className="mb-6"><label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">{t[idioma].placeholderNombre}</label><input type="text" placeholder={t[idioma].placeholderNombre} className="w-full p-4 bg-black/40 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all" value={nombreCuenta} onChange={(e) => setNombreCuenta(e.target.value)} /></div>
+                      <div className="mb-6"><label className="block text-[10px] font-bold text-[#8A968C] uppercase tracking-widest mb-2">{t[idioma].placeholderNombre}</label><input type="text" placeholder={t[idioma].placeholderNombre} className="w-full p-3.5 bg-[#131714] border border-[#2C352E] rounded-xl text-[#E8EBE4] focus:border-[#F3C3B2] focus:outline-none transition-all text-sm" value={nombreCuenta} onChange={(e) => setNombreCuenta(e.target.value)} /></div>
                       
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                        <div><label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">{t[idioma].presupuestoObj}</label><input type="number" placeholder={t[idioma].placeholderPres} className="w-full p-4 bg-black/20 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all" value={presupuestoObjetivo} onChange={(e) => setPresupuestoObjetivo(e.target.value)} /></div>
-                        <div><label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">{t[idioma].gastoAct}</label><input type="number" placeholder={t[idioma].placeholderGasto} className="w-full p-4 bg-black/20 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all" value={gastoActual} onChange={(e) => setGastoActual(e.target.value)} /></div>
+                        <div><label className="block text-[10px] font-bold text-[#8A968C] uppercase tracking-widest mb-2">{t[idioma].presupuestoObj}</label><input type="number" placeholder={t[idioma].placeholderPres} className="w-full p-3.5 bg-[#131714] border border-[#2C352E] rounded-xl text-[#E8EBE4] focus:border-[#F3C3B2] focus:outline-none transition-all text-sm" value={presupuestoObjetivo} onChange={(e) => setPresupuestoObjetivo(e.target.value)} /></div>
+                        <div><label className="block text-[10px] font-bold text-[#8A968C] uppercase tracking-widest mb-2">{t[idioma].gastoAct}</label><input type="number" placeholder={t[idioma].placeholderGasto} className="w-full p-3.5 bg-[#131714] border border-[#2C352E] rounded-xl text-[#E8EBE4] focus:border-[#F3C3B2] focus:outline-none transition-all text-sm" value={gastoActual} onChange={(e) => setGastoActual(e.target.value)} /></div>
                         
-                        <div><label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">{t[idioma].conversiones}</label><input type="number" placeholder={t[idioma].placeholderConv} className="w-full p-4 bg-black/20 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all" value={conversiones} onChange={(e) => setConversiones(e.target.value)} /></div>
-                        <div><label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">{t[idioma].cparoas}</label><input type="text" placeholder={`Ej: ${metrica} objetivo...`} className="w-full p-4 bg-black/20 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all" value={cpaRoas} onChange={(e) => setCpaRoas(e.target.value)} /></div>
+                        <div><label className="block text-[10px] font-bold text-[#8A968C] uppercase tracking-widest mb-2">{t[idioma].conversiones}</label><input type="number" placeholder={t[idioma].placeholderConv} className="w-full p-3.5 bg-[#131714] border border-[#2C352E] rounded-xl text-[#E8EBE4] focus:border-[#F3C3B2] focus:outline-none transition-all text-sm" value={conversiones} onChange={(e) => setConversiones(e.target.value)} /></div>
+                        <div><label className="block text-[10px] font-bold text-[#8A968C] uppercase tracking-widest mb-2">{t[idioma].cparoas}</label><input type="text" placeholder={`Ej: ${metrica} objetivo...`} className="w-full p-3.5 bg-[#131714] border border-[#2C352E] rounded-xl text-[#E8EBE4] focus:border-[#F3C3B2] focus:outline-none transition-all text-sm" value={cpaRoas} onChange={(e) => setCpaRoas(e.target.value)} /></div>
                       </div>
 
                       <div className="mb-6">
-                          <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">{t[idioma].tipoCamp}</label>
-                          <div className="relative"><select className="w-full p-4 bg-black/20 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all appearance-none cursor-pointer" value={tipoCampana} onChange={(e) => setTipoCampana(e.target.value)}><option value="Búsqueda (Search)" className="bg-[#0f0f13] text-white">Búsqueda (Search)</option><option value="Performance Max" className="bg-[#0f0f13] text-white">Performance Max</option><option value="Display" className="bg-[#0f0f13] text-white">Display</option><option value="Shopping" className="bg-[#0f0f13] text-white">Shopping</option><option value="Video (YouTube)" className="bg-[#0f0f13] text-white">Video (YouTube)</option><option value="Mix de Campañas" className="bg-[#0f0f13] text-white">Mix de Campañas</option></select><ChevronDown size={18} className="absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400 pointer-events-none" /></div>
+                          <label className="block text-[10px] font-bold text-[#8A968C] uppercase tracking-widest mb-2">{t[idioma].tipoCamp}</label>
+                          <div className="relative"><select className="w-full p-3.5 bg-[#131714] border border-[#2C352E] rounded-xl text-[#E8EBE4] focus:border-[#F3C3B2] focus:outline-none transition-all appearance-none cursor-pointer text-sm" value={tipoCampana} onChange={(e) => setTipoCampana(e.target.value)}><option value="Búsqueda (Search)">Búsqueda (Search)</option><option value="Performance Max">Performance Max</option><option value="Display">Display</option><option value="Shopping">Shopping</option><option value="Video (YouTube)">Video (YouTube)</option><option value="Mix de Campañas">Mix de Campañas</option></select><ChevronDown size={18} className="absolute right-4 top-1/2 transform -translate-y-1/2 text-[#8A968C] pointer-events-none" /></div>
                       </div>
 
-                      <div className="mb-8"><label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">{t[idioma].contexto}</label><textarea className="w-full h-24 p-4 bg-black/20 border border-white/10 rounded-2xl text-white focus:border-[#FEAFAE] focus:ring-1 focus:ring-[#FEAFAE] focus:outline-none transition-all resize-none" placeholder={t[idioma].placeholderContexto} value={notas} onChange={(e) => setNotas(e.target.value)} /></div>
+                      <div className="mb-8"><label className="block text-[10px] font-bold text-[#8A968C] uppercase tracking-widest mb-2">{t[idioma].contexto}</label><textarea className="w-full h-24 p-3.5 bg-[#131714] border border-[#2C352E] rounded-xl text-[#E8EBE4] focus:border-[#F3C3B2] focus:outline-none transition-all resize-none text-sm" placeholder={t[idioma].placeholderContexto} value={notas} onChange={(e) => setNotas(e.target.value)} /></div>
                       
-                      <button onClick={analizarCampaña} disabled={loading || !nombreCuenta || !presupuestoObjetivo || !gastoActual || !conversiones} className="w-full text-black px-6 py-4 rounded-2xl font-bold text-lg hover:scale-[1.01] disabled:opacity-50 disabled:hover:scale-100 transition-all shadow-lg flex justify-center items-center gap-2" style={melocotonGradient}>
-                        {loading ? <span className="animate-pulse">{t[idioma].btnAnalizando}</span> : <><Sparkles size={20}/> {t[idioma].btnAnalizar}</>}
+                      <button onClick={analizarCampaña} disabled={loading || !nombreCuenta || !presupuestoObjetivo || !gastoActual || !conversiones} className="w-full text-[#262B27] bg-[#F3C3B2] hover:bg-[#eab3a1] px-6 py-4 rounded-xl font-bold text-sm disabled:opacity-50 transition-colors shadow-md flex justify-center items-center gap-2">
+                        {loading ? <span className="animate-pulse">{t[idioma].btnAnalizando}</span> : <><Sparkles size={18}/> {t[idioma].btnAnalizar}</>}
                       </button>
                     </div>
                   </div>
                 )}
 
-                {/* VISTA: LECTURA DE REPORTE (CON PESTAÑAS ENTERPRISE Y CHECKLIST INTERACTIVO) */}
+                {/* VISTA: LECTURA DE REPORTE */}
                 {vista === "reporte_lectura" && reporte && (
-                  <div className="animate-fade-custom print:bg-white print:m-0 print:p-0 relative z-10">
+                  <div className="animate-fade-custom print:bg-white print:m-0 print:p-0 relative z-10 max-w-5xl mx-auto">
                     
                     <div className="mb-6 flex justify-between items-center print:hidden">
-                       <button onClick={() => setVista("dashboard")} className="flex items-center gap-2 text-slate-400 hover:text-white font-medium transition-colors"><ArrowLeft size={18} /> {t[idioma].volver}</button>
+                       <button onClick={() => setVista("dashboard")} className="flex items-center gap-2 text-[#8A968C] hover:text-[#E8EBE4] font-medium transition-colors text-sm"><ArrowLeft size={16} /> {t[idioma].volver}</button>
                        
-                       <div className="flex bg-black/40 border border-white/10 rounded-xl p-1 gap-1 shadow-lg">
-                          <button onClick={() => setSubVistaReporte("diagnostico")} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${subVistaReporte === 'diagnostico' ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-300'}`}><FileText size={16}/> {t[idioma].tabDiag}</button>
-                          <button onClick={() => setSubVistaReporte("checklist")} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${subVistaReporte === 'checklist' ? 'bg-[#FEAFAE]/20 text-[#FEAFAE]' : 'text-slate-500 hover:text-slate-300'}`}><ListChecks size={16}/> {t[idioma].tabCheck}</button>
-                          <button onClick={() => setSubVistaReporte("avanzado")} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${subVistaReporte === 'avanzado' ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-300'}`}><LayoutGrid size={16}/> {t[idioma].tabAvanzado}</button>
+                       <div className="flex bg-[#1A1F1B] border border-[#2C352E] rounded-lg p-1 gap-1">
+                          <button onClick={() => setSubVistaReporte("diagnostico")} className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${subVistaReporte === 'diagnostico' ? 'bg-[#2C352E] text-[#E8EBE4]' : 'text-[#8A968C] hover:text-[#E8EBE4]'}`}><FileText size={14}/> {t[idioma].tabDiag}</button>
+                          <button onClick={() => setSubVistaReporte("checklist")} className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${subVistaReporte === 'checklist' ? 'bg-[#F3C3B2]/20 text-[#F3C3B2]' : 'text-[#8A968C] hover:text-[#E8EBE4]'}`}><ListChecks size={14}/> {t[idioma].tabCheck}</button>
+                          <button onClick={() => setSubVistaReporte("avanzado")} className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${subVistaReporte === 'avanzado' ? 'bg-[#2C352E] text-[#E8EBE4]' : 'text-[#8A968C] hover:text-[#E8EBE4]'}`}><LayoutGrid size={14}/> {t[idioma].tabAvanzado}</button>
                        </div>
                     </div>
 
-                    <div className="bg-white/5 border border-white/10 backdrop-blur-2xl p-10 rounded-[2rem] shadow-2xl print:bg-white print:text-black print:border-none print:shadow-none print:p-0">
+                    <div className="bg-[#1A1F1B] border border-[#2C352E] p-10 rounded-2xl shadow-xl print:bg-white print:text-black print:border-none print:shadow-none print:p-0">
                       
                       <div className="hidden print:flex justify-between items-center mb-10 border-b-2 border-slate-200 pb-6">
                         <div>{modoPlan === 'agencia' && perfil?.agencia_logo ? <img src={perfil.agencia_logo} alt="Logo Agencia" className="h-16 object-contain" /> : <div className="flex items-center gap-2"><span className="text-3xl">🐾</span><span className="text-3xl font-black text-slate-800">Mora</span></div>}</div>
@@ -1327,50 +1184,50 @@ function AuditorDashboard() {
                         </div>
                       </div>
 
-                      <div className="flex justify-between items-center mb-10 print:mb-12">
+                      <div className="flex justify-between items-center mb-10 pb-10 border-b border-[#2C352E] print:border-slate-200 print:mb-12">
                         <div>
-                          <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-3 print:text-slate-500 print:text-xs">{nombreCuenta || t[idioma].cuentaSinNombre}</h2>
+                          <h2 className="text-[10px] font-bold text-[#8A968C] uppercase tracking-widest mb-2 print:text-slate-500 print:text-xs">{nombreCuenta || "Sin nombre"}</h2>
                           <div className="flex items-center gap-5">
-                            <div className="w-20 h-20 rounded-full flex items-center justify-center border-[6px] border-black/20 text-3xl font-black text-[#0a0a0c] shadow-lg print:border-slate-100 print:text-slate-800" style={melocotonGradient}>{reporte.score_general}</div>
-                            <div><h3 className="text-4xl font-black text-white print:text-slate-900">{t[idioma].score}</h3><p className="text-slate-400 text-sm mt-1 print:text-slate-500">{t[idioma].puntajeBasado}</p></div>
+                            <div className={`w-16 h-16 rounded-xl flex items-center justify-center border-2 border-[#2C352E] text-2xl font-black text-[#E8EBE4] print:border-slate-300 print:text-slate-800`}>{reporte.score_general}</div>
+                            <div><h3 className="text-2xl font-bold text-[#E8EBE4] print:text-slate-900">{t[idioma].score}</h3><p className="text-[#8A968C] text-xs mt-1 print:text-slate-500">{t[idioma].puntajeBasado}</p></div>
                           </div>
                         </div>
-                        {subVistaReporte === "diagnostico" && modoPlan === 'agencia' && <button onClick={descargarPDF} className="bg-white/5 border border-white/10 hover:bg-white/10 text-white px-6 py-3 rounded-xl font-bold transition-all print:hidden shadow-sm">{t[idioma].exportar}</button>}
+                        {subVistaReporte === "diagnostico" && modoPlan === 'agencia' && <button onClick={descargarPDF} className="bg-[#2C352E] hover:bg-[#8A968C] text-[#E8EBE4] px-4 py-2 rounded-lg text-sm font-bold transition-all print:hidden shadow-sm">{t[idioma].exportar}</button>}
                       </div>
                       
                       {subVistaReporte === "diagnostico" && (
                         <div className="space-y-6 animate-fade-custom">
                           {reporte.hallazgos?.graves_rojo?.length > 0 && (
-                            <div className="border-l-4 pl-6 bg-red-500/5 p-6 rounded-2xl border border-red-500/10 print:bg-red-50 print:border-red-100 print:shadow-sm" style={{ borderLeftColor: '#ef4444' }}>
-                              <h3 className="text-xl font-bold text-red-400 mb-4 flex items-center gap-2 print:text-red-700"><AlertTriangle size={24}/> {t[idioma].problemas}</h3>
-                              {reporte.hallazgos.graves_rojo.map((item: any, i: number) => (<p key={i} className="mb-4 text-slate-300 leading-relaxed print:text-slate-700 print:break-inside-avoid"><b className="text-white print:text-slate-900 text-lg">{item.titulo}:</b> <br/>{item.descripcion}</p>))}
+                            <div className="border-l-4 border-l-[#E66767] bg-[#E66767]/5 p-6 rounded-xl border border-[#2C352E] print:bg-red-50 print:border-red-100 print:shadow-sm">
+                              <h3 className="text-sm font-bold text-[#E66767] uppercase tracking-widest mb-4 flex items-center gap-2 print:text-red-700"><AlertTriangle size={18}/> {t[idioma].problemas}</h3>
+                              {reporte.hallazgos.graves_rojo.map((item: any, i: number) => (<p key={i} className="mb-4 text-[#8A968C] text-sm leading-relaxed print:text-slate-700 print:break-inside-avoid"><b className="text-[#E8EBE4] print:text-slate-900 font-bold">{item.titulo}:</b> <br/>{item.descripcion}</p>))}
                             </div>
                           )}
                           {reporte.hallazgos?.debiles_amarillo?.length > 0 && (
-                            <div className="border-l-4 pl-6 bg-yellow-500/5 p-6 rounded-2xl border border-yellow-500/10 print:bg-amber-50 print:border-amber-100 print:shadow-sm" style={{ borderLeftColor: '#eab308' }}>
-                              <h3 className="text-xl font-bold text-yellow-400 mb-4 flex items-center gap-2 print:text-amber-700"><Zap size={24}/> {t[idioma].mejoras}</h3>
-                              {reporte.hallazgos.debiles_amarillo.map((item: any, i: number) => (<p key={i} className="mb-4 text-slate-300 leading-relaxed print:text-slate-700 print:break-inside-avoid"><b className="text-white print:text-slate-900 text-lg">{item.titulo}:</b> <br/>{item.descripcion}</p>))}
+                            <div className="border-l-4 border-l-[#EAB308] bg-[#EAB308]/5 p-6 rounded-xl border border-[#2C352E] print:bg-amber-50 print:border-amber-100 print:shadow-sm">
+                              <h3 className="text-sm font-bold text-[#EAB308] uppercase tracking-widest mb-4 flex items-center gap-2 print:text-amber-700"><Zap size={18}/> {t[idioma].mejoras}</h3>
+                              {reporte.hallazgos.debiles_amarillo.map((item: any, i: number) => (<p key={i} className="mb-4 text-[#8A968C] text-sm leading-relaxed print:text-slate-700 print:break-inside-avoid"><b className="text-[#E8EBE4] print:text-slate-900 font-bold">{item.titulo}:</b> <br/>{item.descripcion}</p>))}
                             </div>
                           )}
                           {reporte.hallazgos?.bien_verde?.length > 0 && (
-                            <div className="border-l-4 pl-6 bg-green-500/5 p-6 rounded-2xl border border-green-500/10 print:bg-emerald-50 print:border-emerald-100 print:shadow-sm" style={{ borderLeftColor: '#22c55e' }}>
-                              <h3 className="text-xl font-bold text-green-400 mb-4 flex items-center gap-2 print:text-emerald-700"><CheckCircle2 size={24}/> {t[idioma].aciertos}</h3>
-                              {reporte.hallazgos.bien_verde.map((item: any, i: number) => (<p key={i} className="mb-4 text-slate-300 leading-relaxed print:text-slate-700 print:break-inside-avoid"><b className="text-white print:text-slate-900 text-lg">{item.titulo}:</b> <br/>{item.descripcion}</p>))}
+                            <div className="border-l-4 border-l-[#99CDD8] bg-[#99CDD8]/5 p-6 rounded-xl border border-[#2C352E] print:bg-emerald-50 print:border-emerald-100 print:shadow-sm">
+                              <h3 className="text-sm font-bold text-[#99CDD8] uppercase tracking-widest mb-4 flex items-center gap-2 print:text-emerald-700"><CheckCircle2 size={18}/> {t[idioma].aciertos}</h3>
+                              {reporte.hallazgos.bien_verde.map((item: any, i: number) => (<p key={i} className="mb-4 text-[#8A968C] text-sm leading-relaxed print:text-slate-700 print:break-inside-avoid"><b className="text-[#E8EBE4] print:text-slate-900 font-bold">{item.titulo}:</b> <br/>{item.descripcion}</p>))}
                             </div>
                           )}
                         </div>
                       )}
 
                       {subVistaReporte === "checklist" && (
-                         <div className="animate-fade-custom bg-[#0f0f13]/60 backdrop-blur-md border border-white/5 rounded-2xl p-8 shadow-inner">
-                            <div className="flex items-center justify-between mb-8 pb-4 border-b border-white/5">
+                         <div className="animate-fade-custom bg-[#131714] border border-[#2C352E] rounded-xl p-8">
+                            <div className="flex items-center justify-between mb-8 pb-4 border-b border-[#2C352E]">
                                <div>
-                                 <h3 className="text-xl font-bold text-white flex items-center gap-2"><ListChecks size={24} className="text-[#FEAFAE]" /> Optimización de 20 Minutos</h3>
-                                 <p className="text-slate-400 text-sm mt-1">Completá estas tareas en Google Ads para mejorar tu Score.</p>
+                                 <h3 className="text-lg font-bold text-[#E8EBE4] flex items-center gap-2"><ListChecks size={20} className="text-[#F3C3B2]" /> Optimización Rápida</h3>
+                                 <p className="text-[#8A968C] text-xs mt-1">Completá estas tareas para mejorar el Score.</p>
                                </div>
                                <div className="text-right">
-                                 <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Progreso</p>
-                                 <p className="text-lg font-bold text-[#FEAFAE]">{tareasCompletadas.length} / {reporte.checklist?.length || 0}</p>
+                                 <p className="text-[10px] font-bold text-[#8A968C] uppercase tracking-widest">Progreso</p>
+                                 <p className="text-lg font-bold text-[#F3C3B2]">{tareasCompletadas.length} / {reporte.checklist?.length || 0}</p>
                                </div>
                             </div>
 
@@ -1379,85 +1236,81 @@ function AuditorDashboard() {
                                 {reporte.checklist.map((item: any, i: number) => {
                                   const esCompletada = tareasCompletadas.includes(i);
                                   return (
-                                    <div key={i} className={`flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-xl border transition-all duration-300 ${esCompletada ? "bg-green-500/5 border-green-500/20 opacity-60" : "bg-white/5 border-white/10 hover:border-[#FEAFAE]/30"}`}>
+                                    <div key={i} className={`flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-lg border transition-all duration-300 ${esCompletada ? "bg-[#99CDD8]/5 border-[#99CDD8]/20 opacity-50" : "bg-[#1A1F1B] border-[#2C352E] hover:border-[#F3C3B2]/50"}`}>
                                        <div className="flex items-start gap-4">
-                                         <button onClick={() => toggleTarea(i)} className={`mt-1 w-6 h-6 rounded-md border flex items-center justify-center transition-colors ${esCompletada ? "bg-green-500 border-green-500 text-black" : "border-slate-600 hover:border-[#FEAFAE]"}`}>
-                                            {esCompletada && <CheckSquare size={16} strokeWidth={3} />}
+                                         <button onClick={() => toggleTarea(i)} className={`mt-0.5 w-5 h-5 rounded border flex items-center justify-center transition-colors ${esCompletada ? "bg-[#99CDD8] border-[#99CDD8] text-[#131714]" : "border-[#8A968C] hover:border-[#F3C3B2]"}`}>
+                                            {esCompletada && <CheckSquare size={14} strokeWidth={3} />}
                                          </button>
                                          <div>
-                                           <p className={`font-bold text-white transition-all ${esCompletada ? "line-through text-slate-500" : "text-lg"}`}>{item.tarea}</p>
-                                           <div className="flex gap-2 mt-1">
-                                             <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded ${item.color === 'rojo' ? 'bg-red-500/10 text-red-400' : 'bg-yellow-500/10 text-yellow-400'}`}>Prioridad: {item.impacto}</span>
+                                           <p className={`font-bold text-sm transition-all ${esCompletada ? "line-through text-[#8A968C]" : "text-[#E8EBE4]"}`}>{item.tarea}</p>
+                                           <div className="flex gap-2 mt-1.5">
+                                             <span className={`text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded ${item.color === 'rojo' ? 'bg-[#E66767]/10 text-[#E66767]' : 'bg-[#EAB308]/10 text-[#EAB308]'}`}>Prioridad {item.impacto}</span>
                                            </div>
                                          </div>
                                        </div>
-                                       <button 
-                                         onClick={() => setMostrarConfirmacion(true)} 
-                                         className="flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-[10px] uppercase tracking-wider bg-white/5 text-white hover:bg-white/10 border border-white/5 transition-all group"
-                                       >
-                                          <Sparkles size={14} className="text-[#FEAFAE] group-hover:animate-pulse" /> {t[idioma].autoApply}
+                                       <button onClick={() => setMostrarConfirmacion(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-md font-bold text-[10px] uppercase tracking-widest bg-[#2C352E] text-[#E8EBE4] hover:bg-[#8A968C] transition-colors group">
+                                          <Sparkles size={12} className="text-[#F3C3B2] group-hover:animate-pulse" /> {t[idioma].autoApply}
                                        </button>
                                     </div>
                                   );
                                 })}
                               </div>
                             ) : (
-                              <div className="text-center text-slate-500 py-10">Esta auditoría es antigua y no tiene Checklist. Generá una nueva.</div>
+                              <div className="text-center text-[#8A968C] text-sm py-10">Esta auditoría no tiene Checklist.</div>
                             )}
                          </div>
                       )}
 
                       {subVistaReporte === "avanzado" && (
-                         <div className="animate-fade-custom grid grid-cols-1 lg:grid-cols-2 gap-8">
+                         <div className="animate-fade-custom grid grid-cols-1 lg:grid-cols-2 gap-6">
                             
                             {reporte.pacing ? (
-                              <div className="bg-[#0f0f13] border border-white/5 rounded-2xl p-8 flex flex-col justify-center relative overflow-hidden">
-                                 <div className={`absolute top-0 right-0 w-32 h-32 ${reporte.pacing.bg}/10 blur-3xl rounded-full pointer-events-none`}></div>
-                                 <h3 className="text-lg font-bold text-white mb-2 flex items-center gap-2"><Clock size={20} className={reporte.pacing.color}/> {t[idioma].pacingTit}</h3>
-                                 <p className="text-sm text-slate-400 mb-8">{t[idioma].pacingDesc}</p>
+                              <div className="bg-[#131714] border border-[#2C352E] rounded-xl p-6 flex flex-col justify-center">
+                                 <h3 className="text-sm font-bold text-[#E8EBE4] mb-1 flex items-center gap-2"><Clock size={16} className={reporte.pacing.color}/> {t[idioma].pacingTit}</h3>
+                                 <p className="text-xs text-[#8A968C] mb-6">{t[idioma].pacingDesc}</p>
                                  
-                                 <div className="flex justify-between items-end mb-3">
-                                    <div><p className="text-xs font-bold text-slate-500 uppercase">Gasto Actual</p><p className="text-3xl font-black text-white mt-1">${reporte.pacing.gasto}</p></div>
-                                    <div className="text-right"><p className="text-xs font-bold text-slate-500 uppercase">Presupuesto</p><p className="text-xl font-bold text-slate-300 mt-1">${reporte.pacing.presupuesto}</p></div>
+                                 <div className="flex justify-between items-end mb-2">
+                                    <div><p className="text-[10px] font-bold text-[#8A968C] uppercase tracking-widest">Gasto Actual</p><p className="text-2xl font-black text-[#E8EBE4] mt-1">${reporte.pacing.gasto}</p></div>
+                                    <div className="text-right"><p className="text-[10px] font-bold text-[#8A968C] uppercase tracking-widest">Presupuesto</p><p className="text-lg font-bold text-[#8A968C] mt-1">${reporte.pacing.presupuesto}</p></div>
                                  </div>
-                                 <div className="w-full bg-white/5 rounded-full h-3 mb-4 border border-white/5 overflow-hidden">
-                                   <div className={`${reporte.pacing.bg} h-3 rounded-full transition-all duration-1000`} style={{width: `${reporte.pacing.porcentajeActual}%`}}></div>
+                                 <div className="w-full bg-[#1A1F1B] rounded-full h-2 mb-4 border border-[#2C352E] overflow-hidden">
+                                   <div className={`${reporte.pacing.bg} h-2 rounded-full transition-all duration-1000`} style={{width: `${reporte.pacing.porcentajeActual}%`}}></div>
                                  </div>
-                                 <p className={`text-xs font-bold ${reporte.pacing.color} ${reporte.pacing.bg.replace('bg-', 'bg-').replace('-400', '-500')}/10 inline-block px-3 py-1.5 rounded-lg self-start border border-${reporte.pacing.bg.replace('bg-', '')}/20`}>
+                                 <p className={`text-[10px] font-bold ${reporte.pacing.color} uppercase tracking-widest`}>
                                    {reporte.pacing.mensaje}
                                  </p>
                               </div>
                             ) : (
-                              <div className="bg-[#0f0f13] border border-white/5 rounded-2xl p-8 flex items-center justify-center text-slate-500 text-sm text-center">
-                                Este reporte es antiguo y no tiene datos de presupuesto.
+                              <div className="bg-[#131714] border border-[#2C352E] rounded-xl p-6 flex items-center justify-center text-[#8A968C] text-xs text-center">
+                                Este reporte no tiene datos de presupuesto.
                               </div>
                             )}
 
-                            <div className="bg-[#0f0f13] border border-white/5 rounded-2xl p-8">
+                            <div className="bg-[#131714] border border-[#2C352E] rounded-xl p-6">
                                <div className="flex justify-between items-start mb-6">
                                  <div>
-                                   <h3 className="text-lg font-bold text-white mb-1 flex items-center gap-2"><LayoutGrid size={20} className="text-[#FEAFAE]"/> {t[idioma].matrizTit}</h3>
-                                   <p className="text-sm text-slate-400">{t[idioma].matrizDesc}</p>
+                                   <h3 className="text-sm font-bold text-[#E8EBE4] mb-1 flex items-center gap-2"><LayoutGrid size={16} className="text-[#F3C3B2]"/> {t[idioma].matrizTit}</h3>
+                                   <p className="text-xs text-[#8A968C]">{t[idioma].matrizDesc}</p>
                                  </div>
-                                 <span className="px-2 py-0.5 bg-[#FEAFAE]/10 text-[#FEAFAE] text-[10px] font-bold rounded">Próximamente</span>
+                                 <span className="px-2 py-0.5 bg-[#2C352E] text-[#8A968C] text-[9px] font-bold rounded uppercase tracking-widest">Pronto</span>
                                </div>
                                
-                               <div className="grid grid-cols-2 gap-3 h-48 opacity-50 grayscale cursor-not-allowed">
-                                  <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-3 flex flex-col justify-between">
-                                    <span className="text-[10px] font-bold text-green-400">{t[idioma].escalar}</span>
-                                    <span className="text-2xl font-black text-white">?</span>
+                               <div className="grid grid-cols-2 gap-2 h-32 opacity-30 grayscale cursor-not-allowed">
+                                  <div className="bg-[#99CDD8]/10 border border-[#99CDD8]/20 rounded-lg p-2 flex flex-col justify-between">
+                                    <span className="text-[9px] font-bold text-[#99CDD8] uppercase">{t[idioma].escalar}</span>
+                                    <span className="text-lg font-black text-[#E8EBE4]">?</span>
                                   </div>
-                                  <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3 flex flex-col justify-between">
-                                    <span className="text-[10px] font-bold text-blue-400">{t[idioma].potenciales}</span>
-                                    <span className="text-2xl font-black text-white">?</span>
+                                  <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-2 flex flex-col justify-between">
+                                    <span className="text-[9px] font-bold text-blue-400 uppercase">{t[idioma].potenciales}</span>
+                                    <span className="text-lg font-black text-[#E8EBE4]">?</span>
                                   </div>
-                                  <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-3 flex flex-col justify-between">
-                                    <span className="text-[10px] font-bold text-yellow-400">{t[idioma].observar}</span>
-                                    <span className="text-2xl font-black text-white">?</span>
+                                  <div className="bg-[#EAB308]/10 border border-[#EAB308]/20 rounded-lg p-2 flex flex-col justify-between">
+                                    <span className="text-[9px] font-bold text-[#EAB308] uppercase">{t[idioma].observar}</span>
+                                    <span className="text-lg font-black text-[#E8EBE4]">?</span>
                                   </div>
-                                  <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 flex flex-col justify-between">
-                                    <span className="text-[10px] font-bold text-red-400">{t[idioma].apagar}</span>
-                                    <span className="text-2xl font-black text-white">?</span>
+                                  <div className="bg-[#E66767]/10 border border-[#E66767]/20 rounded-lg p-2 flex flex-col justify-between">
+                                    <span className="text-[9px] font-bold text-[#E66767] uppercase">{t[idioma].apagar}</span>
+                                    <span className="text-lg font-black text-[#E8EBE4]">?</span>
                                   </div>
                                </div>
                             </div>
@@ -1470,64 +1323,62 @@ function AuditorDashboard() {
                   </div>
                 )}
 
+                {/* VISTA: HISTORIAL */}
                 {vista === "historial" && (
-                  <div className="animate-fade-custom bg-white/5 border border-white/10 backdrop-blur-2xl p-8 rounded-[2rem] shadow-2xl flex flex-col min-h-[600px] print:hidden relative z-10">
+                  <div className="animate-fade-custom bg-[#1A1F1B] border border-[#2C352E] p-8 rounded-2xl shadow-xl flex flex-col min-h-[600px] print:hidden relative z-10 max-w-5xl mx-auto">
                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
-                       <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-white border border-white/10"><Users size={24} /></div>
-                          <div>
-                            <h2 className="text-2xl font-bold text-white">{modoPlan === 'agencia' ? t[idioma].monitoreo : "Historial de Auditorías"}</h2>
-                            <p className="text-sm text-slate-400">{t[idioma].tenes} {historial.length} {t[idioma].registradas}</p>
-                          </div>
+                       <div>
+                         <h2 className="text-2xl font-bold text-[#E8EBE4]">{modoPlan === 'agencia' ? t[idioma].monitoreo : "Historial de Auditorías"}</h2>
+                         <p className="text-sm text-[#8A968C] mt-1">{t[idioma].tenes} {historial.length} {t[idioma].registradas}</p>
                        </div>
 
-                       <div className="flex flex-wrap items-center gap-3">
-                          <div className="flex bg-black/40 p-1 rounded-xl border border-white/5">
-                              <button onClick={() => setFiltroEstado("todos")} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${filtroEstado === 'todos' ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-white'}`}>{t[idioma].todos}</button>
-                              <button onClick={() => setFiltroEstado("critico")} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-1 ${filtroEstado === 'critico' ? 'bg-red-500/20 text-red-400' : 'text-slate-400 hover:text-red-400'}`}><span className="w-2 h-2 rounded-full bg-red-400"></span> {t[idioma].criticos}</button>
-                              <button onClick={() => setFiltroEstado("atencion")} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-1 ${filtroEstado === 'atencion' ? 'bg-yellow-500/20 text-yellow-400' : 'text-slate-400 hover:text-yellow-400'}`}><span className="w-2 h-2 rounded-full bg-yellow-400"></span> {t[idioma].atencion}</button>
-                          </div>
+                       <div className="flex bg-[#131714] p-1 rounded-lg border border-[#2C352E]">
+                           <button onClick={() => setFiltroEstado("todos")} className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${filtroEstado === 'todos' ? 'bg-[#2C352E] text-[#E8EBE4]' : 'text-[#8A968C] hover:text-[#E8EBE4]'}`}>{t[idioma].todos}</button>
+                           <button onClick={() => setFiltroEstado("critico")} className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 ${filtroEstado === 'critico' ? 'bg-[#E66767]/10 text-[#E66767]' : 'text-[#8A968C] hover:text-[#E66767]'}`}><span className="w-1.5 h-1.5 rounded-full bg-current"></span> {t[idioma].criticos}</button>
+                           <button onClick={() => setFiltroEstado("atencion")} className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 ${filtroEstado === 'atencion' ? 'bg-[#EAB308]/10 text-[#EAB308]' : 'text-[#8A968C] hover:text-[#EAB308]'}`}><span className="w-1.5 h-1.5 rounded-full bg-current"></span> {t[idioma].atencion}</button>
                        </div>
                     </div>
                     
-                    <div className="flex-1 bg-black/20 rounded-2xl border border-white/5 overflow-hidden">
-                      <div className="grid grid-cols-12 gap-4 p-4 border-b border-white/10 text-xs font-bold text-slate-500 uppercase tracking-wider items-center">
-                        <div className="col-span-3 pl-2">{t[idioma].thCliente}</div>
+                    <div className="flex-1 border-t border-[#2C352E]">
+                      <div className="grid grid-cols-12 gap-4 py-3 border-b border-[#2C352E] text-[10px] font-bold text-[#8A968C] uppercase tracking-widest items-center px-4">
+                        <div className="col-span-4">{t[idioma].thCliente}</div>
                         <div className="col-span-2 text-center">{t[idioma].thFecha}</div>
-                        <div className="col-span-2 text-center">{t[idioma].thEstado}</div>
-                        <div className="col-span-2 text-center">{t[idioma].thTendencia}</div>
-                        <div className="col-span-3 text-right pr-4">{t[idioma].thAccion}</div>
+                        <div className="col-span-2 text-center">{t[idioma].score}</div>
+                        <div className="col-span-2 text-center">Estado</div>
+                        <div className="col-span-2 text-right">{t[idioma].thAccion}</div>
                       </div>
 
                       {clientesFiltrados.length === 0 ? (
-                        <div className="p-10 text-center text-slate-500 font-medium">{t[idioma].sinCuentas}</div>
+                        <div className="p-10 text-center text-[#8A968C] text-sm font-medium border border-dashed border-[#2C352E] rounded-xl mt-4">No se encontraron auditorías.</div>
                       ) : (
-                        <div className="divide-y divide-white/5">
+                        <div className="divide-y divide-[#2C352E]">
                           {clientesFiltrados.map((item, index) => {
-                            const estado = getEstadoData(item.score);
-                            const StatusIcon = estado.icon;
-                            const fakeTrend = item.score > 60 ? { icon: TrendingUp, val: "+3", color: "text-green-400" } : { icon: TrendingDown, val: "-5", color: "text-red-400" };
+                            const st = getDashboardStatus(item.score);
 
                             return (
-                              <div key={index} className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-white/5 transition-colors group">
-                                <div className="col-span-3 flex items-center gap-3 pl-2">
-                                  <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${estado.bg} ${estado.color} border ${estado.border} flex-shrink-0`}>{item.score}</div>
-                                  <p className="font-bold text-white truncate pr-2">{item.nombre_cuenta || t[idioma].cuentaSinNombre}</p>
+                              <div key={index} className="grid grid-cols-12 gap-4 py-4 items-center hover:bg-[#2C352E]/30 transition-colors px-4 rounded-lg">
+                                <div className="col-span-4 flex items-center gap-3">
+                                  <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${st.bgTints} ${st.color} border border-transparent flex-shrink-0`}>{item.score}</div>
+                                  <p className="font-bold text-[#E8EBE4] text-sm truncate">{item.nombre_cuenta || "Sin nombre"}</p>
                                 </div>
-                                <div className="col-span-2 text-center"><p className="text-sm text-slate-400">{parseDate(item.created_at)}</p></div>
+                                <div className="col-span-2 text-center"><p className="text-xs text-[#8A968C] font-medium">{parseDate(item.created_at)}</p></div>
+                                
+                                <div className="col-span-2 flex flex-col justify-center px-2">
+                                  <div className="w-full h-1.5 bg-[#131714] rounded-full overflow-hidden border border-[#2C352E]/50">
+                                    <div className={`h-full rounded-full transition-all`} style={{width: `${item.score}%`, backgroundColor: st.color.replace('text-[', '').replace(']', '')}}></div>
+                                  </div>
+                                </div>
+
                                 <div className="col-span-2 flex justify-center">
-                                  <span className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${estado.bg} ${estado.color} ${estado.border}`}><StatusIcon size={12} /> {estado.label}</span>
+                                  <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-[10px] font-bold ${st.bgTints} ${st.color}`}><st.icon size={10} /> {st.label}</span>
                                 </div>
-                                <div className="col-span-2 flex justify-center items-center gap-1">
-                                   <fakeTrend.icon size={14} className={fakeTrend.color} />
-                                   <span className={`text-sm font-bold ${fakeTrend.color}`}>{fakeTrend.val} pts</span>
-                                </div>
-                                <div className="col-span-3 flex justify-end items-center gap-3 pr-2">
-                                  <button onClick={() => { setReporte(item.reporte_json); setNombreCuenta(item.nombre_cuenta || t[idioma].cuentaSinNombre); setSubVistaReporte("diagnostico"); setVista("reporte_lectura"); }} className="text-xs font-bold text-[#FFA4BD] hover:text-white flex items-center gap-1 transition-colors bg-white/5 hover:bg-white/10 px-4 py-2.5 rounded-xl border border-white/5">
-                                    {t[idioma].abrirAud} <ArrowRight size={14} />
+
+                                <div className="col-span-2 flex justify-end items-center gap-3">
+                                  <button onClick={() => { setReporte(item.reporte_json); setNombreCuenta(item.nombre_cuenta || "Sin nombre"); setSubVistaReporte("diagnostico"); setVista("reporte_lectura"); }} className="text-[10px] uppercase tracking-widest font-bold text-[#8A968C] border border-[#2C352E] hover:text-[#E8EBE4] hover:bg-[#2C352E] px-3 py-1.5 rounded transition-colors">
+                                    Ver PDF
                                   </button>
-                                  <button onClick={() => borrarAuditoria(item.id)} className="text-slate-500 hover:text-red-400 transition-colors p-2 rounded-lg hover:bg-red-500/10" title="Eliminar auditoría">
-                                    <Trash2 size={18} />
+                                  <button onClick={() => borrarAuditoria(item.id)} className="text-[#8A968C] hover:text-[#E66767] transition-colors p-1" title="Eliminar">
+                                    <Trash2 size={14} />
                                   </button>
                                 </div>
                               </div>
@@ -1539,78 +1390,81 @@ function AuditorDashboard() {
                   </div>
                 )}
 
+                {/* VISTA: CONFIGURACIÓN / PERFIL */}
                 {vista === "perfil" && (
-                  <div className="animate-fade-custom bg-white/5 border border-white/10 backdrop-blur-2xl p-10 rounded-[2rem] shadow-2xl mx-auto print:hidden relative z-10">
-                    <div className="flex items-center gap-4 mb-8">
-                       <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-white border border-white/10"><Settings size={24} /></div>
+                  <div className="animate-fade-custom bg-[#1A1F1B] border border-[#2C352E] p-10 rounded-2xl shadow-xl max-w-4xl mx-auto print:hidden relative z-10">
+                    <div className="flex items-center gap-4 mb-8 pb-6 border-b border-[#2C352E]">
+                       <div className="w-10 h-10 bg-[#2C352E] rounded-xl flex items-center justify-center text-[#E8EBE4]"><Settings size={20} /></div>
                        <div>
-                          <h2 className="text-3xl font-bold text-white">{t[idioma].configuracion}</h2>
-                          <p className="text-slate-400 mt-1">{t[idioma].persPdf}</p>
+                          <h2 className="text-xl font-bold text-[#E8EBE4]">{t[idioma].configuracion}</h2>
+                          <p className="text-[#8A968C] text-xs mt-1">{t[idioma].persPdf}</p>
                        </div>
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                       <div className="space-y-6">
-                        <h3 className="text-lg font-bold text-[#FEAFAE] flex items-center gap-2 border-b border-white/5 pb-2"><Building2 size={18}/> {t[idioma].marcaBlanca}</h3>
-                        <div><label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wide">{t[idioma].nomAgencia}</label><input type="text" className="w-full p-4 bg-black/20 border border-white/10 rounded-xl text-white focus:border-[#FEAFAE] focus:outline-none transition-all" value={agenciaNombre} onChange={(e) => setAgenciaNombre(e.target.value)} /></div>
-                        <div><label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wide">{t[idioma].sitioWeb}</label><input type="text" placeholder="Ej: www.tuagencia.com" className="w-full p-4 bg-black/20 border border-white/10 rounded-xl text-white focus:border-[#FEAFAE] focus:outline-none transition-all" value={agenciaWeb} onChange={(e) => setAgenciaWeb(e.target.value)} /></div>
+                        <h3 className="text-[10px] font-bold text-[#8A968C] uppercase tracking-widest mb-4">Marca Blanca Visual</h3>
+                        <div><label className="block text-[10px] font-bold text-[#8A968C] mb-2 uppercase tracking-widest">{t[idioma].nomAgencia}</label><input type="text" className="w-full p-3.5 bg-[#131714] border border-[#2C352E] rounded-xl text-[#E8EBE4] focus:border-[#8A968C] focus:outline-none transition-all text-sm" value={agenciaNombre} onChange={(e) => setAgenciaNombre(e.target.value)} /></div>
+                        <div><label className="block text-[10px] font-bold text-[#8A968C] mb-2 uppercase tracking-widest">{t[idioma].sitioWeb}</label><input type="text" placeholder="Ej: www.tuagencia.com" className="w-full p-3.5 bg-[#131714] border border-[#2C352E] rounded-xl text-[#E8EBE4] focus:border-[#8A968C] focus:outline-none transition-all text-sm" value={agenciaWeb} onChange={(e) => setAgenciaWeb(e.target.value)} /></div>
                         <div>
-                          <label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wide">{t[idioma].logoPdf}</label>
-                          <div className="flex items-center gap-6 p-4 border border-white/10 rounded-xl bg-black/20">
-                            {agenciaLogo ? <img src={agenciaLogo} alt="Logo" className="w-16 h-16 object-contain rounded-xl bg-white p-2" /> : <div className="w-16 h-16 bg-white/5 rounded-xl flex items-center justify-center text-slate-500 text-xs text-center p-2 border border-dashed border-white/20">{t[idioma].subeLogo}</div>}
-                            <div className="flex-1"><input type="file" accept="image/*" onChange={subirLogo} disabled={uploading} className="w-full text-sm text-slate-400 cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-white/10 file:text-white hover:file:bg-white/20 transition-all" /></div>
+                          <label className="block text-[10px] font-bold text-[#8A968C] mb-2 uppercase tracking-widest">{t[idioma].logoPdf}</label>
+                          <div className="flex items-center gap-6 p-4 border border-[#2C352E] rounded-xl bg-[#131714]">
+                            {agenciaLogo ? <img src={agenciaLogo} alt="Logo" className="w-12 h-12 object-contain rounded bg-white p-1" /> : <div className="w-12 h-12 bg-[#2C352E] rounded flex items-center justify-center text-[#8A968C] text-[9px] uppercase font-bold text-center border border-dashed border-[#8A968C]">Sube</div>}
+                            <div className="flex-1"><input type="file" accept="image/*" onChange={subirLogo} disabled={uploading} className="w-full text-xs text-[#8A968C] cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-[10px] file:uppercase file:tracking-widest file:font-bold file:bg-[#2C352E] file:text-[#E8EBE4] hover:file:bg-[#8A968C] transition-all" /></div>
                           </div>
                         </div>
-                        <div><label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wide">{t[idioma].piePagina}</label><textarea className="w-full h-20 p-4 bg-black/20 border border-white/10 rounded-xl text-white text-sm focus:border-[#FEAFAE] focus:outline-none transition-all resize-none" value={agenciaPie} onChange={(e) => setAgenciaPie(e.target.value)} /></div>
+                        <div><label className="block text-[10px] font-bold text-[#8A968C] mb-2 uppercase tracking-widest">{t[idioma].piePagina}</label><textarea className="w-full h-20 p-3.5 bg-[#131714] border border-[#2C352E] rounded-xl text-[#E8EBE4] text-sm focus:border-[#8A968C] focus:outline-none transition-all resize-none" value={agenciaPie} onChange={(e) => setAgenciaPie(e.target.value)} /></div>
                       </div>
 
                       <div className="space-y-6">
-                        <h3 className="text-lg font-bold text-[#FEAFAE] flex items-center gap-2 border-b border-white/5 pb-2"><LayoutPanelLeft size={18}/> {t[idioma].preferencias}</h3>
+                        <h3 className="text-[10px] font-bold text-[#8A968C] uppercase tracking-widest mb-4">Preferencias de Trabajo</h3>
                         <div>
-                          <label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wide">{t[idioma].monedaDef}</label>
-                          <div className="relative"><select className="w-full p-4 bg-black/20 border border-white/10 rounded-xl text-white focus:border-[#FEAFAE] focus:outline-none transition-all appearance-none cursor-pointer" value={moneda} onChange={(e) => setMoneda(e.target.value)}><option value="USD ($)" className="bg-[#0f0f13]">Dólares USD ($)</option><option value="EUR (€)" className="bg-[#0f0f13]">Euros EUR (€)</option><option value="ARS ($)" className="bg-[#0f0f13]">Pesos Argentinos ARS ($)</option><option value="MXN ($)" className="bg-[#0f0f13]">Pesos Mexicanos MXN ($)</option></select><ChevronDown size={18} className="absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400 pointer-events-none" /></div>
+                          <label className="block text-[10px] font-bold text-[#8A968C] mb-2 uppercase tracking-widest">{t[idioma].monedaDef}</label>
+                          <div className="relative"><select className="w-full p-3.5 bg-[#131714] border border-[#2C352E] rounded-xl text-[#E8EBE4] focus:border-[#8A968C] focus:outline-none transition-all appearance-none cursor-pointer text-sm" value={moneda} onChange={(e) => setMoneda(e.target.value)}><option value="USD ($)">Dólares USD ($)</option><option value="EUR (€)">Euros EUR (€)</option><option value="ARS ($)">Pesos Argentinos ARS ($)</option><option value="MXN ($)">Pesos Mexicanos MXN ($)</option></select><ChevronDown size={16} className="absolute right-4 top-1/2 transform -translate-y-1/2 text-[#8A968C] pointer-events-none" /></div>
                         </div>
                         <div>
-                          <label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wide">{t[idioma].metricaDef}</label>
-                          <div className="relative"><select className="w-full p-4 bg-black/20 border border-white/10 rounded-xl text-white focus:border-[#FEAFAE] focus:outline-none transition-all appearance-none cursor-pointer" value={metrica} onChange={(e) => setMetrica(e.target.value)}><option value="ROAS" className="bg-[#0f0f13]">ROAS (Retorno de Inversión)</option><option value="CPA" className="bg-[#0f0f13]">CPA (Costo por Adquisición)</option><option value="ROI" className="bg-[#0f0f13]">ROI</option></select><ChevronDown size={18} className="absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400 pointer-events-none" /></div>
+                          <label className="block text-[10px] font-bold text-[#8A968C] mb-2 uppercase tracking-widest">{t[idioma].metricaDef}</label>
+                          <div className="relative"><select className="w-full p-3.5 bg-[#131714] border border-[#2C352E] rounded-xl text-[#E8EBE4] focus:border-[#8A968C] focus:outline-none transition-all appearance-none cursor-pointer text-sm" value={metrica} onChange={(e) => setMetrica(e.target.value)}><option value="ROAS">ROAS (Retorno de Inversión)</option><option value="CPA">CPA (Costo por Adquisición)</option><option value="ROI">ROI</option></select><ChevronDown size={16} className="absolute right-4 top-1/2 transform -translate-y-1/2 text-[#8A968C] pointer-events-none" /></div>
                         </div>
                       </div>
                     </div>
-                    <div className="border-t border-white/5 mt-10 pt-8">
-                      <button onClick={guardarAjustesAgencia} disabled={loading || uploading} className="w-full md:w-auto md:px-12 text-black px-8 py-4 rounded-xl font-bold hover:scale-[1.02] disabled:opacity-50 transition-all shadow-lg mx-auto block" style={melocotonGradient}>{loading ? t[idioma].guardando : t[idioma].guardarAj}</button>
+                    <div className="border-t border-[#2C352E] mt-10 pt-6">
+                      <button onClick={guardarAjustesAgencia} disabled={loading || uploading} className="w-full md:w-auto md:px-8 text-[#262B27] bg-[#F3C3B2] px-6 py-3 rounded-xl font-bold text-sm hover:bg-[#eab3a1] disabled:opacity-50 transition-colors shadow-sm">{loading ? t[idioma].guardando : t[idioma].guardarAj}</button>
                     </div>
                   </div>
                 )}
 
+                {/* VISTA: FACTURACIÓN */}
                 {vista === "facturacion" && (
-                  <div className="animate-fade-custom bg-white/5 border border-white/10 backdrop-blur-2xl p-10 rounded-[2rem] shadow-2xl max-w-2xl mx-auto print:hidden relative z-10">
-                    <div className="flex items-center gap-4 mb-8">
-                       <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-white border border-white/10"><CreditCard size={24} /></div>
+                  <div className="animate-fade-custom bg-[#1A1F1B] border border-[#2C352E] p-10 rounded-2xl shadow-xl max-w-2xl mx-auto print:hidden relative z-10">
+                    <div className="flex items-center gap-4 mb-8 pb-6 border-b border-[#2C352E]">
+                       <div className="w-10 h-10 bg-[#2C352E] rounded-xl flex items-center justify-center text-[#E8EBE4]"><CreditCard size={20} /></div>
                        <div>
-                          <h2 className="text-3xl font-bold text-white">{t[idioma].facturacionTitulo}</h2>
-                          <p className="text-slate-400 mt-1">{t[idioma].facturacionDesc}</p>
+                          <h2 className="text-xl font-bold text-[#E8EBE4]">{t[idioma].facturacionTitulo}</h2>
+                          <p className="text-[#8A968C] text-xs mt-1">{t[idioma].facturacionDesc}</p>
                        </div>
                     </div>
-                    <div className="bg-black/20 border border-white/10 rounded-2xl p-6 mb-6 flex justify-between items-center">
+                    <div className="bg-[#131714] border border-[#2C352E] rounded-xl p-6 mb-6 flex justify-between items-center">
                       <div>
-                        <p className="text-sm font-bold text-slate-400 uppercase tracking-wide mb-1">{t[idioma].planActual}</p>
+                        <p className="text-[10px] font-bold text-[#8A968C] uppercase tracking-widest mb-2">{t[idioma].planActual}</p>
                         <div className="flex items-center gap-3">
-                          <span className="text-3xl font-black text-white">{perfil?.plan === 'pro' ? 'Mora Pro' : 'Mora Free'}</span>
-                          <span className="px-3 py-1 rounded-full text-xs font-bold bg-green-500/20 text-green-400 border border-green-500/20">{t[idioma].activa}</span>
+                          <span className="text-2xl font-black text-[#E8EBE4]">{perfil?.plan === 'pro' ? 'Mora Pro' : 'Mora Free'}</span>
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#99CDD8]/10 text-[#99CDD8] uppercase tracking-widest">{t[idioma].activa}</span>
                         </div>
                       </div>
                     </div>
-                    <button className="w-full text-slate-300 bg-white/5 border border-white/10 px-8 py-4 rounded-xl font-bold hover:bg-white/10 transition-all shadow-lg mt-2 flex justify-center items-center gap-2 cursor-not-allowed opacity-80"><CreditCard size={20} /> {t[idioma].gestionarStripe} <span className="text-[#FFA4BD] text-xs font-black">{t[idioma].pronto}</span></button>
+                    <button className="w-full text-[#E8EBE4] bg-[#2C352E] px-6 py-3.5 rounded-xl text-sm font-bold transition-colors mt-2 flex justify-center items-center gap-2 cursor-not-allowed opacity-70"><CreditCard size={16} /> {t[idioma].gestionarStripe} <span className="text-[#F3C3B2] text-[9px] uppercase tracking-widest ml-2">{t[idioma].pronto}</span></button>
                   </div>
                 )}
 
+                {/* VISTA: FEEDBACK */}
                 {vista === "feedback" && (
-                  <div className="animate-fade-custom bg-white/5 border border-white/10 backdrop-blur-2xl p-10 rounded-[2rem] shadow-2xl max-w-2xl mx-auto text-center print:hidden relative z-10">
-                    <div className="flex justify-center mb-6"><div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center text-white border border-white/10"><MessageSquare size={32} /></div></div>
-                    <h2 className="text-3xl font-bold mb-3 text-white">{t[idioma].ayudanos}</h2>
-                    <p className="text-slate-400 mb-8 font-medium">{t[idioma].bug}</p>
-                    <textarea className="w-full h-32 p-4 bg-black/20 border border-white/10 rounded-2xl mb-6 text-white focus:border-[#FEAFAE] focus:outline-none resize-none transition-all" placeholder={t[idioma].escribiSug} value={mensajeFeedback} onChange={(e) => setMensajeFeedback(e.target.value)} />
-                    <button onClick={mandarFeedback} disabled={enviandoFeedback || !mensajeFeedback} className="w-full text-black px-8 py-4 rounded-xl font-bold disabled:opacity-50 transition-all shadow-lg hover:scale-[1.02]" style={melocotonGradient}>{enviandoFeedback ? t[idioma].enviando : t[idioma].enviarSug}</button>
+                  <div className="animate-fade-custom bg-[#1A1F1B] border border-[#2C352E] p-10 rounded-2xl shadow-xl max-w-2xl mx-auto text-center print:hidden relative z-10">
+                    <div className="flex justify-center mb-6"><div className="w-12 h-12 bg-[#2C352E] rounded-xl flex items-center justify-center text-[#E8EBE4]"><MessageSquare size={24} /></div></div>
+                    <h2 className="text-xl font-bold mb-2 text-[#E8EBE4]">{t[idioma].ayudanos}</h2>
+                    <p className="text-[#8A968C] text-sm mb-8 font-medium">{t[idioma].bug}</p>
+                    <textarea className="w-full h-32 p-4 bg-[#131714] border border-[#2C352E] rounded-xl mb-6 text-[#E8EBE4] focus:border-[#F3C3B2] focus:outline-none resize-none transition-all text-sm" placeholder={t[idioma].escribiSug} value={mensajeFeedback} onChange={(e) => setMensajeFeedback(e.target.value)} />
+                    <button onClick={mandarFeedback} disabled={enviandoFeedback || !mensajeFeedback} className="w-full text-[#262B27] bg-[#F3C3B2] hover:bg-[#eab3a1] px-6 py-3.5 rounded-xl font-bold text-sm disabled:opacity-50 transition-colors">{enviandoFeedback ? t[idioma].enviando : t[idioma].enviarSug}</button>
                   </div>
                 )}
 
@@ -1620,32 +1474,32 @@ function AuditorDashboard() {
         )}
       </div>
 
-      {/* MODAL DE CONFIRMACIÓN DE AUTO-APPLY */}
+      {/* MODAL CONFIRMACIÓN AUTO-APPLY */}
       {mostrarConfirmacion && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 print:hidden">
-          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm cursor-pointer" onClick={() => setMostrarConfirmacion(false)}></div>
-          <div className="bg-[#0f0f13] border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.8)] rounded-3xl w-full max-w-md relative z-10 animate-fade-custom overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-500 to-orange-500"></div>
+          <div className="absolute inset-0 bg-[#131714]/90 backdrop-blur-sm cursor-pointer" onClick={() => setMostrarConfirmacion(false)}></div>
+          <div className="bg-[#1A1F1B] border border-[#2C352E] shadow-2xl rounded-2xl w-full max-w-md relative z-10 animate-fade-custom overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-1 bg-[#EAB308]"></div>
             <div className="p-6 md:p-8">
               <div className="flex items-center gap-4 mb-6">
-                <div className="w-12 h-12 rounded-2xl bg-red-500/10 flex items-center justify-center text-red-400 border border-red-500/20 flex-shrink-0">
-                  <AlertTriangle size={24} />
+                <div className="w-10 h-10 rounded-xl bg-[#EAB308]/10 flex items-center justify-center text-[#EAB308] flex-shrink-0">
+                  <AlertTriangle size={20} />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-white leading-tight">Confirmar Acción</h3>
-                  <p className="text-sm text-slate-400 mt-1">Conexión con Google Ads</p>
+                  <h3 className="text-lg font-bold text-[#E8EBE4] leading-tight">Confirmar Acción</h3>
+                  <p className="text-xs text-[#8A968C] mt-1">Conexión con Google Ads</p>
                 </div>
               </div>
-              <p className="text-slate-300 text-sm leading-relaxed mb-8">
-                <strong className="text-white">⚠️ ATENCIÓN:</strong> Estás por ejecutar cambios directos en el presupuesto y estado de las campañas.<br/><br/>
+              <p className="text-[#8A968C] text-sm leading-relaxed mb-8">
+                <strong className="text-[#E8EBE4]">⚠️ ATENCIÓN:</strong> Estás por ejecutar cambios directos en el presupuesto y estado de las campañas.<br/><br/>
                 ¿Confirmás que revisaste el impacto de esta acción y deseás aplicar los cambios?
               </p>
               <div className="flex flex-col sm:flex-row gap-3">
-                <button onClick={() => setMostrarConfirmacion(false)} className="px-5 py-3 rounded-xl font-bold text-sm text-slate-300 bg-white/5 hover:bg-white/10 transition-colors border border-white/10 w-full">
+                <button onClick={() => setMostrarConfirmacion(false)} className="px-5 py-2.5 rounded-lg font-bold text-xs text-[#E8EBE4] bg-[#2C352E] hover:bg-[#8A968C] transition-colors w-full uppercase tracking-widest">
                   Cancelar
                 </button>
-                <button onClick={aplicarCambios} className="px-5 py-3 rounded-xl font-bold text-sm text-white transition-all shadow-lg bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 w-full flex justify-center items-center gap-2">
-                  <Sparkles size={16} /> Aplicar
+                <button onClick={aplicarCambios} className="px-5 py-2.5 rounded-lg font-bold text-xs text-[#262B27] bg-[#F3C3B2] hover:bg-[#eab3a1] transition-colors w-full flex justify-center items-center gap-2 uppercase tracking-widest">
+                  <Sparkles size={14} /> Aplicar
                 </button>
               </div>
             </div>
@@ -1653,44 +1507,35 @@ function AuditorDashboard() {
         </div>
       )}
 
-      {/* TOAST DE DESHACER (UNDO) */}
+      {/* TOAST UNDO */}
       {toastState.show && (
-        <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-[120] bg-[#0f0f13] border border-white/10 shadow-[0_10px_40px_rgba(0,0,0,0.5)] rounded-2xl overflow-hidden flex flex-col w-80 animate-fade-custom">
-           <div className="p-4 flex justify-between items-center bg-white/5">
+        <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-[120] bg-[#1A1F1B] border border-[#2C352E] shadow-2xl rounded-xl overflow-hidden flex flex-col w-80 animate-fade-custom">
+           <div className="p-4 flex justify-between items-center">
               <div className="flex items-center gap-3">
-                 {toastState.status === 'success' && <CheckCircle2 className="text-green-400" size={20} />}
-                 {toastState.status === 'undoing' && <RefreshCcw className="text-yellow-400 animate-spin" size={20} />}
-                 {toastState.status === 'reverted' && <Undo2 className="text-slate-400" size={20} />}
+                 {toastState.status === 'success' && <CheckCircle2 className="text-[#99CDD8]" size={18} />}
+                 {toastState.status === 'undoing' && <RefreshCcw className="text-[#EAB308] animate-spin" size={18} />}
+                 {toastState.status === 'reverted' && <Undo2 className="text-[#8A968C]" size={18} />}
                  
                  <div>
-                    <p className="text-sm font-bold text-white">
+                    <p className="text-xs font-bold text-[#E8EBE4]">
                       {toastState.status === 'success' ? 'Cambios aplicados.' : 
                        toastState.status === 'undoing' ? 'Revertiendo...' : 'Cambios revertidos.'}
                     </p>
-                    {toastState.status === 'success' && <p className="text-[10px] text-slate-400 font-medium">Permanentes en {toastState.timeLeft}s</p>}
+                    {toastState.status === 'success' && <p className="text-[9px] text-[#8A968C] font-medium uppercase tracking-widest mt-0.5">Permanentes en {toastState.timeLeft}s</p>}
                  </div>
               </div>
               {toastState.status === 'success' && (
-                <button onClick={deshacerCambios} className="text-[#FEAFAE] hover:text-white font-bold text-xs uppercase tracking-wider transition-colors px-3 py-1.5 bg-[#FEAFAE]/10 rounded hover:bg-[#FEAFAE]/20">
+                <button onClick={deshacerCambios} className="text-[#F3C3B2] hover:text-[#E8EBE4] font-bold text-[10px] uppercase tracking-widest transition-colors px-2 py-1 bg-[#F3C3B2]/10 rounded">
                    Deshacer
                 </button>
               )}
            </div>
            {toastState.status === 'success' && (
-              <div className="w-full bg-white/5 h-1">
-                 <div 
-                   className="bg-[#FEAFAE] h-1 transition-all duration-1000 ease-linear" 
-                   style={{ width: `${(toastState.timeLeft / 15) * 100}%` }}
-                 ></div>
+              <div className="w-full bg-[#131714] h-1">
+                 <div className="bg-[#99CDD8] h-1 transition-all duration-1000 ease-linear" style={{ width: `${(toastState.timeLeft / 15) * 100}%` }}></div>
               </div>
            )}
         </div>
-      )}
-
-      {session && (
-        <button onClick={() => { setVista("feedback"); setReporte(null); setMenuPerfil(false); }} className="fixed bottom-8 right-8 z-50 bg-white/10 text-white px-5 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 transition-transform flex items-center gap-2 border border-white/20 print:hidden backdrop-blur-md">
-          <MessageSquare size={18} /> {t[idioma].feedback}
-        </button>
       )}
     </>
   );
