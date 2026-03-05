@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { SessionProvider, signIn, signOut, useSession } from "next-auth/react";
 import { createClient } from "@supabase/supabase-js";
-import Link from "next/link"; // <-- IMPORTACIÓN CLAVE DE NEXT.JS
+import Link from "next/link";
 import { 
   Target, Users, Building2, MessageSquare, LogOut, ChevronDown, 
   Zap, AlertTriangle, CheckCircle2, CreditCard, Settings, 
@@ -79,7 +79,8 @@ function TiltWrapper({ children }: { children: React.ReactNode }) {
   );
 }
 
-const WireframeBackground = () => {
+// --- FONDO MEJORADO: MOTOR ORBITAL 3D (MODELO ATÓMICO CON ESTELAS) ---
+const OrbitalBackground = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -93,66 +94,130 @@ const WireframeBackground = () => {
     canvas.width = width;
     canvas.height = height;
 
-    const nodes: number[][] = [];
-    const radius = width > 1024 ? 400 : 250; 
+    const fov = 800;
+    let time = 0;
 
-    for (let i = 0; i <= 12; i++) {
-      let lat = Math.PI * i / 12;
-      for (let j = 0; j <= 24; j++) {
-        let lon = 2 * Math.PI * j / 24;
-        let x = radius * Math.sin(lat) * Math.cos(lon);
-        let y = radius * Math.sin(lat) * Math.sin(lon);
-        let z = radius * Math.cos(lat);
-        nodes.push([x, y, z]);
-      }
-    }
+    // Convertimos un color hex a rgb para manejar la opacidad de la estela
+    const hexToRgb = (hex: string) => {
+      const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+      return result ? `${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}` : '0,0,0';
+    };
 
-    let angleX = 0;
-    let angleY = 0;
+    // Configuración de los Anillos Orbitales (3 interiores y 1 exterior gigante)
+    const rings = [
+      { rx: 280, ry: 100, tiltX: 0.2, tiltY: 0.5, speed: 0.005, colorRGB: hexToRgb(pastelColors.blue), points: [{angle: 0}, {angle: Math.PI}, {angle: Math.PI/2}], trails: [[], [], []] },
+      { rx: 320, ry: 130, tiltX: -0.4, tiltY: -0.3, speed: -0.004, colorRGB: hexToRgb(pastelColors.peach), points: [{angle: Math.PI/3}, {angle: Math.PI*1.5}], trails: [[], []] },
+      { rx: 240, ry: 90, tiltX: 0.6, tiltY: -0.6, speed: 0.006, colorRGB: hexToRgb(pastelColors.mint), points: [{angle: 0}, {angle: Math.PI/1.5}, {angle: Math.PI*1.2}], trails: [[], [], []] },
+      { rx: 600, ry: 200, tiltX: -0.1, tiltY: 0.1, speed: 0.002, colorRGB: hexToRgb(pastelColors.sage), points: [{angle: 0}, {angle: Math.PI}], trails: [[], []] } // Exterior
+    ];
+
+    // Función matemática para proyectar 3D a 2D en el Canvas
+    const project3D = (x0: number, y0: number, z0: number, tiltX: number, tiltY: number, cx: number, cy: number) => {
+      // Rotación en X
+      let y1 = y0 * Math.cos(tiltX) - z0 * Math.sin(tiltX);
+      let z1 = y0 * Math.sin(tiltX) + z0 * Math.cos(tiltX);
+      // Rotación en Y
+      let x2 = x0 * Math.cos(tiltY) + z1 * Math.sin(tiltY);
+      let z2 = -x0 * Math.sin(tiltY) + z1 * Math.cos(tiltY);
+
+      let scale = fov / (fov + z2);
+      let x = cx + x2 * scale;
+      let y = cy + y1 * scale;
+
+      // Opacidad basada en la profundidad (Eje Z) - se desvanece al ir atrás
+      let alpha = Math.max(0.1, Math.min(1, (z2 + 500) / 1000));
+
+      return { x, y, scale, alpha, origX: x2, origY: y1, origZ: z2 };
+    };
+
     let animationFrameId: number;
 
     const render = () => {
       ctx.clearRect(0, 0, width, height);
-      angleX += 0.001;
-      angleY += 0.002;
+      time += 0.02;
 
-      const centerX = width * 0.75;
-      const centerY = height * 0.5;
+      // Posición del centro (Desplazado a la derecha como en tu mockup)
+      const cx = width > 1024 ? width * 0.7 : width * 0.5;
+      const cy = height * 0.5;
 
-      ctx.strokeStyle = `rgba(38, 43, 39, 0.15)`; 
-      ctx.lineWidth = 0.8; 
+      // 1. Dibujar Nodo Central (Pulso IA)
+      const centerScale = 1 + Math.sin(time * 2) * 0.15;
+      ctx.shadowBlur = 30;
+      ctx.shadowColor = pastelColors.mint;
+      ctx.fillStyle = pastelColors.mint;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 6 * centerScale, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0; // Resetear sombra
 
-      const projectedNodes = nodes.map(node => {
-        let x = node[0] * Math.cos(angleY) - node[2] * Math.sin(angleY);
-        let z = node[0] * Math.sin(angleY) + node[2] * Math.cos(angleY);
-        let y = node[1];
+      let allPoints: any[] = [];
 
-        let y2 = y * Math.cos(angleX) - z * Math.sin(angleX);
-        let z2 = y * Math.sin(angleX) + z * Math.cos(angleX);
-        x = x; y = y2; z = z2;
+      // 2. Procesar Anillos
+      rings.forEach((ring: any) => {
+        // Dibujar la elipse de la órbita
+        ctx.beginPath();
+        ctx.strokeStyle = `rgba(${hexToRgb(pastelColors.textMuted)}, 0.08)`;
+        ctx.lineWidth = 1;
+        for (let a = 0; a <= Math.PI * 2; a += 0.1) {
+          let p = project3D(ring.rx * Math.cos(a), ring.ry * Math.sin(a), 0, ring.tiltX, ring.tiltY, cx, cy);
+          if (a === 0) ctx.moveTo(p.x, p.y);
+          else ctx.lineTo(p.x, p.y);
+        }
+        ctx.closePath();
+        ctx.stroke();
 
-        const fov = 1000;
-        const scale = fov / (fov + z);
-        const x2d = (x * scale) + centerX;
-        const y2d = (y * scale) + centerY;
-        
-        return { x: x2d, y: y2d, scale: scale };
+        // Procesar puntos en la órbita
+        ring.points.forEach((pObj: any, i: number) => {
+          pObj.angle += ring.speed;
+          let proj = project3D(ring.rx * Math.cos(pObj.angle), ring.ry * Math.sin(pObj.angle), 0, ring.tiltX, ring.tiltY, cx, cy);
+          
+          allPoints.push({ ...proj, colorRGB: ring.colorRGB });
+
+          // Actualizar estela (Cometa)
+          ring.trails[i].unshift(proj);
+          if (ring.trails[i].length > 25) ring.trails[i].pop(); // Largo de la estela
+
+          // Dibujar estela
+          if (ring.trails[i].length > 1) {
+            ctx.beginPath();
+            for (let j = 0; j < ring.trails[i].length; j++) {
+              let tp = ring.trails[i][j];
+              // El final de la cola desaparece
+              let trailAlpha = (1 - j / 25) * tp.alpha * 0.8;
+              ctx.strokeStyle = `rgba(${ring.colorRGB}, ${trailAlpha})`;
+              ctx.lineWidth = 3 * tp.scale;
+              if (j === 0) ctx.moveTo(tp.x, tp.y);
+              else ctx.lineTo(tp.x, tp.y);
+            }
+            ctx.stroke();
+          }
+
+          // Dibujar el punto (Planeta)
+          ctx.fillStyle = `rgba(${ring.colorRGB}, ${proj.alpha})`;
+          ctx.beginPath();
+          ctx.arc(proj.x, proj.y, 4 * proj.scale, 0, Math.PI * 2);
+          ctx.fill();
+        });
       });
 
-      ctx.beginPath();
-      for (let i = 0; i < projectedNodes.length; i++) {
-        for (let j = i + 1; j < projectedNodes.length; j++) {
-           const dist = Math.sqrt(
-             Math.pow(projectedNodes[i].x - projectedNodes[j].x, 2) + 
-             Math.pow(projectedNodes[i].y - projectedNodes[j].y, 2)
-           );
-           if (dist < (radius * 0.35)) { 
-             ctx.moveTo(projectedNodes[i].x, projectedNodes[i].y);
-             ctx.lineTo(projectedNodes[j].x, projectedNodes[j].y);
-           }
+      // 3. Dibujar Conexiones Dinámicas (Sinapsis)
+      ctx.lineWidth = 0.5;
+      for (let i = 0; i < allPoints.length; i++) {
+        for (let j = i + 1; j < allPoints.length; j++) {
+          let p1 = allPoints[i];
+          let p2 = allPoints[j];
+          let dist = Math.sqrt(Math.pow(p1.origX - p2.origX, 2) + Math.pow(p1.origY - p2.origY, 2) + Math.pow(p1.origZ - p2.origZ, 2));
+
+          if (dist < 180) { // Distancia de umbral para conectar
+            let lineAlpha = (1 - dist / 180) * Math.min(p1.alpha, p2.alpha) * 0.4;
+            ctx.strokeStyle = `rgba(${p1.colorRGB}, ${lineAlpha})`;
+            ctx.beginPath();
+            ctx.moveTo(p1.x, p1.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.stroke();
+          }
         }
       }
-      ctx.stroke();
 
       animationFrameId = requestAnimationFrame(render);
     };
@@ -164,9 +229,10 @@ const WireframeBackground = () => {
     return () => { window.removeEventListener('resize', handleResize); cancelAnimationFrame(animationFrameId); };
   }, []);
 
-  return <canvas ref={canvasRef} className="fixed inset-0 w-full h-full pointer-events-none z-[1] print:hidden opacity-80" />;
+  return <canvas ref={canvasRef} className="fixed inset-0 w-full h-full pointer-events-none z-[1] print:hidden opacity-90" />;
 };
 
+// --- RED NEURAL OSCURA (Mantenida intacta para el Dashboard Logueado) ---
 const DashboardBackground = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -434,7 +500,6 @@ function AuditorDashboard() {
   const ultimaAuditoria = historial.length > 0 ? historial[0] : null;
   const fugasIndividuales = ultimaAuditoria?.reporte_json?.hallazgos?.graves_rojo?.length || 0;
 
-  // PANTALLA DE CARGA ACTUALIZADA AL MODO CLARO CON LOGO PULSANTE
   if (status === "loading") return (
     <div className="h-screen w-full flex justify-center items-center bg-[#FDE8D3]">
       <div className="w-16 h-16 rounded-2xl flex items-center justify-center font-black text-[#262B27] text-4xl shadow-lg bg-[#F3C3B2] animate-pulse">M</div>
@@ -473,13 +538,12 @@ function AuditorDashboard() {
 
       <div className={`flex h-screen w-full font-sans overflow-hidden print-container relative ${!session ? "bg-[#FDE8D3] selection:bg-[#F3C3B2] selection:text-[#262B27] text-[#262B27]" : "bg-[#0a0a0c] selection:bg-[#FEAFAE] selection:text-black text-slate-200"}`}>
         
-        {/* --- CAMBIO DE FONDO DINÁMICO --- */}
+        {/* --- NUEVO FONDO ORBITAL (Solo no logueados) --- */}
         {!session ? (
-          <WireframeBackground />
+          <OrbitalBackground />
         ) : (
           <DashboardBackground />
         )}
-        {/* ---------------------------------- */}
 
         {/* ========================================================================= */}
         {/* VISTA: LANDING PAGE (USUARIOS NO LOGUEADOS - TEMA CLARO Y PASTEL)         */}
