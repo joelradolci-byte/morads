@@ -15,19 +15,19 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// --- PALETA ANTIGUA (Se mantiene estrictamente para el Dashboard Logueado) ---
+// Paleta antigua (Mantenida para el Dashboard actual)
 const melocotonGradient = { background: "linear-gradient(90deg, #FEECE3 0%, #FCD5BF 25%, #FEAFAE 50%, #FFA4BD 75%, #FFA9CC 100%)" };
 const melocotonText = { background: "linear-gradient(90deg, #FEECE3 0%, #FCD5BF 25%, #FEAFAE 50%, #FFA4BD 75%, #FFA9CC 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" };
 
-// --- NUEVA PALETA PASTEL (Exclusiva para la Landing Page) ---
+// --- NUEVA PALETA PASTEL ---
 const pastelColors = {
-  bg: "#FDE8D3",       // Crema
-  textDark: "#262B27", // Casi Negro (Mejor contraste)
-  textMuted: "#657166",// Gris verdoso original
-  peach: "#F3C3B2",    // Melocotón
-  blue: "#99CDD8",     // Azul pálido
-  mint: "#DAEBE3",     // Menta
-  sage: "#CFD6C4"      // Salvia
+  bg: "#FDE8D3",       
+  textDark: "#262B27", 
+  textMuted: "#657166",
+  peach: "#F3C3B2",    
+  blue: "#99CDD8",     
+  mint: "#DAEBE3",     
+  sage: "#CFD6C4"      
 };
 
 function FadeInOnScroll({ children, delay = 0 }: { children: React.ReactNode, delay?: number }) {
@@ -46,7 +46,7 @@ function FadeInOnScroll({ children, delay = 0 }: { children: React.ReactNode, de
   }, []);
 
   return (
-    <div ref={domRef} className={`transition-all duration-1000 ease-out ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'}`} style={{ transitionDelay: `${delay}ms` }}>
+    <div ref={domRef} className={`transition-all duration-1000 ease-out ${isVisible ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-12 scale-95'}`} style={{ transitionDelay: `${delay}ms` }}>
       {children}
     </div>
   );
@@ -60,8 +60,8 @@ function TiltWrapper({ children }: { children: React.ReactNode }) {
     const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
     const x = (e.clientX - left) / width;
     const y = (e.clientY - top) / height;
-    const rotateX = (0.5 - y) * 15; 
-    const rotateY = (x - 0.5) * 15; 
+    const rotateX = (0.5 - y) * 10; 
+    const rotateY = (x - 0.5) * 10; 
     setTransition('transform 0.1s ease-out'); 
     setTransform(`perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.02, 1.02, 1.02)`);
   };
@@ -78,9 +78,8 @@ function TiltWrapper({ children }: { children: React.ReactNode }) {
   );
 }
 
-// --- FONDO 1: NUEVO FONDO PASTEL LÍQUIDO (Solo Landing Page) ---
-// Adiós puntitos y palitos. Hola esferas de luz orgánicas.
-const LiquidPastelBackground = () => {
+// --- NUEVO FONDO: OBJETO GEOMÉTRICO 3D (Wireframe Sphere) ---
+const WireframeBackground = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -94,51 +93,76 @@ const LiquidPastelBackground = () => {
     canvas.width = width;
     canvas.height = height;
 
-    const orbs: any[] = [];
-    const numOrbs = 6; // Pocas esferas, pero gigantes
-    const orbColors = [
-      `${pastelColors.peach}60`, // 60 = opacidad hex
-      `${pastelColors.blue}60`,
-      `${pastelColors.mint}60`,
-      `${pastelColors.sage}60`
-    ];
+    const nodes: number[][] = [];
+    const edges: number[][] = [];
+    const radius = width > 1024 ? 400 : 250; 
 
-    for (let i = 0; i < numOrbs; i++) {
-      orbs.push({
-        x: Math.random() * width,
-        y: Math.random() * height,
-        vx: (Math.random() - 0.5) * 0.8, // Movimiento muy lento
-        vy: (Math.random() - 0.5) * 0.8,
-        radius: Math.random() * 200 + 150, // Radios de 150px a 350px
-        color: orbColors[Math.floor(Math.random() * orbColors.length)]
-      });
+    // Crear puntos de una esfera
+    for (let i = 0; i <= 12; i++) {
+      let lat = Math.PI * i / 12;
+      for (let j = 0; j <= 24; j++) {
+        let lon = 2 * Math.PI * j / 24;
+        let x = radius * Math.sin(lat) * Math.cos(lon);
+        let y = radius * Math.sin(lat) * Math.sin(lon);
+        let z = radius * Math.cos(lat);
+        nodes.push([x, y, z]);
+      }
     }
 
+    let angleX = 0;
+    let angleY = 0;
     let animationFrameId: number;
 
     const render = () => {
       ctx.clearRect(0, 0, width, height);
+      angleX += 0.001;
+      angleY += 0.002;
 
-      for (let i = 0; i < orbs.length; i++) {
-        let p = orbs[i];
-        p.x += p.vx;
-        p.y += p.vy;
+      // Centro del objeto en la pantalla (hacia la derecha)
+      const centerX = width * 0.75;
+      const centerY = height * 0.5;
 
-        // Rebote en los bordes
-        if (p.x < -p.radius || p.x > width + p.radius) p.vx *= -1;
-        if (p.y < -p.radius || p.y > height + p.radius) p.vy *= -1;
+      ctx.strokeStyle = `${pastelColors.blue}40`; // Azul pastel muy tenue
+      ctx.lineWidth = 0.5;
 
-        // Dibujar el orbe líquido con un gradiente radial (esfuma los bordes)
-        const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.radius);
-        gradient.addColorStop(0, p.color);
-        gradient.addColorStop(1, 'rgba(253, 232, 211, 0)'); // Se funde con el fondo crema
+      const projectedNodes = nodes.map(node => {
+        // Rotación en Y
+        let x = node[0] * Math.cos(angleY) - node[2] * Math.sin(angleY);
+        let z = node[0] * Math.sin(angleY) + node[2] * Math.cos(angleY);
+        let y = node[1];
 
-        ctx.fillStyle = gradient;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-        ctx.fill();
+        // Rotación en X
+        let y2 = y * Math.cos(angleX) - z * Math.sin(angleX);
+        let z2 = y * Math.sin(angleX) + z * Math.cos(angleX);
+        x = x;
+        y = y2;
+        z = z2;
+
+        // Proyección 3D a 2D simple
+        const fov = 1000;
+        const scale = fov / (fov + z);
+        const x2d = (x * scale) + centerX;
+        const y2d = (y * scale) + centerY;
+        
+        return { x: x2d, y: y2d, scale: scale };
+      });
+
+      // Dibujar lineas (Wireframe) uniendo puntos cercanos
+      ctx.beginPath();
+      for (let i = 0; i < projectedNodes.length; i++) {
+        for (let j = i + 1; j < projectedNodes.length; j++) {
+           const dist = Math.sqrt(
+             Math.pow(projectedNodes[i].x - projectedNodes[j].x, 2) + 
+             Math.pow(projectedNodes[i].y - projectedNodes[j].y, 2)
+           );
+           if (dist < (radius * 0.35)) { 
+             ctx.moveTo(projectedNodes[i].x, projectedNodes[i].y);
+             ctx.lineTo(projectedNodes[j].x, projectedNodes[j].y);
+           }
+        }
       }
-      
+      ctx.stroke();
+
       animationFrameId = requestAnimationFrame(render);
     };
 
@@ -158,210 +182,10 @@ const LiquidPastelBackground = () => {
     };
   }, []);
 
-  return <canvas ref={canvasRef} className="fixed inset-0 w-full h-full pointer-events-none z-[1] print:hidden opacity-80" />;
+  return <canvas ref={canvasRef} className="fixed inset-0 w-full h-full pointer-events-none z-[1] print:hidden opacity-60" />;
 };
 
-// --- FONDO 2: RED NEURAL OSCURA (Mantenida intacta para el Dashboard Logueado) ---
-const SpaceBackground = () => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const currentMouse = useRef({ x: -1000, y: -1000 });
-  const targetMouse = useRef({ x: -1000, y: -1000 });
-
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      targetMouse.current = { x: e.clientX, y: e.clientY };
-      if (currentMouse.current.x === -1000) {
-        currentMouse.current = { x: e.clientX, y: e.clientY };
-      }
-    };
-    window.addEventListener('mousemove', handleMouseMove);
-
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    let width = window.innerWidth;
-    let height = window.innerHeight;
-    canvas.width = width;
-    canvas.height = height;
-
-    const dustStars: any[] = [];
-    const nodes: any[] = [];
-    let shootingStars: any[] = [];
-
-    for (let i = 0; i < 150; i++) {
-      dustStars.push({
-        x: Math.random() * width,
-        y: Math.random() * height,
-        radius: Math.random() * 1.5,
-        opacity: Math.random(),
-        speed: (Math.random() - 0.5) * 0.1
-      });
-    }
-
-    const numNodes = Math.floor((width * height) / 12000); 
-    for (let i = 0; i < numNodes; i++) {
-      nodes.push({
-        x: Math.random() * width,
-        y: Math.random() * height,
-        vx: (Math.random() - 0.5) * 0.3,
-        vy: (Math.random() - 0.5) * 0.3,
-        radius: Math.random() * 1.5 + 0.5
-      });
-    }
-
-    let animationFrameId: number;
-
-    const render = () => {
-      ctx.clearRect(0, 0, width, height);
-
-      if (targetMouse.current.x !== -1000) {
-        currentMouse.current.x += (targetMouse.current.x - currentMouse.current.x) * 0.05;
-        currentMouse.current.y += (targetMouse.current.y - currentMouse.current.y) * 0.05;
-      }
-
-      const { x: mx, y: my } = currentMouse.current;
-      const centerX = width / 2;
-      const centerY = height / 2;
-      const offsetX = mx !== -1000 ? (mx - centerX) : 0;
-      const offsetY = my !== -1000 ? (my - centerY) : 0;
-
-      if (mx > 0 && my > 0) {
-        const scannerLight = ctx.createRadialGradient(mx, my, 0, mx, my, 400);
-        scannerLight.addColorStop(0, 'rgba(254, 175, 174, 0.05)');
-        scannerLight.addColorStop(1, 'rgba(10, 10, 12, 0)');
-        ctx.fillStyle = scannerLight;
-        ctx.fillRect(0, 0, width, height);
-      }
-
-      ctx.fillStyle = '#ffffff';
-      dustStars.forEach(star => {
-        star.y += star.speed;
-        star.x += star.speed;
-        if (star.y < 0) star.y = height;
-        if (star.y > height) star.y = 0;
-        if (star.x < 0) star.x = width;
-        if (star.x > width) star.x = 0;
-        
-        const px = star.x - offsetX * 0.02;
-        const py = star.y - offsetY * 0.02;
-
-        ctx.globalAlpha = star.opacity * 0.4;
-        ctx.beginPath();
-        ctx.arc(px, py, star.radius, 0, Math.PI * 2);
-        ctx.fill();
-      });
-      ctx.globalAlpha = 1;
-
-      ctx.fillStyle = 'rgba(254, 175, 174, 0.8)';
-      for (let i = 0; i < nodes.length; i++) {
-        let p = nodes[i];
-        p.x += p.vx;
-        p.y += p.vy;
-
-        if (p.x < 0 || p.x > width) p.vx *= -1;
-        if (p.y < 0 || p.y > height) p.vy *= -1;
-
-        const px = p.x - offsetX * 0.06;
-        const py = p.y - offsetY * 0.06;
-
-        ctx.beginPath();
-        ctx.arc(px, py, p.radius, 0, Math.PI * 2);
-        ctx.fill();
-
-        for (let j = i + 1; j < nodes.length; j++) {
-          let p2 = nodes[j];
-          const p2x = p2.x - offsetX * 0.06;
-          const p2y = p2.y - offsetY * 0.06;
-
-          let dx = p.x - p2.x;
-          let dy = p.y - p2.y;
-          let dist = Math.sqrt(dx * dx + dy * dy);
-
-          if (dist < 130) {
-            let mDx = px - mx;
-            let mDy = py - my;
-            let distToMouse = Math.sqrt(mDx * mDx + mDy * mDy);
-            
-            let interactiveAlpha = distToMouse < 200 ? 0.6 : 0.12; 
-            
-            ctx.strokeStyle = `rgba(254, 175, 174, ${(1 - dist / 130) * interactiveAlpha})`;
-            ctx.lineWidth = distToMouse < 200 ? 1.2 : 0.5; 
-
-            ctx.beginPath();
-            ctx.moveTo(px, py);
-            ctx.lineTo(p2x, p2y);
-            ctx.stroke();
-          }
-        }
-      }
-
-      if (Math.random() < 0.008) { 
-        const colors = ['#FFA9CC', '#FCD5BF', '#38BDF8', '#FBBF24', '#EF4444'];
-        const speed = Math.random() * 35 + 3; 
-        
-        shootingStars.push({
-          x: Math.random() * width * 1.5, 
-          y: Math.random() * height * -0.5,
-          length: Math.random() * 350 + 50, 
-          speed: speed,
-          opacity: 1,
-          color: colors[Math.floor(Math.random() * colors.length)]
-        });
-      }
-
-      for (let i = shootingStars.length - 1; i >= 0; i--) {
-        let s = shootingStars[i];
-        s.x -= s.speed * 0.8; 
-        s.y += s.speed; 
-        s.opacity -= (s.speed * 0.0008) + 0.005; 
-
-        if (s.opacity <= 0 || s.y > height + s.length) {
-          shootingStars.splice(i, 1);
-          continue;
-        }
-
-        const sx = s.x - offsetX * 0.1;
-        const sy = s.y - offsetY * 0.1;
-
-        const gradient = ctx.createLinearGradient(sx, sy, sx + s.length, sy - s.length);
-        gradient.addColorStop(0, `${s.color}${Math.floor(Math.max(0, s.opacity) * 255).toString(16).padStart(2, '0')}`); 
-        gradient.addColorStop(1, `${s.color}00`); 
-
-        ctx.strokeStyle = gradient;
-        ctx.lineWidth = Math.max(1, s.length / 60); 
-        ctx.lineCap = 'round';
-        ctx.beginPath();
-        ctx.moveTo(sx, sy);
-        ctx.lineTo(sx + s.length, sy - s.length);
-        ctx.stroke();
-      }
-
-      animationFrameId = requestAnimationFrame(render);
-    };
-
-    render();
-
-    const handleResize = () => {
-      width = window.innerWidth;
-      height = window.innerHeight;
-      canvas.width = width;
-      canvas.height = height;
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('resize', handleResize);
-      cancelAnimationFrame(animationFrameId);
-    };
-  }, []);
-
-  return <canvas ref={canvasRef} className="fixed inset-0 w-full h-full pointer-events-none z-[1] print:hidden opacity-90" />;
-};
-
-// --- FONDO 3: RED NEURAL LIMPIA (Para el Dashboard interno) ---
+// --- RED NEURAL OSCURA (Mantenida intacta para el Dashboard Logueado) ---
 const DashboardBackground = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -380,13 +204,7 @@ const DashboardBackground = () => {
     const numParticles = Math.floor((width * height) / 18000); 
 
     for (let i = 0; i < numParticles; i++) {
-      particles.push({
-        x: Math.random() * width,
-        y: Math.random() * height,
-        vx: (Math.random() - 0.5) * 0.2, 
-        vy: (Math.random() - 0.5) * 0.2,
-        radius: Math.random() * 1.2 + 0.4 
-      });
+      particles.push({ x: Math.random() * width, y: Math.random() * height, vx: (Math.random() - 0.5) * 0.2, vy: (Math.random() - 0.5) * 0.2, radius: Math.random() * 1.2 + 0.4 });
     }
 
     let animationFrameId: number;
@@ -398,9 +216,7 @@ const DashboardBackground = () => {
 
       for (let i = 0; i < particles.length; i++) {
         let p = particles[i];
-        p.x += p.vx;
-        p.y += p.vy;
-
+        p.x += p.vx; p.y += p.vy;
         if (p.x < 0 || p.x > width) p.vx *= -1;
         if (p.y < 0 || p.y > height) p.vy *= -1;
 
@@ -410,16 +226,12 @@ const DashboardBackground = () => {
 
         for (let j = i + 1; j < particles.length; j++) {
           let p2 = particles[j];
-          let dx = p.x - p2.x;
-          let dy = p.y - p2.y;
+          let dx = p.x - p2.x; let dy = p.y - p2.y;
           let dist = Math.sqrt(dx * dx + dy * dy);
 
           if (dist < 110) { 
-            ctx.beginPath();
-            ctx.moveTo(p.x, p.y);
-            ctx.lineTo(p2.x, p2.y);
-            ctx.lineWidth = (1 - dist / 110) * 0.7; 
-            ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p2.x, p2.y);
+            ctx.lineWidth = (1 - dist / 110) * 0.7; ctx.stroke();
           }
         }
       }
@@ -428,25 +240,12 @@ const DashboardBackground = () => {
 
     render();
 
-    const handleResize = () => {
-      width = window.innerWidth;
-      height = window.innerHeight;
-      canvas.width = width;
-      canvas.height = height;
-    };
-
+    const handleResize = () => { width = window.innerWidth; height = window.innerHeight; canvas.width = width; canvas.height = height; };
     window.addEventListener('resize', handleResize);
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      cancelAnimationFrame(animationFrameId);
-    };
+    return () => { window.removeEventListener('resize', handleResize); cancelAnimationFrame(animationFrameId); };
   }, []);
 
-  return (
-    <div className="fixed inset-0 w-full h-full pointer-events-none z-[1] print:hidden">
-      <canvas ref={canvasRef} className="absolute inset-0 w-full h-full opacity-50" />
-    </div>
-  );
+  return <div className="fixed inset-0 w-full h-full pointer-events-none z-[1] print:hidden"><canvas ref={canvasRef} className="absolute inset-0 w-full h-full opacity-50" /></div>;
 };
 
 
@@ -458,7 +257,6 @@ function AuditorDashboard() {
 
   const [presupuestoObjetivo, setPresupuestoObjetivo] = useState("");
   const [gastoActual, setGastoActual] = useState("");
-  
   const [conversiones, setConversiones] = useState("");
   const [cpaRoas, setCpaRoas] = useState("");
   const [tipoCampana, setTipoCampana] = useState("Búsqueda (Search)");
@@ -470,7 +268,6 @@ function AuditorDashboard() {
   
   const [historial, setHistorial] = useState<any[]>([]);
   const [cargandoHistorial, setCargandoHistorial] = useState(false);
-  
   const [filtroEstado, setFiltroEstado] = useState<"todos" | "critico" | "atencion" | "optimo">("todos");
   const [busqueda, setBusqueda] = useState(""); 
   
@@ -489,130 +286,29 @@ function AuditorDashboard() {
 
   const [mensajeFeedback, setMensajeFeedback] = useState("");
   const [enviandoFeedback, setEnviandoFeedback] = useState(false);
-  
   const [tareasCompletadas, setTareasCompletadas] = useState<number[]>([]);
-  
   const [mostrarConfirmacion, setMostrarConfirmacion] = useState(false);
   const [toastState, setToastState] = useState<{show: boolean, status: 'success' | 'undoing' | 'reverted', timeLeft: number}>({show: false, status: 'success', timeLeft: 15});
 
   const [modoPlan, setModoPlan] = useState<"agencia" | "individual">("agencia");
 
   const t = {
-    es: {
-      dashboard: "Dashboard", panelPrin: "Panel Principal", panelDesc: "Resumen del rendimiento global de tu agencia.",
-      saludG: "Salud Promedio", totAud: "Total Cuentas", fugasDet: "Fugas Críticas", oporMej: "Oportunidades",
-      ultAud: "Últimas Auditorías", actRec: "Actividad Reciente", verTodas: "Ver todas", generada: "Se auditó la cuenta", hace: "Hace",
-      afectaA: "Afecta principalmente a:", buscarGlobal: "Buscar cuenta por nombre...",
-      nueva: "Auditor IA", clientes: "Panel de Clientes",
-      reportes: "Reportes", feedback: "Sugerencias", configuracion: "Configuración General", facturacion: "Ver Facturación", salir: "Cerrar Sesión",
-      placeholderNombre: "Nombre del Cliente o Cuenta", btnAnalizar: "Ejecutar Auditoría", btnAnalizando: "Analizando métricas...", exportar: "Exportar a PDF",
-      score: "Score General", problemas: "Problemas Graves", mejoras: "Áreas Débiles", aciertos: "Puntos Fuertes",
-      tituloland: "Auditorías Nivel Agencia", h1land1: "Detectá fugas de dinero con", h1land2: "Inteligencia Artificial.",
-      pland1: "Conectá tu cuenta de Google Ads y dejá que nuestra Inteligencia Artificial audite tus campañas y genere reportes marca blanca en segundos.",
-      btncomenzar: "Comenzar Gratis", detalleCliente: "Detalle del Cliente", buzonSug: "Buzón de Sugerencias",
-      suscripcion: "Suscripción", activa: "Activa", renueva: "Renueva:",
-      ingresaDatos: "Ingresá los datos clave de la campaña para un análisis preciso.",
-      presupuestoObj: "Presupuesto Mensual", placeholderPres: "Ej: 1000",
-      gastoAct: "Gasto Actual (Hasta hoy)", placeholderGasto: "Ej: 450",
-      conversiones: "Conversiones", cparoas: "CPA o ROAS Actual", tipoCamp: "Tipo de Campaña", contexto: "Contexto y Notas del Cliente (Opcional)",
-      placeholderConv: "Ej: 120", placeholderContexto: "Ej: El cliente quiere enfocarse en vender zapatos de invierno. Notamos muchos clics de países irrelevantes.",
-      volver: "Volver al Panel", monitoreo: "Monitoreo de Cuentas", tenes: "Tenés", registradas: "auditorías registradas.",
-      buscar: "Buscar cliente...", todos: "Todos", criticos: "Críticos", atencion: "Atención", optimos: "Óptimos",
-      thCliente: "Cliente / Cuenta", thFecha: "Fecha", thEstado: "Estado IA", thTendencia: "Tendencia", thAccion: "Acción",
-      abrirAud: "Abrir Auditoría", sinCuentas: "No se encontraron clientes.", cuentaSinNombre: "Cuenta sin nombre",
-      persPdf: "Personalizá la identidad y las herramientas de tu agencia.", nomAgencia: "Nombre de la Agencia", logoPdf: "Logo (PDF)",
-      subeLogo: "Sube un logo", guardando: "Guardando...", guardarAj: "Guardar Ajustes",
-      ayudanos: "Ayudanos a mejorar Mora", bug: "¿Encontraste un bug o tenés una idea genial?", escribiSug: "Escribí tu sugerencia acá...", enviando: "Enviando...", enviarSug: "Enviar Sugerencia",
-      facturacionTitulo: "Suscripción y Pagos", facturacionDesc: "Gestioná tu plan actual y métodos de pago de forma segura.", planActual: "Tu Plan Actual", gestionarStripe: "Gestionar en Stripe", pronto: "(Próximamente)",
-      puntajeBasado: "Puntaje basado en rendimiento y estructura.",
-      marcaBlanca: "Marca Blanca Visual", preferencias: "Preferencias de Trabajo",
-      sitioWeb: "Website (Appears on PDF)", piePagina: "Pie de página legal (PDF)", monedaDef: "Moneda por defecto", metricaDef: "Métrica por defecto",
-      feat1Tit: "Auditoría en Segundos", feat1Desc: "La IA procesa cientos de métricas y detecta fugas de presupuesto al instante.",
-      feat2Tit: "Marca Blanca Total", feat2Desc: "Exportá PDFs impecables con tu logo, colores y sitio web listos para enviar al cliente.",
-      feat3Tit: "Historial y Tendencias", feat3Desc: "Monitoreá el progreso de todas tus cuentas con scores evolutivos y alertas tempranas.",
-      todoLoQueNecesitas: "Everything tu agencia necesita", planes: "Planes simples y transparentes", planFree: "Plan Starter", planPro: "Plan Agency",
-      btnUnete: "Unite a Mora hoy", login: "Iniciar sesión",
-      mockupTit: "Auditoría Finalizada", mockupScore: "Score de Salud", mockupCritico: "Fuga de Presupuesto", mockupCriticoDesc: "Detectamos $450/mes gastados en términos de búsqueda irrelevantes sin conversiones.", mockupOptimo: "Estructura Correcta", mockupOptimoDesc: "El seguimiento de conversiones está correctamente implementado en todas las campañas.",
-      confirmarBorrar: "¿Seguro que querés eliminar esta auditoría? Esta acción no se puede deshacer.",
-      notifTit: "Alertas del Guardián IA", notifVacio: "Todo en orden. No hay anomalías recientes.",
-      tabDiag: "Diagnóstico IA", tabCheck: "Plan de Acción", tabAvanzado: "Análisis Avanzado",
-      autoApply: "Corregir Ahora", msgAutoApply: "Para usar la ejecución en piloto automático (Auto-Apply), vinculá tu API de Google Ads en la sección de Integraciones. (Disponible próximamente)",
-      pacingTit: "Pacing de Presupuesto", pacingDesc: "Ritmo de gasto proyectado",
-      matrizTit: "Campaign Matrix", matrizDesc: "Distribución del gasto vs rendimiento",
-      escalar: "ESTRELLAS (Escalar)", apagar: "BASURA (Apagar)", observar: "DUDOSOS (Observar)", potenciales: "POTENCIALES (Testear)"
-    },
-    en: {
-      dashboard: "Dashboard", panelPrin: "Main Dashboard", panelDesc: "Global overview of your agency's performance.",
-      saludG: "Avg Health Score", totAud: "Total Accounts", fugasDet: "Critical Leaks", oporMej: "Opportunities",
-      ultAud: "Recent Audits", actRec: "Recent Activity", verTodas: "View all", generada: "Audit generated for", hace: "Ago",
-      afectaA: "Mainly affecting:", buscarGlobal: "Search account by name...",
-      nueva: "AI Auditor", clientes: "Client Dashboard",
-      reportes: "Reports", feedback: "Feedback", configuracion: "General Settings", facturacion: "Billing", salir: "Sign Out",
-      placeholderNombre: "Client or Account Name", btnAnalizar: "Run Audit", btnAnalizando: "Analyzing metrics...", exportar: "Export to PDF",
-      score: "Overall Score", problemas: "Critical Issues", mejoras: "Weak Areas", aciertos: "Strengths",
-      tituloland: "Agency-Level Audits", h1land1: "Detect money leaks with", h1land2: "Artificial Intelligence.",
-      pland1: "Connect your Google Ads account and let our AI audit your campaigns to generate white-label reports in seconds.",
-      btncomenzar: "Start for Free", detalleCliente: "Client Details", buzonSug: "Suggestion Box",
-      suscripcion: "Subscription", activa: "Active", renueva: "Renews:",
-      ingresaDatos: "Enter key campaign data for a precise analysis.",
-      presupuestoObj: "Target Monthly Budget", placeholderPres: "E.g. 1000",
-      gastoAct: "Current Spend (To date)", placeholderGasto: "E.g. 450",
-      conversiones: "Conversions", cparoas: "Current CPA or ROAS", tipoCamp: "Campaign Type", contexto: "Client Context & Notes (Optional)",
-      placeholderConv: "E.g. 120", placeholderContexto: "E.g. The client wants to focus on selling winter shoes. We noticed many clicks from irrelevant countries.",
-      volver: "Back to Dashboard", monitoreo: "Account Monitoring", tenes: "You have", registradas: "audits recorded.",
-      buscar: "Search client...", todos: "All", criticos: "Critical", atencion: "Warning", optimos: "Optimal",
-      thCliente: "Client / Account", thFecha: "Date", thEstado: "AI Status", thTendencia: "Trend", thAccion: "Action",
-      abrirAud: "Open Audit", sinCuentas: "No clients found.", cuentaSinNombre: "Unnamed Account",
-      persPdf: "Customize your agency's identity and workflow tools.", nomAgencia: "Agency Name", logoPdf: "Logo (PDF)",
-      subeLogo: "Upload logo", guardando: "Saving...", guardarAj: "Save Settings",
-      ayudanos: "Help us improve Mora", bug: "Found a bug or have a great idea?", escribiSug: "Write your suggestion here...", enviando: "Sending...", enviarSug: "Send Suggestion",
-      facturacionTitulo: "Subscription & Billing", facturacionDesc: "Manage your current plan and payment methods securely.", planActual: "Your Current Plan", gestionarStripe: "Manage in Stripe", pronto: "(Coming Soon)",
-      puntajeBasado: "Score based on performance and structure.",
-      marcaBlanca: "Visual White Label", preferencias: "Workflow Preferences",
-      sitioWeb: "Website (Appears on PDF)", piePagina: "Legal Footer (PDF)", monedaDef: "Default Currency", metricaDef: "Default Metric",
-      feat1Tit: "Audits in Seconds", feat1Desc: "Our AI processes hundreds of metrics and detects budget leaks instantly.",
-      feat2Tit: "Full White Label", feat2Desc: "Export flawless PDFs with your logo, colors, and website ready for your clients.",
-      feat3Tit: "History & Trends", feat3Desc: "Monitor the progress of all your accounts with evolutionary scores and early warnings.",
-      todoLoQueNecesitas: "Everything your agency needs", planes: "Simple & transparent pricing", planFree: "Starter Plan", planPro: "Agency Plan",
-      btnUnete: "Join Mora today", login: "Log In",
-      mockupTit: "Audit Completed", mockupScore: "Health Score", mockupCritico: "Budget Leak", mockupCriticoDesc: "We detected $450/mo spent on irrelevant search terms with 0 conversions.", mockupOptimo: "Correct Structure", mockupOptimoDesc: "Conversion tracking is correctly implemented across all active campaigns.",
-      confirmarBorrar: "Are you sure you want to delete this audit? This action cannot be undone.",
-      notifTit: "AI Guardian Alerts", notifVacio: "All clear. No recent anomalies.",
-      tabDiag: "AI Diagnosis", tabCheck: "Action Plan", tabAvanzado: "Advanced Analysis",
-      autoApply: "Auto-Apply", msgAutoApply: "To use the Auto-Apply execution, link your Google Ads API in the Integrations section. (Coming soon)",
-      pacingTit: "Budget Pacing", pacingDesc: "Projected spend rhythm",
-      matrizTit: "Campaign Matrix", matrizDesc: "Spend distribution vs performance",
-      escalar: "STARS (Scale)", apagar: "TRASH (Pause)", observar: "DOUBTFUL (Observe)", potenciales: "POTENCIALES (Test)"
-    }
+    es: { dashboard: "Dashboard", panelPrin: "Panel Principal", panelDesc: "Resumen del rendimiento global.", saludG: "Salud Promedio", totAud: "Total Cuentas", fugasDet: "Fugas Críticas", oporMej: "Oportunidades", ultAud: "Últimas Auditorías", actRec: "Actividad Reciente", verTodas: "Ver todas", generada: "Se auditó la cuenta", hace: "Hace", afectaA: "Afecta principalmente a:", buscarGlobal: "Buscar cuenta por nombre...", nueva: "Auditor IA", clientes: "Panel de Clientes", reportes: "Reportes", feedback: "Sugerencias", configuracion: "Configuración General", facturacion: "Ver Facturación", salir: "Cerrar Sesión", placeholderNombre: "Nombre del Cliente o Cuenta", btnAnalizar: "Ejecutar Auditoría", btnAnalizando: "Analizando métricas...", exportar: "Exportar a PDF", score: "Score General", problemas: "Problemas Graves", mejoras: "Áreas Débiles", aciertos: "Puntos Fuertes", tituloland: "Auditorías Nivel Agencia", h1land1: "Detectá fugas de dinero con", h1land2: "Inteligencia Artificial.", pland1: "Conectá tu cuenta de Google Ads y dejá que nuestra Inteligencia Artificial audite tus campañas y genere reportes marca blanca en segundos.", btncomenzar: "Comenzar Gratis", detalleCliente: "Detalle del Cliente", buzonSug: "Buzón de Sugerencias", suscripcion: "Suscripción", activa: "Activa", renueva: "Renueva:", ingresaDatos: "Ingresá los datos clave de la campaña para un análisis preciso.", presupuestoObj: "Presupuesto Mensual", placeholderPres: "Ej: 1000", gastoAct: "Gasto Actual (Hasta hoy)", placeholderGasto: "Ej: 450", conversiones: "Conversiones", cparoas: "CPA o ROAS Actual", tipoCamp: "Tipo de Campaña", contexto: "Contexto y Notas del Cliente (Opcional)", placeholderConv: "Ej: 120", placeholderContexto: "Ej: El cliente quiere enfocarse en vender zapatos de invierno. Notamos muchos clics de países irrelevantes.", volver: "Volver al Panel", monitoreo: "Monitoreo de Cuentas", tenes: "Tenés", registradas: "auditorías registradas.", buscar: "Buscar cliente...", todos: "Todos", criticos: "Críticos", atencion: "Atención", optimos: "Óptimos", thCliente: "Cliente / Cuenta", thFecha: "Fecha", thEstado: "Estado IA", thTendencia: "Tendencia", thAccion: "Acción", abrirAud: "Abrir Auditoría", sinCuentas: "No se encontraron clientes.", cuentaSinNombre: "Cuenta sin nombre", persPdf: "Personalizá la identidad y las herramientas de tu agencia.", nomAgencia: "Nombre de la Agencia", logoPdf: "Logo (PDF)", subeLogo: "Sube un logo", guardando: "Guardando...", guardarAj: "Guardar Ajustes", ayudanos: "Ayudanos a mejorar Mora", bug: "¿Encontraste un bug o tenés una idea genial?", escribiSug: "Escribí tu sugerencia acá...", enviando: "Enviando...", enviarSug: "Enviar Sugerencia", facturacionTitulo: "Suscripción y Pagos", facturacionDesc: "Gestioná tu plan actual y métodos de pago de forma segura.", planActual: "Tu Plan Actual", gestionarStripe: "Gestionar en Stripe", pronto: "(Próximamente)", puntajeBasado: "Puntaje basado en rendimiento y estructura.", marcaBlanca: "Marca Blanca Visual", preferencias: "Preferencias de Trabajo", sitioWeb: "Website (Appears on PDF)", piePagina: "Pie de página legal (PDF)", monedaDef: "Moneda por defecto", metricaDef: "Métrica por defecto", feat1Tit: "Auditoría en Segundos", feat1Desc: "La IA procesa cientos de métricas y detecta fugas de presupuesto al instante.", feat2Tit: "Marca Blanca Total", feat2Desc: "Exportá PDFs impecables con tu logo, colores y sitio web listos para enviar al cliente.", feat3Tit: "Historial y Tendencias", feat3Desc: "Monitoreá el progreso de todas tus cuentas con scores evolutivos y alertas tempranas.", todoLoQueNecesitas: "Everything tu agencia necesita", planes: "Planes simples y transparentes", planFree: "Plan Starter", planPro: "Plan Agency", btnUnete: "Unite a Mora hoy", login: "Iniciar sesión", mockupTit: "Auditoría Finalizada", mockupScore: "Score de Salud", mockupCritico: "Fuga de Presupuesto", mockupCriticoDesc: "Detectamos $450/mes gastados en términos de búsqueda irrelevantes sin conversiones.", mockupOptimo: "Estructura Correcta", mockupOptimoDesc: "El seguimiento de conversiones está correctamente implementado en todas las campañas.", confirmarBorrar: "¿Seguro que querés eliminar esta auditoría? Esta acción no se puede deshacer.", notifTit: "Alertas del Guardián IA", notifVacio: "Todo en orden. No hay anomalías recientes.", tabDiag: "Diagnóstico IA", tabCheck: "Plan de Acción", tabAvanzado: "Análisis Avanzado", autoApply: "Corregir Ahora", msgAutoApply: "Para usar la ejecución en piloto automático (Auto-Apply), vinculá tu API de Google Ads en la sección de Integraciones. (Disponible próximamente)", pacingTit: "Pacing de Presupuesto", pacingDesc: "Ritmo de gasto proyectado", matrizTit: "Matriz de Campañas", matrizDesc: "Distribución del gasto vs rendimiento", escalar: "ESTRELLAS (Escalar)", apagar: "BASURA (Apagar)", observar: "DUDOSOS (Observar)", potenciales: "POTENCIALES (Testear)" },
+    en: { dashboard: "Dashboard", panelPrin: "Main Dashboard", panelDesc: "Global overview of your agency's performance.", saludG: "Avg Health Score", totAud: "Total Accounts", fugasDet: "Critical Leaks", oporMej: "Opportunities", ultAud: "Recent Audits", actRec: "Recent Activity", verTodas: "View all", generada: "Audit generated for", hace: "Ago", afectaA: "Mainly affecting:", buscarGlobal: "Search account by name...", nueva: "AI Auditor", clientes: "Client Dashboard", reportes: "Reports", feedback: "Feedback", configuracion: "General Settings", facturacion: "Billing", salir: "Sign Out", placeholderNombre: "Client or Account Name", btnAnalizar: "Run Audit", btnAnalizando: "Analyzing metrics...", exportar: "Export to PDF", score: "Overall Score", problemas: "Critical Issues", mejoras: "Weak Areas", aciertos: "Strengths", tituloland: "Agency-Level Audits", h1land1: "Detect money leaks with", h1land2: "Artificial Intelligence.", pland1: "Connect your Google Ads account and let our AI audit your campaigns to generate white-label reports in seconds.", btncomenzar: "Start for Free", detalleCliente: "Client Details", buzonSug: "Suggestion Box", suscripcion: "Subscription", activa: "Active", renueva: "Renews:", ingresaDatos: "Enter key campaign data for a precise analysis.", presupuestoObj: "Target Monthly Budget", placeholderPres: "E.g. 1000", gastoAct: "Current Spend (To date)", placeholderGasto: "E.g. 450", conversiones: "Conversions", cparoas: "Current CPA or ROAS", tipoCamp: "Campaign Type", contexto: "Client Context & Notes (Optional)", placeholderConv: "E.g. 120", placeholderContexto: "E.g. The client wants to focus on selling winter shoes. We noticed many clicks from irrelevant countries.", volver: "Back to Dashboard", monitoreo: "Account Monitoring", tenes: "You have", registradas: "audits recorded.", buscar: "Search client...", todos: "All", criticos: "Critical", atencion: "Warning", optimos: "Optimal", thCliente: "Client / Account", thFecha: "Date", thEstado: "AI Status", thTendencia: "Trend", thAccion: "Action", abrirAud: "Open Audit", sinCuentas: "No clients found.", cuentaSinNombre: "Unnamed Account", persPdf: "Customize your agency's identity and workflow tools.", nomAgencia: "Agency Name", logoPdf: "Logo (PDF)", subeLogo: "Upload logo", guardando: "Saving...", guardarAj: "Save Settings", ayudanos: "Help us improve Mora", bug: "Found a bug or have a great idea?", escribiSug: "Write your suggestion here...", enviando: "Sending...", enviarSug: "Send Suggestion", facturacionTitulo: "Subscription & Billing", facturacionDesc: "Manage your current plan and payment methods securely.", planActual: "Your Current Plan", gestionarStripe: "Manage in Stripe", pronto: "(Coming Soon)", puntajeBasado: "Score based on performance and structure.", marcaBlanca: "Visual White Label", preferencias: "Workflow Preferences", sitioWeb: "Website (Appears on PDF)", piePagina: "Legal Footer (PDF)", monedaDef: "Default Currency", metricaDef: "Default Metric", feat1Tit: "Audits in Seconds", feat1Desc: "Our AI processes hundreds of metrics and detects budget leaks instantly.", feat2Tit: "Full White Label", feat2Desc: "Export flawless PDFs with your logo, colors, and website ready for your clients.", feat3Tit: "History & Trends", feat3Desc: "Monitor the progress of all your accounts with evolutionary scores and early warnings.", todoLoQueNecesitas: "Everything your agency needs", planes: "Simple & transparent pricing", planFree: "Starter Plan", planPro: "Agency Plan", btnUnete: "Join Mora today", login: "Log In", mockupTit: "Audit Completed", mockupScore: "Health Score", mockupCritico: "Budget Leak", mockupCriticoDesc: "We detected $450/mo spent on irrelevant search terms with 0 conversions.", mockupOptimo: "Correct Structure", mockupOptimoDesc: "Conversion tracking is correctly implemented across all active campaigns.", confirmarBorrar: "Are you sure you want to delete this audit? This action cannot be undone.", notifTit: "AI Guardian Alerts", notifVacio: "All clear. No recent anomalies.", tabDiag: "AI Diagnosis", tabCheck: "Action Plan", tabAvanzado: "Advanced Analysis", autoApply: "Auto-Apply", msgAutoApply: "To use the Auto-Apply execution, link your Google Ads API in the Integrations section. (Coming soon)", pacingTit: "Budget Pacing", pacingDesc: "Projected spend rhythm", matrizTit: "Campaign Matrix", matrizDesc: "Spend distribution vs performance", escalar: "STARS (Scale)", apagar: "TRASH (Pause)", observar: "DOUBTFUL (Observe)", potenciales: "POTENCIALES (Test)" }
   };
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
     if (toastState.show && toastState.status === 'success' && toastState.timeLeft > 0) {
-      timer = setInterval(() => {
-        setToastState(prev => ({...prev, timeLeft: prev.timeLeft - 1}));
-      }, 1000);
+      timer = setInterval(() => { setToastState(prev => ({...prev, timeLeft: prev.timeLeft - 1})); }, 1000);
     } else if (toastState.show && toastState.status === 'success' && toastState.timeLeft <= 0) {
       setToastState(prev => ({...prev, show: false}));
     }
     return () => clearInterval(timer);
   }, [toastState.show, toastState.status, toastState.timeLeft]);
 
-  const aplicarCambios = () => {
-    setMostrarConfirmacion(false);
-    setToastState({show: true, status: 'success', timeLeft: 15});
-  };
-
-  const deshacerCambios = () => {
-    setToastState(prev => ({...prev, status: 'undoing'}));
-    setTimeout(() => {
-      setToastState(prev => ({...prev, status: 'reverted'}));
-      setTimeout(() => {
-        setToastState(prev => ({...prev, show: false}));
-      }, 3000);
-    }, 1500);
-  };
-
+  const aplicarCambios = () => { setMostrarConfirmacion(false); setToastState({show: true, status: 'success', timeLeft: 15}); };
+  const deshacerCambios = () => { setToastState(prev => ({...prev, status: 'undoing'})); setTimeout(() => { setToastState(prev => ({...prev, status: 'reverted'})); setTimeout(() => { setToastState(prev => ({...prev, show: false})); }, 3000); }, 1500); };
   const descargarPDF = () => window.print();
 
   const obtenerPerfil = async () => {
@@ -640,20 +336,13 @@ function AuditorDashboard() {
   const borrarAuditoria = async (id: number) => {
     if (!window.confirm(t[idioma].confirmarBorrar)) return;
     const { error } = await supabase.from('historial_auditorias').delete().eq('id', id);
-    if (!error) {
-      setHistorial(historial.filter(item => item.id !== id));
-      if (vista === "reporte_lectura") setVista("historial");
-    } else {
-      alert("Error al eliminar la auditoría.");
-    }
+    if (!error) { setHistorial(historial.filter(item => item.id !== id)); if (vista === "reporte_lectura") setVista("historial"); } 
+    else { alert("Error al eliminar la auditoría."); }
   };
 
   const toggleTarea = (index: number) => {
-    if (tareasCompletadas.includes(index)) {
-      setTareasCompletadas(tareasCompletadas.filter(i => i !== index));
-    } else {
-      setTareasCompletadas([...tareasCompletadas, index]);
-    }
+    if (tareasCompletadas.includes(index)) { setTareasCompletadas(tareasCompletadas.filter(i => i !== index)); } 
+    else { setTareasCompletadas([...tareasCompletadas, index]); }
   };
 
   useEffect(() => {
@@ -672,26 +361,14 @@ function AuditorDashboard() {
       if (uploadError) throw uploadError;
       const { data } = supabase.storage.from('logos').getPublicUrl(fileName);
       setAgenciaLogo(data.publicUrl);
-    } catch (error) {
-      console.error("Error subiendo logo:", error);
-      alert("Error al subir imagen.");
-    } finally {
-      setUploading(false);
-    }
+    } catch (error) { console.error("Error subiendo logo:", error); alert("Error al subir imagen."); } finally { setUploading(false); }
   };
 
   const guardarAjustesAgencia = async () => {
     if (!session?.user?.email) return;
     setLoading(true);
-    const { error } = await supabase.from('suscripciones').update({ 
-      agencia_nombre: agenciaNombre, agencia_logo: agenciaLogo, agencia_web: agenciaWeb,
-      agencia_pie: agenciaPie, moneda_default: moneda, metrica_default: metrica
-    }).eq('email', session.user.email);
-    if (!error) {
-      alert("¡Ajustes guardados correctamente!"); obtenerPerfil();
-    } else {
-      alert("Error guardando configuraciones.");
-    }
+    const { error } = await supabase.from('suscripciones').update({ agencia_nombre: agenciaNombre, agencia_logo: agenciaLogo, agencia_web: agenciaWeb, agencia_pie: agenciaPie, moneda_default: moneda, metrica_default: metrica }).eq('email', session.user.email);
+    if (!error) { alert("¡Ajustes guardados correctamente!"); obtenerPerfil(); } else { alert("Error guardando configuraciones."); }
     setLoading(false);
   };
 
@@ -699,11 +376,7 @@ function AuditorDashboard() {
     if (!mensajeFeedback.trim() || !session?.user?.email) return;
     setEnviandoFeedback(true);
     const { error } = await supabase.from('feedback').insert([{ usuario_email: session.user.email, mensaje: mensajeFeedback }]);
-    if (!error) {
-      alert("¡Gracias por tu sugerencia!"); setMensajeFeedback(""); setVista("dashboard"); 
-    } else {
-      alert("Error enviando feedback.");
-    }
+    if (!error) { alert("¡Gracias por tu sugerencia!"); setMensajeFeedback(""); setVista("dashboard"); } else { alert("Error enviando feedback."); }
     setEnviandoFeedback(false);
   };
 
@@ -722,90 +395,31 @@ function AuditorDashboard() {
       const spendPercentage = presObj > 0 ? Math.round((projectedSpend / presObj) * 100) : 0;
       const currentPercentage = presObj > 0 ? Math.min(Math.round((gastoAct / presObj) * 100), 100) : 0;
 
-      let pacingStatus = "optimo";
-      let pacingColor = "text-green-400";
-      let pacingBg = "bg-green-400";
-      let pacingMsg = idioma === 'es' ? `🟢 Pacing Perfecto: Proyecta gastar $${projectedSpend}` : `🟢 Perfect Pacing: Projected spend $${projectedSpend}`;
+      let pacingStatus = "optimo", pacingColor = "text-green-400", pacingBg = "bg-green-400", pacingMsg = idioma === 'es' ? `🟢 Pacing Perfecto: Proyecta gastar $${projectedSpend}` : `🟢 Perfect Pacing: Projected spend $${projectedSpend}`;
 
-      if (spendPercentage > 110) {
-          pacingStatus = "overspend";
-          pacingColor = "text-red-400";
-          pacingBg = "bg-red-500";
-          pacingMsg = idioma === 'es' ? `🔴 Peligro Overspend: Proyecta gastar $${projectedSpend} (${spendPercentage}%)` : `🔴 Overspend Warning: Projected spend $${projectedSpend} (${spendPercentage}%)`;
-      } else if (spendPercentage < 90) {
-          pacingStatus = "underspend";
-          pacingColor = "text-yellow-400";
-          pacingBg = "bg-yellow-400";
-          pacingMsg = idioma === 'es' ? `🟡 Peligro Underspend: Proyecta gastar solo $${projectedSpend}` : `🟡 Underspend Warning: Projected spend only $${projectedSpend}`;
-      }
+      if (spendPercentage > 110) { pacingStatus = "overspend"; pacingColor = "text-red-400"; pacingBg = "bg-red-500"; pacingMsg = idioma === 'es' ? `🔴 Peligro Overspend: Proyecta gastar $${projectedSpend} (${spendPercentage}%)` : `🔴 Overspend Warning: Projected spend $${projectedSpend} (${spendPercentage}%)`; } 
+      else if (spendPercentage < 90) { pacingStatus = "underspend"; pacingColor = "text-yellow-400"; pacingBg = "bg-yellow-400"; pacingMsg = idioma === 'es' ? `🟡 Peligro Underspend: Proyecta gastar solo $${projectedSpend}` : `🟡 Underspend Warning: Projected spend only $${projectedSpend}`; }
 
-      const pacingData = {
-          presupuesto: presObj,
-          gasto: gastoAct,
-          proyectado: projectedSpend,
-          porcentajeProyectado: spendPercentage,
-          porcentajeActual: currentPercentage,
-          estado: pacingStatus,
-          color: pacingColor,
-          bg: pacingBg,
-          mensaje: pacingMsg
-      };
+      const pacingData = { presupuesto: presObj, gasto: gastoAct, proyectado: projectedSpend, porcentajeProyectado: spendPercentage, porcentajeActual: currentPercentage, estado: pacingStatus, color: pacingColor, bg: pacingBg, mensaje: pacingMsg };
 
       const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY!);
       const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
       const idiomaInstruccion = idioma === 'es' ? 'ESPAÑOL' : 'INGLÉS';
       
-      const datosEstructurados = `
-        Presupuesto Objetivo: ${presObj}
-        Gasto Actual: ${gastoAct}
-        Conversiones: ${conversiones}
-        CPA / ROAS actual: ${cpaRoas}
-        Tipo de Campaña: ${tipoCampana}
-        Contexto/Notas del cliente: ${notas}
-      `;
-
-      const prompt = `Actúa como un auditor experto en Google Ads. Analiza estos datos y devuelve ÚNICAMENTE un JSON con esta estructura exacta, redactado en ${idiomaInstruccion}. No digas nada antes ni después.
-      { 
-        "score_general": 45, 
-        "sub_scores": {"estructura": 50, "conversiones": 20, "presupuesto": 60, "keywords": 40}, 
-        "hallazgos": { 
-          "graves_rojo": [{"titulo": "...", "descripcion": "..."}], 
-          "debiles_amarillo": [{"titulo": "...", "descripcion": "..."}], 
-          "bien_verde": [{"titulo": "...", "descripcion": "..."}] 
-        },
-        "checklist": [
-          {"tarea": "...", "impacto": "Alto", "color": "rojo"},
-          {"tarea": "...", "impacto": "Medio", "color": "amarillo"}
-        ]
-      }
-      Datos a analizar: ${datosEstructurados}`;
+      const datosEstructurados = `Presupuesto Objetivo: ${presObj}\nGasto Actual: ${gastoAct}\nConversiones: ${conversiones}\nCPA / ROAS actual: ${cpaRoas}\nTipo de Campaña: ${tipoCampana}\nContexto/Notas del cliente: ${notas}`;
+      const prompt = `Actúa como un auditor experto en Google Ads. Analiza estos datos y devuelve ÚNICAMENTE un JSON con esta estructura exacta, redactado en ${idiomaInstruccion}. No digas nada antes ni después. { "score_general": 45, "sub_scores": {"estructura": 50, "conversiones": 20, "presupuesto": 60, "keywords": 40}, "hallazgos": { "graves_rojo": [{"titulo": "...", "descripcion": "..."}], "debiles_amarillo": [{"titulo": "...", "descripcion": "..."}], "bien_verde": [{"titulo": "...", "descripcion": "..."}] }, "checklist": [ {"tarea": "...", "impacto": "Alto", "color": "rojo"}, {"tarea": "...", "impacto": "Medio", "color": "amarillo"} ] } Datos a analizar: ${datosEstructurados}`;
       
       const result = await model.generateContent(prompt);
       let text = (await result.response).text();
-      
-      const startIndex = text.indexOf('{');
-      const endIndex = text.lastIndexOf('}');
+      const startIndex = text.indexOf('{'); const endIndex = text.lastIndexOf('}');
       const jsonLimpio = text.substring(startIndex, endIndex + 1);
       const parsedReporte = JSON.parse(jsonLimpio);
-      
       parsedReporte.pacing = pacingData;
-      
       setReporte(parsedReporte);
-      await supabase.from('historial_auditorias').insert([{ 
-        usuario_email: session.user.email, 
-        score: parsedReporte.score_general, 
-        reporte_json: parsedReporte, 
-        nombre_cuenta: nombreCuenta || "Sin nombre" 
-      }]);
+      await supabase.from('historial_auditorias').insert([{ usuario_email: session.user.email, score: parsedReporte.score_general, reporte_json: parsedReporte, nombre_cuenta: nombreCuenta || "Sin nombre" }]);
       
-      cargarHistorial(); 
-      setTareasCompletadas([]);
-      setSubVistaReporte("avanzado"); 
-      setVista("reporte_lectura");
-    } catch (error) {
-      console.error("Error completo:", error);
-      alert("Error al analizar. Verificá tu API Key y la consola.");
-    }
+      cargarHistorial(); setTareasCompletadas([]); setSubVistaReporte("avanzado"); setVista("reporte_lectura");
+    } catch (error) { console.error("Error completo:", error); alert("Error al analizar. Verificá tu API Key y la consola."); }
     setLoading(false);
   };
 
@@ -815,16 +429,10 @@ function AuditorDashboard() {
     return { label: t[idioma].optimos, color: "text-green-400", bg: "bg-green-500/10", border: "border-green-500/20", icon: CheckCircle2 };
   };
 
-  const parseDate = (dateString: string) => {
-    if (!dateString) return new Date().toLocaleDateString();
-    return new Date(dateString).toLocaleDateString();
-  };
+  const parseDate = (dateString: string) => { if (!dateString) return new Date().toLocaleDateString(); return new Date(dateString).toLocaleDateString(); };
 
   const clientesFiltrados = historial.filter(item => {
-    const coincideFiltro = filtroEstado === "todos" || 
-                           (filtroEstado === "critico" && item.score < 50) || 
-                           (filtroEstado === "atencion" && item.score >= 50 && item.score < 80) || 
-                           (filtroEstado === "optimo" && item.score >= 80);
+    const coincideFiltro = filtroEstado === "todos" || (filtroEstado === "critico" && item.score < 50) || (filtroEstado === "atencion" && item.score >= 50 && item.score < 80) || (filtroEstado === "optimo" && item.score >= 80);
     const nombreSeguro = item.nombre_cuenta || t[idioma].cuentaSinNombre;
     const coincideBusqueda = nombreSeguro.toLowerCase().includes(busqueda.toLowerCase());
     return coincideFiltro && coincideBusqueda;
@@ -832,33 +440,16 @@ function AuditorDashboard() {
 
   const totalAuditorias = historial.length;
   const promedioScore = totalAuditorias > 0 ? Math.round(historial.reduce((acc, curr) => acc + curr.score, 0) / totalAuditorias) : 0;
-  let totalFugas = 0;
-  let totalOportunidades = 0;
-  
-  const cuentasRojas: {nombre: string, cant: number, reporte: any}[] = [];
-  const cuentasAmarillas: {nombre: string, cant: number, reporte: any}[] = [];
+  let totalFugas = 0; let totalOportunidades = 0;
+  const cuentasRojas: {nombre: string, cant: number, reporte: any}[] = []; const cuentasAmarillas: {nombre: string, cant: number, reporte: any}[] = [];
 
   historial.forEach(h => {
       const nombre = h.nombre_cuenta || t[idioma].cuentaSinNombre;
-      if (h.reporte_json?.hallazgos?.graves_rojo) {
-         const cantRojas = h.reporte_json.hallazgos.graves_rojo.length;
-         if (cantRojas > 0) {
-            totalFugas += cantRojas;
-            cuentasRojas.push({ nombre, cant: cantRojas, reporte: h.reporte_json });
-         }
-      }
-      if (h.reporte_json?.hallazgos?.debiles_amarillo) {
-         const cantAma = h.reporte_json.hallazgos.debiles_amarillo.length;
-         if (cantAma > 0) {
-            totalOportunidades += cantAma;
-            cuentasAmarillas.push({ nombre, cant: cantAma, reporte: h.reporte_json });
-         }
-      }
+      if (h.reporte_json?.hallazgos?.graves_rojo) { const cantRojas = h.reporte_json.hallazgos.graves_rojo.length; if (cantRojas > 0) { totalFugas += cantRojas; cuentasRojas.push({ nombre, cant: cantRojas, reporte: h.reporte_json }); } }
+      if (h.reporte_json?.hallazgos?.debiles_amarillo) { const cantAma = h.reporte_json.hallazgos.debiles_amarillo.length; if (cantAma > 0) { totalOportunidades += cantAma; cuentasAmarillas.push({ nombre, cant: cantAma, reporte: h.reporte_json }); } }
   });
 
-  cuentasRojas.sort((a,b) => b.cant - a.cant);
-  cuentasAmarillas.sort((a,b) => b.cant - a.cant);
-
+  cuentasRojas.sort((a,b) => b.cant - a.cant); cuentasAmarillas.sort((a,b) => b.cant - a.cant);
   const ultimaAuditoria = historial.length > 0 ? historial[0] : null;
   const fugasIndividuales = ultimaAuditoria?.reporte_json?.hallazgos?.graves_rojo?.length || 0;
 
@@ -873,6 +464,15 @@ function AuditorDashboard() {
         ${!session ? `
           body { font-family: 'Inter', sans-serif; background-color: #FDE8D3 !important; color: #262B27; }
           .font-serif { font-family: 'Playfair Display', serif; }
+          .perspective-1000 { perspective: 1000px; }
+          .transform-style-3d { transform-style: preserve-3d; }
+          .translate-z-[-60px] { transform: translateZ(-60px); }
+          .translate-z-[0px] { transform: translateZ(0px); }
+          .translate-z-[40px] { transform: translateZ(40px); }
+          .translate-z-[60px] { transform: translateZ(60px); }
+          .translate-z-[80px] { transform: translateZ(80px); }
+          .rotate-x-[15deg] { transform: rotateX(15deg) rotateY(-25deg); }
+          .hover\\:rotate-x-[-5deg]:hover { transform: rotateX(-5deg) rotateY(5deg); }
         ` : `
           @media print {
             body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; background: white !important; height: auto !important; }
@@ -890,14 +490,14 @@ function AuditorDashboard() {
         
         {/* --- CAMBIO DE FONDO DINÁMICO --- */}
         {!session ? (
-          <LiquidPastelBackground />
+          <WireframeBackground /> // NUEVO FONDO GEOMÉTRICO
         ) : (
-          <SpaceBackground />
+          <DashboardBackground />
         )}
         {/* ---------------------------------- */}
 
         {/* ========================================================================= */}
-        {/* VISTA: LANDING PAGE (USUARIOS NO LOGUEADOS - TEMA CLARO Y PASTEL)           */}
+        {/* VISTA: LANDING PAGE (USUARIOS NO LOGUEADOS - TEMA CLARO Y PASTEL)         */}
         {/* ========================================================================= */}
         {!session ? (
           <div className="w-full h-full overflow-y-auto overflow-x-hidden relative z-10">
@@ -921,7 +521,7 @@ function AuditorDashboard() {
               </div>
             </nav>
 
-            {/* HERO SECTION 50/50 */}
+            {/* HERO SECTION 50/50 CON INTERFAZ EXPLOTADA 3D */}
             <section className="relative pt-12 pb-20 lg:pt-24 lg:pb-28 overflow-hidden z-10 px-6 max-w-[1400px] mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-8 items-center min-h-[75vh]">
               {/* Lado Izquierdo: Narrativa */}
               <FadeInOnScroll>
@@ -940,7 +540,7 @@ function AuditorDashboard() {
                     Comenzar prueba gratis <ArrowRight size={20} />
                   </button>
 
-                  {/* Trust Elements - Risk Reversal minimalista */}
+                  {/* Trust Elements - Option C: Risk Reversal Minimalista */}
                   <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mt-8 text-[13px] text-[#657166] font-semibold w-full">
                      <span className="flex items-center gap-2"><CheckCircle2 size={16} className="text-[#99CDD8]" strokeWidth={3} /> Sin tarjeta de crédito</span>
                      <span className="flex items-center gap-2"><CheckCircle2 size={16} className="text-[#99CDD8]" strokeWidth={3} /> Setup en 1 minuto</span>
@@ -949,60 +549,74 @@ function AuditorDashboard() {
                 </div>
               </FadeInOnScroll>
 
-              {/* Lado Derecho: Efecto Cascada Fija */}
+              {/* Lado Derecho: Interfaz Explotada en 3D */}
               <FadeInOnScroll delay={200}>
-                <div className="relative w-full h-[500px] lg:h-[650px] flex justify-center items-center mt-10 lg:mt-0">
+                <div className="relative w-full h-[500px] lg:h-[650px] flex justify-center items-center mt-10 lg:mt-0 perspective-1000">
                    
-                   {/* TARJETA 1 (Atrás): Gráfico de barras sutil */}
-                   <div className="absolute top-[10%] right-[0%] lg:right-[-5%] w-64 bg-white/60 backdrop-blur-md border border-[#CFD6C4]/60 shadow-[0_20px_40px_rgba(207,214,196,0.3)] rounded-2xl p-6 transform rotate-6 scale-95 z-0">
-                      <p className="text-[10px] font-bold text-[#657166] uppercase tracking-widest mb-4">Gasto Diario</p>
-                      <div className="flex items-end gap-2 h-20 opacity-80">
-                        {[40, 60, 30, 80, 50, 90, 70].map((h, i) => (
-                           <div key={i} className="flex-1 bg-[#99CDD8]/40 rounded-t-sm" style={{height: `${h}%`}}></div>
-                        ))}
-                      </div>
-                   </div>
-
-                   {/* TARJETA 2 (Centro): Dashboard Principal sin inclinación */}
-                   <div className="relative z-10 w-full max-w-sm bg-white/95 backdrop-blur-2xl border border-[#CFD6C4]/80 shadow-[0_30px_60px_rgba(38,43,39,0.15)] rounded-[2rem] p-6 transform -rotate-1">
-                      <div className="flex justify-between items-center mb-6 border-b border-[#CFD6C4]/50 pb-4">
-                         <p className="font-bold text-[#262B27] flex items-center gap-2"><LayoutGrid size={18}/> Rendimiento</p>
-                         <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider bg-[#DAEBE3]/50 text-[#262B27] px-3 py-1 rounded-full">
-                           <span className="w-1.5 h-1.5 rounded-full bg-[#DAEBE3] border border-[#262B27]/20 animate-pulse"></span> Search
-                         </span>
-                      </div>
-
-                      <div className="flex justify-center items-center flex-col py-2 mb-6">
-                         <p className="text-xs font-bold text-[#657166] uppercase tracking-widest mb-3">Score de Salud</p>
-                         <div className="w-28 h-28 rounded-full flex items-center justify-center border-[8px] border-[#FDE8D3] text-4xl font-black text-[#262B27] shadow-inner bg-[#DAEBE3]">
-                           84
+                   {/* Contenedor 3D que rota entero */}
+                   <div className="relative w-full max-w-sm lg:max-w-md transform-style-3d transition-transform duration-[1000ms] hover:rotate-x-[-5deg] rotate-x-[15deg]">
+                      
+                      {/* TARJETA 1 (Fondo Lejano): Gráfico de barras */}
+                      <div className="absolute top-[-60px] left-[-80px] w-64 bg-white/60 backdrop-blur-md border border-[#CFD6C4]/60 shadow-[0_20px_40px_rgba(207,214,196,0.3)] rounded-2xl p-6 translate-z-[-60px]">
+                         <p className="text-[10px] font-bold text-[#657166] uppercase tracking-widest mb-4">Gasto Diario</p>
+                         <div className="flex items-end gap-2 h-20 opacity-80">
+                           {[40, 60, 30, 80, 50, 90, 70].map((h, i) => (
+                              <div key={i} className="flex-1 bg-[#99CDD8]/40 rounded-t-sm" style={{height: `${h}%`}}></div>
+                           ))}
                          </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-4">
-                         <div className="bg-[#FDE8D3]/50 p-4 rounded-xl border border-[#CFD6C4]/40">
-                            <p className="text-[10px] font-bold text-[#657166] uppercase tracking-wider mb-1">Gasto Total</p>
-                            <p className="text-2xl font-black text-[#262B27]">$8.2k</p>
+                      {/* TARJETA 2 (Centro): Dashboard Principal */}
+                      <div className="relative z-10 w-full bg-white/95 backdrop-blur-2xl border border-[#CFD6C4]/80 shadow-[0_30px_60px_rgba(38,43,39,0.15)] rounded-[2rem] p-6 translate-z-[0px]">
+                         <div className="flex justify-between items-center mb-6 border-b border-[#CFD6C4]/50 pb-4">
+                            <p className="font-bold text-[#262B27] flex items-center gap-2"><LayoutGrid size={18}/> Rendimiento</p>
+                            <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider bg-[#DAEBE3]/50 text-[#262B27] px-3 py-1 rounded-full">
+                              <span className="w-1.5 h-1.5 rounded-full bg-[#DAEBE3] border border-[#262B27]/20 animate-pulse"></span> Search
+                            </span>
                          </div>
-                         <div className="bg-[#FDE8D3]/50 p-4 rounded-xl border border-[#CFD6C4]/40">
-                            <p className="text-[10px] font-bold text-[#657166] uppercase tracking-wider mb-1">Conversiones</p>
-                            <p className="text-2xl font-black text-[#262B27]">142</p>
+                         <div className="flex justify-center items-center flex-col py-2 mb-6">
+                            <p className="text-xs font-bold text-[#657166] uppercase tracking-widest mb-3">Score de Salud</p>
+                            <div className="w-28 h-28 rounded-full flex items-center justify-center border-[8px] border-[#FDE8D3] text-4xl font-black text-[#262B27] shadow-inner bg-[#DAEBE3]">
+                              84
+                            </div>
+                         </div>
+                         <div className="grid grid-cols-2 gap-4">
+                            <div className="bg-[#FDE8D3]/50 p-4 rounded-xl border border-[#CFD6C4]/40">
+                               <p className="text-[10px] font-bold text-[#657166] uppercase tracking-wider mb-1">Gasto Total</p>
+                               <p className="text-2xl font-black text-[#262B27]">$8.2k</p>
+                            </div>
+                            <div className="bg-[#FDE8D3]/50 p-4 rounded-xl border border-[#CFD6C4]/40">
+                               <p className="text-[10px] font-bold text-[#657166] uppercase tracking-wider mb-1">Conversiones</p>
+                               <p className="text-2xl font-black text-[#262B27]">142</p>
+                            </div>
                          </div>
                       </div>
-                   </div>
 
-                   {/* TARJETA 3 (Frente): Alerta Flotante */}
-                   <div className="absolute bottom-[8%] left-[-5%] lg:left-[-15%] z-20 w-72 bg-white/95 backdrop-blur-xl border border-[#F3C3B2] shadow-[0_20px_40px_rgba(243,195,178,0.5)] rounded-2xl p-5 transform -rotate-3 hover:rotate-0 transition-all duration-300">
-                      <div className="flex items-start gap-4">
-                         <div className="w-10 h-10 rounded-xl bg-[#F3C3B2]/30 flex items-center justify-center flex-shrink-0 border border-[#F3C3B2]/50">
-                            <AlertTriangle size={20} className="text-[#262B27]" />
-                         </div>
-                         <div>
-                            <p className="text-sm font-black text-[#262B27] leading-tight">Fuga Crítica Detectada</p>
-                            <p className="text-xs text-[#657166] mt-1 font-medium">Keywords de baja intención</p>
-                            <span className="inline-block mt-2 text-xs font-black text-[#262B27] bg-[#F3C3B2] px-2 py-1 rounded-md">-$620 / mes</span>
+                      {/* TARJETA 3 (Frente Derecha): Alerta de Fuga */}
+                      <div className="absolute bottom-[-40px] right-[-50px] z-20 w-72 bg-white/95 backdrop-blur-xl border border-[#F3C3B2] shadow-[0_20px_40px_rgba(243,195,178,0.5)] rounded-2xl p-5 translate-z-[80px]">
+                         <div className="flex items-start gap-4">
+                            <div className="w-10 h-10 rounded-xl bg-[#F3C3B2]/30 flex items-center justify-center flex-shrink-0 border border-[#F3C3B2]/50">
+                               <AlertTriangle size={20} className="text-[#262B27]" />
+                            </div>
+                            <div>
+                               <p className="text-sm font-black text-[#262B27] leading-tight">Fuga Crítica Detectada</p>
+                               <p className="text-xs text-[#657166] mt-1 font-medium">Keywords irrelevantes</p>
+                               <span className="inline-block mt-2 text-xs font-black text-[#262B27] bg-[#F3C3B2] px-2 py-1 rounded-md">-$620 / mes</span>
+                            </div>
                          </div>
                       </div>
+
+                      {/* MINI TARJETA 4 (Frente Arriba): Badge Conexión */}
+                      <div className="absolute top-[-25px] right-[20px] z-30 bg-[#DAEBE3] text-[#262B27] px-4 py-2 rounded-full font-bold text-[10px] uppercase shadow-lg border border-[#CFD6C4] translate-z-[40px] flex items-center gap-2">
+                        <span className="w-2 h-2 bg-[#262B27] rounded-full animate-pulse"></span> Sincronizado
+                      </div>
+
+                      {/* MINI TARJETA 5 (Frente Abajo Izquierda): ROAS */}
+                      <div className="absolute bottom-[60px] left-[-40px] z-30 bg-[#99CDD8] text-[#262B27] p-4 rounded-2xl shadow-[0_15px_30px_rgba(153,205,216,0.6)] translate-z-[60px] flex flex-col border border-[#CFD6C4]">
+                        <p className="text-[10px] font-bold uppercase tracking-widest opacity-80">ROAS Proyectado</p>
+                        <p className="text-2xl font-black flex items-center gap-1"><TrendingUp size={16} strokeWidth={4}/> +12.4%</p>
+                      </div>
+
                    </div>
 
                 </div>
@@ -1048,7 +662,7 @@ function AuditorDashboard() {
               </section>
             </FadeInOnScroll>
 
-            {/* SECCIÓN RESUMEN: PRECIOS (Con Tilt y bordes de color) */}
+            {/* SECCIÓN RESUMEN: PRECIOS (Con Tilt y bordes de color pastel) */}
             <FadeInOnScroll>
               <section id="precios" className="max-w-[1400px] mx-auto px-6 py-20 border-t border-[#CFD6C4]/40">
                 <div className="text-center mb-16">
@@ -1061,7 +675,7 @@ function AuditorDashboard() {
                   
                   {/* TIER FREE / STARTER (Borde Menta) */}
                   <TiltWrapper>
-                    <div className="bg-white/60 backdrop-blur-sm border-2 border-transparent hover:border-[#DAEBE3] p-10 rounded-[2rem] flex flex-col justify-between hover:bg-white transition-colors shadow-sm hover:shadow-[0_20px_40px_rgba(218,235,227,0.4)] h-full">
+                    <div className="bg-white/60 backdrop-blur-sm border-2 border-transparent hover:border-[#DAEBE3] p-10 rounded-[2rem] flex flex-col justify-between hover:bg-white transition-colors shadow-sm hover:shadow-[0_20px_40px_rgba(218,235,227,0.4)] h-full cursor-pointer">
                       <div>
                         <h3 className="text-xl font-bold text-[#262B27] mb-2">Starter</h3>
                         <p className="text-[#657166] mb-8 text-sm font-medium">Para probar el poder de la IA en tu negocio.</p>
@@ -1078,7 +692,7 @@ function AuditorDashboard() {
 
                   {/* TIER INDIVIDUAL (Borde Azul) */}
                   <TiltWrapper>
-                    <div className="bg-white/60 backdrop-blur-sm border-2 border-transparent hover:border-[#99CDD8] p-10 rounded-[2rem] flex flex-col justify-between hover:bg-white transition-colors shadow-sm hover:shadow-[0_20px_40px_rgba(153,205,216,0.4)] h-full">
+                    <div className="bg-white/60 backdrop-blur-sm border-2 border-transparent hover:border-[#99CDD8] p-10 rounded-[2rem] flex flex-col justify-between hover:bg-white transition-colors shadow-sm hover:shadow-[0_20px_40px_rgba(153,205,216,0.4)] h-full cursor-pointer">
                       <div>
                         <h3 className="text-xl font-bold text-[#262B27] mb-2">Individual</h3>
                         <p className="text-[#657166] mb-8 text-sm font-medium">Para emprendedores gestionando sus anuncios.</p>
@@ -1086,7 +700,7 @@ function AuditorDashboard() {
                         <ul className="space-y-4 mb-10 text-sm font-medium text-[#262B27]">
                           <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#99CDD8]" strokeWidth={3} /> Hasta 3 Cuentas</li>
                           <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#99CDD8]" strokeWidth={3} /> Auditorías Avanzadas</li>
-                          <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#99CDD8]" strokeWidth={3} /> Exportación PDF (Logo Mora)</li>
+                          <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#99CDD8]" strokeWidth={3} /> Exportación PDF</li>
                         </ul>
                       </div>
                       <button onClick={() => signIn("google")} className="w-full bg-[#99CDD8] hover:bg-[#85b9c4] text-[#262B27] font-bold py-4 rounded-xl transition-colors shadow-md mt-auto">Prueba de 14 días</button>
@@ -1095,7 +709,7 @@ function AuditorDashboard() {
 
                   {/* TIER AGENCIA (Borde Melocotón) */}
                   <TiltWrapper>
-                    <div className="bg-white/60 backdrop-blur-sm border-2 border-transparent hover:border-[#F3C3B2] p-10 rounded-[2rem] flex flex-col justify-between hover:bg-white transition-colors shadow-sm hover:shadow-[0_20px_40px_rgba(243,195,178,0.4)] h-full">
+                    <div className="bg-white/60 backdrop-blur-sm border-2 border-transparent hover:border-[#F3C3B2] p-10 rounded-[2rem] flex flex-col justify-between hover:bg-white transition-colors shadow-sm hover:shadow-[0_20px_40px_rgba(243,195,178,0.4)] h-full cursor-pointer">
                       <div>
                         <h3 className="text-xl font-bold text-[#262B27] mb-2">Agency</h3>
                         <p className="text-[#657166] mb-8 text-sm font-medium">El centro de comando para agencias.</p>
