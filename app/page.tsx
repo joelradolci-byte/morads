@@ -15,8 +15,19 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+// Paleta antigua (Mantenida para el Dashboard actual)
 const melocotonGradient = { background: "linear-gradient(90deg, #FEECE3 0%, #FCD5BF 25%, #FEAFAE 50%, #FFA4BD 75%, #FFA9CC 100%)" };
 const melocotonText = { background: "linear-gradient(90deg, #FEECE3 0%, #FCD5BF 25%, #FEAFAE 50%, #FFA4BD 75%, #FFA9CC 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" };
+
+// --- NUEVA PALETA PASTEL (Para la Landing Page) ---
+const pastelColors = {
+  bg: "#FDE8D3",       
+  text: "#657166",     
+  peach: "#F3C3B2",    
+  blue: "#99CDD8",     
+  mint: "#DAEBE3",     
+  sage: "#CFD6C4"      
+};
 
 function FadeInOnScroll({ children, delay = 0 }: { children: React.ReactNode, delay?: number }) {
   const [isVisible, setVisible] = useState(false);
@@ -66,8 +77,8 @@ function TiltWrapper({ children }: { children: React.ReactNode }) {
   );
 }
 
-// --- COMPONENTE 1: GALAXIA NEURAL CON PARALAJE Y COMETAS (Para la Landing Page) ---
-const SpaceBackground = () => {
+// --- FONDO 1: NUEVO FONDO PASTEL INTERACTIVO (Solo Landing Page) ---
+const PastelBackground = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const currentMouse = useRef({ x: -1000, y: -1000 });
   const targetMouse = useRef({ x: -1000, y: -1000 });
@@ -75,9 +86,7 @@ const SpaceBackground = () => {
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       targetMouse.current = { x: e.clientX, y: e.clientY };
-      if (currentMouse.current.x === -1000) {
-        currentMouse.current = { x: e.clientX, y: e.clientY };
-      }
+      if (currentMouse.current.x === -1000) currentMouse.current = { x: e.clientX, y: e.clientY };
     };
     window.addEventListener('mousemove', handleMouseMove);
 
@@ -91,30 +100,19 @@ const SpaceBackground = () => {
     canvas.width = width;
     canvas.height = height;
 
-    const dustStars: any[] = [];
-    const nodes: any[] = [];
-    let shootingStars: any[] = [];
+    const orbs: any[] = [];
+    const numOrbs = Math.floor((width * height) / 15000); 
+    const orbColors = [pastelColors.peach, pastelColors.blue, pastelColors.mint, pastelColors.sage];
 
-    // 1. Polvo Cósmico
-    for (let i = 0; i < 150; i++) {
-      dustStars.push({
+    for (let i = 0; i < numOrbs; i++) {
+      orbs.push({
         x: Math.random() * width,
         y: Math.random() * height,
-        radius: Math.random() * 1.5,
-        opacity: Math.random(),
-        speed: (Math.random() - 0.5) * 0.1
-      });
-    }
-
-    // 2. Nodos Interactivos
-    const numNodes = Math.floor((width * height) / 12000); 
-    for (let i = 0; i < numNodes; i++) {
-      nodes.push({
-        x: Math.random() * width,
-        y: Math.random() * height,
-        vx: (Math.random() - 0.5) * 0.3,
-        vy: (Math.random() - 0.5) * 0.3,
-        radius: Math.random() * 1.5 + 0.5
+        vx: (Math.random() - 0.5) * 0.2,
+        vy: (Math.random() - 0.5) * 0.2,
+        radius: Math.random() * 2 + 1,
+        color: orbColors[Math.floor(Math.random() * orbColors.length)],
+        depth: Math.random() * 0.05 + 0.01 
       });
     }
 
@@ -134,68 +132,35 @@ const SpaceBackground = () => {
       const offsetX = mx !== -1000 ? (mx - centerX) : 0;
       const offsetY = my !== -1000 ? (my - centerY) : 0;
 
-      if (mx > 0 && my > 0) {
-        const scannerLight = ctx.createRadialGradient(mx, my, 0, mx, my, 400);
-        scannerLight.addColorStop(0, 'rgba(254, 175, 174, 0.05)');
-        scannerLight.addColorStop(1, 'rgba(10, 10, 12, 0)');
-        ctx.fillStyle = scannerLight;
-        ctx.fillRect(0, 0, width, height);
-      }
-
-      ctx.fillStyle = '#ffffff';
-      dustStars.forEach(star => {
-        star.y += star.speed;
-        star.x += star.speed;
-        if (star.y < 0) star.y = height;
-        if (star.y > height) star.y = 0;
-        if (star.x < 0) star.x = width;
-        if (star.x > width) star.x = 0;
-        
-        const px = star.x - offsetX * 0.02;
-        const py = star.y - offsetY * 0.02;
-
-        ctx.globalAlpha = star.opacity * 0.4;
-        ctx.beginPath();
-        ctx.arc(px, py, star.radius, 0, Math.PI * 2);
-        ctx.fill();
-      });
-      ctx.globalAlpha = 1;
-
-      ctx.fillStyle = 'rgba(254, 175, 174, 0.8)';
-      for (let i = 0; i < nodes.length; i++) {
-        let p = nodes[i];
+      for (let i = 0; i < orbs.length; i++) {
+        let p = orbs[i];
         p.x += p.vx;
         p.y += p.vy;
 
         if (p.x < 0 || p.x > width) p.vx *= -1;
         if (p.y < 0 || p.y > height) p.vy *= -1;
 
-        const px = p.x - offsetX * 0.06;
-        const py = p.y - offsetY * 0.06;
+        const px = p.x - offsetX * p.depth;
+        const py = p.y - offsetY * p.depth;
 
+        ctx.globalAlpha = 0.6;
+        ctx.fillStyle = p.color;
         ctx.beginPath();
         ctx.arc(px, py, p.radius, 0, Math.PI * 2);
         ctx.fill();
 
-        for (let j = i + 1; j < nodes.length; j++) {
-          let p2 = nodes[j];
-          const p2x = p2.x - offsetX * 0.06;
-          const p2y = p2.y - offsetY * 0.06;
+        for (let j = i + 1; j < orbs.length; j++) {
+          let p2 = orbs[j];
+          const p2x = p2.x - offsetX * p2.depth;
+          const p2y = p2.y - offsetY * p2.depth;
 
-          let dx = p.x - p2.x;
-          let dy = p.y - p2.y;
+          let dx = px - p2x;
+          let dy = py - p2y;
           let dist = Math.sqrt(dx * dx + dy * dy);
 
-          if (dist < 130) {
-            let mDx = px - mx;
-            let mDy = py - my;
-            let distToMouse = Math.sqrt(mDx * mDx + mDy * mDy);
-            
-            let interactiveAlpha = distToMouse < 200 ? 0.6 : 0.12; 
-            
-            ctx.strokeStyle = `rgba(254, 175, 174, ${(1 - dist / 130) * interactiveAlpha})`;
-            ctx.lineWidth = distToMouse < 200 ? 1.2 : 0.5; 
-
+          if (dist < 120) {
+            ctx.strokeStyle = `${pastelColors.text}10`; 
+            ctx.lineWidth = 0.5; 
             ctx.beginPath();
             ctx.moveTo(px, py);
             ctx.lineTo(p2x, p2y);
@@ -203,48 +168,7 @@ const SpaceBackground = () => {
           }
         }
       }
-
-      if (Math.random() < 0.008) { 
-        const colors = ['#FFA9CC', '#FCD5BF', '#38BDF8', '#FBBF24', '#EF4444'];
-        const speed = Math.random() * 35 + 3; 
-        
-        shootingStars.push({
-          x: Math.random() * width * 1.5, 
-          y: Math.random() * height * -0.5,
-          length: Math.random() * 350 + 50, 
-          speed: speed,
-          opacity: 1,
-          color: colors[Math.floor(Math.random() * colors.length)]
-        });
-      }
-
-      for (let i = shootingStars.length - 1; i >= 0; i--) {
-        let s = shootingStars[i];
-        s.x -= s.speed * 0.8; 
-        s.y += s.speed; 
-        s.opacity -= (s.speed * 0.0008) + 0.005; 
-
-        if (s.opacity <= 0 || s.y > height + s.length) {
-          shootingStars.splice(i, 1);
-          continue;
-        }
-
-        const sx = s.x - offsetX * 0.1;
-        const sy = s.y - offsetY * 0.1;
-
-        const gradient = ctx.createLinearGradient(sx, sy, sx + s.length, sy - s.length);
-        gradient.addColorStop(0, `${s.color}${Math.floor(Math.max(0, s.opacity) * 255).toString(16).padStart(2, '0')}`); 
-        gradient.addColorStop(1, `${s.color}00`); 
-
-        ctx.strokeStyle = gradient;
-        ctx.lineWidth = Math.max(1, s.length / 60); 
-        ctx.lineCap = 'round';
-        ctx.beginPath();
-        ctx.moveTo(sx, sy);
-        ctx.lineTo(sx + s.length, sy - s.length);
-        ctx.stroke();
-      }
-
+      ctx.globalAlpha = 1;
       animationFrameId = requestAnimationFrame(render);
     };
 
@@ -265,10 +189,10 @@ const SpaceBackground = () => {
     };
   }, []);
 
-  return <canvas ref={canvasRef} className="fixed inset-0 w-full h-full pointer-events-none z-[1] print:hidden opacity-90" />;
+  return <canvas ref={canvasRef} className="fixed inset-0 w-full h-full pointer-events-none z-[1] print:hidden opacity-80" />;
 };
 
-// --- COMPONENTE 2: RED NEURAL SUTIL (Limpio para el Dashboard) ---
+// --- FONDO 2: RED NEURAL DARK SUTIL (Mantenido para el Dashboard Actual) ---
 const DashboardBackground = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -774,171 +698,155 @@ function AuditorDashboard() {
   return (
     <>
       <style dangerouslySetInnerHTML={{__html: `
-        @media print {
-          body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; background: white !important; height: auto !important; }
-          @page { margin: 15mm; }
-          .print-container { height: auto !important; overflow: visible !important; position: static !important; }
-        }
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Inter:wght@400;500;600;700&display=swap');
+        
+        /* Modificamos el font family SOLO para la landing (cuando NO hay sesión) */
+        ${!session ? `
+          body { font-family: 'Inter', sans-serif; background-color: #FDE8D3 !important; }
+          .font-serif { font-family: 'Playfair Display', serif; }
+        ` : `
+          @media print {
+            body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; background: white !important; height: auto !important; }
+            @page { margin: 15mm; }
+            .print-container { height: auto !important; overflow: visible !important; position: static !important; }
+          }
+        `}
+
         @keyframes fadeInCustom { 0% { opacity: 0; transform: translateY(15px); } 100% { opacity: 1; transform: translateY(0); } }
         .animate-fade-custom { animation: fadeInCustom 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
       `}} />
 
-      <div className="flex h-screen w-full font-sans text-slate-200 overflow-hidden print-container relative bg-[#0a0a0c] selection:bg-[#FEAFAE] selection:text-black">
+      {/* Controlamos el fondo de la pantalla base dependiendo de si hay sesión o no */}
+      <div className={`flex h-screen w-full font-sans overflow-hidden print-container relative ${!session ? "bg-[#FDE8D3] selection:bg-[#F3C3B2] selection:text-[#657166] text-[#657166]" : "bg-[#0a0a0c] selection:bg-[#FEAFAE] selection:text-black text-slate-200"}`}>
         
         {/* --- CAMBIO DE FONDO DINÁMICO --- */}
         {!session ? (
-          <SpaceBackground />
+          <PastelBackground />
         ) : (
           <DashboardBackground />
         )}
         {/* ---------------------------------- */}
 
-        {/* --- VISTA PARA NO LOGUEADOS (LANDING) --- */}
+        {/* --- VISTA PARA NO LOGUEADOS (LANDING 50/50 PASTEL) --- */}
         {!session ? (
           <div className="w-full h-full overflow-y-auto overflow-x-hidden relative z-10">
-            <nav className="w-full max-w-7xl mx-auto px-6 py-6 flex justify-between items-center z-50 relative">
-              <div className="flex items-center gap-2">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-black text-2xl shadow-[0_0_15px_rgba(255,164,189,0.5)]" style={melocotonGradient}>M</div>
-                <span className="font-bold text-2xl tracking-wide text-white">Mora</span>
+            <nav className="w-full max-w-[1400px] mx-auto px-6 py-6 flex justify-between items-center z-50 relative">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-[#657166] text-2xl shadow-sm bg-[#F3C3B2]">M</div>
+                <span className="font-bold text-2xl tracking-tight text-[#657166]">Mora</span>
               </div>
-              <div className="flex items-center gap-6">
-                <button onClick={() => setIdioma(idioma === "es" ? "en" : "es")} className="text-sm font-bold text-slate-400 hover:text-white transition-colors flex items-center gap-2">
-                  <span className="w-4 h-4 flex items-center justify-center border border-slate-400 rounded-full text-[10px]">🌐</span> {idioma === "es" ? "ES" : "EN"}
+              <div className="flex items-center gap-4">
+                <button onClick={() => setIdioma(idioma === "es" ? "en" : "es")} className="text-sm font-bold text-[#657166]/60 hover:text-[#657166] transition-colors uppercase">
+                  {idioma}
                 </button>
-                <button onClick={() => signIn("google", { prompt: "select_account" })} className="text-[#0a0a0c] px-6 py-2.5 rounded-full font-bold text-sm hover:scale-105 transition-transform shadow-[0_0_15px_rgba(255,164,189,0.4)]" style={melocotonGradient}>
+                <button onClick={() => signIn("google", { prompt: "select_account" })} className="bg-[#657166] text-[#FDE8D3] px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-[#657166]/90 transition-colors shadow-lg">
                   {t[idioma].login}
                 </button>
               </div>
             </nav>
 
-            <FadeInOnScroll>
-              <header className="flex flex-col items-center justify-center text-center px-4 pt-20 pb-20 max-w-4xl mx-auto relative z-10">
-                <div className="border border-white/10 bg-white/5 backdrop-blur-md px-5 py-2 rounded-full text-xs font-bold tracking-widest uppercase mb-8 flex items-center gap-3 shadow-lg">
-                   <span className="w-2.5 h-2.5 rounded-full animate-pulse" style={melocotonGradient}></span>
-                   Auditorías con Inteligencia Artificial
-                </div>
-                <h1 className="text-5xl md:text-7xl lg:text-[5rem] font-bold mb-8 tracking-tight leading-[1.1] text-white">
-                  Detectá fugas de dinero con <br />
-                  <span style={melocotonText}>precisión quirúrgica.</span>
-                </h1>
-                <p className="text-slate-400 text-lg md:text-xl mb-12 max-w-2xl mx-auto leading-relaxed">
-                  Conectá tu cuenta de Google Ads y dejá que nuestra IA audite tus campaigns, traduzca las métricas y genere reportes marca blanca en segundos.
-                </p>
-                <div className="flex flex-col items-center w-full sm:w-auto">
-                  <button onClick={() => signIn("google", { prompt: "select_account" })} className="w-full sm:w-auto text-[#0a0a0c] px-10 py-5 rounded-full font-bold text-lg hover:scale-105 transition-transform shadow-[0_0_40px_rgba(255,164,189,0.3)] flex items-center justify-center gap-2 mb-3" style={melocotonGradient}>
+            {/* HERO SECTION 50/50 */}
+            <section className="relative pt-12 pb-20 lg:pt-24 lg:pb-28 overflow-hidden z-10 px-6 max-w-[1400px] mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-8 items-center min-h-[75vh]">
+              {/* Lado Izquierdo: Narrativa */}
+              <FadeInOnScroll>
+                <div className="flex flex-col items-start text-left lg:pr-10">
+                  <div className="border border-[#657166]/20 bg-[#CFD6C4]/30 px-4 py-1.5 rounded-full text-[10px] font-bold tracking-widest uppercase mb-8 flex items-center gap-3 text-[#657166]">
+                     <span className="w-2 h-2 rounded-full bg-[#F3C3B2] animate-pulse"></span>
+                     Auditorías con IA
+                  </div>
+                  <h1 className="text-[3.5rem] md:text-7xl lg:text-[5rem] font-serif text-[#657166] font-black leading-[1.05] mb-6 tracking-tight">
+                    Detectá fugas de dinero con <span className="italic text-[#99CDD8]">precisión</span> quirúrgica.
+                  </h1>
+                  <p className="text-[#657166]/80 text-lg md:text-xl mb-10 max-w-lg leading-relaxed font-medium">
+                    Conectá tu cuenta de Google Ads y dejá que nuestra IA audite tus campañas, traduzca las métricas y genere reportes marca blanca en segundos.
+                  </p>
+                  <button onClick={() => signIn("google", { prompt: "select_account" })} className="bg-[#F3C3B2] text-[#657166] px-8 py-4 rounded-2xl font-bold text-lg hover:scale-105 transition-transform shadow-[0_10px_30px_rgba(243,195,178,0.6)] flex items-center justify-center gap-2">
                     Comenzar prueba gratis <ArrowRight size={20} />
                   </button>
-                  <p className="text-xs text-slate-500 font-medium">14 días de acceso total. Sin tarjeta de crédito.</p>
-                </div>
-              </header>
-            </FadeInOnScroll>
 
-            <FadeInOnScroll delay={200}>
-              <section className="max-w-6xl mx-auto px-4 mb-32 relative z-10">
-                <div className="text-center mb-16"><h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Optimización en 3 pasos</h2></div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
-                   <div className="hidden md:block absolute top-12 left-[20%] right-[20%] h-0.5 bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
-                   <div className="flex flex-col items-center text-center relative z-10">
-                      <div className="w-24 h-24 rounded-full bg-[#0f0f13] border border-white/10 flex items-center justify-center text-3xl font-black text-white mb-6 shadow-[0_0_30px_rgba(255,164,189,0.1)]">1</div>
-                      <h3 className="text-xl font-bold text-white mb-2">Conectá</h3>
-                      <p className="text-slate-400 text-sm leading-relaxed px-4">Vinculá tu cuenta de Google Ads de forma segura con un solo clic.</p>
-                   </div>
-                   <div className="flex flex-col items-center text-center relative z-10">
-                      <div className="w-24 h-24 rounded-full bg-[#0f0f13] border border-[#FEAFAE]/30 flex items-center justify-center text-3xl font-black text-[#FEAFAE] mb-6 shadow-[0_0_30px_rgba(255,164,189,0.2)]">2</div>
-                      <h3 className="text-xl font-bold text-white mb-2">Diagnosticá</h3>
-                      <p className="text-slate-400 text-sm leading-relaxed px-4">La IA analiza cientos de métricas y detecta dónde estás perdiendo presupuesto.</p>
-                   </div>
-                   <div className="flex flex-col items-center text-center relative z-10">
-                      <div className="w-24 h-24 rounded-full bg-[#0f0f13] border border-white/10 flex items-center justify-center text-3xl font-black text-white mb-6 shadow-[0_0_30px_rgba(255,164,189,0.1)]">3</div>
-                      <h3 className="text-xl font-bold text-white mb-2">Ejecutá</h3>
-                      <p className="text-slate-400 text-sm leading-relaxed px-4">Aplicá el plan de acción sugerido o exportá el reporte en PDF para tu cliente.</p>
-                   </div>
+                  {/* Trust Stats */}
+                  <div className="flex flex-wrap items-center gap-8 md:gap-12 mt-12 pt-8 border-t border-[#657166]/10 w-full max-w-xl">
+                     <div>
+                        <p className="text-3xl font-black text-[#657166]">$2.4<span className="text-[#F3C3B2]">k</span></p>
+                        <p className="text-[10px] text-[#657166]/60 font-bold uppercase tracking-wider mt-1">Ahorro Promedio</p>
+                     </div>
+                     <div>
+                        <p className="text-3xl font-black text-[#657166]">3<span className="text-[#99CDD8]">min</span></p>
+                        <p className="text-[10px] text-[#657166]/60 font-bold uppercase tracking-wider mt-1">1ra Auditoría</p>
+                     </div>
+                     <div>
+                        <p className="text-3xl font-black text-[#657166]">840<span className="text-[#DAEBE3]">+</span></p>
+                        <p className="text-[10px] text-[#657166]/60 font-bold uppercase tracking-wider mt-1">Agencias</p>
+                     </div>
+                  </div>
                 </div>
-              </section>
-            </FadeInOnScroll>
+              </FadeInOnScroll>
 
-            <FadeInOnScroll>
-              <section className="max-w-5xl mx-auto px-4 mb-32 relative z-10">
-                <div className="text-center mb-16"><h2 className="text-3xl md:text-5xl font-bold text-white mb-4">Elegí tu camino</h2><p className="text-slate-400">Comenzá con 14 días gratis en cualquier plan.</p></div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-                  
-                  <TiltWrapper>
-                    <div className="bg-white/5 border border-white/10 p-10 rounded-[2rem] flex flex-col justify-between hover:border-white/20 transition-colors h-full">
-                      <div>
-                        <h3 className="text-2xl font-bold text-white mb-2">Plan Individual</h3>
-                        <p className="text-slate-400 mb-8 text-sm">Para emprendedores que gestionan sus propios anuncios.</p>
-                        <div className="text-5xl font-black text-white mb-8">$19<span className="text-lg text-slate-500 font-medium">/mes</span></div>
-                        <ul className="space-y-4 mb-10 text-sm">
-                          <li className="flex items-center gap-3 text-slate-300"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> 1 Cuenta publicitaria</li>
-                          <li className="flex items-center gap-3 text-slate-300"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> Traductor de Métricas IA</li>
-                          <li className="flex items-center gap-3 text-slate-300"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> Generador de Anuncios</li>
-                          <li className="flex items-center gap-3 text-slate-300"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> Checklist de Optimización</li>
-                        </ul>
-                      </div>
-                      <button onClick={() => signIn("google", { prompt: "select_account" })} className="w-full bg-white/10 hover:bg-white/20 text-white font-bold py-4 rounded-xl transition-colors border border-white/10 mt-auto">Iniciar prueba de 14 días</button>
-                    </div>
-                  </TiltWrapper>
-                  
-                  <TiltWrapper>
-                    <div className="bg-[#0f0f13] border border-[#FEAFAE]/30 p-10 rounded-[2rem] relative shadow-[0_0_30px_rgba(255,164,189,0.1)] flex flex-col justify-between overflow-hidden hover:shadow-[0_0_50px_rgba(255,164,189,0.2)] transition-shadow h-full">
-                      <div className="absolute top-0 left-0 w-full h-1" style={melocotonGradient}></div>
-                      <div>
-                        <h3 className="text-2xl font-bold text-white mb-2 flex justify-between items-center">Plan Agency <span className="text-[10px] font-black px-3 py-1 bg-[#FEAFAE]/20 text-[#FEAFAE] rounded-full uppercase tracking-wider">Escala</span></h3>
-                        <p className="text-slate-400 mb-8 text-sm">El centro de comando para agencias de marketing.</p>
-                        <div className="text-5xl font-black text-white mb-8">$49<span className="text-lg text-slate-500 font-medium">/mes</span></div>
-                        <ul className="space-y-4 mb-10 text-sm">
-                          <li className="flex items-center gap-3 text-white"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> Cuentas ilimitadas</li>
-                          <li className="flex items-center gap-3 text-white"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> Marca Blanca Total (PDFs con logo)</li>
-                          <li className="flex items-center gap-3 text-white"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> Dashboard Global Multi-cliente</li>
-                          <li className="flex items-center gap-3 text-white"><CheckCircle2 size={18} className="text-[#FEAFAE]" /> Matriz de Campañas</li>
-                        </ul>
-                      </div>
-                      <button onClick={() => signIn("google", { prompt: "select_account" })} className="w-full text-[#0a0a0c] font-bold py-4 rounded-xl hover:scale-[1.02] transition-transform shadow-lg mt-auto" style={melocotonGradient}>Iniciar prueba de 14 días</button>
-                    </div>
-                  </TiltWrapper>
-                  
+              {/* Lado Derecho: Ventana al Producto */}
+              <FadeInOnScroll delay={200}>
+                <div className="relative w-full h-[500px] lg:h-[650px] flex justify-center items-center mt-10 lg:mt-0">
+                   {/* Auras Pastel de Fondo */}
+                   <div className="absolute top-10 right-10 w-72 h-72 bg-[#99CDD8]/50 blur-[90px] rounded-full"></div>
+                   <div className="absolute bottom-10 left-10 w-72 h-72 bg-[#F3C3B2]/50 blur-[90px] rounded-full"></div>
+
+                   {/* Dashboard Mockup Card */}
+                   <TiltWrapper>
+                     <div className="relative w-full max-w-md lg:max-w-lg bg-white/90 backdrop-blur-2xl border border-[#CFD6C4]/50 shadow-[0_30px_60px_rgba(101,113,102,0.15)] rounded-[2rem] p-6 lg:p-8">
+                        <div className="flex justify-between items-center mb-8 border-b border-[#657166]/10 pb-4">
+                           <p className="font-bold text-[#657166] flex items-center gap-2"><LayoutGrid size={18}/> Auditoría en Vivo</p>
+                           <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider bg-[#DAEBE3]/50 text-[#657166] px-3 py-1.5 rounded-full"><span className="w-1.5 h-1.5 rounded-full bg-[#DAEBE3] border border-[#657166]/20 animate-pulse"></span> Search</span>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4 lg:gap-6 mb-8">
+                           <div className="bg-[#FDE8D3]/50 p-4 lg:p-5 rounded-2xl border border-[#CFD6C4]/30">
+                              <p className="text-[10px] font-bold text-[#657166]/60 uppercase tracking-wider mb-2">Gasto Total</p>
+                              <p className="text-3xl lg:text-4xl font-black text-[#657166] mb-3">$8,240</p>
+                              <p className="text-[10px] font-bold text-[#657166] flex items-center gap-1 bg-[#DAEBE3] inline-flex px-2 py-1 rounded-md"><TrendingUp size={12}/> 12% vs mes ant.</p>
+                           </div>
+                           <div className="bg-[#FDE8D3]/50 p-4 lg:p-5 rounded-2xl border border-[#CFD6C4]/30">
+                              <p className="text-[10px] font-bold text-[#657166]/60 uppercase tracking-wider mb-2">Desperdicio</p>
+                              <p className="text-3xl lg:text-4xl font-black text-[#657166] mb-3">$1,830</p>
+                              <p className="text-[10px] font-bold text-[#657166] flex items-center gap-1 bg-[#F3C3B2] inline-flex px-2 py-1 rounded-md"><AlertTriangle size={12}/> 22% del gasto</p>
+                           </div>
+                        </div>
+
+                        <div className="mb-6">
+                           <p className="text-[10px] font-bold text-[#657166]/60 uppercase tracking-wider mb-3">Fugas Detectadas por IA</p>
+                           <div className="space-y-3">
+                              <div className="flex justify-between items-center p-3.5 bg-white rounded-xl border border-[#CFD6C4]/40 shadow-sm">
+                                 <span className="text-sm font-bold text-[#657166]">Keywords de baja intención</span>
+                                 <span className="text-xs font-black text-[#657166] bg-[#F3C3B2]/40 px-2 py-1 rounded">-$620</span>
+                              </div>
+                              <div className="flex justify-between items-center p-3.5 bg-white rounded-xl border border-[#CFD6C4]/40 shadow-sm">
+                                 <span className="text-sm font-bold text-[#657166]">Horarios fuera de conversión</span>
+                                 <span className="text-xs font-black text-[#657166] bg-[#F3C3B2]/40 px-2 py-1 rounded">-$480</span>
+                              </div>
+                              <div className="flex justify-between items-center p-3.5 bg-white rounded-xl border border-[#CFD6C4]/40 shadow-sm">
+                                 <span className="text-sm font-bold text-[#657166]">Audiencias superpuestas</span>
+                                 <span className="text-xs font-black text-[#657166] bg-[#F3C3B2]/40 px-2 py-1 rounded">-$280</span>
+                              </div>
+                           </div>
+                        </div>
+                     </div>
+                   </TiltWrapper>
                 </div>
-              </section>
-            </FadeInOnScroll>
+              </FadeInOnScroll>
+            </section>
 
-            <FadeInOnScroll>
-              <section className="max-w-4xl mx-auto px-4 mb-32 relative z-10">
-                <div className="text-center mb-16"><h2 className="text-3xl font-bold text-white">Preguntas Frecuentes</h2></div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                   <div className="bg-white/5 border border-white/10 p-6 rounded-2xl">
-                      <h4 className="text-lg font-bold text-white mb-2">¿Mora hace cambios en mis campañas sin avisar?</h4>
-                      <p className="text-slate-400 text-sm leading-relaxed">No. Mora audita y sugiere. Vos tenés el control total: podés aplicar los cambios con un clic o ignorarlos. Nunca tocaremos tu presupuesto sin permiso.</p>
-                   </div>
-                   <div className="bg-white/5 border border-white/10 p-6 rounded-2xl">
-                      <h4 className="text-lg font-bold text-white mb-2">¿Necesito ser un experto en Google Ads?</h4>
-                      <p className="text-slate-400 text-sm leading-relaxed">Para nada. Mora traduce métricas complejas a un lenguaje de negocios simple. Te decimos dónde estás perdiendo dinero y cómo solucionarlo.</p>
-                   </div>
-                   <div className="bg-white/5 border border-white/10 p-6 rounded-2xl">
-                      <h4 className="text-lg font-bold text-white mb-2">¿Qué es exactamente la 'Marca Blanca Total'?</h4>
-                      <p className="text-slate-400 text-sm leading-relaxed">Exclusiva del Plan Agency, te permite exportar auditorías en PDF con el logo, colores y web de tu agencia. Ideal para entregar reportes de nivel corporativo y reforzar la autoridad de tu marca.</p>
-                   </div>
-                   <div className="bg-white/5 border border-white/10 p-6 rounded-2xl">
-                      <h4 className="text-lg font-bold text-white mb-2">¿Mis datos están seguros?</h4>
-                      <p className="text-slate-400 text-sm leading-relaxed">100%. Solo solicitamos permisos de lectura oficiales de Google. No usamos tus datos ni los de tus clientes para entrenar modelos de IA públicos.</p>
-                   </div>
-                </div>
-              </section>
-            </FadeInOnScroll>
-
-            <footer className="border-t border-white/5 py-12 text-center text-slate-500 text-sm relative z-10">
+            <footer className="border-t border-[#657166]/10 py-12 text-center text-[#657166]/60 text-sm relative z-10">
               <div className="flex items-center justify-center gap-2 mb-4">
-                <div className="w-6 h-6 rounded flex items-center justify-center font-black text-black text-xs" style={melocotonGradient}>M</div>
-                <span className="font-bold text-white">Mora Analytics</span>
+                <div className="w-6 h-6 rounded flex items-center justify-center font-black text-[#657166] text-xs bg-[#F3C3B2]">M</div>
+                <span className="font-bold text-[#657166]">Mora Analytics</span>
               </div>
               <p className="mb-4">© {new Date().getFullYear()} Mora. All rights reserved.</p>
               <div className="flex justify-center gap-6 text-xs">
-                <a href="/privacidad" className="hover:text-white transition-colors">Política de Privacidad</a>
-                <a href="/terminos" className="hover:text-white transition-colors">Términos y Condiciones</a>
+                <a href="/privacidad" className="hover:text-[#657166] transition-colors">Política de Privacidad</a>
+                <a href="/terminos" className="hover:text-[#657166] transition-colors">Términos y Condiciones</a>
               </div>
             </footer>
           </div>
         ) : (
-          /* --- VISTA PARA LOGUEADOS (DASHBOARD) --- */
+          /* --- VISTA PARA LOGUEADOS (DASHBOARD ORIGINAL INTACTO) --- */
           <>
             <aside className="w-64 bg-[#0a0a0c]/40 backdrop-blur-2xl border-r border-white/5 flex flex-col justify-between print:hidden z-20 relative shadow-[10px_0_30px_rgba(0,0,0,0.5)]">
               <div>
@@ -1101,8 +1009,7 @@ function AuditorDashboard() {
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                       {/* Tarjeta 1: Salud Promedio (Hover Verde) */}
-                       <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px] hover:border-green-500/30 transition-colors shadow-lg group">
+                       <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px] hover:bg-white/10 transition-colors shadow-lg group">
                           <div className="absolute -right-4 -top-4 w-24 h-24 bg-green-500/10 rounded-full blur-2xl transition-all duration-500 group-hover:scale-150 group-hover:bg-green-500/20"></div>
                           <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 relative z-10 flex items-center gap-2"><Activity size={16}/> {t[idioma].saludG}</p>
                           <div className="flex items-end gap-3 relative z-10">
@@ -1113,15 +1020,13 @@ function AuditorDashboard() {
                           </div>
                        </div>
 
-                       {/* Tarjeta 2: Total Cuentas (Hover Azul) */}
-                       <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px] hover:border-blue-500/30 transition-colors shadow-lg group">
+                       <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px] hover:bg-white/10 transition-colors shadow-lg group">
                           <div className="absolute -right-4 -top-4 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl transition-all duration-500 group-hover:scale-150 group-hover:bg-blue-500/20"></div>
                           <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 relative z-10 flex items-center gap-2"><Users size={16}/> {t[idioma].totAud}</p>
                           <span className="text-5xl font-black text-white relative z-10">{totalAuditorias}</span>
                        </div>
 
-                       {/* Tarjeta 3: Fugas Críticas (Hover Rojo) */}
-                       <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px] hover:border-red-500/30 transition-colors shadow-lg group">
+                       <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px] hover:bg-white/10 transition-colors shadow-lg group">
                           <div className="absolute -right-4 -top-4 w-24 h-24 bg-red-500/10 rounded-full blur-2xl transition-all duration-500 group-hover:scale-150 group-hover:bg-red-500/20"></div>
                           <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 relative z-10 flex items-center gap-2"><AlertTriangle size={16} className="text-red-400"/> {t[idioma].fugasDet}</p>
                           <div className="flex-1 flex flex-col">
@@ -1142,8 +1047,7 @@ function AuditorDashboard() {
                           </div>
                        </div>
 
-                       {/* Tarjeta 4: Oportunidades (Hover Amarillo) */}
-                       <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px] hover:border-yellow-500/30 transition-colors shadow-lg group">
+                       <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px] hover:bg-white/10 transition-colors shadow-lg group">
                           <div className="absolute -right-4 -top-4 w-24 h-24 bg-yellow-500/10 rounded-full blur-2xl transition-all duration-500 group-hover:scale-150 group-hover:bg-yellow-500/20"></div>
                           <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 relative z-10 flex items-center gap-2"><Zap size={16} className="text-yellow-400"/> {t[idioma].oporMej}</p>
                           <div className="flex-1 flex flex-col">
@@ -1236,7 +1140,7 @@ function AuditorDashboard() {
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                       <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px] shadow-lg hover:border-green-500/30 transition-colors group">
+                       <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px] shadow-lg hover:bg-white/10 transition-colors group">
                           <div className="absolute -right-4 -top-4 w-24 h-24 bg-green-500/10 rounded-full blur-2xl transition-all duration-500 group-hover:scale-150 group-hover:bg-green-500/20"></div>
                           <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 relative z-10 flex items-center gap-2"><Activity size={16}/> Salud de la Cuenta</p>
                           {ultimaAuditoria ? (
@@ -1255,7 +1159,7 @@ function AuditorDashboard() {
                           )}
                        </div>
 
-                       <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px] shadow-lg hover:border-red-500/30 transition-colors group">
+                       <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col relative overflow-hidden backdrop-blur-xl min-h-[200px] shadow-lg hover:bg-white/10 transition-colors group">
                           <div className="absolute -right-4 -top-4 w-24 h-24 bg-red-500/10 rounded-full blur-2xl transition-all duration-500 group-hover:scale-150 group-hover:bg-red-500/20"></div>
                           <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 relative z-10 flex items-center gap-2"><AlertTriangle size={16} className="text-red-400"/> Fugas Críticas</p>
                           {ultimaAuditoria ? (
@@ -1268,7 +1172,7 @@ function AuditorDashboard() {
                           )}
                        </div>
 
-                       <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col justify-center items-center text-center relative overflow-hidden backdrop-blur-xl min-h-[200px] shadow-lg border-dashed hover:border-[#FEAFAE]/40 transition-colors cursor-pointer group" onClick={() => setVista("nueva")}>
+                       <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col justify-center items-center text-center relative overflow-hidden backdrop-blur-xl min-h-[200px] shadow-lg border-dashed hover:bg-white/10 transition-colors cursor-pointer group" onClick={() => setVista("nueva")}>
                           <div className="absolute -right-4 -top-4 w-24 h-24 bg-[#FEAFAE]/10 rounded-full blur-2xl transition-all duration-500 group-hover:scale-150 group-hover:bg-[#FEAFAE]/20"></div>
                           <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform relative z-10">
                              <Zap size={28} className="text-[#FEAFAE]" />
