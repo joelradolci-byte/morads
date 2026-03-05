@@ -81,6 +81,7 @@ function TiltWrapper({ children }: { children: React.ReactNode }) {
 
 // --- FONDO NARRATIVO MEJORADO: ESFERA DE AUDITORÍA CON ESCÁNER Y NODOS REACTIVOS (Rojo/Verde) ---
 // --- FONDO NARRATIVO MEJORADO: ESFERA DE AUDITORÍA CON ESCÁNER Y NODOS REACTIVOS ---
+// --- FONDO NARRATIVO MEJORADO: ESFERA RÍGIDA CON Z-DEPTH EXTREMO Y PULSOS DE DATOS ---
 const AuditWireframeBackground = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -96,10 +97,10 @@ const AuditWireframeBackground = () => {
     canvas.height = height;
 
     const nodes: any[] = [];
-    // TAMAÑO INTERMEDIO: Ni tan chico como al principio, ni tan gigante como antes.
+    const edges: number[][] = [];
     let radius = width > 1024 ? 400 : 280; 
 
-    // Crear puntos de la esfera
+    // 1. Crear puntos de la esfera
     for (let i = 0; i <= 16; i++) {
       let lat = Math.PI * i / 16;
       for (let j = 0; j <= 32; j++) {
@@ -108,7 +109,6 @@ const AuditWireframeBackground = () => {
         let y = radius * Math.sin(lat) * Math.sin(lon);
         let z = radius * Math.cos(lat);
         
-        // Concentramos los errores en un sector
         const isErrorCandidate = (i > 8 && i < 13) && (j > 3 && j < 11);
         const isError = isErrorCandidate && Math.random() > 0.4;
         
@@ -116,9 +116,18 @@ const AuditWireframeBackground = () => {
       }
     }
 
+    // 2. Pre-calcular las conexiones (edges) para el wireframe y los pulsos
+    for (let i = 0; i < nodes.length; i++) {
+      let nextInLat = i + 1;
+      if (i % 33 !== 32 && nextInLat < nodes.length) edges.push([i, nextInLat]);
+      let nextInLon = i + 33;
+      if (nextInLon < nodes.length) edges.push([i, nextInLon]);
+    }
+
     let angleX = 0;
     let angleY = 0;
-    let scanY = -height * 0.5; // Inicia arriba de la pantalla
+    let scanY = -height * 0.5; 
+    let pulses: any[] = []; // Array para guardar los pulsos de luz activos
     let animationFrameId: number;
 
     const render = () => {
@@ -126,16 +135,13 @@ const AuditWireframeBackground = () => {
       angleX += 0.0006;
       angleY += 0.0012;
       
-      // El escáner baja y luego se reinicia
       scanY += 3.5; 
-      if (scanY > height * 1.3) {
-        scanY = -height * 0.4;
-      }
+      if (scanY > height * 1.3) scanY = -height * 0.4;
 
-      // Centro del objeto (Desplazado a la derecha)
       const centerX = width > 1024 ? width * 0.76 : width * 0.5;
       const centerY = height * 0.5;
 
+      // --- PROYECCIÓN 3D Y Z-DEPTH ---
       const projectedNodes = nodes.map(node => {
         let x = node.x * Math.cos(angleY) - node.z * Math.sin(angleY);
         let z = node.x * Math.sin(angleY) + node.z * Math.cos(angleY);
@@ -150,10 +156,16 @@ const AuditWireframeBackground = () => {
         const x2d = (x * scale) + centerX;
         const y2d = (y * scale) + centerY;
         
+        // CÁLCULO DE PROFUNDIDAD ATMOSFÉRICA (Z-Depth Extremo)
+        // z2 va de -radius (atrás) a +radius (adelante).
+        // Convertimos a un valor entre 0 y 1, aplicando Math.pow para oscurecer el fondo rápido
+        const zNormalized = (z2 + radius) / (radius * 2);
+        const depthAlpha = Math.pow(Math.max(0, Math.min(1, zNormalized)), 1.5);
+        
         // Lógica de Escaneo
         const distToScan = Math.abs(y2d - scanY);
         if (distToScan < 45) {
-           node.glow = 1.0; // Se ilumina al máximo
+           node.glow = 1.0; 
            node.scaleFactor = node.isError ? 1.6 : 1.2; 
         } else {
            node.glow *= node.isError ? 0.98 : 0.88; 
@@ -164,15 +176,16 @@ const AuditWireframeBackground = () => {
           x: x2d, y: y2d, 
           scale: scale * node.scaleFactor,
           isError: node.isError, 
-          glow: Math.max(0.05, node.glow)
+          glow: Math.max(0.05, node.glow),
+          depthAlpha: Math.max(0.02, depthAlpha) // Nunca llega a 0 absoluto
         };
       });
 
-      // --- ESCÁNER ORIGINAL MÁS SUTIL Y LIMPIO ---
+      // --- DIBUJAR ESCÁNER ---
       if (scanY > -100 && scanY < height + 100) {
          const scanGradient = ctx.createLinearGradient(0, scanY - 20, 0, scanY + 20);
          scanGradient.addColorStop(0, 'rgba(218, 235, 227, 0)');
-         scanGradient.addColorStop(0.5, 'rgba(218, 235, 227, 0.4)'); // Color menta
+         scanGradient.addColorStop(0.5, 'rgba(218, 235, 227, 0.4)'); 
          scanGradient.addColorStop(1, 'rgba(218, 235, 227, 0)');
          ctx.fillStyle = scanGradient;
          ctx.fillRect(centerX - radius * 1.5, scanY - 20, radius * 3, 40);
@@ -185,38 +198,88 @@ const AuditWireframeBackground = () => {
          ctx.stroke();
       }
 
-      // Dibujar wireframe (Lineas grises sutiles)
-      ctx.beginPath();
-      ctx.strokeStyle = `rgba(38, 43, 39, 0.15)`; 
-      ctx.lineWidth = 1;
-      for (let i = 0; i < projectedNodes.length; i++) {
-        let nextInLat = i + 1;
-        if (i % 33 !== 32 && nextInLat < projectedNodes.length) {
-          ctx.moveTo(projectedNodes[i].x, projectedNodes[i].y);
-          ctx.lineTo(projectedNodes[nextInLat].x, projectedNodes[nextInLat].y);
+      // --- DIBUJAR WIREFRAME CON Z-DEPTH ---
+      ctx.lineWidth = 0.8;
+      edges.forEach(edge => {
+        const p1 = projectedNodes[edge[0]];
+        const p2 = projectedNodes[edge[1]];
+        // Promediamos la profundidad de los dos nodos
+        const edgeAlpha = (p1.depthAlpha + p2.depthAlpha) / 2;
+        
+        ctx.beginPath();
+        ctx.strokeStyle = `rgba(38, 43, 39, ${0.15 * edgeAlpha})`; 
+        ctx.moveTo(p1.x, p1.y);
+        ctx.lineTo(p2.x, p2.y);
+        ctx.stroke();
+      });
+
+      // --- LÓGICA Y DIBUJO DE MICRO-PULSOS DE DATOS ---
+      // 8% de probabilidad de spawnear un pulso nuevo por frame
+      if (Math.random() < 0.08) {
+        const randomEdge = edges[Math.floor(Math.random() * edges.length)];
+        pulses.push({
+           from: randomEdge[0], 
+           to: randomEdge[1], 
+           progress: 0, 
+           speed: 0.03 + Math.random() * 0.04 // Velocidades variables
+        });
+      }
+
+      for (let i = pulses.length - 1; i >= 0; i--) {
+        let pulse = pulses[i];
+        pulse.progress += pulse.speed;
+        
+        if (pulse.progress >= 1) {
+           pulses.splice(i, 1); // Eliminar si llegó al final
+           continue;
         }
-        let nextInLon = i + 33;
-        if (nextInLon < projectedNodes.length) {
-          ctx.moveTo(projectedNodes[i].x, projectedNodes[i].y);
-          ctx.lineTo(projectedNodes[nextInLon].x, projectedNodes[nextInLon].y);
+
+        const p1 = projectedNodes[pulse.from];
+        const p2 = projectedNodes[pulse.to];
+        const pulseDepth = (p1.depthAlpha + p2.depthAlpha) / 2;
+
+        // Solo dibujamos los pulsos que están en el frente de la esfera para no ensuciar el fondo
+        if (pulseDepth > 0.4) {
+           // Posición actual interpolada
+           const curX = p1.x + (p2.x - p1.x) * pulse.progress;
+           const curY = p1.y + (p2.y - p1.y) * pulse.progress;
+           
+           // Posición de la "cola" del pulso
+           const tailProg = Math.max(0, pulse.progress - 0.2);
+           const tailX = p1.x + (p2.x - p1.x) * tailProg;
+           const tailY = p1.y + (p2.y - p1.y) * tailProg;
+
+           ctx.beginPath();
+           const pulseGradient = ctx.createLinearGradient(curX, curY, tailX, tailY);
+           pulseGradient.addColorStop(0, `rgba(153, 205, 216, ${0.8 * pulseDepth})`); // Turquesa brillante en la punta
+           pulseGradient.addColorStop(1, `rgba(153, 205, 216, 0)`); // Cola transparente
+           
+           ctx.strokeStyle = pulseGradient;
+           ctx.lineWidth = 2.5 * p1.scale;
+           ctx.lineCap = "round";
+           ctx.moveTo(curX, curY);
+           ctx.lineTo(tailX, tailY);
+           ctx.stroke();
         }
       }
-      ctx.stroke();
 
-      // --- NODOS CON COLORES INTENSOS ---
+      // --- DIBUJAR NODOS CON Z-DEPTH ---
       projectedNodes.forEach(pn => {
-        let fillColor = 'rgba(38, 43, 39, 0.2)';
+        // Multiplicamos la opacidad del color por la profundidad Z
+        let baseAlpha = 0.2 * pn.depthAlpha;
+        let fillColor = `rgba(38, 43, 39, ${baseAlpha})`;
         
         if (pn.glow > 0.08) {
+           // El glow también respeta la profundidad
+           let glowStrength = pn.glow * pn.depthAlpha; 
+           
            if (pn.isError) {
-              // ROJO INTENSO
-              fillColor = `rgba(239, 68, 68, ${0.4 + pn.glow * 0.6})`;
-              ctx.shadowBlur = 20 * pn.glow; 
+              fillColor = `rgba(239, 68, 68, ${0.2 + glowStrength * 0.8})`;
+              ctx.shadowBlur = 20 * glowStrength; 
               ctx.shadowColor = `rgba(239, 68, 68, 1)`; 
            } else {
-              // VERDE INTENSO
-              fillColor = `rgba(74, 222, 128, ${0.3 + pn.glow * 0.7})`;
-              ctx.shadowBlur = 12 * pn.glow; 
+              fillColor = `rgba(74, 222, 128, ${0.2 + glowStrength * 0.8})`;
+              ctx.shadowBlur = 12 * glowStrength; 
               ctx.shadowColor = `rgba(74, 222, 128, 0.8)`;
            }
         } else {
