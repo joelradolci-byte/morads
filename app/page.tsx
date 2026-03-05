@@ -78,7 +78,7 @@ function TiltWrapper({ children }: { children: React.ReactNode }) {
   );
 }
 
-// --- NUEVO FONDO: OBJETO GEOMÉTRICO 3D (Wireframe Sphere) ---
+// --- FONDO MEJORADO: OBJETO GEOMÉTRICO 3D EN GRIS OSCURO ---
 const WireframeBackground = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -94,7 +94,6 @@ const WireframeBackground = () => {
     canvas.height = height;
 
     const nodes: number[][] = [];
-    const edges: number[][] = [];
     const radius = width > 1024 ? 400 : 250; 
 
     // Crear puntos de una esfera
@@ -122,8 +121,9 @@ const WireframeBackground = () => {
       const centerX = width * 0.75;
       const centerY = height * 0.5;
 
-      ctx.strokeStyle = `${pastelColors.blue}40`; // Azul pastel muy tenue
-      ctx.lineWidth = 0.5;
+      // CAMBIO DE COLOR: Gris casi negro con 15% de opacidad
+      ctx.strokeStyle = `rgba(38, 43, 39, 0.15)`; 
+      ctx.lineWidth = 0.8; // Un poco más grueso para que se note
 
       const projectedNodes = nodes.map(node => {
         // Rotación en Y
@@ -134,9 +134,7 @@ const WireframeBackground = () => {
         // Rotación en X
         let y2 = y * Math.cos(angleX) - z * Math.sin(angleX);
         let z2 = y * Math.sin(angleX) + z * Math.cos(angleX);
-        x = x;
-        y = y2;
-        z = z2;
+        x = x; y = y2; z = z2;
 
         // Proyección 3D a 2D simple
         const fov = 1000;
@@ -168,21 +166,12 @@ const WireframeBackground = () => {
 
     render();
 
-    const handleResize = () => {
-      width = window.innerWidth;
-      height = window.innerHeight;
-      canvas.width = width;
-      canvas.height = height;
-    };
-
+    const handleResize = () => { width = window.innerWidth; height = window.innerHeight; canvas.width = width; canvas.height = height; };
     window.addEventListener('resize', handleResize);
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      cancelAnimationFrame(animationFrameId);
-    };
+    return () => { window.removeEventListener('resize', handleResize); cancelAnimationFrame(animationFrameId); };
   }, []);
 
-  return <canvas ref={canvasRef} className="fixed inset-0 w-full h-full pointer-events-none z-[1] print:hidden opacity-60" />;
+  return <canvas ref={canvasRef} className="fixed inset-0 w-full h-full pointer-events-none z-[1] print:hidden opacity-80" />;
 };
 
 // --- RED NEURAL OSCURA (Mantenida intacta para el Dashboard Logueado) ---
@@ -293,7 +282,7 @@ function AuditorDashboard() {
   const [modoPlan, setModoPlan] = useState<"agencia" | "individual">("agencia");
 
   const t = {
-    es: { dashboard: "Dashboard", panelPrin: "Panel Principal", panelDesc: "Resumen del rendimiento global.", saludG: "Salud Promedio", totAud: "Total Cuentas", fugasDet: "Fugas Críticas", oporMej: "Oportunidades", ultAud: "Últimas Auditorías", actRec: "Actividad Reciente", verTodas: "Ver todas", generada: "Se auditó la cuenta", hace: "Hace", afectaA: "Afecta principalmente a:", buscarGlobal: "Buscar cuenta por nombre...", nueva: "Auditor IA", clientes: "Panel de Clientes", reportes: "Reportes", feedback: "Sugerencias", configuracion: "Configuración General", facturacion: "Ver Facturación", salir: "Cerrar Sesión", placeholderNombre: "Nombre del Cliente o Cuenta", btnAnalizar: "Ejecutar Auditoría", btnAnalizando: "Analizando métricas...", exportar: "Exportar a PDF", score: "Score General", problemas: "Problemas Graves", mejoras: "Áreas Débiles", aciertos: "Puntos Fuertes", tituloland: "Auditorías Nivel Agencia", h1land1: "Detectá fugas de dinero con", h1land2: "Inteligencia Artificial.", pland1: "Conectá tu cuenta de Google Ads y dejá que nuestra Inteligencia Artificial audite tus campañas y genere reportes marca blanca en segundos.", btncomenzar: "Comenzar Gratis", detalleCliente: "Detalle del Cliente", buzonSug: "Buzón de Sugerencias", suscripcion: "Suscripción", activa: "Activa", renueva: "Renueva:", ingresaDatos: "Ingresá los datos clave de la campaña para un análisis preciso.", presupuestoObj: "Presupuesto Mensual", placeholderPres: "Ej: 1000", gastoAct: "Gasto Actual (Hasta hoy)", placeholderGasto: "Ej: 450", conversiones: "Conversiones", cparoas: "CPA o ROAS Actual", tipoCamp: "Tipo de Campaña", contexto: "Contexto y Notas del Cliente (Opcional)", placeholderConv: "Ej: 120", placeholderContexto: "Ej: El cliente quiere enfocarse en vender zapatos de invierno. Notamos muchos clics de países irrelevantes.", volver: "Volver al Panel", monitoreo: "Monitoreo de Cuentas", tenes: "Tenés", registradas: "auditorías registradas.", buscar: "Buscar cliente...", todos: "Todos", criticos: "Críticos", atencion: "Atención", optimos: "Óptimos", thCliente: "Cliente / Cuenta", thFecha: "Fecha", thEstado: "Estado IA", thTendencia: "Tendencia", thAccion: "Acción", abrirAud: "Abrir Auditoría", sinCuentas: "No se encontraron clientes.", cuentaSinNombre: "Cuenta sin nombre", persPdf: "Personalizá la identidad y las herramientas de tu agencia.", nomAgencia: "Nombre de la Agencia", logoPdf: "Logo (PDF)", subeLogo: "Sube un logo", guardando: "Guardando...", guardarAj: "Guardar Ajustes", ayudanos: "Ayudanos a mejorar Mora", bug: "¿Encontraste un bug o tenés una idea genial?", escribiSug: "Escribí tu sugerencia acá...", enviando: "Enviando...", enviarSug: "Enviar Sugerencia", facturacionTitulo: "Suscripción y Pagos", facturacionDesc: "Gestioná tu plan actual y métodos de pago de forma segura.", planActual: "Tu Plan Actual", gestionarStripe: "Gestionar en Stripe", pronto: "(Próximamente)", puntajeBasado: "Puntaje basado en rendimiento y estructura.", marcaBlanca: "Marca Blanca Visual", preferencias: "Preferencias de Trabajo", sitioWeb: "Website (Appears on PDF)", piePagina: "Pie de página legal (PDF)", monedaDef: "Moneda por defecto", metricaDef: "Métrica por defecto", feat1Tit: "Auditoría en Segundos", feat1Desc: "La IA procesa cientos de métricas y detecta fugas de presupuesto al instante.", feat2Tit: "Marca Blanca Total", feat2Desc: "Exportá PDFs impecables con tu logo, colores y sitio web listos para enviar al cliente.", feat3Tit: "Historial y Tendencias", feat3Desc: "Monitoreá el progreso de todas tus cuentas con scores evolutivos y alertas tempranas.", todoLoQueNecesitas: "Everything tu agencia necesita", planes: "Planes simples y transparentes", planFree: "Plan Starter", planPro: "Plan Agency", btnUnete: "Unite a Mora hoy", login: "Iniciar sesión", mockupTit: "Auditoría Finalizada", mockupScore: "Score de Salud", mockupCritico: "Fuga de Presupuesto", mockupCriticoDesc: "Detectamos $450/mes gastados en términos de búsqueda irrelevantes sin conversiones.", mockupOptimo: "Estructura Correcta", mockupOptimoDesc: "El seguimiento de conversiones está correctamente implementado en todas las campañas.", confirmarBorrar: "¿Seguro que querés eliminar esta auditoría? Esta acción no se puede deshacer.", notifTit: "Alertas del Guardián IA", notifVacio: "Todo en orden. No hay anomalías recientes.", tabDiag: "Diagnóstico IA", tabCheck: "Plan de Acción", tabAvanzado: "Análisis Avanzado", autoApply: "Corregir Ahora", msgAutoApply: "Para usar la ejecución en piloto automático (Auto-Apply), vinculá tu API de Google Ads en la sección de Integraciones. (Disponible próximamente)", pacingTit: "Pacing de Presupuesto", pacingDesc: "Ritmo de gasto proyectado", matrizTit: "Matriz de Campañas", matrizDesc: "Distribución del gasto vs rendimiento", escalar: "ESTRELLAS (Escalar)", apagar: "BASURA (Apagar)", observar: "DUDOSOS (Observar)", potenciales: "POTENCIALES (Testear)" },
+    es: { dashboard: "Dashboard", panelPrin: "Panel Principal", panelDesc: "Resumen del rendimiento global.", saludG: "Salud Promedio", totAud: "Total Cuentas", fugasDet: "Fugas Críticas", oporMej: "Oportunidades", ultAud: "Últimas Auditorías", actRec: "Actividad Reciente", verTodas: "Ver todas", generada: "Se auditó la cuenta", hace: "Hace", afectaA: "Afecta principalmente a:", buscarGlobal: "Buscar cuenta por nombre...", nueva: "Auditor IA", clientes: "Panel de Clientes", reportes: "Reportes", feedback: "Sugerencias", configuracion: "Configuración General", facturacion: "Ver Facturación", salir: "Cerrar Sesión", placeholderNombre: "Nombre del Cliente o Cuenta", btnAnalizar: "Ejecutar Auditoría", btnAnalizando: "Analizando métricas...", exportar: "Exportar a PDF", score: "Score General", problemas: "Problemas Graves", mejoras: "Áreas Débiles", aciertos: "Puntos Fuertes", tituloland: "Auditorías Nivel Agencia", h1land1: "Detectá fugas de dinero con", h1land2: "Inteligencia Artificial.", pland1: "Conectá tu cuenta de Google Ads y dejá que nuestra Inteligencia Artificial audite tus campañas y genere reportes marca blanca en segundos.", btncomenzar: "Comenzar Gratis", detalleCliente: "Detalle del Cliente", buzonSug: "Buzón de Sugerencias", suscripcion: "Suscripción", activa: "Activa", renueva: "Renueva:", ingresaDatos: "Ingresá los datos clave de la campaña para un análisis preciso.", presupuestoObj: "Presupuesto Mensual", placeholderPres: "Ej: 1000", gastoAct: "Gasto Actual (Hasta hoy)", placeholderGasto: "Ej: 450", conversiones: "Conversiones", cparoas: "CPA o ROAS Actual", tipoCamp: "Tipo de Campaña", contexto: "Contexto y Notas del Cliente (Opcional)", placeholderConv: "Ej: 120", placeholderContexto: "Ej: El cliente quiere enfocarse en vender zapatos de invierno. Notamos muchos clics de países irrelevantes.", volver: "Volver al Panel", monitoreo: "Monitoreo de Cuentas", tenes: "Tenés", registradas: "auditorías registradas.", buscar: "Buscar cliente...", todos: "Todos", criticos: "Críticos", atencion: "Atención", optimos: "Óptimos", thCliente: "Cliente / Cuenta", thFecha: "Fecha", thEstado: "Estado IA", thTendencia: "Tendencia", thAccion: "Acción", abrirAud: "Abrir Auditoría", sinCuentas: "No se encontraron clientes.", cuentaSinNombre: "Cuenta sin nombre", persPdf: "Personalizá la identidad y las herramientas de tu agencia.", nomAgencia: "Nombre de la Agencia", logoPdf: "Logo (PDF)", subeLogo: "Sube un logo", guardando: "Guardando...", guardarAj: "Guardar Ajustes", ayudanos: "Ayudanos a mejorar Mora", bug: "¿Encontraste un bug o tenés una idea genial?", escribiSug: "Escribí tu sugerencia acá...", enviando: "Enviando...", enviarSug: "Enviar Sugerencia", facturacionTitulo: "Suscripción y Pagos", facturacionDesc: "Gestioná tu plan actual y métodos de pago de forma segura.", planActual: "Tu Plan Actual", gestionarStripe: "Gestionar en Stripe", pronto: "(Próximamente)", puntajeBasado: "Puntaje basado en rendimiento y estructura.", marcaBlanca: "Marca Blanca Visual", preferencias: "Preferencias de Trabajo", sitioWeb: "Website (Appears on PDF)", piePagina: "Pie de página legal (PDF)", monedaDef: "Moneda por defecto", metricaDef: "Métrica por defecto", feat1Tit: "Auditoría en Segundos", feat1Desc: "La IA procesa cientos de métricas y detecta fugas de presupuesto al instante.", feat2Tit: "Marca Blanca Total", feat2Desc: "Exportá PDFs impecables con tu logo, colores y sitio web listos para enviar al cliente.", feat3Tit: "Historial y Tendencias", feat3Desc: "Monitoreá el progreso de todas tus cuentas con scores evolutivos y alertas tempranas.", todoLoQueNecesitas: "Everything tu agencia necesita", planes: "Planes simples y transparentes", planFree: "Plan Starter", planPro: "Plan Agency", btnUnete: "Unite a Mora hoy", login: "Iniciar sesión", mockupTit: "Auditoría Finalizada", mockupScore: "Score de Salud", mockupCritico: "Fuga de Presupuesto", mockupCriticoDesc: "Detectamos $450/mes gastados en términos de búsqueda irrelevantes sin conversiones.", mockupOptimo: "Estructura Correcta", mockupOptimoDesc: "El seguimiento de conversiones está correctamente implementado en todas las campañas.", confirmarBorrar: "¿Seguro que querés eliminar esta auditoría? Esta acción no se puede deshacer.", notifTit: "Alertas del Guardián IA", notifVacio: "Todo en orden. No hay anomalías recientes.", tabDiag: "Diagnóstico IA", tabCheck: "Plan de Acción", tabAvanzado: "Análisis Avanzado", autoApply: "Corregir Ahora", msgAutoApply: "Para usar la ejecución en piloto automático (Auto-Apply), vinculá tu API de Google Ads en la sección de Integraciones. (Disponible próximamente)", pacingTit: "Pacing de Presupuesto", pacingDesc: "Ritmo de gasto proyectado", matrizTit: "Campaign Matrix", matrizDesc: "Distribución del gasto vs rendimiento", escalar: "ESTRELLAS (Escalar)", apagar: "BASURA (Apagar)", observar: "DUDOSOS (Observar)", potenciales: "POTENCIALES (Testear)" },
     en: { dashboard: "Dashboard", panelPrin: "Main Dashboard", panelDesc: "Global overview of your agency's performance.", saludG: "Avg Health Score", totAud: "Total Accounts", fugasDet: "Critical Leaks", oporMej: "Opportunities", ultAud: "Recent Audits", actRec: "Recent Activity", verTodas: "View all", generada: "Audit generated for", hace: "Ago", afectaA: "Mainly affecting:", buscarGlobal: "Search account by name...", nueva: "AI Auditor", clientes: "Client Dashboard", reportes: "Reports", feedback: "Feedback", configuracion: "General Settings", facturacion: "Billing", salir: "Sign Out", placeholderNombre: "Client or Account Name", btnAnalizar: "Run Audit", btnAnalizando: "Analyzing metrics...", exportar: "Export to PDF", score: "Overall Score", problemas: "Critical Issues", mejoras: "Weak Areas", aciertos: "Strengths", tituloland: "Agency-Level Audits", h1land1: "Detect money leaks with", h1land2: "Artificial Intelligence.", pland1: "Connect your Google Ads account and let our AI audit your campaigns to generate white-label reports in seconds.", btncomenzar: "Start for Free", detalleCliente: "Client Details", buzonSug: "Suggestion Box", suscripcion: "Subscription", activa: "Active", renueva: "Renews:", ingresaDatos: "Enter key campaign data for a precise analysis.", presupuestoObj: "Target Monthly Budget", placeholderPres: "E.g. 1000", gastoAct: "Current Spend (To date)", placeholderGasto: "E.g. 450", conversiones: "Conversions", cparoas: "Current CPA or ROAS", tipoCamp: "Campaign Type", contexto: "Client Context & Notes (Optional)", placeholderConv: "E.g. 120", placeholderContexto: "E.g. The client wants to focus on selling winter shoes. We noticed many clicks from irrelevant countries.", volver: "Back to Dashboard", monitoreo: "Account Monitoring", tenes: "You have", registradas: "audits recorded.", buscar: "Search client...", todos: "All", criticos: "Critical", atencion: "Warning", optimos: "Optimal", thCliente: "Client / Account", thFecha: "Date", thEstado: "AI Status", thTendencia: "Trend", thAccion: "Action", abrirAud: "Open Audit", sinCuentas: "No clients found.", cuentaSinNombre: "Unnamed Account", persPdf: "Customize your agency's identity and workflow tools.", nomAgencia: "Agency Name", logoPdf: "Logo (PDF)", subeLogo: "Upload logo", guardando: "Saving...", guardarAj: "Save Settings", ayudanos: "Help us improve Mora", bug: "Found a bug or have a great idea?", escribiSug: "Write your suggestion here...", enviando: "Sending...", enviarSug: "Send Suggestion", facturacionTitulo: "Subscription & Billing", facturacionDesc: "Manage your current plan and payment methods securely.", planActual: "Your Current Plan", gestionarStripe: "Manage in Stripe", pronto: "(Coming Soon)", puntajeBasado: "Score based on performance and structure.", marcaBlanca: "Visual White Label", preferencias: "Workflow Preferences", sitioWeb: "Website (Appears on PDF)", piePagina: "Legal Footer (PDF)", monedaDef: "Default Currency", metricaDef: "Default Metric", feat1Tit: "Audits in Seconds", feat1Desc: "Our AI processes hundreds of metrics and detects budget leaks instantly.", feat2Tit: "Full White Label", feat2Desc: "Export flawless PDFs with your logo, colors, and website ready for your clients.", feat3Tit: "History & Trends", feat3Desc: "Monitor the progress of all your accounts with evolutionary scores and early warnings.", todoLoQueNecesitas: "Everything your agency needs", planes: "Simple & transparent pricing", planFree: "Starter Plan", planPro: "Agency Plan", btnUnete: "Join Mora today", login: "Log In", mockupTit: "Audit Completed", mockupScore: "Health Score", mockupCritico: "Budget Leak", mockupCriticoDesc: "We detected $450/mo spent on irrelevant search terms with 0 conversions.", mockupOptimo: "Correct Structure", mockupOptimoDesc: "Conversion tracking is correctly implemented across all active campaigns.", confirmarBorrar: "Are you sure you want to delete this audit? This action cannot be undone.", notifTit: "AI Guardian Alerts", notifVacio: "All clear. No recent anomalies.", tabDiag: "AI Diagnosis", tabCheck: "Action Plan", tabAvanzado: "Advanced Analysis", autoApply: "Auto-Apply", msgAutoApply: "To use the Auto-Apply execution, link your Google Ads API in the Integrations section. (Coming soon)", pacingTit: "Budget Pacing", pacingDesc: "Projected spend rhythm", matrizTit: "Campaign Matrix", matrizDesc: "Spend distribution vs performance", escalar: "STARS (Scale)", apagar: "TRASH (Pause)", observar: "DOUBTFUL (Observe)", potenciales: "POTENCIALES (Test)" }
   };
 
@@ -485,12 +474,11 @@ function AuditorDashboard() {
         .animate-fade-custom { animation: fadeInCustom 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
       `}} />
 
-      {/* Control de Tema General */}
       <div className={`flex h-screen w-full font-sans overflow-hidden print-container relative ${!session ? "bg-[#FDE8D3] selection:bg-[#F3C3B2] selection:text-[#262B27] text-[#262B27]" : "bg-[#0a0a0c] selection:bg-[#FEAFAE] selection:text-black text-slate-200"}`}>
         
         {/* --- CAMBIO DE FONDO DINÁMICO --- */}
         {!session ? (
-          <WireframeBackground /> // NUEVO FONDO GEOMÉTRICO
+          <WireframeBackground />
         ) : (
           <DashboardBackground />
         )}
@@ -540,7 +528,6 @@ function AuditorDashboard() {
                     Comenzar prueba gratis <ArrowRight size={20} />
                   </button>
 
-                  {/* Trust Elements - Option C: Risk Reversal Minimalista */}
                   <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mt-8 text-[13px] text-[#657166] font-semibold w-full">
                      <span className="flex items-center gap-2"><CheckCircle2 size={16} className="text-[#99CDD8]" strokeWidth={3} /> Sin tarjeta de crédito</span>
                      <span className="flex items-center gap-2"><CheckCircle2 size={16} className="text-[#99CDD8]" strokeWidth={3} /> Setup en 1 minuto</span>
@@ -625,7 +612,7 @@ function AuditorDashboard() {
 
             {/* SECCIÓN RESUMEN: CÓMO FUNCIONA */}
             <FadeInOnScroll delay={100}>
-              <section id="como-funciona" className="max-w-[1400px] mx-auto px-6 py-20 border-t border-[#CFD6C4]/40">
+              <section className="max-w-[1400px] mx-auto px-6 py-20 border-t border-[#CFD6C4]/40">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 mb-12 items-end">
                    <div className="lg:col-span-1">
                      <p className="text-[10px] font-bold tracking-widest uppercase text-[#99CDD8] mb-2">Cómo funciona</p>
@@ -662,9 +649,9 @@ function AuditorDashboard() {
               </section>
             </FadeInOnScroll>
 
-            {/* SECCIÓN RESUMEN: PRECIOS (Con Tilt y bordes de color pastel) */}
+            {/* SECCIÓN RESUMEN: PRECIOS */}
             <FadeInOnScroll>
-              <section id="precios" className="max-w-[1400px] mx-auto px-6 py-20 border-t border-[#CFD6C4]/40">
+              <section className="max-w-[1400px] mx-auto px-6 py-20 border-t border-[#CFD6C4]/40">
                 <div className="text-center mb-16">
                   <p className="text-[10px] font-bold tracking-widest uppercase text-[#99CDD8] mb-2">Precios Simples</p>
                   <h2 className="text-4xl md:text-5xl font-serif font-black text-[#262B27] mb-4">Elegí tu camino.</h2>
@@ -673,7 +660,6 @@ function AuditorDashboard() {
                 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
                   
-                  {/* TIER FREE / STARTER (Borde Menta) */}
                   <TiltWrapper>
                     <div className="bg-white/60 backdrop-blur-sm border-2 border-transparent hover:border-[#DAEBE3] p-10 rounded-[2rem] flex flex-col justify-between hover:bg-white transition-colors shadow-sm hover:shadow-[0_20px_40px_rgba(218,235,227,0.4)] h-full cursor-pointer">
                       <div>
@@ -690,7 +676,6 @@ function AuditorDashboard() {
                     </div>
                   </TiltWrapper>
 
-                  {/* TIER INDIVIDUAL (Borde Azul) */}
                   <TiltWrapper>
                     <div className="bg-white/60 backdrop-blur-sm border-2 border-transparent hover:border-[#99CDD8] p-10 rounded-[2rem] flex flex-col justify-between hover:bg-white transition-colors shadow-sm hover:shadow-[0_20px_40px_rgba(153,205,216,0.4)] h-full cursor-pointer">
                       <div>
@@ -707,7 +692,6 @@ function AuditorDashboard() {
                     </div>
                   </TiltWrapper>
 
-                  {/* TIER AGENCIA (Borde Melocotón) */}
                   <TiltWrapper>
                     <div className="bg-white/60 backdrop-blur-sm border-2 border-transparent hover:border-[#F3C3B2] p-10 rounded-[2rem] flex flex-col justify-between hover:bg-white transition-colors shadow-sm hover:shadow-[0_20px_40px_rgba(243,195,178,0.4)] h-full cursor-pointer">
                       <div>
@@ -736,7 +720,7 @@ function AuditorDashboard() {
 
             {/* SECCIÓN RESUMEN: FAQ */}
             <FadeInOnScroll>
-              <section id="faq" className="max-w-4xl mx-auto px-6 py-20 mb-12 border-t border-[#CFD6C4]/40">
+              <section className="max-w-4xl mx-auto px-6 py-20 mb-12 border-t border-[#CFD6C4]/40">
                 <div className="text-center mb-12">
                   <h2 className="text-4xl font-serif font-black text-[#262B27]">Preguntas Frecuentes</h2>
                 </div>
