@@ -8,26 +8,26 @@ import {
   Zap, AlertTriangle, CheckCircle2, CreditCard, Settings, 
   Search, ArrowRight, ArrowLeft, TrendingUp, TrendingDown, LayoutPanelLeft,
   FileText, BarChart3, ShieldCheck, Plus, Clock, Activity, Trash2, Lock, 
-  Bell, ListChecks, LayoutGrid, CheckSquare, Sparkles, Undo2, RefreshCcw, Type, Calculator, BookOpen, BarChart
+  Bell, ListChecks, LayoutGrid, CheckSquare, Sparkles, Undo2, RefreshCcw, Type, Calculator, BookOpen
 } from 'lucide-react';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Paleta antigua (Mantenida para el Dashboard actual)
+// --- PALETA ANTIGUA (Se mantiene estrictamente para el Dashboard Logueado) ---
 const melocotonGradient = { background: "linear-gradient(90deg, #FEECE3 0%, #FCD5BF 25%, #FEAFAE 50%, #FFA4BD 75%, #FFA9CC 100%)" };
 const melocotonText = { background: "linear-gradient(90deg, #FEECE3 0%, #FCD5BF 25%, #FEAFAE 50%, #FFA4BD 75%, #FFA9CC 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" };
 
-// --- NUEVA PALETA PASTEL (Para la Landing Page) ---
+// --- NUEVA PALETA PASTEL (Exclusiva para la Landing Page) ---
 const pastelColors = {
-  bg: "#FDE8D3",       
-  textDark: "#262B27", // Gris casi negro (NUEVO)
+  bg: "#FDE8D3",       // Crema
+  textDark: "#262B27", // Casi Negro (Mejor contraste)
   textMuted: "#657166",// Gris verdoso original
-  peach: "#F3C3B2",    
-  blue: "#99CDD8",     
-  mint: "#DAEBE3",     
-  sage: "#CFD6C4"      
+  peach: "#F3C3B2",    // Melocotón
+  blue: "#99CDD8",     // Azul pálido
+  mint: "#DAEBE3",     // Menta
+  sage: "#CFD6C4"      // Salvia
 };
 
 function FadeInOnScroll({ children, delay = 0 }: { children: React.ReactNode, delay?: number }) {
@@ -46,7 +46,7 @@ function FadeInOnScroll({ children, delay = 0 }: { children: React.ReactNode, de
   }, []);
 
   return (
-    <div ref={domRef} className={`transition-all duration-1000 ease-out ${isVisible ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-12 scale-95'}`} style={{ transitionDelay: `${delay}ms` }}>
+    <div ref={domRef} className={`transition-all duration-1000 ease-out ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'}`} style={{ transitionDelay: `${delay}ms` }}>
       {children}
     </div>
   );
@@ -60,8 +60,8 @@ function TiltWrapper({ children }: { children: React.ReactNode }) {
     const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
     const x = (e.clientX - left) / width;
     const y = (e.clientY - top) / height;
-    const rotateX = (0.5 - y) * 10; 
-    const rotateY = (x - 0.5) * 10; 
+    const rotateX = (0.5 - y) * 15; 
+    const rotateY = (x - 0.5) * 15; 
     setTransition('transform 0.1s ease-out'); 
     setTransform(`perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.02, 1.02, 1.02)`);
   };
@@ -78,8 +78,91 @@ function TiltWrapper({ children }: { children: React.ReactNode }) {
   );
 }
 
-// --- FONDO 1: NUEVO FONDO PASTEL INTERACTIVO (Solo Landing Page) ---
-const PastelBackground = () => {
+// --- FONDO 1: NUEVO FONDO PASTEL LÍQUIDO (Solo Landing Page) ---
+// Adiós puntitos y palitos. Hola esferas de luz orgánicas.
+const LiquidPastelBackground = () => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let width = window.innerWidth;
+    let height = window.innerHeight;
+    canvas.width = width;
+    canvas.height = height;
+
+    const orbs: any[] = [];
+    const numOrbs = 6; // Pocas esferas, pero gigantes
+    const orbColors = [
+      `${pastelColors.peach}60`, // 60 = opacidad hex
+      `${pastelColors.blue}60`,
+      `${pastelColors.mint}60`,
+      `${pastelColors.sage}60`
+    ];
+
+    for (let i = 0; i < numOrbs; i++) {
+      orbs.push({
+        x: Math.random() * width,
+        y: Math.random() * height,
+        vx: (Math.random() - 0.5) * 0.8, // Movimiento muy lento
+        vy: (Math.random() - 0.5) * 0.8,
+        radius: Math.random() * 200 + 150, // Radios de 150px a 350px
+        color: orbColors[Math.floor(Math.random() * orbColors.length)]
+      });
+    }
+
+    let animationFrameId: number;
+
+    const render = () => {
+      ctx.clearRect(0, 0, width, height);
+
+      for (let i = 0; i < orbs.length; i++) {
+        let p = orbs[i];
+        p.x += p.vx;
+        p.y += p.vy;
+
+        // Rebote en los bordes
+        if (p.x < -p.radius || p.x > width + p.radius) p.vx *= -1;
+        if (p.y < -p.radius || p.y > height + p.radius) p.vy *= -1;
+
+        // Dibujar el orbe líquido con un gradiente radial (esfuma los bordes)
+        const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.radius);
+        gradient.addColorStop(0, p.color);
+        gradient.addColorStop(1, 'rgba(253, 232, 211, 0)'); // Se funde con el fondo crema
+
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      
+      animationFrameId = requestAnimationFrame(render);
+    };
+
+    render();
+
+    const handleResize = () => {
+      width = window.innerWidth;
+      height = window.innerHeight;
+      canvas.width = width;
+      canvas.height = height;
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, []);
+
+  return <canvas ref={canvasRef} className="fixed inset-0 w-full h-full pointer-events-none z-[1] print:hidden opacity-80" />;
+};
+
+// --- FONDO 2: RED NEURAL OSCURA (Mantenida intacta para el Dashboard Logueado) ---
+const SpaceBackground = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const currentMouse = useRef({ x: -1000, y: -1000 });
   const targetMouse = useRef({ x: -1000, y: -1000 });
@@ -87,7 +170,9 @@ const PastelBackground = () => {
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       targetMouse.current = { x: e.clientX, y: e.clientY };
-      if (currentMouse.current.x === -1000) currentMouse.current = { x: e.clientX, y: e.clientY };
+      if (currentMouse.current.x === -1000) {
+        currentMouse.current = { x: e.clientX, y: e.clientY };
+      }
     };
     window.addEventListener('mousemove', handleMouseMove);
 
@@ -101,19 +186,28 @@ const PastelBackground = () => {
     canvas.width = width;
     canvas.height = height;
 
-    const orbs: any[] = [];
-    const numOrbs = Math.floor((width * height) / 15000); 
-    const orbColors = [pastelColors.peach, pastelColors.blue, pastelColors.mint, pastelColors.sage];
+    const dustStars: any[] = [];
+    const nodes: any[] = [];
+    let shootingStars: any[] = [];
 
-    for (let i = 0; i < numOrbs; i++) {
-      orbs.push({
+    for (let i = 0; i < 150; i++) {
+      dustStars.push({
         x: Math.random() * width,
         y: Math.random() * height,
-        vx: (Math.random() - 0.5) * 0.2,
-        vy: (Math.random() - 0.5) * 0.2,
-        radius: Math.random() * 2 + 1,
-        color: orbColors[Math.floor(Math.random() * orbColors.length)],
-        depth: Math.random() * 0.05 + 0.01 
+        radius: Math.random() * 1.5,
+        opacity: Math.random(),
+        speed: (Math.random() - 0.5) * 0.1
+      });
+    }
+
+    const numNodes = Math.floor((width * height) / 12000); 
+    for (let i = 0; i < numNodes; i++) {
+      nodes.push({
+        x: Math.random() * width,
+        y: Math.random() * height,
+        vx: (Math.random() - 0.5) * 0.3,
+        vy: (Math.random() - 0.5) * 0.3,
+        radius: Math.random() * 1.5 + 0.5
       });
     }
 
@@ -133,35 +227,68 @@ const PastelBackground = () => {
       const offsetX = mx !== -1000 ? (mx - centerX) : 0;
       const offsetY = my !== -1000 ? (my - centerY) : 0;
 
-      for (let i = 0; i < orbs.length; i++) {
-        let p = orbs[i];
+      if (mx > 0 && my > 0) {
+        const scannerLight = ctx.createRadialGradient(mx, my, 0, mx, my, 400);
+        scannerLight.addColorStop(0, 'rgba(254, 175, 174, 0.05)');
+        scannerLight.addColorStop(1, 'rgba(10, 10, 12, 0)');
+        ctx.fillStyle = scannerLight;
+        ctx.fillRect(0, 0, width, height);
+      }
+
+      ctx.fillStyle = '#ffffff';
+      dustStars.forEach(star => {
+        star.y += star.speed;
+        star.x += star.speed;
+        if (star.y < 0) star.y = height;
+        if (star.y > height) star.y = 0;
+        if (star.x < 0) star.x = width;
+        if (star.x > width) star.x = 0;
+        
+        const px = star.x - offsetX * 0.02;
+        const py = star.y - offsetY * 0.02;
+
+        ctx.globalAlpha = star.opacity * 0.4;
+        ctx.beginPath();
+        ctx.arc(px, py, star.radius, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      ctx.globalAlpha = 1;
+
+      ctx.fillStyle = 'rgba(254, 175, 174, 0.8)';
+      for (let i = 0; i < nodes.length; i++) {
+        let p = nodes[i];
         p.x += p.vx;
         p.y += p.vy;
 
         if (p.x < 0 || p.x > width) p.vx *= -1;
         if (p.y < 0 || p.y > height) p.vy *= -1;
 
-        const px = p.x - offsetX * p.depth;
-        const py = p.y - offsetY * p.depth;
+        const px = p.x - offsetX * 0.06;
+        const py = p.y - offsetY * 0.06;
 
-        ctx.globalAlpha = 0.6;
-        ctx.fillStyle = p.color;
         ctx.beginPath();
         ctx.arc(px, py, p.radius, 0, Math.PI * 2);
         ctx.fill();
 
-        for (let j = i + 1; j < orbs.length; j++) {
-          let p2 = orbs[j];
-          const p2x = p2.x - offsetX * p2.depth;
-          const p2y = p2.y - offsetY * p2.depth;
+        for (let j = i + 1; j < nodes.length; j++) {
+          let p2 = nodes[j];
+          const p2x = p2.x - offsetX * 0.06;
+          const p2y = p2.y - offsetY * 0.06;
 
-          let dx = px - p2x;
-          let dy = py - p2y;
+          let dx = p.x - p2.x;
+          let dy = p.y - p2.y;
           let dist = Math.sqrt(dx * dx + dy * dy);
 
-          if (dist < 120) {
-            ctx.strokeStyle = `${pastelColors.textMuted}15`; 
-            ctx.lineWidth = 0.5; 
+          if (dist < 130) {
+            let mDx = px - mx;
+            let mDy = py - my;
+            let distToMouse = Math.sqrt(mDx * mDx + mDy * mDy);
+            
+            let interactiveAlpha = distToMouse < 200 ? 0.6 : 0.12; 
+            
+            ctx.strokeStyle = `rgba(254, 175, 174, ${(1 - dist / 130) * interactiveAlpha})`;
+            ctx.lineWidth = distToMouse < 200 ? 1.2 : 0.5; 
+
             ctx.beginPath();
             ctx.moveTo(px, py);
             ctx.lineTo(p2x, p2y);
@@ -169,7 +296,48 @@ const PastelBackground = () => {
           }
         }
       }
-      ctx.globalAlpha = 1;
+
+      if (Math.random() < 0.008) { 
+        const colors = ['#FFA9CC', '#FCD5BF', '#38BDF8', '#FBBF24', '#EF4444'];
+        const speed = Math.random() * 35 + 3; 
+        
+        shootingStars.push({
+          x: Math.random() * width * 1.5, 
+          y: Math.random() * height * -0.5,
+          length: Math.random() * 350 + 50, 
+          speed: speed,
+          opacity: 1,
+          color: colors[Math.floor(Math.random() * colors.length)]
+        });
+      }
+
+      for (let i = shootingStars.length - 1; i >= 0; i--) {
+        let s = shootingStars[i];
+        s.x -= s.speed * 0.8; 
+        s.y += s.speed; 
+        s.opacity -= (s.speed * 0.0008) + 0.005; 
+
+        if (s.opacity <= 0 || s.y > height + s.length) {
+          shootingStars.splice(i, 1);
+          continue;
+        }
+
+        const sx = s.x - offsetX * 0.1;
+        const sy = s.y - offsetY * 0.1;
+
+        const gradient = ctx.createLinearGradient(sx, sy, sx + s.length, sy - s.length);
+        gradient.addColorStop(0, `${s.color}${Math.floor(Math.max(0, s.opacity) * 255).toString(16).padStart(2, '0')}`); 
+        gradient.addColorStop(1, `${s.color}00`); 
+
+        ctx.strokeStyle = gradient;
+        ctx.lineWidth = Math.max(1, s.length / 60); 
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+        ctx.lineTo(sx + s.length, sy - s.length);
+        ctx.stroke();
+      }
+
       animationFrameId = requestAnimationFrame(render);
     };
 
@@ -190,10 +358,10 @@ const PastelBackground = () => {
     };
   }, []);
 
-  return <canvas ref={canvasRef} className="fixed inset-0 w-full h-full pointer-events-none z-[1] print:hidden opacity-80" />;
+  return <canvas ref={canvasRef} className="fixed inset-0 w-full h-full pointer-events-none z-[1] print:hidden opacity-90" />;
 };
 
-// --- FONDO 2: RED NEURAL DARK SUTIL (Mantenido para el Dashboard Actual) ---
+// --- FONDO 3: RED NEURAL LIMPIA (Para el Dashboard interno) ---
 const DashboardBackground = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -290,6 +458,7 @@ function AuditorDashboard() {
 
   const [presupuestoObjetivo, setPresupuestoObjetivo] = useState("");
   const [gastoActual, setGastoActual] = useState("");
+  
   const [conversiones, setConversiones] = useState("");
   const [cpaRoas, setCpaRoas] = useState("");
   const [tipoCampana, setTipoCampana] = useState("Búsqueda (Search)");
@@ -301,6 +470,7 @@ function AuditorDashboard() {
   
   const [historial, setHistorial] = useState<any[]>([]);
   const [cargandoHistorial, setCargandoHistorial] = useState(false);
+  
   const [filtroEstado, setFiltroEstado] = useState<"todos" | "critico" | "atencion" | "optimo">("todos");
   const [busqueda, setBusqueda] = useState(""); 
   
@@ -319,7 +489,9 @@ function AuditorDashboard() {
 
   const [mensajeFeedback, setMensajeFeedback] = useState("");
   const [enviandoFeedback, setEnviandoFeedback] = useState(false);
+  
   const [tareasCompletadas, setTareasCompletadas] = useState<number[]>([]);
+  
   const [mostrarConfirmacion, setMostrarConfirmacion] = useState(false);
   const [toastState, setToastState] = useState<{show: boolean, status: 'success' | 'undoing' | 'reverted', timeLeft: number}>({show: false, status: 'success', timeLeft: 15});
 
@@ -697,7 +869,7 @@ function AuditorDashboard() {
       <style dangerouslySetInnerHTML={{__html: `
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Inter:wght@400;500;600;700&display=swap');
         
-        /* Modificamos el font family SOLO para la landing (cuando NO hay sesión) */
+        /* Tema de la Landing Page (Solo activo cuando no hay sesión) */
         ${!session ? `
           body { font-family: 'Inter', sans-serif; background-color: #FDE8D3 !important; color: #262B27; }
           .font-serif { font-family: 'Playfair Display', serif; }
@@ -713,18 +885,20 @@ function AuditorDashboard() {
         .animate-fade-custom { animation: fadeInCustom 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
       `}} />
 
-      {/* Controlamos el fondo de la pantalla base dependiendo de si hay sesión o no */}
+      {/* Control de Tema General */}
       <div className={`flex h-screen w-full font-sans overflow-hidden print-container relative ${!session ? "bg-[#FDE8D3] selection:bg-[#F3C3B2] selection:text-[#262B27] text-[#262B27]" : "bg-[#0a0a0c] selection:bg-[#FEAFAE] selection:text-black text-slate-200"}`}>
         
         {/* --- CAMBIO DE FONDO DINÁMICO --- */}
         {!session ? (
-          <PastelBackground />
+          <LiquidPastelBackground />
         ) : (
-          <DashboardBackground />
+          <SpaceBackground />
         )}
         {/* ---------------------------------- */}
 
-        {/* --- VISTA PARA NO LOGUEADOS (LANDING 50/50 PASTEL) --- */}
+        {/* ========================================================================= */}
+        {/* VISTA: LANDING PAGE (USUARIOS NO LOGUEADOS - TEMA CLARO Y PASTEL)           */}
+        {/* ========================================================================= */}
         {!session ? (
           <div className="w-full h-full overflow-y-auto overflow-x-hidden relative z-10">
             <nav className="w-full max-w-[1400px] mx-auto px-6 py-6 flex justify-between items-center z-50 relative">
@@ -733,9 +907,9 @@ function AuditorDashboard() {
                 <span className="font-bold text-2xl tracking-tight text-[#262B27]">Mora</span>
               </div>
               <div className="hidden md:flex items-center gap-8 font-medium text-[#657166]">
-                <a href="#como-funciona" className="hover:text-[#262B27] transition-colors">Cómo funciona</a>
-                <a href="#precios" className="hover:text-[#262B27] transition-colors">Precios</a>
-                <a href="#faq" className="hover:text-[#262B27] transition-colors">FAQ</a>
+                <a href="/como-funciona" className="hover:text-[#262B27] transition-colors">Cómo funciona</a>
+                <a href="/precios" className="hover:text-[#262B27] transition-colors">Precios</a>
+                <a href="/faq" className="hover:text-[#262B27] transition-colors">FAQ</a>
               </div>
               <div className="flex items-center gap-4">
                 <button onClick={() => setIdioma(idioma === "es" ? "en" : "es")} className="text-sm font-bold text-[#657166] hover:text-[#262B27] transition-colors uppercase hidden sm:block">
@@ -766,7 +940,7 @@ function AuditorDashboard() {
                     Comenzar prueba gratis <ArrowRight size={20} />
                   </button>
 
-                  {/* Trust Elements - Option C: Risk Reversal */}
+                  {/* Trust Elements - Risk Reversal minimalista */}
                   <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mt-8 text-[13px] text-[#657166] font-semibold w-full">
                      <span className="flex items-center gap-2"><CheckCircle2 size={16} className="text-[#99CDD8]" strokeWidth={3} /> Sin tarjeta de crédito</span>
                      <span className="flex items-center gap-2"><CheckCircle2 size={16} className="text-[#99CDD8]" strokeWidth={3} /> Setup en 1 minuto</span>
@@ -775,57 +949,51 @@ function AuditorDashboard() {
                 </div>
               </FadeInOnScroll>
 
-              {/* Lado Derecho: Efecto Cascada 3D */}
+              {/* Lado Derecho: Efecto Cascada Fija */}
               <FadeInOnScroll delay={200}>
-                <div className="relative w-full h-[500px] lg:h-[650px] flex justify-center items-center mt-10 lg:mt-0 perspective-1000">
+                <div className="relative w-full h-[500px] lg:h-[650px] flex justify-center items-center mt-10 lg:mt-0">
                    
-                   {/* Auras Pastel de Fondo */}
-                   <div className="absolute top-10 right-10 w-72 h-72 bg-[#99CDD8]/50 blur-[90px] rounded-full"></div>
-                   <div className="absolute bottom-10 left-10 w-72 h-72 bg-[#F3C3B2]/50 blur-[90px] rounded-full"></div>
-
-                   {/* TARJETA 1 (Fondo): Gráfico de barras */}
-                   <div className="absolute top-[10%] right-0 lg:right-[-5%] w-72 bg-white/60 backdrop-blur-xl border border-[#CFD6C4]/60 shadow-lg rounded-2xl p-6 transform rotate-6 scale-90 z-0">
+                   {/* TARJETA 1 (Atrás): Gráfico de barras sutil */}
+                   <div className="absolute top-[10%] right-[0%] lg:right-[-5%] w-64 bg-white/60 backdrop-blur-md border border-[#CFD6C4]/60 shadow-[0_20px_40px_rgba(207,214,196,0.3)] rounded-2xl p-6 transform rotate-6 scale-95 z-0">
                       <p className="text-[10px] font-bold text-[#657166] uppercase tracking-widest mb-4">Gasto Diario</p>
-                      <div className="flex items-end gap-2 h-24">
+                      <div className="flex items-end gap-2 h-20 opacity-80">
                         {[40, 60, 30, 80, 50, 90, 70].map((h, i) => (
                            <div key={i} className="flex-1 bg-[#99CDD8]/40 rounded-t-sm" style={{height: `${h}%`}}></div>
                         ))}
                       </div>
                    </div>
 
-                   {/* TARJETA 2 (Centro): Dashboard Principal */}
-                   <TiltWrapper>
-                     <div className="relative z-10 w-full max-w-sm lg:max-w-md bg-white/95 backdrop-blur-2xl border border-[#CFD6C4]/80 shadow-[0_30px_60px_rgba(38,43,39,0.15)] rounded-[2rem] p-6 lg:p-8 transform -rotate-2">
-                        <div className="flex justify-between items-center mb-6 border-b border-[#CFD6C4]/50 pb-4">
-                           <p className="font-bold text-[#262B27] flex items-center gap-2"><LayoutGrid size={18}/> Rendimiento</p>
-                           <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider bg-[#DAEBE3]/50 text-[#262B27] px-3 py-1 rounded-full">
-                             <span className="w-1.5 h-1.5 rounded-full bg-[#DAEBE3] border border-[#262B27]/20 animate-pulse"></span> Search
-                           </span>
-                        </div>
+                   {/* TARJETA 2 (Centro): Dashboard Principal sin inclinación */}
+                   <div className="relative z-10 w-full max-w-sm bg-white/95 backdrop-blur-2xl border border-[#CFD6C4]/80 shadow-[0_30px_60px_rgba(38,43,39,0.15)] rounded-[2rem] p-6 transform -rotate-1">
+                      <div className="flex justify-between items-center mb-6 border-b border-[#CFD6C4]/50 pb-4">
+                         <p className="font-bold text-[#262B27] flex items-center gap-2"><LayoutGrid size={18}/> Rendimiento</p>
+                         <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider bg-[#DAEBE3]/50 text-[#262B27] px-3 py-1 rounded-full">
+                           <span className="w-1.5 h-1.5 rounded-full bg-[#DAEBE3] border border-[#262B27]/20 animate-pulse"></span> Search
+                         </span>
+                      </div>
 
-                        <div className="flex justify-center items-center flex-col py-4 mb-4">
-                           <p className="text-xs font-bold text-[#657166] uppercase tracking-widest mb-2">Score de Salud</p>
-                           <div className="w-32 h-32 rounded-full flex items-center justify-center border-[8px] border-[#FDE8D3] text-5xl font-black text-[#262B27] shadow-inner bg-[#DAEBE3]">
-                             84
-                           </div>
-                        </div>
+                      <div className="flex justify-center items-center flex-col py-2 mb-6">
+                         <p className="text-xs font-bold text-[#657166] uppercase tracking-widest mb-3">Score de Salud</p>
+                         <div className="w-28 h-28 rounded-full flex items-center justify-center border-[8px] border-[#FDE8D3] text-4xl font-black text-[#262B27] shadow-inner bg-[#DAEBE3]">
+                           84
+                         </div>
+                      </div>
 
-                        <div className="grid grid-cols-2 gap-4">
-                           <div className="bg-[#FDE8D3]/50 p-4 rounded-xl border border-[#CFD6C4]/40">
-                              <p className="text-[10px] font-bold text-[#657166] uppercase tracking-wider mb-1">Gasto Total</p>
-                              <p className="text-2xl font-black text-[#262B27]">$8.2k</p>
-                           </div>
-                           <div className="bg-[#FDE8D3]/50 p-4 rounded-xl border border-[#CFD6C4]/40">
-                              <p className="text-[10px] font-bold text-[#657166] uppercase tracking-wider mb-1">Conversiones</p>
-                              <p className="text-2xl font-black text-[#262B27]">142</p>
-                           </div>
-                        </div>
-                     </div>
-                   </TiltWrapper>
+                      <div className="grid grid-cols-2 gap-4">
+                         <div className="bg-[#FDE8D3]/50 p-4 rounded-xl border border-[#CFD6C4]/40">
+                            <p className="text-[10px] font-bold text-[#657166] uppercase tracking-wider mb-1">Gasto Total</p>
+                            <p className="text-2xl font-black text-[#262B27]">$8.2k</p>
+                         </div>
+                         <div className="bg-[#FDE8D3]/50 p-4 rounded-xl border border-[#CFD6C4]/40">
+                            <p className="text-[10px] font-bold text-[#657166] uppercase tracking-wider mb-1">Conversiones</p>
+                            <p className="text-2xl font-black text-[#262B27]">142</p>
+                         </div>
+                      </div>
+                   </div>
 
-                   {/* TARJETA 3 (Frente): Alerta de Fuga */}
-                   <div className="absolute bottom-[10%] left-[-5%] lg:left-[-15%] z-20 w-64 bg-white/95 backdrop-blur-xl border border-[#F3C3B2] shadow-[0_15px_35px_rgba(243,195,178,0.5)] rounded-2xl p-4 transform -rotate-3 translate-y-4 hover:scale-105 transition-transform cursor-default">
-                      <div className="flex items-start gap-3">
+                   {/* TARJETA 3 (Frente): Alerta Flotante */}
+                   <div className="absolute bottom-[8%] left-[-5%] lg:left-[-15%] z-20 w-72 bg-white/95 backdrop-blur-xl border border-[#F3C3B2] shadow-[0_20px_40px_rgba(243,195,178,0.5)] rounded-2xl p-5 transform -rotate-3 hover:rotate-0 transition-all duration-300">
+                      <div className="flex items-start gap-4">
                          <div className="w-10 h-10 rounded-xl bg-[#F3C3B2]/30 flex items-center justify-center flex-shrink-0 border border-[#F3C3B2]/50">
                             <AlertTriangle size={20} className="text-[#262B27]" />
                          </div>
@@ -841,126 +1009,146 @@ function AuditorDashboard() {
               </FadeInOnScroll>
             </section>
 
-            {/* SECCIÓN CÓMO FUNCIONA (Layout Horizontal/Editorial) */}
+            {/* SECCIÓN RESUMEN: CÓMO FUNCIONA */}
             <FadeInOnScroll delay={100}>
-              <section id="como-funciona" className="max-w-[1400px] mx-auto px-6 py-24 border-t border-[#CFD6C4]/40">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 mb-16 items-end">
+              <section id="como-funciona" className="max-w-[1400px] mx-auto px-6 py-20 border-t border-[#CFD6C4]/40">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 mb-12 items-end">
                    <div className="lg:col-span-1">
                      <p className="text-[10px] font-bold tracking-widest uppercase text-[#99CDD8] mb-2">Cómo funciona</p>
-                     <h2 className="text-4xl md:text-5xl font-serif font-black text-[#262B27] leading-tight">Optimización en<br/>3 pasos concretos.</h2>
+                     <h2 className="text-4xl md:text-5xl font-serif font-black text-[#262B27] leading-tight">Optimización en<br/>3 pasos.</h2>
                    </div>
                    <div className="lg:col-span-2">
-                     <p className="text-lg text-[#657166] lg:max-w-xl font-medium">Sin configuraciones complicadas ni integraciones eternas. Conectás tu cuenta y en menos de 3 minutos tenés el primer reporte de fugas listo para actuar o compartir con tu cliente.</p>
+                     <p className="text-lg text-[#657166] lg:max-w-xl font-medium">Conectás tu cuenta y en menos de 3 minutos tenés el primer reporte de fugas listo para actuar o compartir con tu cliente.</p>
                    </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                   <div className="bg-white/60 backdrop-blur-sm border border-[#CFD6C4]/60 p-8 rounded-[2rem] hover:bg-white hover:border-[#99CDD8] transition-all shadow-sm group">
+                   <div className="bg-white/60 backdrop-blur-sm border border-[#CFD6C4]/60 p-8 rounded-[2rem] hover:bg-white hover:border-[#CFD6C4] transition-all shadow-sm group">
                       <div className="w-14 h-14 rounded-2xl bg-[#CFD6C4]/40 flex items-center justify-center text-[#262B27] mb-6 group-hover:scale-110 transition-transform"><Users size={24} /></div>
-                      <h3 className="text-xl font-bold text-[#262B27] mb-3">1. Conectá tu cuenta</h3>
-                      <p className="text-[#657166] leading-relaxed font-medium">Vinculá Google Ads en un clic. Acceso de solo lectura, totalmente seguro y sin tocar tus campañas.</p>
+                      <h3 className="text-xl font-bold text-[#262B27] mb-3">1. Conectá</h3>
+                      <p className="text-[#657166] leading-relaxed font-medium">Vinculá Google Ads en un clic. Acceso de solo lectura, totalmente seguro.</p>
                    </div>
                    <div className="bg-white/60 backdrop-blur-sm border border-[#CFD6C4]/60 p-8 rounded-[2rem] hover:bg-white hover:border-[#99CDD8] transition-all shadow-sm group">
                       <div className="w-14 h-14 rounded-2xl bg-[#99CDD8]/40 flex items-center justify-center text-[#262B27] mb-6 group-hover:scale-110 transition-transform"><Search size={24} /></div>
-                      <h3 className="text-xl font-bold text-[#262B27] mb-3">2. La IA audita</h3>
-                      <p className="text-[#657166] leading-relaxed font-medium">Nuestros modelos analizan más de 200 señales ocultas para detectar exactamente dónde se desperdicia presupuesto.</p>
+                      <h3 className="text-xl font-bold text-[#262B27] mb-3">2. Diagnosticá</h3>
+                      <p className="text-[#657166] leading-relaxed font-medium">La IA detecta automáticamente los puntos exactos de desperdicio de dinero.</p>
                    </div>
-                   <div className="bg-white/60 backdrop-blur-sm border border-[#CFD6C4]/60 p-8 rounded-[2rem] hover:bg-white hover:border-[#99CDD8] transition-all shadow-sm group">
+                   <div className="bg-white/60 backdrop-blur-sm border border-[#CFD6C4]/60 p-8 rounded-[2rem] hover:bg-white hover:border-[#F3C3B2] transition-all shadow-sm group">
                       <div className="w-14 h-14 rounded-2xl bg-[#F3C3B2]/40 flex items-center justify-center text-[#262B27] mb-6 group-hover:scale-110 transition-transform"><FileText size={24} /></div>
-                      <h3 className="text-xl font-bold text-[#262B27] mb-3">3. Reportes PDF</h3>
-                      <p className="text-[#657166] leading-relaxed font-medium">Generá documentos impecables, listos para enviar a tu cliente con tu propio logo, branding y colores.</p>
+                      <h3 className="text-xl font-bold text-[#262B27] mb-3">3. Ejecutá</h3>
+                      <p className="text-[#657166] leading-relaxed font-medium">Exportá reportes impecables en PDF para tu cliente o aplicá los cambios.</p>
                    </div>
+                </div>
+
+                <div className="mt-8 text-center md:text-left">
+                  <a href="/como-funciona" className="inline-flex items-center gap-2 text-[#657166] font-bold text-sm hover:text-[#262B27] transition-colors bg-[#CFD6C4]/20 px-4 py-2 rounded-lg border border-[#CFD6C4]/50">
+                    Ver el recorrido de la plataforma en detalle <ArrowRight size={14}/>
+                  </a>
                 </div>
               </section>
             </FadeInOnScroll>
 
-            {/* SECCIÓN PRECIOS (3 Columnas Pastel) */}
+            {/* SECCIÓN RESUMEN: PRECIOS (Con Tilt y bordes de color) */}
             <FadeInOnScroll>
-              <section id="precios" className="max-w-[1400px] mx-auto px-6 py-24 border-t border-[#CFD6C4]/40">
+              <section id="precios" className="max-w-[1400px] mx-auto px-6 py-20 border-t border-[#CFD6C4]/40">
                 <div className="text-center mb-16">
-                  <p className="text-[10px] font-bold tracking-widest uppercase text-[#99CDD8] mb-2">Precios</p>
-                  <h2 className="text-4xl md:text-5xl font-serif font-black text-[#262B27] mb-4">Sin sorpresas, sin letra chica.</h2>
+                  <p className="text-[10px] font-bold tracking-widest uppercase text-[#99CDD8] mb-2">Precios Simples</p>
+                  <h2 className="text-4xl md:text-5xl font-serif font-black text-[#262B27] mb-4">Elegí tu camino.</h2>
                   <p className="text-[#657166] font-medium">Todos los planes incluyen 14 días de prueba gratis. Cancelá cuando quieras.</p>
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
                   
-                  {/* TIER FREE / STARTER */}
-                  <div className="bg-white/60 backdrop-blur-sm border border-[#CFD6C4]/60 p-10 rounded-[2rem] flex flex-col justify-between hover:bg-white transition-all shadow-sm">
-                    <div>
-                      <h3 className="text-xl font-bold text-[#262B27] mb-2">Plan Starter</h3>
-                      <p className="text-[#657166] mb-8 text-sm font-medium">Para probar el poder de la IA en tu negocio.</p>
-                      <div className="text-5xl font-black text-[#262B27] mb-8">$0<span className="text-lg text-[#657166] font-medium">/mes</span></div>
-                      <ul className="space-y-4 mb-10 text-sm font-medium text-[#262B27]">
-                        <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#CFD6C4]" strokeWidth={3} /> 1 Cuenta publicitaria</li>
-                        <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#CFD6C4]" strokeWidth={3} /> Auditoría Básica IA</li>
-                        <li className="flex items-center gap-3 text-[#657166]/50 line-through"><CheckCircle2 size={18} className="text-[#CFD6C4]/30" strokeWidth={3} /> Exportación PDF</li>
-                        <li className="flex items-center gap-3 text-[#657166]/50 line-through"><CheckCircle2 size={18} className="text-[#CFD6C4]/30" strokeWidth={3} /> Marca Blanca</li>
-                      </ul>
+                  {/* TIER FREE / STARTER (Borde Menta) */}
+                  <TiltWrapper>
+                    <div className="bg-white/60 backdrop-blur-sm border-2 border-transparent hover:border-[#DAEBE3] p-10 rounded-[2rem] flex flex-col justify-between hover:bg-white transition-colors shadow-sm hover:shadow-[0_20px_40px_rgba(218,235,227,0.4)] h-full">
+                      <div>
+                        <h3 className="text-xl font-bold text-[#262B27] mb-2">Starter</h3>
+                        <p className="text-[#657166] mb-8 text-sm font-medium">Para probar el poder de la IA en tu negocio.</p>
+                        <div className="text-5xl font-black text-[#262B27] mb-8">$0<span className="text-lg text-[#657166] font-medium">/mes</span></div>
+                        <ul className="space-y-4 mb-10 text-sm font-medium text-[#262B27]">
+                          <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#DAEBE3]" strokeWidth={3} /> 1 Cuenta publicitaria</li>
+                          <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#DAEBE3]" strokeWidth={3} /> Auditoría Básica IA</li>
+                          <li className="flex items-center gap-3 text-[#657166]/50 line-through"><CheckCircle2 size={18} className="text-[#CFD6C4]/30" strokeWidth={3} /> Marca Blanca</li>
+                        </ul>
+                      </div>
+                      <button onClick={() => signIn("google")} className="w-full bg-[#CFD6C4]/30 hover:bg-[#CFD6C4]/60 text-[#262B27] font-bold py-4 rounded-xl transition-colors border border-[#CFD6C4]/50 mt-auto">Empezar gratis</button>
                     </div>
-                    <button onClick={() => signIn("google")} className="w-full bg-[#CFD6C4]/30 hover:bg-[#CFD6C4]/60 text-[#262B27] font-bold py-4 rounded-xl transition-colors border border-[#CFD6C4]/50 mt-auto">Empezar gratis</button>
-                  </div>
+                  </TiltWrapper>
 
-                  {/* TIER INDIVIDUAL (Destacado) */}
-                  <div className="bg-white border-2 border-[#99CDD8] p-10 rounded-[2rem] flex flex-col justify-between shadow-[0_20px_50px_rgba(153,205,216,0.2)] relative transform md:-translate-y-4">
-                    <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-[#99CDD8] text-[#262B27] px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest">Más Popular</div>
-                    <div>
-                      <h3 className="text-xl font-bold text-[#262B27] mb-2">Plan Individual</h3>
-                      <p className="text-[#657166] mb-8 text-sm font-medium">Para emprendedores gestionando sus anuncios.</p>
-                      <div className="text-5xl font-black text-[#262B27] mb-8">$19<span className="text-lg text-[#657166] font-medium">/mes</span></div>
-                      <ul className="space-y-4 mb-10 text-sm font-medium text-[#262B27]">
-                        <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#99CDD8]" strokeWidth={3} /> Hasta 3 Cuentas</li>
-                        <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#99CDD8]" strokeWidth={3} /> Auditorías Avanzadas</li>
-                        <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#99CDD8]" strokeWidth={3} /> Exportación PDF (Logo Mora)</li>
-                        <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#99CDD8]" strokeWidth={3} /> Historial y Tendencias</li>
-                      </ul>
+                  {/* TIER INDIVIDUAL (Borde Azul) */}
+                  <TiltWrapper>
+                    <div className="bg-white/60 backdrop-blur-sm border-2 border-transparent hover:border-[#99CDD8] p-10 rounded-[2rem] flex flex-col justify-between hover:bg-white transition-colors shadow-sm hover:shadow-[0_20px_40px_rgba(153,205,216,0.4)] h-full">
+                      <div>
+                        <h3 className="text-xl font-bold text-[#262B27] mb-2">Individual</h3>
+                        <p className="text-[#657166] mb-8 text-sm font-medium">Para emprendedores gestionando sus anuncios.</p>
+                        <div className="text-5xl font-black text-[#262B27] mb-8">$19<span className="text-lg text-[#657166] font-medium">/mes</span></div>
+                        <ul className="space-y-4 mb-10 text-sm font-medium text-[#262B27]">
+                          <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#99CDD8]" strokeWidth={3} /> Hasta 3 Cuentas</li>
+                          <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#99CDD8]" strokeWidth={3} /> Auditorías Avanzadas</li>
+                          <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#99CDD8]" strokeWidth={3} /> Exportación PDF (Logo Mora)</li>
+                        </ul>
+                      </div>
+                      <button onClick={() => signIn("google")} className="w-full bg-[#99CDD8] hover:bg-[#85b9c4] text-[#262B27] font-bold py-4 rounded-xl transition-colors shadow-md mt-auto">Prueba de 14 días</button>
                     </div>
-                    <button onClick={() => signIn("google")} className="w-full bg-[#99CDD8] hover:bg-[#85b9c4] text-[#262B27] font-bold py-4 rounded-xl transition-colors shadow-md mt-auto">Iniciar prueba de 14 días</button>
-                  </div>
+                  </TiltWrapper>
 
-                  {/* TIER AGENCIA */}
-                  <div className="bg-white/60 backdrop-blur-sm border border-[#CFD6C4]/60 p-10 rounded-[2rem] flex flex-col justify-between hover:bg-white transition-all shadow-sm">
-                    <div>
-                      <h3 className="text-xl font-bold text-[#262B27] mb-2">Plan Agency</h3>
-                      <p className="text-[#657166] mb-8 text-sm font-medium">El centro de comando para agencias.</p>
-                      <div className="text-5xl font-black text-[#262B27] mb-8">$49<span className="text-lg text-[#657166] font-medium">/mes</span></div>
-                      <ul className="space-y-4 mb-10 text-sm font-medium text-[#262B27]">
-                        <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#F3C3B2]" strokeWidth={3} /> Cuentas Ilimitadas</li>
-                        <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#F3C3B2]" strokeWidth={3} /> Marca Blanca Total (Tu Logo)</li>
-                        <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#F3C3B2]" strokeWidth={3} /> Dashboard Multi-Cliente</li>
-                        <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#F3C3B2]" strokeWidth={3} /> Soporte VIP Prioritario</li>
-                      </ul>
+                  {/* TIER AGENCIA (Borde Melocotón) */}
+                  <TiltWrapper>
+                    <div className="bg-white/60 backdrop-blur-sm border-2 border-transparent hover:border-[#F3C3B2] p-10 rounded-[2rem] flex flex-col justify-between hover:bg-white transition-colors shadow-sm hover:shadow-[0_20px_40px_rgba(243,195,178,0.4)] h-full">
+                      <div>
+                        <h3 className="text-xl font-bold text-[#262B27] mb-2">Agency</h3>
+                        <p className="text-[#657166] mb-8 text-sm font-medium">El centro de comando para agencias.</p>
+                        <div className="text-5xl font-black text-[#262B27] mb-8">$49<span className="text-lg text-[#657166] font-medium">/mes</span></div>
+                        <ul className="space-y-4 mb-10 text-sm font-medium text-[#262B27]">
+                          <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#F3C3B2]" strokeWidth={3} /> Cuentas Ilimitadas</li>
+                          <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#F3C3B2]" strokeWidth={3} /> Marca Blanca Total</li>
+                          <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#F3C3B2]" strokeWidth={3} /> Dashboard Multi-Cliente</li>
+                        </ul>
+                      </div>
+                      <button onClick={() => signIn("google")} className="w-full bg-[#F3C3B2] hover:bg-[#eab3a1] text-[#262B27] font-bold py-4 rounded-xl transition-colors shadow-md mt-auto">Prueba de 14 días</button>
                     </div>
-                    <button onClick={() => signIn("google")} className="w-full bg-[#F3C3B2] hover:bg-[#eab3a1] text-[#262B27] font-bold py-4 rounded-xl transition-colors shadow-md mt-auto">Iniciar prueba de 14 días</button>
-                  </div>
+                  </TiltWrapper>
 
+                </div>
+
+                <div className="mt-12 text-center">
+                  <a href="/precios" className="inline-flex items-center gap-2 text-[#657166] font-bold text-sm hover:text-[#262B27] transition-colors bg-[#CFD6C4]/20 px-4 py-2 rounded-lg border border-[#CFD6C4]/50">
+                    Ver la tabla de comparación completa <ArrowRight size={14}/>
+                  </a>
                 </div>
               </section>
             </FadeInOnScroll>
 
-            {/* SECCIÓN PREGUNTAS FRECUENTES (FAQ Pastel) */}
+            {/* SECCIÓN RESUMEN: FAQ */}
             <FadeInOnScroll>
-              <section id="faq" className="max-w-4xl mx-auto px-6 py-24 mb-12 border-t border-[#CFD6C4]/40">
-                <div className="text-center mb-16">
+              <section id="faq" className="max-w-4xl mx-auto px-6 py-20 mb-12 border-t border-[#CFD6C4]/40">
+                <div className="text-center mb-12">
                   <h2 className="text-4xl font-serif font-black text-[#262B27]">Preguntas Frecuentes</h2>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                    <div className="bg-white/60 backdrop-blur-sm border border-[#CFD6C4]/60 p-6 rounded-2xl hover:bg-white transition-colors">
                       <h4 className="text-lg font-bold text-[#262B27] mb-2">¿Mora hace cambios en mis campañas sin avisar?</h4>
-                      <p className="text-[#657166] text-sm leading-relaxed font-medium">No. Mora audita y sugiere. Vos tenés el control total: podés aplicar los cambios manualmente en Google Ads. Nunca tocaremos tu presupuesto sin permiso.</p>
+                      <p className="text-[#657166] text-sm leading-relaxed font-medium">No. Mora audita y sugiere. Vos tenés el control total. Nunca tocaremos tu presupuesto sin permiso.</p>
                    </div>
                    <div className="bg-white/60 backdrop-blur-sm border border-[#CFD6C4]/60 p-6 rounded-2xl hover:bg-white transition-colors">
                       <h4 className="text-lg font-bold text-[#262B27] mb-2">¿Necesito ser un experto en Google Ads?</h4>
-                      <p className="text-[#657166] text-sm leading-relaxed font-medium">Para nada. Mora traduce métricas complejas a un lenguaje de negocios simple. Te decimos dónde estás perdiendo dinero y cómo solucionarlo en español claro.</p>
+                      <p className="text-[#657166] text-sm leading-relaxed font-medium">Para nada. Te decimos dónde estás perdiendo dinero y cómo solucionarlo en español claro.</p>
                    </div>
                    <div className="bg-white/60 backdrop-blur-sm border border-[#CFD6C4]/60 p-6 rounded-2xl hover:bg-white transition-colors">
-                      <h4 className="text-lg font-bold text-[#262B27] mb-2">¿Qué es exactamente la 'Marca Blanca Total'?</h4>
-                      <p className="text-[#657166] text-sm leading-relaxed font-medium">Exclusiva del Plan Agency, te permite exportar auditorías en PDF con el logo, colores y web de tu agencia. Ideal para entregar reportes de nivel corporativo.</p>
+                      <h4 className="text-lg font-bold text-[#262B27] mb-2">¿Qué es la 'Marca Blanca Total'?</h4>
+                      <p className="text-[#657166] text-sm leading-relaxed font-medium">Exclusiva del Plan Agency, te permite exportar auditorías en PDF con el logo, colores y web de tu agencia.</p>
                    </div>
                    <div className="bg-white/60 backdrop-blur-sm border border-[#CFD6C4]/60 p-6 rounded-2xl hover:bg-white transition-colors">
                       <h4 className="text-lg font-bold text-[#262B27] mb-2">¿Mis datos están seguros?</h4>
-                      <p className="text-[#657166] text-sm leading-relaxed font-medium">100%. Solo solicitamos permisos de lectura oficiales de Google a través de OAuth. No usamos tus datos ni los de tus clientes para entrenar modelos de IA públicos.</p>
+                      <p className="text-[#657166] text-sm leading-relaxed font-medium">100%. Solo solicitamos permisos de lectura. No usamos tus datos para entrenar modelos públicos.</p>
                    </div>
+                </div>
+
+                <div className="mt-8 text-center">
+                  <a href="/faq" className="inline-flex items-center gap-2 text-[#657166] font-bold text-sm hover:text-[#262B27] transition-colors bg-[#CFD6C4]/20 px-4 py-2 rounded-lg border border-[#CFD6C4]/50">
+                    Leer todas las preguntas frecuentes <ArrowRight size={14}/>
+                  </a>
                 </div>
               </section>
             </FadeInOnScroll>
@@ -978,7 +1166,10 @@ function AuditorDashboard() {
             </footer>
           </div>
         ) : (
-          /* --- VISTA PARA LOGUEADOS (DASHBOARD ORIGINAL INTACTO) --- */
+          
+          /* ========================================================================= */
+          /* VISTA: DASHBOARD LOGUEADO (TEMA OSCURO ORIGINAL INTACTO)                  */
+          /* ========================================================================= */
           <>
             <aside className="w-64 bg-[#0a0a0c]/40 backdrop-blur-2xl border-r border-white/5 flex flex-col justify-between print:hidden z-20 relative shadow-[10px_0_30px_rgba(0,0,0,0.5)]">
               <div>
