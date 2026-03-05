@@ -1,12 +1,13 @@
+import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
 export default function PrivacidadPage() {
   return (
     <div className="min-h-screen bg-[#FDE8D3] text-[#262B27] font-sans selection:bg-[#F3C3B2] px-6 py-20">
       <div className="max-w-4xl mx-auto bg-white/80 backdrop-blur-xl border border-[#CFD6C4]/60 p-10 md:p-16 rounded-[2rem] shadow-xl">
-        <a href="/" className="inline-flex items-center gap-2 mb-8 text-[#657166] hover:text-[#262B27] font-bold text-sm transition-colors border border-[#CFD6C4]/50 px-4 py-2 rounded-lg bg-white/50 backdrop-blur-sm">
+        <Link href="/" className="inline-flex items-center gap-2 mb-8 text-[#657166] hover:text-[#262B27] font-bold text-sm transition-colors border border-[#CFD6C4]/50 px-4 py-2 rounded-lg bg-white/50 backdrop-blur-sm">
           <ArrowLeft size={16} /> Volver al inicio
-        </a>
+        </Link>
         
         <h1 className="text-4xl md:text-5xl font-black mb-8" style={{ fontFamily: "'Playfair Display', serif" }}>Política de Privacidad</h1>
         
@@ -15,7 +16,7 @@ export default function PrivacidadPage() {
           
           <section>
             <h2 className="text-2xl font-bold text-[#262B27] mb-4" style={{ fontFamily: "'Playfair Display', serif" }}>1. Datos que recopilamos (Google Ads API)</h2>
-            <p>Mora Analytics utiliza la API oficial de Google Ads. Solo solicitamos permisos de "Solo Lectura" (Read-Only) a través del protocolo seguro OAuth 2.0. Recopilamos estrictamente las métricas de rendimiento necesarias (impresiones, clics, conversiones, gasto) para generar las auditorías.</p>
+            <p>Mora Analytics utiliza la API oficial de Google Ads. Solo solicitamos permisos de "Solo Lectura" (Read-Only) a través del protocolo seguro OAuth 2.0. Recopilamos estrictamente las métricas de rendimiento necesarias (impresiones, clics, conversiones, gasto) para generar las auditorías. No tenemos capacidad técnica para crear, pausar o eliminar campañas de manera automatizada sin intervención del usuario.</p>
           </section>
 
           <section>

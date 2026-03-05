@@ -1,12 +1,13 @@
+import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
 export default function FaqPage() {
   return (
     <div className="min-h-screen bg-[#FDE8D3] text-[#262B27] font-sans selection:bg-[#F3C3B2]">
       <div className="max-w-4xl mx-auto px-6 py-20">
-        <a href="/" className="inline-flex items-center gap-2 mb-12 text-[#657166] hover:text-[#262B27] font-bold text-sm transition-colors border border-[#CFD6C4]/50 px-4 py-2 rounded-lg bg-white/50 backdrop-blur-sm">
+        <Link href="/" className="inline-flex items-center gap-2 mb-12 text-[#657166] hover:text-[#262B27] font-bold text-sm transition-colors border border-[#CFD6C4]/50 px-4 py-2 rounded-lg bg-white/50 backdrop-blur-sm">
           <ArrowLeft size={16} /> Volver al inicio
-        </a>
+        </Link>
         
         <h1 className="text-5xl md:text-6xl font-black mb-6 tracking-tight text-center" style={{ fontFamily: "'Playfair Display', serif" }}>Preguntas Frecuentes</h1>
         <p className="text-xl text-[#657166] mb-16 font-medium text-center">Despejá todas tus dudas sobre Mora, la seguridad y las suscripciones.</p>
@@ -15,7 +16,7 @@ export default function FaqPage() {
           
           <div className="bg-white/60 backdrop-blur-xl border border-[#CFD6C4]/60 rounded-2xl p-8 shadow-sm">
             <h3 className="text-xl font-bold text-[#262B27] mb-3">¿Mora puede arruinar mis campañas si la IA se equivoca?</h3>
-            <p className="text-[#657166] font-medium leading-relaxed">No. Mora funciona con una "Cláusula de Copiloto". Somos una herramienta de asistencia y diagnóstico. Mora te sugiere qué cambiar, pero el usuario es el que tiene la decisión final y quien aplica los ajustes. Además, todas las acciones cuentan con un mecanismo de Undo (Deshacer) de seguridad.</p>
+            <p className="text-[#657166] font-medium leading-relaxed">No. Mora funciona con una "Cláusula de Copiloto". Somos una herramienta de asistencia y diagnóstico. Mora te sugiere qué cambiar, pero vos tenés el control total y sos quien aplica los ajustes. Además, las acciones implementadas mantienen un mecanismo de Deshacer (Undo).</p>
           </div>
 
           <div className="bg-white/60 backdrop-blur-xl border border-[#CFD6C4]/60 rounded-2xl p-8 shadow-sm">
@@ -25,7 +26,7 @@ export default function FaqPage() {
 
           <div className="bg-white/60 backdrop-blur-xl border border-[#CFD6C4]/60 rounded-2xl p-8 shadow-sm">
             <h3 className="text-xl font-bold text-[#262B27] mb-3">¿Qué significa el "Plan Agency" con Marca Blanca?</h3>
-            <p className="text-[#657166] font-medium leading-relaxed">Te permite exportar los reportes en PDF eliminando el branding de Mora para aplicar el logotipo y los colores de tu propia agencia. Esto te ayuda a entregar auditorías de calidad corporativa manteniendo una presencia de marca profesional frente a tus clientes.</p>
+            <p className="text-[#657166] font-medium leading-relaxed">Te permite exportar los reportes eliminando el branding de Mora para aplicar el logotipo y los colores de tu propia agencia. Esto te ayuda a entregar auditorías de calidad corporativa manteniendo una presencia de marca profesional y unificada frente a tus clientes.</p>
           </div>
 
           <div className="bg-white/60 backdrop-blur-xl border border-[#CFD6C4]/60 rounded-2xl p-8 shadow-sm">
