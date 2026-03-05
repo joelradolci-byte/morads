@@ -81,7 +81,6 @@ function TiltWrapper({ children }: { children: React.ReactNode }) {
 
 // --- FONDO NARRATIVO MEJORADO: ESFERA DE AUDITORÍA CON ESCÁNER Y NODOS REACTIVOS (Rojo/Verde) ---
 // --- FONDO NARRATIVO MEJORADO: ESFERA DE AUDITORÍA CON ESCÁNER Y NODOS REACTIVOS ---
-// --- FONDO NARRATIVO MEJORADO: ESFERA VIVA CON ESCÁNER Y NODOS REACTIVOS ---
 const AuditWireframeBackground = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -97,72 +96,55 @@ const AuditWireframeBackground = () => {
     canvas.height = height;
 
     const nodes: any[] = [];
+    // TAMAÑO INTERMEDIO: Ni tan chico como al principio, ni tan gigante como antes.
     let radius = width > 1024 ? 400 : 280; 
 
-    // Crear puntos de la esfera con físicas individuales de "respiración"
+    // Crear puntos de la esfera
     for (let i = 0; i <= 16; i++) {
       let lat = Math.PI * i / 16;
       for (let j = 0; j <= 32; j++) {
         let lon = 2 * Math.PI * j / 32;
-        let origX = radius * Math.sin(lat) * Math.cos(lon);
-        let origY = radius * Math.sin(lat) * Math.sin(lon);
-        let origZ = radius * Math.cos(lat);
+        let x = radius * Math.sin(lat) * Math.cos(lon);
+        let y = radius * Math.sin(lat) * Math.sin(lon);
+        let z = radius * Math.cos(lat);
         
+        // Concentramos los errores en un sector
         const isErrorCandidate = (i > 8 && i < 13) && (j > 3 && j < 11);
         const isError = isErrorCandidate && Math.random() > 0.4;
         
-        nodes.push({ 
-          origX, origY, origZ, // Posición ancla
-          isError, 
-          glow: 0, 
-          scaleFactor: 1,
-          // Variables únicas de "vida" para cada nodo
-          phaseX: Math.random() * Math.PI * 2,
-          phaseY: Math.random() * Math.PI * 2,
-          phaseZ: Math.random() * Math.PI * 2,
-          floatSpeed: 0.01 + Math.random() * 0.02,
-          floatAmp: 5 + Math.random() * 15 // Cuánto se aleja de su ancla
-        });
+        nodes.push({ x, y, z, isError, glow: 0, scaleFactor: 1 });
       }
     }
 
     let angleX = 0;
     let angleY = 0;
-    let scanY = -height * 0.5; 
-    let globalTime = 0;
+    let scanY = -height * 0.5; // Inicia arriba de la pantalla
     let animationFrameId: number;
 
     const render = () => {
       ctx.clearRect(0, 0, width, height);
       angleX += 0.0006;
       angleY += 0.0012;
-      globalTime += 1;
       
+      // El escáner baja y luego se reinicia
       scanY += 3.5; 
       if (scanY > height * 1.3) {
         scanY = -height * 0.4;
       }
 
+      // Centro del objeto (Desplazado a la derecha)
       const centerX = width > 1024 ? width * 0.76 : width * 0.5;
       const centerY = height * 0.5;
 
       const projectedNodes = nodes.map(node => {
-        // --- MICRO-MOVIMIENTOS ORGÁNICOS ---
-        // El nodo flota alrededor de su posición original
-        let currentX = node.origX + Math.sin(globalTime * node.floatSpeed + node.phaseX) * node.floatAmp;
-        let currentY = node.origY + Math.cos(globalTime * node.floatSpeed + node.phaseY) * node.floatAmp;
-        let currentZ = node.origZ + Math.sin(globalTime * node.floatSpeed + node.phaseZ) * node.floatAmp;
-
-        // Rotación 3D global sobre la posición viva
-        let x = currentX * Math.cos(angleY) - currentZ * Math.sin(angleY);
-        let z = currentX * Math.sin(angleY) + currentZ * Math.cos(angleY);
-        let y = currentY;
+        let x = node.x * Math.cos(angleY) - node.z * Math.sin(angleY);
+        let z = node.x * Math.sin(angleY) + node.z * Math.cos(angleY);
+        let y = node.y;
 
         let y2 = y * Math.cos(angleX) - z * Math.sin(angleX);
         let z2 = y * Math.sin(angleX) + z * Math.cos(angleX);
         x = x; y = y2; z = z2;
 
-        // Proyección 2D
         const fov = 1100;
         const scale = fov / (fov + z);
         const x2d = (x * scale) + centerX;
@@ -171,7 +153,7 @@ const AuditWireframeBackground = () => {
         // Lógica de Escaneo
         const distToScan = Math.abs(y2d - scanY);
         if (distToScan < 45) {
-           node.glow = 1.0; 
+           node.glow = 1.0; // Se ilumina al máximo
            node.scaleFactor = node.isError ? 1.6 : 1.2; 
         } else {
            node.glow *= node.isError ? 0.98 : 0.88; 
@@ -186,11 +168,11 @@ const AuditWireframeBackground = () => {
         };
       });
 
-      // --- ESCÁNER ---
+      // --- ESCÁNER ORIGINAL MÁS SUTIL Y LIMPIO ---
       if (scanY > -100 && scanY < height + 100) {
          const scanGradient = ctx.createLinearGradient(0, scanY - 20, 0, scanY + 20);
          scanGradient.addColorStop(0, 'rgba(218, 235, 227, 0)');
-         scanGradient.addColorStop(0.5, 'rgba(218, 235, 227, 0.4)'); 
+         scanGradient.addColorStop(0.5, 'rgba(218, 235, 227, 0.4)'); // Color menta
          scanGradient.addColorStop(1, 'rgba(218, 235, 227, 0)');
          ctx.fillStyle = scanGradient;
          ctx.fillRect(centerX - radius * 1.5, scanY - 20, radius * 3, 40);
@@ -203,7 +185,7 @@ const AuditWireframeBackground = () => {
          ctx.stroke();
       }
 
-      // --- WIREFRAME VIVO (Líneas elásticas) ---
+      // Dibujar wireframe (Lineas grises sutiles)
       ctx.beginPath();
       ctx.strokeStyle = `rgba(38, 43, 39, 0.15)`; 
       ctx.lineWidth = 1;
@@ -221,16 +203,18 @@ const AuditWireframeBackground = () => {
       }
       ctx.stroke();
 
-      // --- NODOS REACTIVOS ---
+      // --- NODOS CON COLORES INTENSOS ---
       projectedNodes.forEach(pn => {
         let fillColor = 'rgba(38, 43, 39, 0.2)';
         
         if (pn.glow > 0.08) {
            if (pn.isError) {
+              // ROJO INTENSO
               fillColor = `rgba(239, 68, 68, ${0.4 + pn.glow * 0.6})`;
               ctx.shadowBlur = 20 * pn.glow; 
               ctx.shadowColor = `rgba(239, 68, 68, 1)`; 
            } else {
+              // VERDE INTENSO
               fillColor = `rgba(74, 222, 128, ${0.3 + pn.glow * 0.7})`;
               ctx.shadowBlur = 12 * pn.glow; 
               ctx.shadowColor = `rgba(74, 222, 128, 0.8)`;
