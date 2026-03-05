@@ -96,7 +96,7 @@ const AuditWireframeBackground = () => {
 
     const nodes: any[] = [];
     // Ajustamos radio para que cubra la zona derecha
-    const radius = width > 1024 ? width * 0.28 : width * 0.35; 
+    let radius = width > 1024 ? width * 0.28 : width * 0.35; 
 
     // Crear puntos de la esfera con mayor densidad para wireframe
     for (let i = 0; i <= 16; i++) {
