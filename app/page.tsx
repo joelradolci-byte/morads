@@ -596,18 +596,18 @@ function AuditorDashboard() {
               <FadeInOnScroll>
                 <div className="flex flex-col items-start text-left lg:pr-10">
                   <div className="border border-[#CFD6C4]/80 bg-[#CFD6C4]/30 px-4 py-1.5 rounded-full text-[10px] font-bold tracking-widest uppercase mb-8 flex items-center gap-3 text-[#262B27]">
-                     <span className="w-2 h-2 rounded-full bg-[#F3C3B2] animate-pulse"></span>
-                     Auditorías con IA
-                  </div>
-                  <h1 className="text-[3rem] md:text-6xl lg:text-[4.5rem] font-serif text-[#262B27] font-black leading-[1.05] mb-6 tracking-tight">
-  Auditorías <span className="italic text-[#C05621]">automáticas</span> para escalar tus campañas de Google Ads.
+  <span className="w-2 h-2 rounded-full bg-[#F3C3B2] animate-pulse"></span>
+  Auditorías con IA
+</div>
+<h1 className="text-[3.5rem] md:text-6xl lg:text-[4.5rem] font-serif text-[#262B27] font-black leading-[1.05] mb-6 tracking-tight">
+  Detectá <span className="italic text-[#C4614A]">fugas de dinero</span> en tus campañas de Google Ads.
 </h1>
-                  <p className="text-[#657166] text-lg md:text-xl mb-10 max-w-lg leading-relaxed font-medium">
-                    Conectá tu cuenta de Google Ads y dejá que nuestra IA audite tus campañas, traduzca las métricas y genere reportes marca blanca en segundos.
-                  </p>
-                  <button onClick={() => signIn("google", { prompt: "select_account" })} className="bg-[#262B27] text-white px-8 py-4 rounded-2xl font-bold text-lg hover:scale-105 transition-transform shadow-[0_10px_30px_rgba(38,43,39,0.4)] flex items-center justify-center gap-2 w-full sm:w-auto">
-                    Comenzar prueba gratis <ArrowRight size={20} />
-                  </button>
+<p className="text-[#657166] text-lg md:text-xl mb-10 max-w-lg leading-relaxed font-medium">
+  Conectá tu cuenta y dejá que nuestra IA audite el gasto con precisión quirúrgica. Generá reportes de marca blanca listos para enviar en segundos.
+</p>
+<button onClick={() => signIn("google", { prompt: "select_account" })} className="bg-[#C4614A] text-white px-8 py-4 rounded-2xl font-bold text-lg hover:scale-105 hover:bg-[#a84c38] transition-all shadow-[0_10px_30px_rgba(196,97,74,0.4)] flex items-center justify-center w-full sm:w-auto">
+  Comenzar prueba gratis
+</button>
 
                   <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mt-8 text-[13px] text-[#657166] font-semibold w-full">
                      <span className="flex items-center gap-2"><CheckCircle2 size={16} className="text-[#99CDD8]" strokeWidth={3} /> Sin tarjeta de crédito</span>
