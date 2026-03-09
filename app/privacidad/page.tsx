@@ -21,7 +21,7 @@ export default function PrivacidadPage() {
 
           <section>
             <h2 className="text-2xl font-bold text-[#262B27] mb-4" style={{ fontFamily: "'Playfair Display', serif" }}>2. Uso de Datos en Inteligencia Artificial</h2>
-            <p>Cumplimos estrictamente con la Política de Datos de Usuario de los Servicios de API de Google. Los datos de tus campañas se envían temporalmente a modelos de IA de Google (Gemini) mediante API de nivel empresarial. <strong>Tus datos no son utilizados por Google ni por Mora para entrenar modelos fundacionales públicos de IA.</strong></p>
+            <p>Cumplimos estrictamente con la Política de Datos de Usuario de los Servicios de API de Google. Los datos de tus campañas se envían temporalmente a modelos de IA de Google (Gemini) mediante API de nivel empresarial. <strong>Tus datos no son utilizados por Google ni por Mora para entrenar modelos fundacionales públicos de IA.</strong> El uso y la transferencia por parte de Mora Analytics de cualquier información recibida de las API de Google a cualquier otra aplicación se ajustará a la Política de datos de usuario de los servicios de API de Google, incluidos los requisitos de Uso Limitado (Limited Use requirements).</p>
           </section>
 
           <section>
@@ -36,7 +36,7 @@ export default function PrivacidadPage() {
 
           <section>
             <h2 className="text-2xl font-bold text-[#262B27] mb-4" style={{ fontFamily: "'Playfair Display', serif" }}>5. Almacenamiento y Seguridad</h2>
-            <p>Los reportes generados se guardan en bases de datos seguras (tecnología Supabase) asociadas a tu cuenta de usuario para que puedas acceder al historial. Estos reportes son confidenciales y se almacenan mediante protocolos de cifrado estándar de la industria.</p>
+            <p>Los reportes generados se guardan en bases de datos seguras (tecnología Supabase) asociadas a tu cuenta de usuario para que puedas acceder al historial. Estos reportes son confidenciales y se almacenan mediante protocolos de cifrado estándar de la industria. Retenemos los reportes y datos asociados únicamente mientras tu cuenta se mantenga activa. Si decides cancelar tu suscripción o inactivar tu cuenta, los datos de las campañas se eliminarán de nuestros servidores en un plazo de 30 días.</p>
           </section>
 
           <section>
@@ -47,6 +47,11 @@ export default function PrivacidadPage() {
           <section>
             <h2 className="text-2xl font-bold text-[#262B27] mb-4" style={{ fontFamily: "'Playfair Display', serif" }}>7. Derechos del Usuario</h2>
             <p>Tienes derecho a solicitar la eliminación completa de tu cuenta, tu perfil y todo el historial de auditorías y snapshots de nuestros servidores contactando al equipo de soporte. Esta acción es irreversible.</p>
+          </section>
+
+          <section>
+            <h2 className="text-2xl font-bold text-[#262B27] mb-4" style={{ fontFamily: "'Playfair Display', serif" }}>8. Contacto</h2>
+            <p>Si tienes preguntas o inquietudes sobre esta Política de Privacidad o el manejo de tus datos, puedes contactarnos en: <strong>joelradolci@gmail.com</strong>.</p>
           </section>
         </div>
       </div>
