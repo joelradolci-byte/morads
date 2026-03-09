@@ -599,8 +599,10 @@ function AuditorDashboard() {
   <span className="w-2 h-2 rounded-full bg-[#F3C3B2] animate-pulse"></span>
   Auditorías con IA
 </div>
-<h1 className="text-[3.5rem] md:text-6xl lg:text-[4rem] font-serif text-[#262B27] font-black leading-[1.1] mb-6 tracking-tight max-w-2xl">
-  Detectá <span className="italic text-[#C4614A]">fugas de dinero</span> en tus campañas de Google&nbsp;Ads.
+<h1 className="text-[3.5rem] md:text-6xl lg:text-[4rem] font-serif text-[#262B27] font-black leading-[1.1] mb-6 tracking-tight">
+  Detectá <br className="hidden lg:block" />
+  <span className="italic text-[#C4614A]">fugas de dinero</span> <br className="hidden lg:block" />
+  en tus campañas de Google&nbsp;Ads.
 </h1>
 <p className="text-[#657166] text-lg md:text-xl mb-10 max-w-lg leading-relaxed font-medium">
   Conectá tu cuenta y dejá que nuestra IA audite el gasto con precisión quirúrgica. Generá reportes de marca blanca listos para enviar en segundos.
