@@ -326,9 +326,9 @@ function AuditorDashboard() {
 
   const [modoPlan, setModoPlan] = useState<"agencia" | "individual">("agencia");
 
-  // Diccionario con traducciones actualizadas (Incluye "detalleCliente" y "Ver reporte")
+  // Diccionario con traducciones actualizadas
   const t = {
-    es: { dashboard: "Dashboard", panelPrin: "Panel Principal", panelDesc: "Resumen del rendimiento global de tus cuentas.", saludG: "Salud Promedio", totAud: "Total Cuentas", fugasDet: "Fugas Críticas", oporMej: "Oportunidades", ultAud: "Últimas Auditorías", actRec: "Actividad Reciente", verTodas: "Ver todas →", generada: "Se auditó la cuenta", hace: "Hace", afectaA: "Afecta principalmente a", buscarGlobal: "Buscar cuenta por nombre...", nueva: "Auditor IA", clientes: "Panel de Clientes", reportes: "Reportes", feedback: "Sugerencias", configuracion: "Configuración General", facturacion: "Ver Facturación", salir: "Cerrar Sesión", placeholderNombre: "Nombre del Cliente o Cuenta", btnAnalizar: "Ejecutar Auditoría", btnAnalizando: "Analizando métricas...", exportar: "Exportar a PDF", score: "Score", problemas: "Problemas Graves", mejoras: "Áreas Débiles", aciertos: "Puntos Fuertes", login: "Iniciar sesión", tabDiag: "Diagnóstico IA", tabCheck: "Plan de Acción", tabAvanzado: "Análisis Avanzado", autoApply: "Corregir Ahora", msgAutoApply: "Disponible próximamente", pacingTit: "Pacing de Presupuesto", pacingDesc: "Ritmo de gasto proyectado", matrizTit: "Campaign Matrix", matrizDesc: "Distribución del gasto vs rendimiento", escalar: "ESTRELLAS (Escalar)", apagar: "BASURA (Apagar)", observar: "DUDOSOS (Observar)", potenciales: "POTENCIALES (Testear)", abrirAud: "Ver reporte", thCliente: "Cliente / Cuenta", thFecha: "Fecha", thEstado: "Estado", thAccion: "Acción", cuentaSinNombre: "Cuenta sin nombre", ingresos: "Ingresa los datos", buzonSug: "Buzón de sugerencias", facturacionTitulo: "Facturación y Planes", facturacionDesc: "Administrá tu suscripción", planActual: "Plan Actual", activa: "Activa", gestionarStripe: "Gestionar en Stripe", pronto: "Pronto", ayudanos: "Ayudanos a mejorar", bug: "¿Encontraste un error?", escribiSug: "Escribí tu sugerencia aquí...", enviando: "Enviando...", enviarSug: "Enviar Sugerencia", persPdf: "Personalización de Marca Blanca", nomAgencia: "Nombre de Agencia", sitioWeb: "Sitio Web", logoPdf: "Logo PDF", subeLogo: "Subir", piePagina: "Pie de página legal", preferencias: "Preferencias Regionales", monedaDef: "Moneda Base", metricaDef: "Métrica Principal", guardando: "Guardando...", guardarAj: "Guardar Ajustes", puntajeBasado: "Puntaje de salud en base al rendimiento y estructura general.", ingresaDatos: "Completá los datos de la campaña a auditar.", presupuestoObj: "Presupuesto Mensual", placeholderPres: "Ej: 1000", gastoAct: "Gasto actual", placeholderGasto: "Ej: 450", conversiones: "Conversiones", cparoas: "CPA / ROAS Actual", tipoCamp: "Tipo de Campaña", contexto: "Contexto y Notas", placeholderConv: "Ej: 120", placeholderContexto: "Añadí contexto extra para la IA.", monitoreo: "Monitoreo", tenes: "Tenés", registradas: "cuentas registradas.", todos: "Todos", criticos: "Críticos", atencion: "Atención", optimos: "Óptimos", thTendencia: "Tendencia", volver: "Volver atrás", detalleCliente: "Detalle del Cliente" },
+    es: { dashboard: "Dashboard", panelPrin: "Panel Principal", panelDesc: "Resumen del rendimiento global de tus cuentas.", saludG: "Salud Promedio", totAud: "Total Cuentas", fugasDet: "Fugas Críticas", oporMej: "Oportunidades", ultAud: "Últimas Auditorías", actRec: "Actividad Reciente", verTodas: "Ver todas →", generada: "Se auditó la cuenta", hace: "Hace", afectaA: "Afecta principalmente a", buscarGlobal: "Buscar cuenta por nombre...", nueva: "Auditor IA", clientes: "Panel de Clientes", reportes: "Reportes", feedback: "Sugerencias", configuracion: "Configuración General", facturacion: "Ver Facturación", salir: "Cerrar Sesión", placeholderNombre: "Nombre del Cliente o Cuenta", btnAnalizar: "Ejecutar Auditoría", btnAnalizando: "Analizando métricas...", exportar: "Exportar a PDF", score: "Score", problemas: "Problemas Graves", mejoras: "Áreas Débiles", aciertos: "Puntos Fuertes", login: "Iniciar sesión", tabDiag: "Diagnóstico IA", tabCheck: "Plan de Acción", tabAvanzado: "Análisis Avanzado", autoApply: "Corregir Ahora", msgAutoApply: "Disponible próximamente", pacingTit: "Pacing de Presupuesto", pacingDesc: "Ritmo de gasto proyectado", matrizTit: "Campaign Matrix", matrizDesc: "Distribución del gasto vs rendimiento", escalar: "ESTRELLAS (Escalar)", apagar: "BASURA (Apagar)", observar: "DUDOSOS (Observar)", potenciales: "POTENCIALES (Testear)", abrirAud: "Ver reporte", thCliente: "Cliente / Cuenta", thFecha: "Fecha", thEstado: "Estado", thAccion: "Acción", cuentaSinNombre: "Cuenta sin nombre", ingresos: "Ingresa los datos", buzonSug: "Buzón de sugerencias", facturacionTitulo: "Facturación y Planes", facturacionDesc: "Administrá tu suscripción", planActual: "Plan Actual", activa: "Activa", gestionarStripe: "Gestionar en Stripe", pronto: "Pronto", ayudanos: "Ayudanos a mejorar", bug: "¿Encontraste un error?", escribiSug: "Escribí tu sugerencia aquí...", enviando: "Enviando...", enviarSug: "Enviar Sugerencia", persPdf: "Personalización de Marca Blanca", nomAgencia: "Nombre de Agencia", sitioWeb: "Sitio Web", logoPdf: "Logo PDF", subeLogo: "Subir", piePagina: "Pie de página legal", preferencias: "Preferencias Regionales", monedaDef: "Moneda Base", metricaDef: "Métrica Principal", guardando: "Guardando...", guardarAj: "Guardar Ajustes", puntajeBasado: "Puntaje de salud en base al rendimiento y estructura general.", ingresaDatos: "Completá los datos de la campaña a auditar.", presupuestoObj: "Presupuesto Mensual", placeholderPres: "Ej: 1000", gastoAct: "Gasto actual", placeholderGasto: "Ej: 450", conversiones: "Conversiones", cparoas: "CPA / ROAS Actual", tipoCamp: "Campaign Type", contexto: "Contexto y Notas", placeholderConv: "Ej: 120", placeholderContexto: "Añadí contexto extra para la IA.", monitoreo: "Monitoreo", tenes: "Tenés", registradas: "cuentas registradas.", todos: "Todos", criticos: "Críticos", atencion: "Atención", optimos: "Óptimos", thTendencia: "Tendencia", volver: "Volver atrás", detalleCliente: "Detalle del Cliente" },
     en: { dashboard: "Dashboard", panelPrin: "Main Dashboard", panelDesc: "Global overview of your accounts performance.", saludG: "Avg Health Score", totAud: "Total Accounts", fugasDet: "Critical Leaks", oporMej: "Opportunities", ultAud: "Recent Audits", actRec: "Recent Activity", verTodas: "View all →", generada: "Audit generated for", hace: "Ago", afectaA: "Mainly affecting", buscarGlobal: "Search account by name...", nueva: "AI Auditor", clientes: "Client Dashboard", reportes: "Reports", feedback: "Feedback", configuracion: "General Settings", facturacion: "Billing", salir: "Sign Out", placeholderNombre: "Client or Account Name", btnAnalizar: "Run Audit", btnAnalizando: "Analyzing metrics...", exportar: "Export to PDF", score: "Score", problemas: "Critical Issues", mejoras: "Weak Areas", aciertos: "Strengths", login: "Log In", tabDiag: "AI Diagnosis", tabCheck: "Action Plan", tabAvanzado: "Advanced Analysis", autoApply: "Auto-Apply", msgAutoApply: "Coming soon", pacingTit: "Budget Pacing", pacingDesc: "Projected spend rhythm", matrizTit: "Campaign Matrix", matrizDesc: "Spend distribution vs performance", escalar: "STARS (Scale)", apagar: "TRASH (Pause)", observar: "DOUBTFUL (Observe)", potenciales: "POTENCIALES (Test)", abrirAud: "View report", thCliente: "Client / Account", thFecha: "Date", thEstado: "Status", thAccion: "Action", cuentaSinNombre: "Unnamed Account", ingresos: "Enter details", buzonSug: "Suggestion Box", facturacionTitulo: "Billing and Plans", facturacionDesc: "Manage your subscription", planActual: "Current Plan", activa: "Active", gestionarStripe: "Manage on Stripe", pronto: "Soon", ayudanos: "Help us improve", bug: "Found a bug?", escribiSug: "Write your suggestion here...", enviando: "Sending...", enviarSug: "Send Suggestion", persPdf: "White Label Customization", nomAgencia: "Agency Name", sitioWeb: "Website", logoPdf: "PDF Logo", subeLogo: "Upload", piePagina: "Legal Footer", preferencias: "Regional Preferences", monedaDef: "Base Currency", metricaDef: "Main Metric", guardando: "Saving...", guardarAj: "Save Settings", puntajeBasado: "Health score based on overall performance and structure.", ingresaDatos: "Fill in the details for the campaign audit.", presupuestoObj: "Monthly Budget", placeholderPres: "E.g. 1000", gastoAct: "Current Spend", placeholderGasto: "E.g. 450", conversiones: "Conversions", cparoas: "Current CPA / ROAS", tipoCamp: "Campaign Type", contexto: "Context & Notes", placeholderConv: "E.g. 120", placeholderContexto: "Add extra context for the AI.", monitoreo: "Monitoring", tenes: "You have", registradas: "accounts registered.", todos: "All", criticos: "Critical", atencion: "Warning", optimos: "Optimal", thTendencia: "Trend", volver: "Go Back", detalleCliente: "Client Details" }
   };
 
@@ -534,6 +534,7 @@ function AuditorDashboard() {
           .translate-z-[-60px] { transform: translateZ(-60px); }
           .translate-z-[0px] { transform: translateZ(0px); }
           .translate-z-[40px] { transform: translateZ(40px); }
+          .translate-z-[50px] { transform: translateZ(50px); }
           .translate-z-[60px] { transform: translateZ(60px); }
           .translate-z-[80px] { transform: translateZ(80px); }
           .rotate-x-[15deg] { transform: rotateX(15deg) rotateY(-25deg); }
@@ -598,19 +599,19 @@ function AuditorDashboard() {
                      <span className="w-2 h-2 rounded-full bg-[#F3C3B2] animate-pulse"></span>
                      Auditorías con IA
                   </div>
-                  <h1 className="text-[3.5rem] md:text-7xl lg:text-[5rem] font-serif text-[#262B27] font-black leading-[1.05] mb-6 tracking-tight">
-                    Detectá fugas de dinero con <span className="italic text-[#99CDD8]">precisión</span> quirúrgica.
+                  <h1 className="text-[3rem] md:text-6xl lg:text-[4.5rem] font-serif text-[#262B27] font-black leading-[1.05] mb-6 tracking-tight">
+                    Auditorías <span className="italic text-[#99CDD8]">automáticas</span> de Google Ads para Agencias.
                   </h1>
                   <p className="text-[#657166] text-lg md:text-xl mb-10 max-w-lg leading-relaxed font-medium">
                     Conectá tu cuenta de Google Ads y dejá que nuestra IA audite tus campañas, traduzca las métricas y genere reportes marca blanca en segundos.
                   </p>
-                  <button onClick={() => signIn("google", { prompt: "select_account" })} className="bg-[#F3C3B2] text-[#262B27] px-8 py-4 rounded-2xl font-bold text-lg hover:scale-105 transition-transform shadow-[0_10px_30px_rgba(243,195,178,0.6)] flex items-center justify-center gap-2 w-full sm:w-auto">
+                  <button onClick={() => signIn("google", { prompt: "select_account" })} className="bg-[#262B27] text-white px-8 py-4 rounded-2xl font-bold text-lg hover:scale-105 transition-transform shadow-[0_10px_30px_rgba(38,43,39,0.4)] flex items-center justify-center gap-2 w-full sm:w-auto">
                     Comenzar prueba gratis <ArrowRight size={20} />
                   </button>
 
                   <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mt-8 text-[13px] text-[#657166] font-semibold w-full">
                      <span className="flex items-center gap-2"><CheckCircle2 size={16} className="text-[#99CDD8]" strokeWidth={3} /> Sin tarjeta de crédito</span>
-                     <span className="flex items-center gap-2"><CheckCircle2 size={16} className="text-[#99CDD8]" strokeWidth={3} /> Setup en 1 minuto</span>
+                     <span className="flex items-center gap-2"><CheckCircle2 size={16} className="text-[#99CDD8]" strokeWidth={3} /> Conexión segura de solo lectura</span>
                      <span className="flex items-center gap-2"><CheckCircle2 size={16} className="text-[#99CDD8]" strokeWidth={3} /> Cancelá cuando quieras</span>
                   </div>
                 </div>
@@ -618,62 +619,77 @@ function AuditorDashboard() {
 
               <FadeInOnScroll delay={200}>
                 <div className="relative w-full h-[500px] lg:h-[650px] flex justify-center items-center mt-10 lg:mt-0 perspective-1000">
-                   <div className="relative w-full max-w-sm lg:max-w-md transform-style-3d transition-transform duration-[1000ms] hover:rotate-x-[-5deg] rotate-x-[15deg]">
-                      
-                      <div className="absolute top-[-60px] left-[-80px] w-64 bg-white/60 backdrop-blur-md border border-[#CFD6C4]/60 shadow-[0_20px_40px_rgba(207,214,196,0.3)] rounded-2xl p-6 translate-z-[-60px]">
+                   <div className="relative w-full max-w-md lg:max-w-lg transform-style-3d transition-transform duration-[1000ms] hover:rotate-x-[-5deg] rotate-x-[15deg]">
+                     
+                      {/* CARD: GASTO DIARIO */}
+                      <div className="absolute top-[-60px] left-[-80px] w-72 bg-white/60 backdrop-blur-md border border-[#CFD6C4]/60 shadow-[0_20px_40px_rgba(207,214,196,0.3)] rounded-2xl p-7 translate-z-[-60px]">
                          <p className="text-[10px] font-bold text-[#657166] uppercase tracking-widest mb-4">Gasto Diario</p>
-                         <div className="flex items-end gap-2 h-20 opacity-80">
+                         <div className="flex items-end gap-2 h-24 opacity-80">
                            {[40, 60, 30, 80, 50, 90, 70].map((h, i) => (
                               <div key={i} className="flex-1 bg-[#99CDD8]/40 rounded-t-sm" style={{height: `${h}%`}}></div>
                            ))}
                          </div>
                       </div>
 
-                      <div className="relative z-10 w-full bg-white/95 backdrop-blur-2xl border border-[#CFD6C4]/80 shadow-[0_30px_60px_rgba(38,43,39,0.15)] rounded-[2rem] p-6 translate-z-[0px]">
+                      {/* CARD: RESUMEN IA NUEVA */}
+                      <div className="absolute top-[30px] left-[-110px] z-30 bg-white/95 backdrop-blur-xl border border-[#CFD6C4]/80 shadow-[0_15px_30px_rgba(38,43,39,0.1)] rounded-2xl p-5 translate-z-[50px] w-56 hidden md:block">
+                          <p className="text-[10px] font-bold text-[#657166] uppercase tracking-widest mb-3">Resumen de IA</p>
+                          <div className="space-y-2">
+                              <div className="flex justify-between items-center"><span className="text-xs font-bold text-[#262B27]">Fugas críticas:</span> <span className="text-xs font-black text-[#E66767]">3</span></div>
+                              <div className="flex justify-between items-center"><span className="text-xs font-bold text-[#262B27]">Oportunidades:</span> <span className="text-xs font-black text-[#EAB308]">5</span></div>
+                              <div className="border-t border-[#CFD6C4]/50 pt-2 mt-2 flex justify-between items-center"><span className="text-xs font-bold text-[#262B27]">Ahorro est.:</span> <span className="text-sm font-black text-[#99CDD8]">$850/m</span></div>
+                          </div>
+                      </div>
+
+                      {/* CARD PRINCIPAL */}
+                      <div className="relative z-10 w-full bg-white/95 backdrop-blur-2xl border border-[#CFD6C4]/80 shadow-[0_30px_60px_rgba(38,43,39,0.15)] rounded-[2rem] p-8 translate-z-[0px]">
                          <div className="flex justify-between items-center mb-6 border-b border-[#CFD6C4]/50 pb-4">
-                            <p className="font-bold text-[#262B27] flex items-center gap-2"><LayoutGrid size={18}/> Rendimiento</p>
+                            <p className="font-bold text-[#262B27] flex items-center gap-2 text-lg"><LayoutGrid size={20}/> Rendimiento</p>
                             <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider bg-[#DAEBE3]/50 text-[#262B27] px-3 py-1 rounded-full">
                               <span className="w-1.5 h-1.5 rounded-full bg-[#DAEBE3] border border-[#262B27]/20 animate-pulse"></span> Search
                             </span>
                          </div>
                          <div className="flex justify-center items-center flex-col py-2 mb-6">
                             <p className="text-xs font-bold text-[#657166] uppercase tracking-widest mb-3">Score de Salud</p>
-                            <div className="w-28 h-28 rounded-full flex items-center justify-center border-[8px] border-[#FDE8D3] text-4xl font-black text-[#262B27] shadow-inner bg-[#DAEBE3]">
+                            <div className="w-32 h-32 rounded-full flex items-center justify-center border-[8px] border-[#FDE8D3] text-5xl font-black text-[#262B27] shadow-inner bg-[#DAEBE3]">
                               84
                             </div>
                          </div>
                          <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-[#FDE8D3]/50 p-4 rounded-xl border border-[#CFD6C4]/40">
+                            <div className="bg-[#FDE8D3]/50 p-5 rounded-xl border border-[#CFD6C4]/40">
                                <p className="text-[10px] font-bold text-[#657166] uppercase tracking-wider mb-1">Gasto Total</p>
-                               <p className="text-2xl font-black text-[#262B27]">$8.2k</p>
+                               <p className="text-3xl font-black text-[#262B27]">$8.2k</p>
                             </div>
-                            <div className="bg-[#FDE8D3]/50 p-4 rounded-xl border border-[#CFD6C4]/40">
+                            <div className="bg-[#FDE8D3]/50 p-5 rounded-xl border border-[#CFD6C4]/40">
                                <p className="text-[10px] font-bold text-[#657166] uppercase tracking-wider mb-1">Conversiones</p>
-                               <p className="text-2xl font-black text-[#262B27]">142</p>
+                               <p className="text-3xl font-black text-[#262B27]">142</p>
                             </div>
                          </div>
                       </div>
 
-                      <div className="absolute bottom-[-40px] right-[-50px] z-20 w-72 bg-white/95 backdrop-blur-xl border border-[#F3C3B2] shadow-[0_20px_40px_rgba(243,195,178,0.5)] rounded-2xl p-5 translate-z-[80px]">
+                      {/* CARD: FUGA CRITICA (Agrandada y con borde rojo) */}
+                      <div className="absolute bottom-[-50px] right-[-60px] z-20 w-80 bg-white/95 backdrop-blur-xl border border-[#E66767]/40 shadow-[0_20px_40px_rgba(230,103,103,0.15)] rounded-2xl p-6 translate-z-[80px]">
                          <div className="flex items-start gap-4">
-                            <div className="w-10 h-10 rounded-xl bg-[#F3C3B2]/30 flex items-center justify-center flex-shrink-0 border border-[#F3C3B2]/50">
-                               <AlertTriangle size={20} className="text-[#262B27]" />
+                            <div className="w-12 h-12 rounded-xl bg-[#E66767]/10 flex items-center justify-center flex-shrink-0 border border-[#E66767]/30">
+                               <AlertTriangle size={24} className="text-[#E66767]" />
                             </div>
                             <div>
-                               <p className="text-sm font-black text-[#262B27] leading-tight">Fuga Crítica Detectada</p>
-                               <p className="text-xs text-[#657166] mt-1 font-medium">Keywords irrelevantes</p>
-                               <span className="inline-block mt-2 text-xs font-black text-[#262B27] bg-[#F3C3B2] px-2 py-1 rounded-md">-$620 / mes</span>
+                               <p className="text-sm font-black text-[#E66767] leading-tight mb-1">Fuga Crítica Detectada</p>
+                               <p className="text-xs text-[#657166] font-medium">Keywords irrelevantes</p>
+                               <span className="inline-block mt-3 text-sm font-black text-white bg-[#E66767] px-3 py-1.5 rounded-md shadow-sm">-$620 / mes</span>
                             </div>
                          </div>
                       </div>
 
+                      {/* CARD: SINCRONIZADO */}
                       <div className="absolute top-[-25px] right-[20px] z-30 bg-[#DAEBE3] text-[#262B27] px-4 py-2 rounded-full font-bold text-[10px] uppercase shadow-lg border border-[#CFD6C4] translate-z-[40px] flex items-center gap-2">
                         <span className="w-2 h-2 bg-[#262B27] rounded-full animate-pulse"></span> Sincronizado
                       </div>
 
-                      <div className="absolute bottom-[60px] left-[-40px] z-30 bg-[#99CDD8] text-[#262B27] p-4 rounded-2xl shadow-[0_15px_30px_rgba(153,205,216,0.6)] translate-z-[60px] flex flex-col border border-[#CFD6C4]">
-                        <p className="text-[10px] font-bold uppercase tracking-widest opacity-80">ROAS Proyectado</p>
-                        <p className="text-2xl font-black flex items-center gap-1"><TrendingUp size={16} strokeWidth={4}/> +12.4%</p>
+                      {/* CARD: ROAS */}
+                      <div className="absolute bottom-[80px] left-[-50px] z-30 bg-[#99CDD8] text-[#262B27] p-5 rounded-2xl shadow-[0_15px_30px_rgba(153,205,216,0.6)] translate-z-[60px] flex flex-col border border-[#CFD6C4]">
+                        <p className="text-[10px] font-bold uppercase tracking-widest opacity-80 mb-1">ROAS Proyectado</p>
+                        <p className="text-3xl font-black flex items-center gap-1"><TrendingUp size={20} strokeWidth={4}/> +12.4%</p>
                       </div>
 
                    </div>
@@ -685,7 +701,7 @@ function AuditorDashboard() {
               <section className="max-w-[1400px] mx-auto px-6 py-20 border-t border-[#CFD6C4]/40">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 mb-12 items-end">
                    <div className="lg:col-span-1">
-                     <p className="text-[10px] font-bold tracking-widest uppercase text-[#99CDD8] mb-2">Cómo funciona</p>
+                     <p className="inline-block px-3 py-1.5 rounded-md text-[10px] font-bold tracking-widest uppercase text-[#262B27] bg-[#99CDD8]/40 mb-4">Cómo funciona</p>
                      <h2 className="text-4xl md:text-5xl font-serif font-black text-[#262B27] leading-tight">Optimización en<br/>3 pasos.</h2>
                    </div>
                    <div className="lg:col-span-2">
@@ -722,7 +738,7 @@ function AuditorDashboard() {
             <FadeInOnScroll>
               <section className="max-w-[1400px] mx-auto px-6 py-20 border-t border-[#CFD6C4]/40">
                 <div className="text-center mb-16">
-                  <p className="text-[10px] font-bold tracking-widest uppercase text-[#99CDD8] mb-2">Precios Simples</p>
+                  <p className="inline-block px-3 py-1.5 rounded-md text-[10px] font-bold tracking-widest uppercase text-[#262B27] bg-[#DAEBE3] mb-4">Precios Simples</p>
                   <h2 className="text-4xl md:text-5xl font-serif font-black text-[#262B27] mb-4">Elegí tu camino.</h2>
                   <p className="text-[#657166] font-medium">Todos los planes incluyen 14 días de prueba gratis. Cancelá cuando quieras.</p>
                 </div>
