@@ -759,7 +759,7 @@ function AuditorDashboard() {
                           <li className="flex items-center gap-3 text-[#657166]/50 line-through"><CheckCircle2 size={18} className="text-[#CFD6C4]/30" strokeWidth={3} /> Marca Blanca</li>
                         </ul>
                       </div>
-                      <button onClick={() => signIn("google")} className="w-full bg-[#CFD6C4]/30 hover:bg-[#CFD6C4]/60 text-[#262B27] font-bold py-4 rounded-xl transition-colors border border-[#CFD6C4]/50 mt-auto">Empezar gratis</button>
+                      <button onClick={() => signIn("google")} className="w-full bg-[#C4614A] hover:bg-[#a84c38] text-white font-bold py-4 rounded-xl transition-colors shadow-md mt-auto">Empezar gratis</button>
                     </div>
                   </TiltWrapper>
 
@@ -775,7 +775,7 @@ function AuditorDashboard() {
                           <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#99CDD8]" strokeWidth={3} /> Exportación PDF</li>
                         </ul>
                       </div>
-                      <button onClick={() => signIn("google")} className="w-full bg-[#99CDD8] hover:bg-[#85b9c4] text-[#262B27] font-bold py-4 rounded-xl transition-colors shadow-md mt-auto">Prueba de 14 días</button>
+                      <button onClick={() => signIn("google")} className="w-full bg-[#C4614A] hover:bg-[#a84c38] text-white font-bold py-4 rounded-xl transition-colors shadow-md mt-auto">Prueba de 14 días</button>
                     </div>
                   </TiltWrapper>
 
@@ -791,7 +791,7 @@ function AuditorDashboard() {
                           <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#F3C3B2]" strokeWidth={3} /> Dashboard Multi-Cliente</li>
                         </ul>
                       </div>
-                      <button onClick={() => signIn("google")} className="w-full bg-[#F3C3B2] hover:bg-[#eab3a1] text-[#262B27] font-bold py-4 rounded-xl transition-colors shadow-md mt-auto">Prueba de 14 días</button>
+                      <button onClick={() => signIn("google")} className="w-full bg-[#C4614A] hover:bg-[#a84c38] text-white font-bold py-4 rounded-xl transition-colors shadow-md mt-auto">Prueba de 14 días</button>
                     </div>
                   </TiltWrapper>
 
