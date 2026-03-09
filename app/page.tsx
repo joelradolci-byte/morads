@@ -600,8 +600,8 @@ function AuditorDashboard() {
                      Auditorías con IA
                   </div>
                   <h1 className="text-[3rem] md:text-6xl lg:text-[4.5rem] font-serif text-[#262B27] font-black leading-[1.05] mb-6 tracking-tight">
-                    Auditorías <span className="italic text-[#99CDD8]">automáticas</span> de Google Ads para Agencias.
-                  </h1>
+  Auditorías <span className="italic text-[#C05621]">automáticas</span> para escalar tus campañas de Google Ads.
+</h1>
                   <p className="text-[#657166] text-lg md:text-xl mb-10 max-w-lg leading-relaxed font-medium">
                     Conectá tu cuenta de Google Ads y dejá que nuestra IA audite tus campañas, traduzca las métricas y genere reportes marca blanca en segundos.
                   </p>
