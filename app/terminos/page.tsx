@@ -31,12 +31,12 @@ export default function TerminosPage() {
 
           <section>
             <h2 className="text-2xl font-bold text-[#262B27] mb-4" style={{ fontFamily: "'Playfair Display', serif" }}>3. Suscripciones y Gestión de Pagos</h2>
-            <p>El servicio opera bajo un modelo de suscripción mensual procesado a través de Stripe. Todos los nuevos usuarios disponen de 14 días de prueba gratuita. La suscripción se puede cancelar en cualquier momento. No se emiten reembolsos parciales por fracciones de meses no completados tras la cancelación.</p>
+            <p>El servicio opera bajo un modelo de suscripción mensual procesado a través de Stripe. Los precios vigentes para cada plan se detallan claramente en nuestra sección de Precios y están sujetos a actualización con previo aviso. Todos los nuevos usuarios disponen de 14 días de prueba gratuita. La suscripción se puede cancelar en cualquier momento desde el panel de usuario. No se emiten reembolsos parciales por fracciones de meses no completados tras la cancelación.</p>
           </section>
 
           <section>
             <h2 className="text-2xl font-bold text-[#262B27] mb-4" style={{ fontFamily: "'Playfair Display', serif" }}>4. Propiedad Intelectual y Marca Blanca</h2>
-            <p>Los usuarios suscritos al "Plan Agency" obtienen el derecho de exportar reportes eliminando la marca visual de Mora Analytics y reemplazándolos por su propia identidad corporativa. Sin embargo, el software, código fuente, algoritmos subyacentes y prompts de IA siguen siendo propiedad intelectual exclusiva de Mora Analytics.</p>
+            <p>Los usuarios suscritos al "Plan Agency" obtienen el derecho de exportar reportes eliminando la marca visual de Mora Analytics y reemplazándolos por su propia identidad corporativa. Sin embargo, el software, código fuente, lógica de procesamiento, algoritmos subyacentes y prompts propietarios de IA siguen siendo propiedad intelectual exclusiva de Mora Analytics.</p>
           </section>
 
           <section>
@@ -46,7 +46,7 @@ export default function TerminosPage() {
 
           <section>
             <h2 className="text-2xl font-bold text-[#262B27] mb-4" style={{ fontFamily: "'Playfair Display', serif" }}>6. Suspensión del Servicio</h2>
-            <p>Mora Analytics se reserva el derecho de suspender o terminar el acceso de un usuario a la plataforma de forma inmediata en caso de detectar un uso abusivo de la API, intentos de ingeniería inversa de nuestros modelos de IA, reventa no autorizada del software o impagos de la suscripción.</p>
+            <p>Mora Analytics se reserva el derecho de suspender o terminar el acceso de un usuario a la plataforma de forma inmediata en caso de detectar un uso abusivo de la API, intentos de ingeniería inversa de nuestro sistema o prompts propietarios, reventa no autorizada del software o impagos de la suscripción.</p>
           </section>
         </div>
       </div>
