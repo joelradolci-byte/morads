@@ -9,10 +9,11 @@ export default function PrivacidadPage() {
           <ArrowLeft size={16} /> Volver al inicio
         </Link>
         
-        <h1 className="text-4xl md:text-5xl font-black mb-8" style={{ fontFamily: "'Playfair Display', serif" }}>Política de Privacidad</h1>
+        <h1 className="text-4xl md:text-5xl font-black mb-4" style={{ fontFamily: "'Playfair Display', serif" }}>Política de Privacidad</h1>
+        <p className="text-[#657166] mb-8 font-bold">Sitio Web Oficial: <a href="https://mora-analytics.com" className="text-[#99CDD8] underline">https://mora-analytics.com</a></p>
         
         <div className="space-y-10 text-[#657166] leading-relaxed font-medium">
-          <p className="text-sm uppercase tracking-widest font-bold text-[#99CDD8]">Última actualización: Marzo 2026.</p>
+          <p className="text-sm uppercase tracking-widest font-bold text-[#99CDD8]">Última actualización: 10 de Marzo de 2026.</p>
           
           <section>
             <h2 className="text-2xl font-bold text-[#262B27] mb-4" style={{ fontFamily: "'Playfair Display', serif" }}>1. Datos que recopilamos (Google Ads API)</h2>
@@ -20,8 +21,15 @@ export default function PrivacidadPage() {
           </section>
 
           <section>
-            <h2 className="text-2xl font-bold text-[#262B27] mb-4" style={{ fontFamily: "'Playfair Display', serif" }}>2. Uso de Datos en Inteligencia Artificial</h2>
-            <p>Cumplimos estrictamente con la Política de Datos de Usuario de los Servicios de API de Google. Los datos de tus campañas se envían temporalmente a modelos de IA de Google (Gemini) mediante API de nivel empresarial. <strong>Tus datos no son utilizados por Google ni por Mora para entrenar modelos fundacionales públicos de IA.</strong> El uso y la transferencia por parte de Mora Analytics de cualquier información recibida de las API de Google a cualquier otra aplicación se ajustará a la Política de datos de usuario de los servicios de API de Google, incluidos los requisitos de Uso Limitado (Limited Use requirements).</p>
+            <h2 className="text-2xl font-bold text-[#262B27] mb-4" style={{ fontFamily: "'Playfair Display', serif" }}>2. Uso de Datos y Cumplimiento de "Limited Use"</h2>
+            <p>
+              Cumplimos estrictamente con la <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener noreferrer" className="underline hover:text-[#262B27]">Política de Datos de Usuario de los Servicios de API de Google</a>. 
+              Los datos de tus campañas se envían temporalmente a modelos de IA de Google (Gemini) mediante API de nivel empresarial. 
+              <strong> Tus datos no son utilizados por Google ni por Mora para entrenar modelos fundacionales públicos de IA.</strong> 
+            </p>
+            <p className="mt-4 p-4 bg-[#CFD6C4]/20 rounded-xl border-l-4 border-[#99CDD8]">
+              El uso y la transferencia por parte de Mora Analytics de cualquier información recibida de las API de Google a cualquier otra aplicación se ajustará a la Política de datos de usuario de los servicios de API de Google, incluidos los requisitos de <strong>Uso Limitado (Limited Use requirements)</strong>.
+            </p>
           </section>
 
           <section>
@@ -31,12 +39,12 @@ export default function PrivacidadPage() {
 
           <section>
             <h2 className="text-2xl font-bold text-[#262B27] mb-4" style={{ fontFamily: "'Playfair Display', serif" }}>4. Revocación de Accesos OAuth</h2>
-            <p>Como usuario, mantienes el control total. Puedes revocar el acceso de Mora Analytics a tu cuenta de Google Ads en cualquier momento directamente desde el panel de seguridad de tu cuenta de Google. Al hacerlo, Mora perderá inmediatamente cualquier acceso a tus métricas.</p>
+            <p>Como usuario, mantienes el control total. Puedes revocar el acceso de Mora Analytics a tu cuenta de Google Ads en cualquier momento directamente desde el panel de seguridad de tu cuenta de Google (sección de permisos de aplicaciones de terceros). Al hacerlo, Mora perderá inmediatamente cualquier acceso a tus métricas.</p>
           </section>
 
           <section>
             <h2 className="text-2xl font-bold text-[#262B27] mb-4" style={{ fontFamily: "'Playfair Display', serif" }}>5. Almacenamiento y Seguridad</h2>
-            <p>Los reportes generados se guardan en bases de datos seguras (tecnología Supabase) asociadas a tu cuenta de usuario para que puedas acceder al historial. Estos reportes son confidenciales y se almacenan mediante protocolos de cifrado estándar de la industria. Retenemos los reportes y datos asociados únicamente mientras tu cuenta se mantenga activa. Si decides cancelar tu suscripción o inactivar tu cuenta, los datos de las campañas se eliminarán de nuestros servidores en un plazo de 30 días.</p>
+            <p>Los reportes generados se guardan en bases de datos seguras (tecnología Supabase) asociadas a tu cuenta de usuario para que puedas acceder al historial. Estos reportes son confidenciales y se almacenan mediante protocolos de cifrado estándar de la industria. Retenemos los datos únicamente mientras tu cuenta se mantenga activa. Si decides inactivar tu cuenta, los datos de las campañas se eliminarán de nuestros servidores en un plazo de 30 días.</p>
           </section>
 
           <section>
@@ -46,12 +54,12 @@ export default function PrivacidadPage() {
 
           <section>
             <h2 className="text-2xl font-bold text-[#262B27] mb-4" style={{ fontFamily: "'Playfair Display', serif" }}>7. Derechos del Usuario</h2>
-            <p>Tienes derecho a solicitar la eliminación completa de tu cuenta, tu perfil y todo el historial de auditorías y snapshots de nuestros servidores contactando al equipo de soporte. Esta acción es irreversible.</p>
+            <p>Tienes derecho a solicitar la eliminación completa de tu cuenta, tu perfil y todo el historial de auditorías de nuestros servidores contactando al equipo de soporte. Esta acción es irreversible.</p>
           </section>
 
           <section>
-            <h2 className="text-2xl font-bold text-[#262B27] mb-4" style={{ fontFamily: "'Playfair Display', serif" }}>8. Uso de Cookies y Tecnologías de Rastreo</h2>
-            <p>Mora Analytics utiliza cookies técnicas y esenciales para el funcionamiento de la plataforma. Estas cookies permiten gestionar el inicio de sesión de los usuarios a través de Google OAuth y garantizar la seguridad de la sesión. No utilizamos cookies de publicidad de terceros ni realizamos seguimiento de usuarios fuera de nuestra plataforma.</p>
+            <h2 className="text-2xl font-bold text-[#262B27] mb-4" style={{ fontFamily: "'Playfair Display', serif" }}>8. Uso de Cookies</h2>
+            <p>Mora Analytics utiliza cookies técnicas y esenciales para el funcionamiento de la plataforma (gestión de inicio de sesión a través de Google OAuth y seguridad de la sesión). No utilizamos cookies de publicidad de terceros ni realizamos seguimiento de usuarios fuera de nuestra plataforma.</p>
           </section>
 
           <section>
