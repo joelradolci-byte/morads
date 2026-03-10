@@ -56,7 +56,7 @@ export default function PrivacidadPage() {
 
           <section>
             <h2 className="text-2xl font-bold text-[#262B27] mb-4" style={{ fontFamily: "'Playfair Display', serif" }}>9. Contacto</h2>
-            <p>Si tienes preguntas o inquietudes sobre esta Política de Privacidad o el manejo de tus datos, puedes contactarnos en: <strong>joelradolci@gmail.com</strong>.</p>
+            <p>Si tienes preguntas o inquietudes sobre esta Política de Privacidad o el manejo de tus datos, puedes contactarnos en: <strong>contacto@mora-analytics.com</strong>.</p>
           </section>
         </div>
       </div>
