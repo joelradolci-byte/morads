@@ -337,7 +337,7 @@ function AuditorDashboard() {
     if (toastState.show && toastState.status === 'success' && toastState.timeLeft > 0) {
       timer = setInterval(() => { setToastState(prev => ({...prev, timeLeft: prev.timeLeft - 1})); }, 1000);
     } else if (toastState.show && toastState.status === 'success' && toastState.timeLeft <= 0) {
-      setToastState(prev => ({...prev, show: false}));
+      setTimeout(prev => ({...prev, show: false}));
     }
     return () => clearInterval(timer);
   }, [toastState.show, toastState.status, toastState.timeLeft]);
@@ -575,7 +575,7 @@ function AuditorDashboard() {
             <nav className="w-full max-w-[1400px] mx-auto px-6 py-6 flex justify-between items-center z-50 relative">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-[#262B27] text-2xl shadow-sm bg-[#F3C3B2]">M</div>
-                <span className="font-bold text-2xl tracking-tight text-[#262B27]">Mora</span>
+                <span className="font-bold text-2xl tracking-tight text-[#262B27]">Mora Analytics</span>
               </div>
               <div className="hidden md:flex items-center gap-8 font-medium text-[#657166]">
                 <Link href="/como-funciona" className="hover:text-[#262B27] transition-colors">Cómo funciona</Link>
@@ -842,7 +842,7 @@ function AuditorDashboard() {
                 <div className="w-6 h-6 rounded flex items-center justify-center font-black text-[#262B27] text-xs bg-[#F3C3B2]">M</div>
                 <span className="font-bold text-[#262B27]">Mora Analytics</span>
               </div>
-              <p className="mb-4 font-medium">© {new Date().getFullYear()} Mora. All rights reserved.</p>
+              <p className="mb-4 font-medium">© {new Date().getFullYear()} Mora Analytics. All rights reserved.</p>
               <div className="flex justify-center gap-6 text-xs font-bold uppercase tracking-wider">
                 <Link href="/privacidad" className="hover:text-[#262B27] transition-colors">Privacidad</Link>
                 <Link href="/terminos" className="hover:text-[#262B27] transition-colors">Términos</Link>
@@ -859,7 +859,7 @@ function AuditorDashboard() {
               <div>
                 <div className="h-20 flex items-center px-6 border-b border-[#2C352E] gap-3">
                    <div className="w-8 h-8 rounded-lg flex items-center justify-center font-black text-[#262B27] text-xl shadow-sm bg-[#F3C3B2]">M</div>
-                   <span className="text-xl font-bold text-[#E8EBE4] tracking-wide">Mora</span>
+                   <span className="text-xl font-bold text-[#E8EBE4] tracking-wide">Mora Analytics</span>
                 </div>
 
                 <div className="px-4 mt-6 mb-4">
@@ -1274,7 +1274,7 @@ function AuditorDashboard() {
                     <div className="bg-[#1A1F1B] border border-[#2C352E] p-10 rounded-2xl shadow-xl print:bg-white print:text-black print:border-none print:shadow-none print:p-0">
                       
                       <div className="hidden print:flex justify-between items-center mb-10 border-b-2 border-slate-200 pb-6">
-                        <div>{modoPlan === 'agencia' && perfil?.agencia_logo ? <img src={perfil.agencia_logo} alt="Logo Agencia" className="h-16 object-contain" /> : <div className="flex items-center gap-2"><span className="text-3xl">🐾</span><span className="text-3xl font-black text-slate-800">Mora</span></div>}</div>
+                        <div>{modoPlan === 'agencia' && perfil?.agencia_logo ? <img src={perfil.agencia_logo} alt="Logo Agencia" className="h-16 object-contain" /> : <div className="flex items-center gap-2"><span className="text-3xl">🐾</span><span className="text-3xl font-black text-slate-800">Mora Analytics</span></div>}</div>
                         <div className="text-right">
                           <h2 className="text-2xl font-black text-slate-800 tracking-tight">{modoPlan === 'agencia' && perfil?.agencia_nombre ? perfil.agencia_nombre : "Auditoría Estratégica"}</h2>
                           {modoPlan === 'agencia' && agenciaWeb && <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-widest">{agenciaWeb}</p>}
