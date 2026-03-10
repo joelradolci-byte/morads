@@ -50,7 +50,12 @@ export default function PrivacidadPage() {
           </section>
 
           <section>
-            <h2 className="text-2xl font-bold text-[#262B27] mb-4" style={{ fontFamily: "'Playfair Display', serif" }}>8. Contacto</h2>
+            <h2 className="text-2xl font-bold text-[#262B27] mb-4" style={{ fontFamily: "'Playfair Display', serif" }}>8. Uso de Cookies y Tecnologías de Rastreo</h2>
+            <p>Mora Analytics utiliza cookies técnicas y esenciales para el funcionamiento de la plataforma. Estas cookies permiten gestionar el inicio de sesión de los usuarios a través de Google OAuth y garantizar la seguridad de la sesión. No utilizamos cookies de publicidad de terceros ni realizamos seguimiento de usuarios fuera de nuestra plataforma.</p>
+          </section>
+
+          <section>
+            <h2 className="text-2xl font-bold text-[#262B27] mb-4" style={{ fontFamily: "'Playfair Display', serif" }}>9. Contacto</h2>
             <p>Si tienes preguntas o inquietudes sobre esta Política de Privacidad o el manejo de tus datos, puedes contactarnos en: <strong>joelradolci@gmail.com</strong>.</p>
           </section>
         </div>
