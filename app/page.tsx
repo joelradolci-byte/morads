@@ -1,7 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { SessionProvider, signIn, signOut, useSession } from "next-auth/react";
 import { createClient } from "@supabase/supabase-js";
 import Link from "next/link";
 import { 
@@ -284,7 +283,51 @@ const NoiseBackground = () => {
 
 
 function AuditorDashboard() {
-  const { data: session, status } = useSession();
+  // === NUEVO SISTEMA DE SESIÓN CON SUPABASE ===
+  const [session, setSession] = useState<any>(null);
+  const [status, setStatus] = useState("loading");
+
+  useEffect(() => {
+    // Función para adaptar los datos de Supabase y que no se rompa el resto del código
+    const formatSession = (supaSession: any) => {
+      if (!supaSession) return null;
+      return {
+        user: {
+          id: supaSession.user.id,
+          email: supaSession.user.email,
+          name: supaSession.user.user_metadata?.full_name || supaSession.user.user_metadata?.name || "Usuario",
+          image: supaSession.user.user_metadata?.avatar_url
+        }
+      };
+    };
+
+    // Buscamos si hay sesión activa al cargar la página
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(formatSession(data.session));
+      setStatus(data.session ? "authenticated" : "unauthenticated");
+    });
+
+    // Escuchamos los cambios (si el usuario inicia o cierra sesión)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, supaSession) => {
+      setSession(formatSession(supaSession));
+      setStatus(supaSession ? "authenticated" : "unauthenticated");
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Función para iniciar sesión pidiendo permiso de Google Ads
+  const iniciarSesion = async () => {
+    await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        scopes: 'https://www.googleapis.com/auth/adwords', // El permiso mágico
+        redirectTo: window.location.origin
+      }
+    });
+  };
+  // ============================================
+
   const [nombreCuenta, setNombreCuenta] = useState("");
   const [reporte, setReporte] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -326,7 +369,6 @@ function AuditorDashboard() {
 
   const [modoPlan, setModoPlan] = useState<"agencia" | "individual">("agencia");
 
-  // Diccionario con traducciones actualizadas
   const t = {
     es: { dashboard: "Dashboard", panelPrin: "Panel Principal", panelDesc: "Resumen del rendimiento global de tus cuentas.", saludG: "Salud Promedio", totAud: "Total Cuentas", fugasDet: "Fugas Críticas", oporMej: "Oportunidades", ultAud: "Últimas Auditorías", actRec: "Actividad Reciente", verTodas: "Ver todas →", generada: "Se auditó la cuenta", hace: "Hace", afectaA: "Afecta principalmente a", buscarGlobal: "Buscar cuenta por nombre...", nueva: "Auditor IA", clientes: "Panel de Clientes", reportes: "Reportes", feedback: "Sugerencias", configuracion: "Configuración General", facturacion: "Ver Facturación", salir: "Cerrar Sesión", placeholderNombre: "Nombre del Cliente o Cuenta", btnAnalizar: "Ejecutar Auditoría", btnAnalizando: "Analizando métricas...", exportar: "Exportar a PDF", score: "Score", problemas: "Problemas Graves", mejoras: "Áreas Débiles", aciertos: "Puntos Fuertes", login: "Iniciar sesión", tabDiag: "Diagnóstico IA", tabCheck: "Plan de Acción", tabAvanzado: "Análisis Avanzado", autoApply: "Corregir Ahora", msgAutoApply: "Disponible próximamente", pacingTit: "Pacing de Presupuesto", pacingDesc: "Ritmo de gasto proyectado", matrizTit: "Campaign Matrix", matrizDesc: "Distribución del gasto vs rendimiento", escalar: "ESTRELLAS (Escalar)", apagar: "BASURA (Apagar)", observar: "DUDOSOS (Observar)", potenciales: "POTENCIALES (Testear)", abrirAud: "Ver reporte", thCliente: "Cliente / Cuenta", thFecha: "Fecha", thEstado: "Estado", thAccion: "Acción", cuentaSinNombre: "Cuenta sin nombre", ingresos: "Ingresa los datos", buzonSug: "Buzón de sugerencias", facturacionTitulo: "Facturación y Planes", facturacionDesc: "Administrá tu suscripción", planActual: "Plan Actual", activa: "Activa", gestionarStripe: "Gestionar en Stripe", pronto: "Pronto", ayudanos: "Ayudanos a mejorar", bug: "¿Encontraste un error?", escribiSug: "Escribí tu sugerencia aquí...", enviando: "Enviando...", enviarSug: "Enviar Sugerencia", persPdf: "Personalización de Marca Blanca", nomAgencia: "Nombre de Agencia", sitioWeb: "Sitio Web", logoPdf: "Logo PDF", subeLogo: "Subir", piePagina: "Pie de página legal", preferencias: "Preferencias Regionales", monedaDef: "Moneda Base", metricaDef: "Métrica Principal", guardando: "Guardando...", guardarAj: "Guardar Ajustes", puntajeBasado: "Puntaje de salud en base al rendimiento y estructura general.", ingresaDatos: "Completá los datos de la campaña a auditar.", presupuestoObj: "Presupuesto Mensual", placeholderPres: "Ej: 1000", gastoAct: "Gasto actual", placeholderGasto: "Ej: 450", conversiones: "Conversiones", cparoas: "CPA / ROAS Actual", tipoCamp: "Campaign Type", contexto: "Contexto y Notas", placeholderConv: "Ej: 120", placeholderContexto: "Añadí contexto extra para la IA.", monitoreo: "Monitoreo", tenes: "Tenés", registradas: "cuentas registradas.", todos: "Todos", criticos: "Críticos", atencion: "Atención", optimos: "Óptimos", thTendencia: "Tendencia", volver: "Volver atrás", detalleCliente: "Detalle del Cliente" },
     en: { dashboard: "Dashboard", panelPrin: "Main Dashboard", panelDesc: "Global overview of your accounts performance.", saludG: "Avg Health Score", totAud: "Total Accounts", fugasDet: "Critical Leaks", oporMej: "Opportunities", ultAud: "Recent Audits", actRec: "Recent Activity", verTodas: "View all →", generada: "Audit generated for", hace: "Ago", afectaA: "Mainly affecting", buscarGlobal: "Search account by name...", nueva: "AI Auditor", clientes: "Client Dashboard", reportes: "Reports", feedback: "Feedback", configuracion: "General Settings", facturacion: "Billing", salir: "Sign Out", placeholderNombre: "Client or Account Name", btnAnalizar: "Run Audit", btnAnalizando: "Analyzing metrics...", exportar: "Export to PDF", score: "Score", problemas: "Critical Issues", mejoras: "Weak Areas", aciertos: "Strengths", login: "Log In", tabDiag: "AI Diagnosis", tabCheck: "Action Plan", tabAvanzado: "Advanced Analysis", autoApply: "Auto-Apply", msgAutoApply: "Coming soon", pacingTit: "Budget Pacing", pacingDesc: "Projected spend rhythm", matrizTit: "Campaign Matrix", matrizDesc: "Spend distribution vs performance", escalar: "STARS (Scale)", apagar: "TRASH (Pause)", observar: "DOUBTFUL (Observe)", potenciales: "POTENCIALES (Test)", abrirAud: "View report", thCliente: "Client / Account", thFecha: "Date", thEstado: "Status", thAccion: "Action", cuentaSinNombre: "Unnamed Account", ingresos: "Enter details", buzonSug: "Suggestion Box", facturacionTitulo: "Billing and Plans", facturacionDesc: "Manage your subscription", planActual: "Current Plan", activa: "Active", gestionarStripe: "Manage on Stripe", pronto: "Soon", ayudanos: "Help us improve", bug: "Found a bug?", escribiSug: "Write your suggestion here...", enviando: "Sending...", enviarSug: "Send Suggestion", persPdf: "White Label Customization", nomAgencia: "Agency Name", sitioWeb: "Website", logoPdf: "PDF Logo", subeLogo: "Upload", piePagina: "Legal Footer", preferencias: "Regional Preferences", monedaDef: "Base Currency", metricaDef: "Main Metric", guardando: "Saving...", guardarAj: "Save Settings", puntajeBasado: "Health score based on overall performance and structure.", ingresaDatos: "Fill in the details for the campaign audit.", presupuestoObj: "Monthly Budget", placeholderPres: "E.g. 1000", gastoAct: "Current Spend", placeholderGasto: "E.g. 450", conversiones: "Conversions", cparoas: "Current CPA / ROAS", tipoCamp: "Campaign Type", contexto: "Context & Notes", placeholderConv: "E.g. 120", placeholderContexto: "Add extra context for the AI.", monitoreo: "Monitoring", tenes: "You have", registradas: "accounts registered.", todos: "All", criticos: "Critical", atencion: "Warning", optimos: "Optimal", thTendencia: "Trend", volver: "Go Back", detalleCliente: "Client Details" }
@@ -346,17 +388,13 @@ function AuditorDashboard() {
   const deshacerCambios = () => { setToastState(prev => ({...prev, status: 'undoing'})); setTimeout(() => { setToastState(prev => ({...prev, status: 'reverted'})); setTimeout(() => { setToastState(prev => ({...prev, show: false})); }, 3000); }, 1500); };
   const descargarPDF = () => window.print();
 
-  // === REESCRITO: AHORA BUSCAMOS EN LAS DOS TABLAS NUEVAS USANDO EL USER_ID ===
   const obtenerPerfil = async () => {
-    // Nota: Usamos (session?.user as any)?.id para evitar errores de TypeScript con NextAuth
-    const userId = (session?.user as any)?.id;
+    const userId = session?.user?.id;
     if (!userId) return;
 
-    // 1. Buscamos el plan en la tabla 'suscripciones'
     const { data: userProfile } = await supabase.from('suscripciones').select('*').eq('user_id', userId).single();
     setPerfil(userProfile);
 
-    // 2. Buscamos la estética de la agencia en la nueva tabla 'configuracion_agencia'
     const { data: configAgencia } = await supabase.from('configuracion_agencia').select('*').eq('user_id', userId).single();
 
     if (configAgencia) {
@@ -369,9 +407,8 @@ function AuditorDashboard() {
     }
   };
 
-  // === REESCRITO: AHORA FILTRAMOS HISTORIAL POR USER_ID ===
   const cargarHistorial = async () => {
-    const userId = (session?.user as any)?.id;
+    const userId = session?.user?.id;
     if (!userId) return;
     
     setCargandoHistorial(true);
@@ -397,14 +434,13 @@ function AuditorDashboard() {
     if (vista === "historial" || vista === "dashboard") cargarHistorial();
   }, [vista, session]);
 
-  // === REESCRITO: EL NOMBRE DEL LOGO AHORA USA EL USER_ID ===
   const subirLogo = async (event: any) => {
     try {
       setUploading(true);
       const file = event.target.files[0];
       if (!file) return;
       const fileExt = file.name.split('.').pop();
-      const userId = (session?.user as any)?.id;
+      const userId = session?.user?.id;
       const fileName = `${userId}-${Math.random()}.${fileExt}`;
       const { error: uploadError } = await supabase.storage.from('logos').upload(fileName, file);
       if (uploadError) throw uploadError;
@@ -413,13 +449,11 @@ function AuditorDashboard() {
     } catch (error) { console.error("Error subiendo logo:", error); alert("Error al subir imagen."); } finally { setUploading(false); }
   };
 
-  // === REESCRITO: AHORA GUARDAMOS EN 'configuracion_agencia' USANDO UPSERT ===
   const guardarAjustesAgencia = async () => {
-    const userId = (session?.user as any)?.id;
+    const userId = session?.user?.id;
     if (!userId) return;
     
     setLoading(true);
-    // Upsert significa: "Si no existe la fila, creala. Si ya existe, actualizala"
     const { error } = await supabase.from('configuracion_agencia').upsert({ 
         user_id: userId,
         agencia_nombre: agenciaNombre, 
@@ -434,7 +468,6 @@ function AuditorDashboard() {
     setLoading(false);
   };
 
-  // El feedback lo mantenemos igual por ahora
   const mandarFeedback = async () => {
     if (!mensajeFeedback.trim() || !session?.user?.email) return;
     setEnviandoFeedback(true);
@@ -443,9 +476,8 @@ function AuditorDashboard() {
     setEnviandoFeedback(false);
   };
 
-  // === REESCRITO: GUARDAMOS LA NUEVA AUDITORÍA CON EL USER_ID ===
   const analizarCampaña = async () => {
-    const userId = (session?.user as any)?.id;
+    const userId = session?.user?.id;
     if (!userId) return;
 
     setLoading(true);
@@ -483,7 +515,6 @@ function AuditorDashboard() {
       parsedReporte.pacing = pacingData;
       setReporte(parsedReporte);
 
-      // Acá insertamos apuntando al user_id
       await supabase.from('historial_auditorias').insert([{ 
           user_id: userId, 
           score: parsedReporte.score_general, 
@@ -624,7 +655,7 @@ function AuditorDashboard() {
                 <button onClick={() => setIdioma(idioma === "es" ? "en" : "es")} className="text-sm font-bold text-[#657166] hover:text-[#262B27] transition-colors uppercase hidden sm:block">
                   {idioma}
                 </button>
-                <button onClick={() => signIn("google", { prompt: "select_account" })} className="bg-[#262B27] text-[#FDE8D3] px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-[#262B27]/90 transition-colors shadow-lg border border-[#262B27]">
+                <button onClick={iniciarSesion} className="bg-[#262B27] text-[#FDE8D3] px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-[#262B27]/90 transition-colors shadow-lg border border-[#262B27]">
                   {t[idioma].login}
                 </button>
               </div>
@@ -645,7 +676,7 @@ function AuditorDashboard() {
 <p className="text-[#657166] text-lg md:text-xl mb-10 max-w-lg leading-relaxed font-medium">
   Conectá tu cuenta y dejá que nuestra IA audite el gasto con precisión quirúrgica. Generá reportes de marca blanca listos para enviar en segundos.
 </p>
-<button onClick={() => signIn("google", { prompt: "select_account" })} className="bg-[#C4614A] text-white px-8 py-4 rounded-2xl font-bold text-lg hover:scale-105 hover:bg-[#a84c38] transition-all shadow-[0_10px_30px_rgba(196,97,74,0.4)] flex items-center justify-center w-full sm:w-auto">
+<button onClick={iniciarSesion} className="bg-[#C4614A] text-white px-8 py-4 rounded-2xl font-bold text-lg hover:scale-105 hover:bg-[#a84c38] transition-all shadow-[0_10px_30px_rgba(196,97,74,0.4)] flex items-center justify-center w-full sm:w-auto">
   Comenzar prueba gratis
 </button>
 
@@ -797,7 +828,7 @@ function AuditorDashboard() {
                           <li className="flex items-center gap-3 text-[#657166]/50 line-through"><CheckCircle2 size={18} className="text-[#CFD6C4]/30" strokeWidth={3} /> Marca Blanca</li>
                         </ul>
                       </div>
-                      <button onClick={() => signIn("google")} className="w-full bg-[#C4614A] hover:bg-[#a84c38] text-white font-bold py-4 rounded-xl transition-colors shadow-md mt-auto">Empezar gratis</button>
+                      <button onClick={iniciarSesion} className="w-full bg-[#C4614A] hover:bg-[#a84c38] text-white font-bold py-4 rounded-xl transition-colors shadow-md mt-auto">Empezar gratis</button>
                     </div>
                   </TiltWrapper>
 
@@ -813,7 +844,7 @@ function AuditorDashboard() {
                           <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#99CDD8]" strokeWidth={3} /> Exportación PDF</li>
                         </ul>
                       </div>
-                      <button onClick={() => signIn("google")} className="w-full bg-[#C4614A] hover:bg-[#a84c38] text-white font-bold py-4 rounded-xl transition-colors shadow-md mt-auto">Prueba de 14 días</button>
+                      <button onClick={iniciarSesion} className="w-full bg-[#C4614A] hover:bg-[#a84c38] text-white font-bold py-4 rounded-xl transition-colors shadow-md mt-auto">Prueba de 14 días</button>
                     </div>
                   </TiltWrapper>
 
@@ -829,7 +860,7 @@ function AuditorDashboard() {
                           <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#F3C3B2]" strokeWidth={3} /> Dashboard Multi-Cliente</li>
                         </ul>
                       </div>
-                      <button onClick={() => signIn("google")} className="w-full bg-[#C4614A] hover:bg-[#a84c38] text-white font-bold py-4 rounded-xl transition-colors shadow-md mt-auto">Prueba de 14 días</button>
+                      <button onClick={iniciarSesion} className="w-full bg-[#C4614A] hover:bg-[#a84c38] text-white font-bold py-4 rounded-xl transition-colors shadow-md mt-auto">Prueba de 14 días</button>
                     </div>
                   </TiltWrapper>
 
@@ -993,7 +1024,7 @@ function AuditorDashboard() {
                             <button onClick={() => { setVista("facturacion"); setMenuPerfil(false); }} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-[#8A968C] hover:bg-[#2C352E]/50 hover:text-[#E8EBE4] transition-colors"><CreditCard size={16} /> {t[idioma].facturacion}</button>
                           </div>
                           <div className="border-t border-[#2C352E] mt-1 pt-2">
-                            <button onClick={() => signOut()} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-[#E66767] hover:bg-[#E66767]/10 transition-colors font-medium"><LogOut size={16} /> {t[idioma].salir}</button>
+                            <button onClick={() => supabase.auth.signOut()} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-[#E66767] hover:bg-[#E66767]/10 transition-colors font-medium"><LogOut size={16} /> {t[idioma].salir}</button>
                           </div>
                        </div>
                      </>
@@ -1138,7 +1169,6 @@ function AuditorDashboard() {
                                       </div>
 
                                       <div className="col-span-2 flex justify-end items-center gap-2">
-                                        {/* BOTÓN "VER REPORTE" EN VEZ DE PDF */}
                                         <button onClick={() => { setReporte(item.reporte_json); setNombreCuenta(item.nombre_cuenta || "Sin nombre"); setSubVistaReporte("diagnostico"); setVista("reporte_lectura"); }} className="text-[10px] uppercase tracking-widest font-bold border border-[#2C352E] hover:bg-[#2C352E] text-[#E8EBE4] px-3 py-1.5 rounded transition-colors">
                                           {t[idioma].abrirAud}
                                         </button>
@@ -1687,5 +1717,5 @@ function AuditorDashboard() {
 }
 
 export default function AuditorPageWrapper() {
-  return <SessionProvider><AuditorDashboard /></SessionProvider>;
+  return <AuditorDashboard />;
 }
