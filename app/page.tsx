@@ -346,24 +346,36 @@ function AuditorDashboard() {
   const deshacerCambios = () => { setToastState(prev => ({...prev, status: 'undoing'})); setTimeout(() => { setToastState(prev => ({...prev, status: 'reverted'})); setTimeout(() => { setToastState(prev => ({...prev, show: false})); }, 3000); }, 1500); };
   const descargarPDF = () => window.print();
 
+  // === REESCRITO: AHORA BUSCAMOS EN LAS DOS TABLAS NUEVAS USANDO EL USER_ID ===
   const obtenerPerfil = async () => {
-    if (!session?.user?.email) return;
-    const { data: userProfile } = await supabase.from('suscripciones').select('*').eq('email', session.user.email).single();
+    // Nota: Usamos (session?.user as any)?.id para evitar errores de TypeScript con NextAuth
+    const userId = (session?.user as any)?.id;
+    if (!userId) return;
+
+    // 1. Buscamos el plan en la tabla 'suscripciones'
+    const { data: userProfile } = await supabase.from('suscripciones').select('*').eq('user_id', userId).single();
     setPerfil(userProfile);
-    if (userProfile) {
-      if (userProfile.agencia_nombre) setAgenciaNombre(userProfile.agencia_nombre);
-      if (userProfile.agencia_logo) setAgenciaLogo(userProfile.agencia_logo);
-      if (userProfile.agencia_web) setAgenciaWeb(userProfile.agencia_web);
-      if (userProfile.agencia_pie) setAgenciaPie(userProfile.agencia_pie);
-      if (userProfile.moneda_default) setMoneda(userProfile.moneda_default);
-      if (userProfile.metrica_default) setMetrica(userProfile.metrica_default);
+
+    // 2. Buscamos la estética de la agencia en la nueva tabla 'configuracion_agencia'
+    const { data: configAgencia } = await supabase.from('configuracion_agencia').select('*').eq('user_id', userId).single();
+
+    if (configAgencia) {
+      if (configAgencia.agencia_nombre) setAgenciaNombre(configAgencia.agencia_nombre);
+      if (configAgencia.agencia_logo) setAgenciaLogo(configAgencia.agencia_logo);
+      if (configAgencia.agencia_web) setAgenciaWeb(configAgencia.agencia_web);
+      if (configAgencia.agencia_pie) setAgenciaPie(configAgencia.agencia_pie);
+      if (configAgencia.moneda_default) setMoneda(configAgencia.moneda_default);
+      if (configAgencia.metrica_default) setMetrica(configAgencia.metrica_default);
     }
   };
 
+  // === REESCRITO: AHORA FILTRAMOS HISTORIAL POR USER_ID ===
   const cargarHistorial = async () => {
-    if (!session?.user?.email) return;
+    const userId = (session?.user as any)?.id;
+    if (!userId) return;
+    
     setCargandoHistorial(true);
-    const { data: registros, error } = await supabase.from('historial_auditorias').select('*').eq('usuario_email', session.user.email);
+    const { data: registros, error } = await supabase.from('historial_auditorias').select('*').eq('user_id', userId);
     if (!error && registros) setHistorial(registros.reverse()); 
     setCargandoHistorial(false);
   };
@@ -385,13 +397,15 @@ function AuditorDashboard() {
     if (vista === "historial" || vista === "dashboard") cargarHistorial();
   }, [vista, session]);
 
+  // === REESCRITO: EL NOMBRE DEL LOGO AHORA USA EL USER_ID ===
   const subirLogo = async (event: any) => {
     try {
       setUploading(true);
       const file = event.target.files[0];
       if (!file) return;
       const fileExt = file.name.split('.').pop();
-      const fileName = `${session?.user?.email}-${Math.random()}.${fileExt}`;
+      const userId = (session?.user as any)?.id;
+      const fileName = `${userId}-${Math.random()}.${fileExt}`;
       const { error: uploadError } = await supabase.storage.from('logos').upload(fileName, file);
       if (uploadError) throw uploadError;
       const { data } = supabase.storage.from('logos').getPublicUrl(fileName);
@@ -399,14 +413,28 @@ function AuditorDashboard() {
     } catch (error) { console.error("Error subiendo logo:", error); alert("Error al subir imagen."); } finally { setUploading(false); }
   };
 
+  // === REESCRITO: AHORA GUARDAMOS EN 'configuracion_agencia' USANDO UPSERT ===
   const guardarAjustesAgencia = async () => {
-    if (!session?.user?.email) return;
+    const userId = (session?.user as any)?.id;
+    if (!userId) return;
+    
     setLoading(true);
-    const { error } = await supabase.from('suscripciones').update({ agencia_nombre: agenciaNombre, agencia_logo: agenciaLogo, agencia_web: agenciaWeb, agencia_pie: agenciaPie, moneda_default: moneda, metrica_default: metrica }).eq('email', session.user.email);
+    // Upsert significa: "Si no existe la fila, creala. Si ya existe, actualizala"
+    const { error } = await supabase.from('configuracion_agencia').upsert({ 
+        user_id: userId,
+        agencia_nombre: agenciaNombre, 
+        agencia_logo: agenciaLogo, 
+        agencia_web: agenciaWeb, 
+        agencia_pie: agenciaPie, 
+        moneda_default: moneda, 
+        metrica_default: metrica 
+    });
+
     if (!error) { alert("¡Ajustes guardados correctamente!"); obtenerPerfil(); } else { alert("Error guardando configuraciones."); }
     setLoading(false);
   };
 
+  // El feedback lo mantenemos igual por ahora
   const mandarFeedback = async () => {
     if (!mensajeFeedback.trim() || !session?.user?.email) return;
     setEnviandoFeedback(true);
@@ -415,8 +443,11 @@ function AuditorDashboard() {
     setEnviandoFeedback(false);
   };
 
+  // === REESCRITO: GUARDAMOS LA NUEVA AUDITORÍA CON EL USER_ID ===
   const analizarCampaña = async () => {
-    if (!session?.user?.email) return;
+    const userId = (session?.user as any)?.id;
+    if (!userId) return;
+
     setLoading(true);
     try {
       const presObj = parseFloat(presupuestoObjetivo) || 0;
@@ -451,7 +482,14 @@ function AuditorDashboard() {
       const parsedReporte = JSON.parse(jsonLimpio);
       parsedReporte.pacing = pacingData;
       setReporte(parsedReporte);
-      await supabase.from('historial_auditorias').insert([{ usuario_email: session.user.email, score: parsedReporte.score_general, reporte_json: parsedReporte, nombre_cuenta: nombreCuenta || "Sin nombre" }]);
+
+      // Acá insertamos apuntando al user_id
+      await supabase.from('historial_auditorias').insert([{ 
+          user_id: userId, 
+          score: parsedReporte.score_general, 
+          reporte_json: parsedReporte, 
+          nombre_cuenta: nombreCuenta || "Sin nombre" 
+      }]);
       
       cargarHistorial(); setTareasCompletadas([]); setSubVistaReporte("avanzado"); setVista("reporte_lectura");
     } catch (error) { console.error("Error completo:", error); alert("Error al analizar. Verificá tu API Key y la consola."); }
@@ -1052,95 +1090,95 @@ function AuditorDashboard() {
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        {/* TABLA DE AUDITORÍAS DENSA */}
-                        <div className="lg:col-span-2 bg-[#1A1F1B] border border-[#2C352E] rounded-2xl p-6 flex flex-col">
-                           <div className="flex justify-between items-center mb-6">
-                             <h3 className="text-lg font-bold text-[#E8EBE4]">{t[idioma].ultAud}</h3>
-                             <button onClick={() => setVista("historial")} className="text-xs font-bold text-[#8A968C] hover:text-[#E8EBE4] transition-colors">{t[idioma].verTodas}</button>
-                           </div>
-                           
-                           {historial.length === 0 ? (
-                             <div className="flex-1 flex items-center justify-center text-[#8A968C] text-sm font-medium py-10 border border-dashed border-[#2C352E] rounded-xl">No hay auditorías recientes.</div>
-                           ) : (
-                             <div className="flex-1 border-t border-[#2C352E]">
-                               <div className="grid grid-cols-12 gap-4 py-3 border-b border-[#2C352E] text-[9px] font-bold text-[#8A968C] uppercase tracking-widest">
-                                 <div className="col-span-5">{t[idioma].thCliente}</div>
-                                 <div className="col-span-3 text-center">{t[idioma].score}</div>
-                                 <div className="col-span-2 text-center">{t[idioma].thEstado}</div>
-                                 <div className="col-span-2 text-right">{t[idioma].thAccion}</div>
-                               </div>
-                               <div className="divide-y divide-[#2C352E]">
-                                 {historial.slice(0, 5).map((item, index) => {
-                                   const st = getDashboardStatus(item.score);
-                                   return (
-                                     <div key={index} className="grid grid-cols-12 gap-4 py-4 items-center hover:bg-[#2C352E]/30 transition-colors -mx-4 px-4 rounded-lg">
-                                       
-                                       <div className="col-span-5 flex items-center gap-3">
-                                         <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${st.bgTints} ${st.color} border border-transparent`}>{item.score}</div>
-                                         <div>
-                                           <p className="font-bold text-[#E8EBE4] text-sm truncate">{item.nombre_cuenta || "Sin nombre"}</p>
-                                           <p className="text-[10px] text-[#8A968C] mt-0.5">{parseDate(item.created_at)}</p>
-                                         </div>
-                                       </div>
-                                       
-                                       <div className="col-span-3 flex flex-col justify-center px-4">
-                                          <div className="flex justify-between items-end mb-1">
-                                            <span className={`text-sm font-bold ${st.color}`}>{item.score}</span>
-                                            <span className="text-[9px] text-[#8A968C]">/100</span>
-                                          </div>
-                                          <div className="w-full h-1.5 bg-[#131714] rounded-full overflow-hidden border border-[#2C352E]/50">
-                                            <div className={`h-full rounded-full transition-all`} style={{width: `${item.score}%`, backgroundColor: st.color.replace('text-[', '').replace(']', '')}}></div>
-                                          </div>
-                                       </div>
-
-                                       <div className="col-span-2 flex justify-center">
-                                          <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-[10px] font-bold ${st.bgTints} ${st.color}`}>
-                                            <span className={`w-1.5 h-1.5 rounded-full bg-current`}></span> {st.label}
-                                          </span>
-                                       </div>
-
-                                       <div className="col-span-2 flex justify-end items-center gap-2">
-                                         {/* BOTÓN "VER REPORTE" EN VEZ DE PDF */}
-                                         <button onClick={() => { setReporte(item.reporte_json); setNombreCuenta(item.nombre_cuenta || "Sin nombre"); setSubVistaReporte("diagnostico"); setVista("reporte_lectura"); }} className="text-[10px] uppercase tracking-widest font-bold border border-[#2C352E] hover:bg-[#2C352E] text-[#E8EBE4] px-3 py-1.5 rounded transition-colors">
-                                           {t[idioma].abrirAud}
-                                         </button>
-                                         <button onClick={() => borrarAuditoria(item.id)} className="text-[#8A968C] hover:text-[#E66767] p-1.5 transition-colors"><Trash2 size={14} /></button>
-                                       </div>
-
-                                     </div>
-                                   )
-                                 })}
-                               </div>
-                             </div>
-                           )}
-                        </div>
-
-                        {/* ACTIVIDAD RECIENTE */}
-                        <div className="bg-[#1A1F1B] border border-[#2C352E] rounded-2xl p-6">
-                           <h3 className="text-sm font-bold text-[#E8EBE4] mb-6">{t[idioma].actRec}</h3>
-                           {historial.length === 0 ? (
-                             <div className="text-[#8A968C] text-sm font-medium text-center py-10">No hay actividad.</div>
-                           ) : (
-                             <ul className="space-y-6">
-                                {historial.slice(0, 5).map((item, i) => {
-                                   const st = getDashboardStatus(item.score);
-                                   return (
-                                     <li key={i} className="flex gap-4 items-start relative">
-                                        {i !== historial.slice(0,5).length - 1 && <div className="absolute left-[3px] top-4 bottom-[-24px] w-px bg-[#2C352E]"></div>}
-                                        <div className={`w-2 h-2 mt-1.5 rounded-full z-10 flex-shrink-0`} style={{backgroundColor: st.color.replace('text-[', '').replace(']', '')}}></div>
+                       {/* TABLA DE AUDITORÍAS DENSA */}
+                       <div className="lg:col-span-2 bg-[#1A1F1B] border border-[#2C352E] rounded-2xl p-6 flex flex-col">
+                          <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-lg font-bold text-[#E8EBE4]">{t[idioma].ultAud}</h3>
+                            <button onClick={() => setVista("historial")} className="text-xs font-bold text-[#8A968C] hover:text-[#E8EBE4] transition-colors">{t[idioma].verTodas}</button>
+                          </div>
+                          
+                          {historial.length === 0 ? (
+                            <div className="flex-1 flex items-center justify-center text-[#8A968C] text-sm font-medium py-10 border border-dashed border-[#2C352E] rounded-xl">No hay auditorías recientes.</div>
+                          ) : (
+                            <div className="flex-1 border-t border-[#2C352E]">
+                              <div className="grid grid-cols-12 gap-4 py-3 border-b border-[#2C352E] text-[9px] font-bold text-[#8A968C] uppercase tracking-widest">
+                                <div className="col-span-5">{t[idioma].thCliente}</div>
+                                <div className="col-span-3 text-center">{t[idioma].score}</div>
+                                <div className="col-span-2 text-center">{t[idioma].thEstado}</div>
+                                <div className="col-span-2 text-right">{t[idioma].thAccion}</div>
+                              </div>
+                              <div className="divide-y divide-[#2C352E]">
+                                {historial.slice(0, 5).map((item, index) => {
+                                  const st = getDashboardStatus(item.score);
+                                  return (
+                                    <div key={index} className="grid grid-cols-12 gap-4 py-4 items-center hover:bg-[#2C352E]/30 transition-colors -mx-4 px-4 rounded-lg">
+                                      
+                                      <div className="col-span-5 flex items-center gap-3">
+                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${st.bgTints} ${st.color} border border-transparent`}>{item.score}</div>
                                         <div>
-                                           <p className="text-xs text-[#8A968C] font-medium leading-tight">Se auditó la cuenta <span className="text-[#E8EBE4] font-bold">{item.nombre_cuenta || "Sin nombre"}</span></p>
-                                           <div className="flex items-center gap-2 mt-1.5">
-                                             <p className="text-[10px] text-[#8A968C]">{parseDate(item.created_at)}</p>
-                                             <span className={`text-[9px] font-bold px-1.5 rounded ${st.color} ${st.bgTints}`}>Score {item.score}</span>
-                                           </div>
+                                          <p className="font-bold text-[#E8EBE4] text-sm truncate">{item.nombre_cuenta || "Sin nombre"}</p>
+                                          <p className="text-[10px] text-[#8A968C] mt-0.5">{parseDate(item.created_at)}</p>
                                         </div>
-                                     </li>
-                                   )
+                                      </div>
+                                      
+                                      <div className="col-span-3 flex flex-col justify-center px-4">
+                                         <div className="flex justify-between items-end mb-1">
+                                           <span className={`text-sm font-bold ${st.color}`}>{item.score}</span>
+                                           <span className="text-[9px] text-[#8A968C]">/100</span>
+                                         </div>
+                                         <div className="w-full h-1.5 bg-[#131714] rounded-full overflow-hidden border border-[#2C352E]/50">
+                                           <div className={`h-full rounded-full transition-all`} style={{width: `${item.score}%`, backgroundColor: st.color.replace('text-[', '').replace(']', '')}}></div>
+                                         </div>
+                                      </div>
+
+                                      <div className="col-span-2 flex justify-center">
+                                         <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-[10px] font-bold ${st.bgTints} ${st.color}`}>
+                                           <span className={`w-1.5 h-1.5 rounded-full bg-current`}></span> {st.label}
+                                         </span>
+                                      </div>
+
+                                      <div className="col-span-2 flex justify-end items-center gap-2">
+                                        {/* BOTÓN "VER REPORTE" EN VEZ DE PDF */}
+                                        <button onClick={() => { setReporte(item.reporte_json); setNombreCuenta(item.nombre_cuenta || "Sin nombre"); setSubVistaReporte("diagnostico"); setVista("reporte_lectura"); }} className="text-[10px] uppercase tracking-widest font-bold border border-[#2C352E] hover:bg-[#2C352E] text-[#E8EBE4] px-3 py-1.5 rounded transition-colors">
+                                          {t[idioma].abrirAud}
+                                        </button>
+                                        <button onClick={() => borrarAuditoria(item.id)} className="text-[#8A968C] hover:text-[#E66767] p-1.5 transition-colors"><Trash2 size={14} /></button>
+                                      </div>
+
+                                    </div>
+                                  )
                                 })}
-                             </ul>
-                           )}
-                        </div>
+                              </div>
+                            </div>
+                          )}
+                       </div>
+
+                       {/* ACTIVIDAD RECIENTE */}
+                       <div className="bg-[#1A1F1B] border border-[#2C352E] rounded-2xl p-6">
+                          <h3 className="text-sm font-bold text-[#E8EBE4] mb-6">{t[idioma].actRec}</h3>
+                          {historial.length === 0 ? (
+                            <div className="text-[#8A968C] text-sm font-medium text-center py-10">No hay actividad.</div>
+                          ) : (
+                            <ul className="space-y-6">
+                               {historial.slice(0, 5).map((item, i) => {
+                                  const st = getDashboardStatus(item.score);
+                                  return (
+                                    <li key={i} className="flex gap-4 items-start relative">
+                                       {i !== historial.slice(0,5).length - 1 && <div className="absolute left-[3px] top-4 bottom-[-24px] w-px bg-[#2C352E]"></div>}
+                                       <div className={`w-2 h-2 mt-1.5 rounded-full z-10 flex-shrink-0`} style={{backgroundColor: st.color.replace('text-[', '').replace(']', '')}}></div>
+                                       <div>
+                                          <p className="text-xs text-[#8A968C] font-medium leading-tight">Se auditó la cuenta <span className="text-[#E8EBE4] font-bold">{item.nombre_cuenta || "Sin nombre"}</span></p>
+                                          <div className="flex items-center gap-2 mt-1.5">
+                                            <p className="text-[10px] text-[#8A968C]">{parseDate(item.created_at)}</p>
+                                            <span className={`text-[9px] font-bold px-1.5 rounded ${st.color} ${st.bgTints}`}>Score {item.score}</span>
+                                          </div>
+                                       </div>
+                                     </li>
+                                  )
+                               })}
+                            </ul>
+                          )}
+                       </div>
                     </div>
                   </div>
                 )}
