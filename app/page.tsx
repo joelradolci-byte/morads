@@ -8,36 +8,14 @@ import {
   Zap, AlertTriangle, CheckCircle2, CreditCard, Settings, 
   Search, ArrowRight, ArrowLeft, TrendingUp, TrendingDown, LayoutPanelLeft,
   FileText, BarChart3, ShieldCheck, Plus, Clock, Activity, Trash2, Lock, 
-  Bell, ListChecks, LayoutGrid, CheckSquare, Sparkles, Undo2, RefreshCcw, Type, Calculator, BookOpen
+  Bell, ListChecks, LayoutGrid, CheckSquare, Sparkles, Undo2, RefreshCcw, Type, Calculator, BookOpen,
+  Upload, Copy, Check, TrendingUp as TrendUp, ChevronRight, Folder, LayoutDashboard, X
 } from 'lucide-react';
+import { extraerDatosGoogle } from '../lib/googleAds'; 
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
-
-// --- PALETA PASTEL (Landing Page) ---
-const pastelColors = {
-  bg: "#FDE8D3",       
-  textDark: "#262B27", 
-  textMuted: "#657166",
-  peach: "#F3C3B2",    
-  blue: "#99CDD8",     
-  mint: "#DAEBE3",     
-  sage: "#CFD6C4"      
-};
-
-// --- PALETA DASHBOARD (Off-Black Olive) ---
-const dashColors = {
-  bg: "#131714",       
-  card: "#1A1F1B",     
-  border: "#2C352E",   
-  textPrimary: "#E8EBE4", 
-  textMuted: "#8A968C",   
-  peach: "#F3C3B2",    
-  red: "#E66767",      
-  green: "#99CDD8",    
-  yellow: "#EAB308"    
-};
 
 function FadeInOnScroll({ children, delay = 0 }: { children: React.ReactNode, delay?: number }) {
   const [isVisible, setVisible] = useState(false);
@@ -87,7 +65,6 @@ function TiltWrapper({ children }: { children: React.ReactNode }) {
   );
 }
 
-// --- FONDO LANDING: ESFERA DE AUDITORÍA ---
 const AuditWireframeBackground = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -267,7 +244,6 @@ const AuditWireframeBackground = () => {
   return <canvas ref={canvasRef} className="fixed inset-0 w-full h-full pointer-events-none z-[1] print:hidden opacity-90" />;
 };
 
-// --- FONDO DASHBOARD: RUIDO VISUAL (NOISE TEXTURE) PREMIUM ---
 const NoiseBackground = () => {
   return (
     <div className="fixed inset-0 w-full h-full pointer-events-none z-[1] print:hidden opacity-[0.03]" style={{ mixBlendMode: 'overlay' }}>
@@ -281,14 +257,162 @@ const NoiseBackground = () => {
   );
 };
 
+const CurveTop = () => (
+  <svg className="absolute right-0 top-[-32px] w-8 h-8 text-[#F4F4F5] pointer-events-none" viewBox="0 0 32 32" fill="currentColor">
+    <path d="M0 32 L32 32 L32 0 A32 32 0 0 0 0 32 Z" />
+  </svg>
+);
+
+const CurveBottom = () => (
+  <svg className="absolute right-0 bottom-[-32px] w-8 h-8 text-[#F4F4F5] pointer-events-none" viewBox="0 0 32 32" fill="currentColor">
+    <path d="M0 0 L32 0 L32 32 A32 32 0 0 1 0 0 Z" />
+  </svg>
+);
+
+function ScoreRing({ score, size = 150 }: { score: number, size?: number }) {
+  const stroke = 12;
+  const radius = (size / 2) - stroke;
+  const circumference = radius * 2 * Math.PI;
+  const strokeDashoffset = circumference - (score / 100) * circumference;
+  
+  const color = score < 50 ? "#E07070" : score < 80 ? "#D4A843" : "#7EB893";
+
+  return (
+    <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
+      <div className="absolute inset-0 rounded-full blur-2xl opacity-20" style={{ backgroundColor: color }}></div>
+      <svg height={size} width={size} className="transform -rotate-90 relative z-10">
+        <circle stroke="rgba(0,0,0,0.4)" fill="transparent" strokeWidth={stroke} r={radius} cx={size/2} cy={size/2} />
+        <circle stroke={color} fill="transparent" strokeWidth={stroke} strokeDasharray={circumference + ' ' + circumference} style={{ strokeDashoffset }} strokeLinecap="round" r={radius} cx={size/2} cy={size/2} className="transition-all duration-1000 ease-out" />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center z-20">
+        <span className="text-6xl font-black text-white tracking-tighter drop-shadow-md">{score}</span>
+      </div>
+    </div>
+  );
+}
+
+function ScoreSparkline({ data, fechas }: { data: number[], fechas: string[] }) {
+  const [hovered, setHovered] = useState<number | null>(null);
+
+  if (!data || data.length < 2) return null;
+
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+  const range = max - min || 1;
+  const w = 500;
+  const h = 140; 
+  const padX = 40;
+  const padY = 45; 
+
+  const coords = data.map((v, i) => {
+    const x = padX + (i / (data.length - 1)) * (w - padX * 2);
+    const y = h - padY - ((v - min) / range) * (h - padY * 2);
+    return { x, y, v };
+  });
+
+  const polyline = coords.map(c => `${c.x},${c.y}`).join(' ');
+  const areaPoints = `${coords[0].x},${h} ${polyline} ${coords[coords.length-1].x},${h}`;
+
+  const formatFecha = (dateStr: string) => {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    return `${d.getDate()}/${d.getMonth()+1}`;
+  };
+
+  return (
+    <div className="relative w-full" style={{height: '160px'}}>
+      <svg viewBox={`0 0 ${w} ${h}`} className="w-full" style={{height:'140px'}} preserveAspectRatio="xMidYMid meet">
+        <defs>
+          <linearGradient id="sparkGrad2" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#F3C3B2" stopOpacity="0.2" />
+            <stop offset="100%" stopColor="#F3C3B2" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+
+        {[0, 25, 50, 75, 100].map(val => {
+          const y = h - padY - ((val - min) / range) * (h - padY * 2);
+          if (y < padY || y > h - padY + 5) return null;
+          return (
+            <line key={val} x1={padX} y1={y} x2={w - padX} y2={y}
+              stroke="#44403C" strokeWidth="1" strokeDasharray="4,4" />
+          );
+        })}
+
+        <polygon points={areaPoints} fill="url(#sparkGrad2)" />
+        <polyline points={polyline} fill="none" stroke="#F3C3B2" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />
+
+        {coords.map((c, i) => (
+          <g key={i}>
+            <circle cx={c.x} cy={c.y} r="5" fill="#F3C3B2" stroke="#292524" strokeWidth="2" />
+            <circle cx={c.x} cy={c.y} r="16" fill="transparent"
+              onMouseEnter={() => setHovered(i)}
+              onMouseLeave={() => setHovered(null)}
+              style={{cursor: 'pointer'}}
+            />
+            {hovered === i && (
+              <g>
+                <rect x={c.x - 28} y={c.y - 38} width="56" height="28" rx="6" fill="#1C1917" stroke="#44403C" strokeWidth="1" />
+                <text x={c.x} y={c.y - 23} textAnchor="middle" fill="#F5F0EB" fontSize="11" fontWeight="bold">{c.v}/100</text>
+                <text x={c.x} y={c.y - 12} textAnchor="middle" fill="#A8A29E" fontSize="9" fontWeight="500">{formatFecha(fechas[i])}</text>
+              </g>
+            )}
+          </g>
+        ))}
+      </svg>
+
+      <div className="flex justify-between mt-1" style={{ paddingLeft: `${(padX/w)*100}%`, paddingRight: `${(padX/w)*100}%` }}>
+        {fechas.map((f, i) => (
+          <span key={i} className={`text-[10px] font-bold transition-colors ${hovered === i ? 'text-[#F5F0EB]' : 'text-[#A8A29E]'}`}>
+            {formatFecha(f)}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function AuditorDashboard() {
-  // === NUEVO SISTEMA DE SESIÓN CON SUPABASE ===
+  const [campanas, setCampanas] = useState<any[]>([]);
+  const [cargandoCampanas, setCargandoCampanas] = useState(false);
   const [session, setSession] = useState<any>(null);
   const [status, setStatus] = useState("loading");
+  const [nombreCuenta, setNombreCuenta] = useState("");
+  const [reporte, setReporte] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [copiedKw, setCopiedKw] = useState<string | null>(null);
+  const [idioma, setIdioma] = useState<"es" | "en">("es");
+  const [quickWinsCompletados, setQuickWinsCompletados] = useState<string[]>([]);
+  const [vista, setVista] = useState<"dashboard" | "nueva" | "historial" | "perfil" | "feedback" | "reporte_lectura" | "facturacion" | "detalle_hallazgo" | "campañas">("dashboard");
+  const [subVistaReporte, setSubVistaReporte] = useState<"diagnostico" | "checklist" | "avanzado">("diagnostico");
+  const [detalleHallazgo, setDetalleHallazgo] = useState<any | null>(null);
+  const [isClosing, setIsClosing] = useState(false);
+  const [historial, setHistorial] = useState<any[]>([]);
+  const [cargandoHistorial, setCargandoHistorial] = useState(false);
+  const [comparacionIds, setComparacionIds] = useState<number[]>([]);
+  const [vistaComparacion, setVistaComparacion] = useState(false);
+  const [modoSimple, setModoSimple] = useState(false);
+  const [filtroEstado, setFiltroEstado] = useState<"todos" | "critico" | "atencion" | "optimo">("todos");
+  const [busqueda, setBusqueda] = useState(""); 
+  const [perfil, setPerfil] = useState<any>(null);
+  const [agenciaNombre, setAgenciaNombre] = useState("");
+  const [agenciaLogo, setAgenciaLogo] = useState("");
+  const [agenciaWeb, setAgenciaWeb] = useState("");
+  const [agenciaPie, setAgenciaPie] = useState("Auditoría generada con tecnología IA - Reporte Confidencial.");
+  const [moneda, setMoneda] = useState("USD ($)");
+  const [metrica, setMetrica] = useState("ROAS");
+  const [uploading, setUploading] = useState(false);
+  const [mensajeFeedback, setMensajeFeedback] = useState("");
+  const [enviandoFeedback, setEnviandoFeedback] = useState(false);
+  const [tareasCompletadas, setTareasCompletadas] = useState<number[]>([]);
+  const [mostrarConfirmacion, setMostrarConfirmacion] = useState(false);
+  const [toastState, setToastState] = useState<{show: boolean, status: 'success' | 'undoing' | 'reverted', timeLeft: number}>({show: false, status: 'success', timeLeft: 15});
+  const [alertas, setAlertas] = useState<any[]>([]);
+  const [toastsActivos, setToastsActivos] = useState<any[]>([]);
+  const [mostrarCentroAlertas, setMostrarCentroAlertas] = useState(false);
+  const [alertasNoLeidas, setAlertasNoLeidas] = useState(false);    
+  const [modoVista, setModoVista] = useState('grid');
 
   useEffect(() => {
-    // Función para adaptar los datos de Supabase y que no se rompa el resto del código
     const formatSession = (supaSession: any) => {
       if (!supaSession) return null;
       return {
@@ -301,13 +425,11 @@ function AuditorDashboard() {
       };
     };
 
-    // Buscamos si hay sesión activa al cargar la página
     supabase.auth.getSession().then(({ data }) => {
       setSession(formatSession(data.session));
       setStatus(data.session ? "authenticated" : "unauthenticated");
     });
 
-    // Escuchamos los cambios (si el usuario inicia o cierra sesión)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, supaSession) => {
       setSession(formatSession(supaSession));
       setStatus(supaSession ? "authenticated" : "unauthenticated");
@@ -316,62 +438,311 @@ function AuditorDashboard() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Función para iniciar sesión pidiendo permiso de Google Ads
   const iniciarSesion = async () => {
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: {
-        scopes: 'https://www.googleapis.com/auth/adwords', // El permiso mágico
-        redirectTo: window.location.origin
+      options: { 
+        redirectTo: window.location.origin,
+        scopes: 'https://www.googleapis.com/auth/adwords',
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent',
+        }
       }
     });
   };
-  // ============================================
 
-  const [nombreCuenta, setNombreCuenta] = useState("");
-  const [reporte, setReporte] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
+  const ejecutarAuditoriaConIA = async () => {
+    setLoading(true);
+    try {
+      console.log("1. Extrayendo métricas del .lib...");
+      const datosParaAuditar = await extraerDatosGoogle();
 
-  const [presupuestoObjetivo, setPresupuestoObjetivo] = useState("");
-  const [gastoActual, setGastoActual] = useState("");
-  const [conversiones, setConversiones] = useState("");
-  const [cpaRoas, setCpaRoas] = useState("");
-  const [tipoCampana, setTipoCampana] = useState("Búsqueda (Search)");
-  const [notas, setNotas] = useState("");
+      console.log("2. Enviando datos a Gemini 3.1 Flash...");
+      const res = await fetch('/api/audit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          datos: datosParaAuditar,
+          idioma_ui: "es"
+        })
+      });
 
-  const [idioma, setIdioma] = useState<"es" | "en">("es");
-  const [vista, setVista] = useState<"dashboard" | "nueva" | "historial" | "perfil" | "feedback" | "reporte_lectura" | "facturacion">("dashboard");
-  const [subVistaReporte, setSubVistaReporte] = useState<"diagnostico" | "checklist" | "avanzado">("diagnostico");
+      if (!res.ok) throw new Error("Error en la respuesta del servidor de Mora");
+
+      const parsedReporte = await res.json();
+      setReporte(parsedReporte);
+      setQuickWinsCompletados([]);
+
+      const userId = session?.user?.id;
+      if (userId) {
+        await supabase.from('historial_auditorias').insert([{ 
+            user_id: userId, 
+            score: parsedReporte.health_score, 
+            reporte_json: parsedReporte, 
+            nombre_cuenta: nombreCuenta || "Cuenta Prueba" 
+        }]);
+        cargarHistorial(); 
+      }
+
+    } catch (error) {
+      console.error("Fallo crítico en la auditoría:", error);
+      alert("Hubo un problemita al procesar los datos con la IA. Revisá la consola.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const cerrarDetalle = () => {
+    setIsClosing(true);
+    setTimeout(() => {
+      setDetalleHallazgo(null);
+      setIsClosing(false);
+    }, 400); 
+  };
   
-  const [historial, setHistorial] = useState<any[]>([]);
-  const [cargandoHistorial, setCargandoHistorial] = useState(false);
-  const [filtroEstado, setFiltroEstado] = useState<"todos" | "critico" | "atencion" | "optimo">("todos");
-  const [busqueda, setBusqueda] = useState(""); 
-  
-  const [mostrarPagos, setMostrarPagos] = useState(false);
-  const [perfil, setPerfil] = useState<any>(null);
-  const [menuPerfil, setMenuPerfil] = useState(false);
-  const [menuNotificaciones, setMenuNotificaciones] = useState(false);
+  const ultimaAuditoria = historial.length > 0 ? historial[0] : null;
 
-  const [agenciaNombre, setAgenciaNombre] = useState("");
-  const [agenciaLogo, setAgenciaLogo] = useState("");
-  const [agenciaWeb, setAgenciaWeb] = useState("");
-  const [agenciaPie, setAgenciaPie] = useState("Auditoría generada con tecnología IA - Reporte Confidencial.");
-  const [moneda, setMoneda] = useState("USD ($)");
-  const [metrica, setMetrica] = useState("ROAS");
-  const [uploading, setUploading] = useState(false);
+  const quickWinsDelDia = (() => {
+    if (!ultimaAuditoria?.reporte_json?.hallazgos) return [];
+    const rojos = ultimaAuditoria.reporte_json.hallazgos.graves_rojo || [];
+    const amarillos = ultimaAuditoria.reporte_json.hallazgos.debiles_amarillo || [];
+    const unificados = [
+      ...rojos.map((r: any) => ({ ...r, tipo: 'critico' })),
+      ...amarillos.map((a: any) => ({ ...a, tipo: 'mejora' }))
+    ];
+    return unificados.slice(0, 3);
+  })();
 
-  const [mensajeFeedback, setMensajeFeedback] = useState("");
-  const [enviandoFeedback, setEnviandoFeedback] = useState(false);
-  const [tareasCompletadas, setTareasCompletadas] = useState<number[]>([]);
-  const [mostrarConfirmacion, setMostrarConfirmacion] = useState(false);
-  const [toastState, setToastState] = useState<{show: boolean, status: 'success' | 'undoing' | 'reverted', timeLeft: number}>({show: false, status: 'success', timeLeft: 15});
+  useEffect(() => {
+    if (!ultimaAuditoria?.reporte_json?.hallazgos?.graves_rojo) return;
 
-  const [modoPlan, setModoPlan] = useState<"agencia" | "individual">("agencia");
+    const fugasIA = ultimaAuditoria.reporte_json.hallazgos.graves_rojo;
 
-  const t = {
-    es: { dashboard: "Dashboard", panelPrin: "Panel Principal", panelDesc: "Resumen del rendimiento global de tus cuentas.", saludG: "Salud Promedio", totAud: "Total Cuentas", fugasDet: "Fugas Críticas", oporMej: "Oportunidades", ultAud: "Últimas Auditorías", actRec: "Actividad Reciente", verTodas: "Ver todas →", generada: "Se auditó la cuenta", hace: "Hace", afectaA: "Afecta principalmente a", buscarGlobal: "Buscar cuenta por nombre...", nueva: "Auditor IA", clientes: "Panel de Clientes", reportes: "Reportes", feedback: "Sugerencias", configuracion: "Configuración General", facturacion: "Ver Facturación", salir: "Cerrar Sesión", placeholderNombre: "Nombre del Cliente o Cuenta", btnAnalizar: "Ejecutar Auditoría", btnAnalizando: "Analizando métricas...", exportar: "Exportar a PDF", score: "Score", problemas: "Problemas Graves", mejoras: "Áreas Débiles", aciertos: "Puntos Fuertes", login: "Iniciar sesión", tabDiag: "Diagnóstico IA", tabCheck: "Plan de Acción", tabAvanzado: "Análisis Avanzado", autoApply: "Corregir Ahora", msgAutoApply: "Disponible próximamente", pacingTit: "Pacing de Presupuesto", pacingDesc: "Ritmo de gasto proyectado", matrizTit: "Campaign Matrix", matrizDesc: "Distribución del gasto vs rendimiento", escalar: "ESTRELLAS (Escalar)", apagar: "BASURA (Apagar)", observar: "DUDOSOS (Observar)", potenciales: "POTENCIALES (Testear)", abrirAud: "Ver reporte", thCliente: "Cliente / Cuenta", thFecha: "Fecha", thEstado: "Estado", thAccion: "Acción", cuentaSinNombre: "Cuenta sin nombre", ingresos: "Ingresa los datos", buzonSug: "Buzón de sugerencias", facturacionTitulo: "Facturación y Planes", facturacionDesc: "Administrá tu suscripción", planActual: "Plan Actual", activa: "Activa", gestionarStripe: "Gestionar en Stripe", pronto: "Pronto", ayudanos: "Ayudanos a mejorar", bug: "¿Encontraste un error?", escribiSug: "Escribí tu sugerencia aquí...", enviando: "Enviando...", enviarSug: "Enviar Sugerencia", persPdf: "Personalización de Marca Blanca", nomAgencia: "Nombre de Agencia", sitioWeb: "Sitio Web", logoPdf: "Logo PDF", subeLogo: "Subir", piePagina: "Pie de página legal", preferencias: "Preferencias Regionales", monedaDef: "Moneda Base", metricaDef: "Métrica Principal", guardando: "Guardando...", guardarAj: "Guardar Ajustes", puntajeBasado: "Puntaje de salud en base al rendimiento y estructura general.", ingresaDatos: "Completá los datos de la campaña a auditar.", presupuestoObj: "Presupuesto Mensual", placeholderPres: "Ej: 1000", gastoAct: "Gasto actual", placeholderGasto: "Ej: 450", conversiones: "Conversiones", cparoas: "CPA / ROAS Actual", tipoCamp: "Campaign Type", contexto: "Contexto y Notas", placeholderConv: "Ej: 120", placeholderContexto: "Añadí contexto extra para la IA.", monitoreo: "Monitoreo", tenes: "Tenés", registradas: "cuentas registradas.", todos: "Todos", criticos: "Críticos", atencion: "Atención", optimos: "Óptimos", thTendencia: "Tendencia", volver: "Volver atrás", detalleCliente: "Detalle del Cliente" },
-    en: { dashboard: "Dashboard", panelPrin: "Main Dashboard", panelDesc: "Global overview of your accounts performance.", saludG: "Avg Health Score", totAud: "Total Accounts", fugasDet: "Critical Leaks", oporMej: "Opportunities", ultAud: "Recent Audits", actRec: "Recent Activity", verTodas: "View all →", generada: "Audit generated for", hace: "Ago", afectaA: "Mainly affecting", buscarGlobal: "Search account by name...", nueva: "AI Auditor", clientes: "Client Dashboard", reportes: "Reports", feedback: "Feedback", configuracion: "General Settings", facturacion: "Billing", salir: "Sign Out", placeholderNombre: "Client or Account Name", btnAnalizar: "Run Audit", btnAnalizando: "Analyzing metrics...", exportar: "Export to PDF", score: "Score", problemas: "Critical Issues", mejoras: "Weak Areas", aciertos: "Strengths", login: "Log In", tabDiag: "AI Diagnosis", tabCheck: "Action Plan", tabAvanzado: "Advanced Analysis", autoApply: "Auto-Apply", msgAutoApply: "Coming soon", pacingTit: "Budget Pacing", pacingDesc: "Projected spend rhythm", matrizTit: "Campaign Matrix", matrizDesc: "Spend distribution vs performance", escalar: "STARS (Scale)", apagar: "TRASH (Pause)", observar: "DOUBTFUL (Observe)", potenciales: "POTENCIALES (Test)", abrirAud: "View report", thCliente: "Client / Account", thFecha: "Date", thEstado: "Status", thAccion: "Action", cuentaSinNombre: "Unnamed Account", ingresos: "Enter details", buzonSug: "Suggestion Box", facturacionTitulo: "Billing and Plans", facturacionDesc: "Manage your subscription", planActual: "Current Plan", activa: "Active", gestionarStripe: "Manage on Stripe", pronto: "Soon", ayudanos: "Help us improve", bug: "Found a bug?", escribiSug: "Write your suggestion here...", enviando: "Sending...", enviarSug: "Send Suggestion", persPdf: "White Label Customization", nomAgencia: "Agency Name", sitioWeb: "Website", logoPdf: "PDF Logo", subeLogo: "Upload", piePagina: "Legal Footer", preferencias: "Regional Preferences", monedaDef: "Base Currency", metricaDef: "Main Metric", guardando: "Saving...", guardarAj: "Save Settings", puntajeBasado: "Health score based on overall performance and structure.", ingresaDatos: "Fill in the details for the campaign audit.", presupuestoObj: "Monthly Budget", placeholderPres: "E.g. 1000", gastoAct: "Current Spend", placeholderGasto: "E.g. 450", conversiones: "Conversions", cparoas: "Current CPA / ROAS", tipoCamp: "Campaign Type", contexto: "Context & Notes", placeholderConv: "E.g. 120", placeholderContexto: "Add extra context for the AI.", monitoreo: "Monitoring", tenes: "You have", registradas: "accounts registered.", todos: "All", criticos: "Critical", atencion: "Warning", optimos: "Optimal", thTendencia: "Trend", volver: "Go Back", detalleCliente: "Client Details" }
+    const nuevasAlertas = fugasIA.map((fuga: any, idx: number) => ({
+      id: `ai-alert-${ultimaAuditoria.id}-${idx}`, 
+      titulo: fuga.titulo,
+      mensaje: fuga.descripcion,
+      accion: "Ver Detalles",
+      tipo: "critico",
+      hallazgoData: fuga 
+    }));
+
+    if (nuevasAlertas.length > 0) {
+      setAlertas(nuevasAlertas);
+      setAlertasNoLeidas(true);
+      
+      setToastsActivos(nuevasAlertas.map((a: any) => ({ 
+        ...a, 
+        isLeaving: false, 
+        timeLeft: 10 
+      }))); 
+      
+      setTimeout(() => {
+        setToastsActivos(prev => prev.map(t => ({ ...t, isLeaving: true })));
+      }, 9500);
+
+      setTimeout(() => setToastsActivos([]), 10200);
+    }
+  }, [ultimaAuditoria?.id]); 
+
+  useEffect(() => {
+    const intervalo = setInterval(() => {
+      setToastsActivos(prev => prev.map(t => ({
+        ...t,
+        timeLeft: t.timeLeft > 0 ? t.timeLeft - 1 : 0
+      })));
+    }, 1000);
+    return () => clearInterval(intervalo);
+  }, []);
+
+  const renderGestorCampañas = () => {
+    const activas = campanas.filter(c => c.estado === 'ENABLED');
+    const gastoTotal = activas.reduce((acc, c) => acc + (c.gasto || 0), 0);
+    const convTotales = activas.reduce((acc, c) => acc + (c.conversiones || 0), 0);
+    const cpaPromedio = convTotales > 0 ? gastoTotal / convTotales : 50;
+
+    return (
+      <div className="flex-1 p-8 overflow-y-auto animate-fade-in">
+        <div className="flex justify-between items-end mb-8">
+          <div>
+            <h2 className="text-[#F5F0EB] text-3xl font-black uppercase tracking-tight">Gestor de Campañas</h2>
+            <p className="text-[#A8A29E] text-sm mt-1 font-medium">Análisis quirúrgico de rendimiento individual.</p>
+          </div>
+          <div className="flex gap-4 items-center">
+            <div className="bg-[#1C1917] p-1 rounded-lg border border-[#44403C] flex gap-1">
+              <button onClick={() => setModoVista('grid')} className={`p-2 rounded md transition-all ${modoVista === 'grid' ? 'bg-[#292524] text-[#E07070] shadow' : 'text-[#A8A29E] hover:text-[#F5F0EB]'}`}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+              </button>
+              <button onClick={() => setModoVista('list')} className={`p-2 rounded md transition-all ${modoVista === 'list' ? 'bg-[#292524] text-[#E07070] shadow' : 'text-[#A8A29E] hover:text-[#F5F0EB]'}`}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {cargandoCampanas && (
+          <div className="flex justify-center items-center py-24">
+             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#F3C3B2]"></div>
+          </div>
+        )}
+
+        {!cargandoCampanas && campanas.length === 0 && (
+          <div className="bg-[#1C1917] border border-[#44403C] rounded-2xl p-12 flex flex-col items-center justify-center text-center shadow-inner">
+             <Folder size={48} className="text-[#44403C] mb-4" />
+             <h3 className="text-xl font-bold text-[#F5F0EB]">Sin datos de campañas</h3>
+             <p className="text-[#A8A29E] mt-2 max-w-sm">Aún no hay campañas para mostrar. Conecta tu cuenta o inyecta datos de prueba desde el simulador.</p>
+          </div>
+        )}
+
+        {!cargandoCampanas && campanas.length > 0 && modoVista === 'grid' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {campanas.map(c => {
+              const gasto = c.gasto || 0;
+              const presupuesto = c.presupuesto || 1; 
+              const conversiones = c.conversiones || 0;
+              const cpaActual = conversiones > 0 ? (gasto / conversiones) : gasto;
+              
+              let tag = "EVALUANDO";
+              let score = 50;
+              let colorClasses = { border: "border-[#44403C]", text: "text-[#A8A29E]", bg: "bg-[#A8A29E]/10" };
+              let penalizacion = "Rendimiento dentro del promedio.";
+
+              if (conversiones < 3) {
+                tag = "POTENCIAL"; score = 65; colorClasses = { border: "hover:border-blue-400", text: "text-blue-400", bg: "bg-blue-400/10" };
+                penalizacion = "Fase de aprendizaje. Darle tiempo.";
+              } else if (cpaActual < cpaPromedio * 0.85) {
+                tag = "ESTRELLA"; score = Math.min(98, 100 - Math.floor((cpaActual / cpaPromedio) * 10)); colorClasses = { border: "hover:border-[#10B981]", text: "text-[#10B981]", bg: "bg-[#10B981]/10" };
+                penalizacion = "Excelente CPA. Sugerimos escalar inversión.";
+              } else if (cpaActual > cpaPromedio * 1.20) {
+                tag = "BASURA"; score = Math.max(12, Math.floor(50 - ((cpaActual - cpaPromedio) / cpaPromedio) * 40)); colorClasses = { border: "hover:border-[#E07070]", text: "text-[#E07070]", bg: "bg-[#E07070]/10" };
+                penalizacion = "Drenando presupuesto. CPA insostenible.";
+              } else {
+                tag = "DUDOSO"; score = 75; colorClasses = { border: "hover:border-[#EAB308]", text: "text-[#EAB308]", bg: "bg-[#EAB308]/10" };
+                penalizacion = "Requiere optimización manual de palabras clave.";
+              }
+
+              const handleClick = () => {
+                abrirDetalleHallazgo({
+                  titulo: `Campaña ${tag}: ${c.nombre}`,
+                  descripcion: penalizacion,
+                  sugerencia: tag === "BASURA" ? "Pausar campaña temporalmente o reducir gasto en un 50%" : tag === "ESTRELLA" ? "Aumentar presupuesto un 15%" : "Revisar términos de búsqueda",
+                  razonamiento: `El CPA de esta campaña es de $${cpaActual.toFixed(2)}, mientras que el promedio de tu cuenta es $${cpaPromedio.toFixed(2)}.`
+                }, tag === "BASURA" ? "critico" : "mejora", {});
+              };
+
+              return (
+              <div key={c.id} onClick={handleClick} className={`bg-[#292524] border border-[#44403C] rounded-xl p-5 transition-colors relative group cursor-pointer ${colorClasses.border}`}>
+                <div className="absolute -top-10 right-0 bg-[#1C1917] border border-[#44403C] text-[#F5F0EB] text-[10px] px-3 py-2 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 whitespace-nowrap shadow-xl">
+                  {penalizacion}
+                </div>
+                
+                <div className="flex justify-between items-start mb-4">
+                  <div className="flex flex-col gap-1.5 max-w-[75%]">
+                    <h3 className="text-[#F5F0EB] font-bold text-sm truncate" title={c.nombre}>{c.nombre}</h3>
+                    <span className={`text-[9px] uppercase tracking-widest font-black px-2 py-0.5 rounded w-max border ${c.estado === 'ENABLED' ? 'bg-[#10B981]/10 text-[#10B981] border-[#10B981]/20' : 'bg-[#78716c]/10 text-[#A8A29E] border-[#78716c]/30'}`}>
+                      {c.estado === 'ENABLED' ? 'Activa' : 'Pausada'}
+                    </span>
+                  </div>
+                  <div className="relative w-10 h-10 flex items-center justify-center">
+                    <svg className="w-full h-full transform -rotate-90">
+                      <circle cx="20" cy="20" r="16" stroke="currentColor" strokeWidth="4" fill="transparent" className="text-[#1C1917]" />
+                      <circle cx="20" cy="20" r="16" stroke="currentColor" strokeWidth="4" fill="transparent" strokeDasharray="100.5" strokeDashoffset={100.5 - (100.5 * score) / 100} className={colorClasses.text} />
+                    </svg>
+                    <span className="absolute text-[10px] font-black text-[#F5F0EB]">{score}</span>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex justify-between text-xs mb-1"><span className="text-[#A8A29E]">Gasto</span><span className="text-[#F5F0EB] font-mono">${gasto.toLocaleString()} / ${presupuesto.toLocaleString()}</span></div>
+                    <div className="w-full h-1 bg-[#1C1917] rounded-full overflow-hidden"><div className="h-full bg-[#A8A29E]" style={{ width: `${Math.min((gasto/presupuesto)*100, 100)}%` }}></div></div>
+                  </div>
+                  <div className="flex justify-between items-end border-t border-[#44403C] pt-4">
+                    <div>
+                      <p className="text-[#A8A29E] text-[10px] uppercase tracking-wider mb-1">CPA Actual</p>
+                      <p className={`font-mono text-lg font-black ${cpaActual > cpaPromedio * 1.2 ? 'text-[#E07070]' : 'text-[#22c55e]'}`}>${cpaActual.toLocaleString(undefined, {maximumFractionDigits:2})}</p>
+                    </div>
+                    <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded ${colorClasses.bg} ${colorClasses.text}`}>{tag}</span>
+                  </div>
+                </div>
+              </div>
+            )})}
+          </div>
+        )}
+
+        {!cargandoCampanas && campanas.length > 0 && modoVista === 'list' && (
+          <div className="bg-[#292524] border border-[#44403C] rounded-xl overflow-hidden">
+            <table className="w-full text-left">
+              <thead className="bg-[#1C1917] border-b border-[#44403C] text-[#A8A29E] text-[10px] uppercase tracking-widest">
+                <tr>
+                  <th className="p-4 font-black">Campaña & Salud</th>
+                  <th className="p-4 font-black">Gasto Mensual</th>
+                  <th className="p-4 font-black">CPA Actual</th>
+                  <th className="p-4 font-black">Promedio Cta.</th>
+                  <th className="p-4 font-black text-right">Veredicto</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#44403C]">
+                {campanas.map(c => {
+                  const gasto = c.gasto || 0;
+                  const presupuesto = c.presupuesto || 1;
+                  const conversiones = c.conversiones || 0;
+                  const cpaActual = conversiones > 0 ? (gasto / conversiones) : gasto;
+                  
+                  let tag = "EVALUANDO";
+                  let score = 50;
+                  let colorClasses = { border: "border-[#44403C]", text: "text-[#A8A29E]", bg: "bg-[#A8A29E]/10", bar: "bg-[#A8A29E]" };
+
+                  if (conversiones < 3) {
+                    tag = "POTENCIAL"; score = 65; colorClasses = { border: "hover:border-blue-400", text: "text-blue-400", bg: "bg-blue-400/10", bar: "bg-blue-400" };
+                  } else if (cpaActual < cpaPromedio * 0.85) {
+                    tag = "ESTRELLA"; score = Math.min(98, 100 - Math.floor((cpaActual / cpaPromedio) * 10)); colorClasses = { border: "hover:border-[#10B981]", text: "text-[#10B981]", bg: "bg-[#10B981]/10", bar: "bg-[#10B981]" };
+                  } else if (cpaActual > cpaPromedio * 1.20) {
+                    tag = "BASURA"; score = Math.max(12, Math.floor(50 - ((cpaActual - cpaPromedio) / cpaPromedio) * 40)); colorClasses = { border: "hover:border-[#E07070]", text: "text-[#E07070]", bg: "bg-[#E07070]/10", bar: "bg-[#E07070]" };
+                  } else {
+                    tag = "DUDOSO"; score = 75; colorClasses = { border: "hover:border-[#EAB308]", text: "text-[#EAB308]", bg: "bg-[#EAB308]/10", bar: "bg-[#EAB308]" };
+                  }
+
+                  return (
+                  <tr key={c.id} className="hover:bg-[#1C1917]/50 transition-colors group relative cursor-pointer" onClick={() => {
+                    abrirDetalleHallazgo({ titulo: `Campaña ${tag}: ${c.nombre}`, descripcion: "Análisis individual", sugerencia: "Revisar configuración de la campaña en Google Ads", razonamiento: `El CPA de esta campaña es de $${cpaActual.toFixed(2)}.` }, tag === "BASURA" ? "critico" : "mejora", {});
+                  }}>
+                    <td className="p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <p className="text-[#F5F0EB] font-bold text-sm">{c.nombre}</p>
+                            <span className={`text-[8px] uppercase tracking-widest font-black px-1.5 py-0.5 rounded border ${c.estado === 'ENABLED' ? 'bg-[#10B981]/10 text-[#10B981] border-[#10B981]/20' : 'bg-[#78716c]/10 text-[#A8A29E] border-[#78716c]/30'}`}>
+                              {c.estado === 'ENABLED' ? 'Activa' : 'Pausada'}
+                            </span>
+                          </div>
+                          <div className="w-48 h-1 bg-[#1C1917] mt-1.5 rounded-full overflow-hidden relative">
+                            <div className={`h-full ${colorClasses.bar}`} style={{ width: `${score}%` }}></div>
+                          </div>
+                        </div>
+                        <span className="text-xs font-black text-[#A8A29E] w-6">{score}</span>
+                      </div>
+                    </td>
+                    <td className="p-4 text-[#A8A29E] font-mono text-sm">${gasto.toLocaleString()}</td>
+                    <td className="p-4 font-mono font-bold text-sm"><span className={colorClasses.text}>${cpaActual.toLocaleString(undefined, {maximumFractionDigits:2})}</span></td>
+                    <td className="p-4 text-[#A8A29E] font-mono text-sm">${cpaPromedio.toLocaleString(undefined, {maximumFractionDigits:2})}</td>
+                    <td className="p-4 text-right">
+                      <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded inline-block ${colorClasses.bg} ${colorClasses.text}`}>{tag}</span>
+                    </td>
+                  </tr>
+                )})}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const t: any = {
+    es: { dashboard: "Dashboard", panelPrin: "Panel Principal", panelDesc: "Resumen del rendimiento global de tus cuentas.", saludG: "Salud Promedio", totAud: "Total Cuentas", fugasDet: "Fugas Críticas", oporMej: "Oportunidades", ultAud: "Últimas Auditorías", actRec: "Actividad Reciente", verTodas: "Ver todas →", generada: "Se auditó la cuenta", hace: "Hace", afectaA: "Afecta principalmente a", buscarGlobal: "Buscar cuenta por nombre...", nueva: "Auditor IA", clientes: "Panel de Clientes", reportes: "Reportes", feedback: "Sugerencias", configuracion: "Configuración", facturacion: "Facturación", salir: "Cerrar Sesión", placeholderNombre: "Nombre del Cliente o Cuenta", btnAnalizar: "Ejecutar Auditoría", btnAnalizando: "Analizando métricas...", exportar: "Exportar a PDF", score: "Score", problemas: "Problemas Graves", mejoras: "Áreas Débiles", aciertos: "Puntos Fuertes", login: "Iniciar sesión", tabDiag: "Diagnóstico IA", tabCheck: "Plan de Acción", tabAvanzado: "Análisis Avanzado", autoApply: "Corregir Ahora", msgAutoApply: "Disponible próximamente", pacingTit: "Pacing de Presupuesto", pacingDesc: "Ritmo de gasto proyectado", matrizTit: "Campaign Matrix", matrizDesc: "Distribución del gasto vs rendimiento", escalar: "ESTRELLAS (Escalar)", apagar: "BASURA (Apagar)", observar: "DUDOSOS (Observar)", potenciales: "POTENCIALES (Testear)", abrirAud: "Ver reporte", thCliente: "Cliente / Cuenta", thFecha: "Fecha", thEstado: "Estado", thAccion: "Acción", cuentaSinNombre: "Cuenta sin nombre", ingresos: "Ingresa los datos", buzonSug: "Buzón de sugerencias", facturacionTitulo: "Facturación y Planes", facturacionDesc: "Administrá tu suscripción", planActual: "Plan Actual", activa: "Active", gestionarStripe: "Gestionar en Stripe", pronto: "Pronto", ayudanos: "Ayudanos a mejorar", bug: "¿Encontraste un error?", escribiSug: "Escribí tu sugerencia aquí...", enviando: "Enviando...", enviarSug: "Enviar Sugerencia", persPdf: "Personalización de Marca Blanca", nomAgencia: "Nombre de Agencia", sitioWeb: "Sitio Web", logoPdf: "PDF Logo", subeLogo: "Subir", piePagina: "Pie de página legal", preferencias: "Preferencias Regionales", monedaDef: "Moneda Base", metricaDef: "Métrica Principal", guardando: "Guardando...", guardarAj: "Guardar Ajustes", puntajeBasado: "Puntaje en base a ineficiencias del presupuesto.", ingresaDatos: "Completá los datos de la campaña a auditar.", presupuestoObj: "Presupuesto Mensual", placeholderPres: "Ej: 1000", gastoAct: "Gasto actual", placeholderGasto: "Ej: 450", conversiones: "Conversiones", cparoas: "CPA / ROAS Actual", tipoCamp: "Campaign Type", contexto: "Context y Notas", placeholderConv: "Ej: 120", placeholderContexto: "Añadí contexto extra para la IA.", monitoreo: "Monitoreo", tenes: "Tenés", registradas: "cuentas registradas.", todos: "Todos", criticos: "Críticos", atencion: "Atención", optimos: "Óptimos", thTendencia: "Tendencia", volver: "Volver atrás", detalleCliente: "Detalle del Cliente" },
+    en: { dashboard: "Dashboard", panelPrin: "Main Dashboard", panelDesc: "Global overview of your accounts performance.", saludG: "Avg Health Score", totAud: "Total Accounts", fugasDet: "Critical Leaks", oporMej: "Opportunities", ultAud: "Recent Audits", actRec: "Recent Activity", verTodas: "View all →", generada: "Audit generated for", hace: "Ago", afectaA: "Mainly affecting", buscarGlobal: "Search account by name...", nueva: "AI Auditor", clientes: "Client Dashboard", reportes: "Reports", feedback: "Feedback", configuracion: "Settings", facturacion: "Billing", salir: "Sign Out", placeholderNombre: "Client or Account Name", btnAnalizar: "Run Audit", btnAnalizando: "Analyzing metrics...", exportar: "Export to PDF", score: "Score", problemas: "Critical Issues", mejoras: "Weak Areas", aciertos: "Strengths", login: "Log In", tabDiag: "AI Diagnosis", tabCheck: "Action Plan", tabAvanzado: "Advanced Analysis", autoApply: "Auto-Apply", msgAutoApply: "Coming soon", pacingTit: "Budget Pacing", pacingDesc: "Projected spend rhythm", matrizTit: "Campaign Matrix", matrizDesc: "Spend distribution vs performance", escalar: "STARS (Scale)", apagar: "TRASH (Pause)", observar: "DOUBTFUL (Observe)", potenciales: "POTENCIALES (Test)", abrirAud: "View report", thCliente: "Client / Account", thFecha: "Date", thEstado: "Status", thAccion: "Action", cuentaSinNombre: "Unnamed Account", ingresos: "Enter details", buzonSug: "Suggestion Box", facturacionTitulo: "Billing and Plans", facturacionDesc: "Manage your subscription", planActual: "Current Plan", activa: "Active", gestionarStripe: "Manage on Stripe", pronto: "Soon", ayudanos: "Help us improve", bug: "Found a bug?", escribiSug: "Write your suggestion here...", enviando: "Sending...", enviarSug: "Send Suggestion", persPdf: "White Label Customization", nomAgencia: "Agency Name", sitioWeb: "Website", logoPdf: "PDF Logo", subeLogo: "Upload", piePagina: "Legal Footer", preferences: "Regional Preferences", monedaDef: "Base Currency", metricaDef: "Main Metric", guardando: "Saving...", guardarAj: "Save Settings", puntajeBasado: "Score based on budget inefficiencies.", ingresaDatos: "Fill in the details for the campaign audit.", presupuestoObj: "Monthly Budget", placeholderPres: "E.g. 1000", gastoAct: "Current Spend", placeholderGasto: "E.g. 450", conversiones: "Conversions", cparoas: "Current CPA / ROAS", tipoCamp: "Campaign Type", contexto: "Context & Notes", placeholderConv: "E.g. 120", placeholderContexto: "Add extra context for the AI.", monitoreo: "Monitoring", tenes: "You have", registradas: "accounts registered.", todos: "All", criticos: "Critical", atencion: "Warning", optimos: "Optimal", thTendencia: "Trend", volver: "Go Back", detalleCliente: "Client Details" }
   };
 
   useEffect(() => {
@@ -379,24 +750,20 @@ function AuditorDashboard() {
     if (toastState.show && toastState.status === 'success' && toastState.timeLeft > 0) {
       timer = setInterval(() => { setToastState(prev => ({...prev, timeLeft: prev.timeLeft - 1})); }, 1000);
     } else if (toastState.show && toastState.status === 'success' && toastState.timeLeft <= 0) {
-      setTimeout(prev => ({...prev, show: false}));
+      setToastState(prev => ({...prev, show: false}));
     }
     return () => clearInterval(timer);
   }, [toastState.show, toastState.status, toastState.timeLeft]);
 
   const aplicarCambios = () => { setMostrarConfirmacion(false); setToastState({show: true, status: 'success', timeLeft: 15}); };
   const deshacerCambios = () => { setToastState(prev => ({...prev, status: 'undoing'})); setTimeout(() => { setToastState(prev => ({...prev, status: 'reverted'})); setTimeout(() => { setToastState(prev => ({...prev, show: false})); }, 3000); }, 1500); };
-  const descargarPDF = () => window.print();
 
   const obtenerPerfil = async () => {
     const userId = session?.user?.id;
     if (!userId) return;
-
-    const { data: userProfile } = await supabase.from('suscripciones').select('*').eq('user_id', userId).single();
+    const { data: userProfile } = await supabase.from('suscripciones').select('*').eq('user_id', userId).maybeSingle();
     setPerfil(userProfile);
-
-    const { data: configAgencia } = await supabase.from('configuracion_agencia').select('*').eq('user_id', userId).single();
-
+    const { data: configAgencia } = await supabase.from('configuracion_agencia').select('*').eq('user_id', userId).maybeSingle();
     if (configAgencia) {
       if (configAgencia.agencia_nombre) setAgenciaNombre(configAgencia.agencia_nombre);
       if (configAgencia.agencia_logo) setAgenciaLogo(configAgencia.agencia_logo);
@@ -406,11 +773,9 @@ function AuditorDashboard() {
       if (configAgencia.metrica_default) setMetrica(configAgencia.metrica_default);
     }
   };
-
   const cargarHistorial = async () => {
     const userId = session?.user?.id;
     if (!userId) return;
-    
     setCargandoHistorial(true);
     const { data: registros, error } = await supabase.from('historial_auditorias').select('*').eq('user_id', userId);
     if (!error && registros) setHistorial(registros.reverse()); 
@@ -428,12 +793,51 @@ function AuditorDashboard() {
     if (tareasCompletadas.includes(index)) { setTareasCompletadas(tareasCompletadas.filter(i => i !== index)); } 
     else { setTareasCompletadas([...tareasCompletadas, index]); }
   };
+  
+  const cargarCampanas = async () => {
+    setCargandoCampanas(true);
+    try {
+      const datos = await extraerDatosGoogle();
+      setCampanas(datos);
+    } catch (error) {
+      console.error("Error al extraer los datos de Google Ads:", error);
+    } finally {
+      setCargandoCampanas(false);
+    }
+  };
 
   useEffect(() => {
-    if (session) obtenerPerfil();
+    if (session) {
+      obtenerPerfil();
+      cargarCampanas();
+    }
     if (vista === "historial" || vista === "dashboard") cargarHistorial();
   }, [vista, session]);
 
+  useEffect(() => {
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session && session.provider_refresh_token) {
+        await supabase
+          .from('google_ads_tokens')
+          .upsert({ 
+            user_id: session.user.id, 
+            refresh_token: session.provider_refresh_token,
+            actualizado_el: new Date().toISOString()
+          });
+      }
+    });
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
+
+  const cerrarSesion = async (e: any) => {
+    e.stopPropagation();
+    await supabase.auth.signOut();
+    window.location.href = '/'; 
+  };
+  
   const subirLogo = async (event: any) => {
     try {
       setUploading(true);
@@ -452,18 +856,11 @@ function AuditorDashboard() {
   const guardarAjustesAgencia = async () => {
     const userId = session?.user?.id;
     if (!userId) return;
-    
     setLoading(true);
     const { error } = await supabase.from('configuracion_agencia').upsert({ 
-        user_id: userId,
-        agencia_nombre: agenciaNombre, 
-        agencia_logo: agenciaLogo, 
-        agencia_web: agenciaWeb, 
-        agencia_pie: agenciaPie, 
-        moneda_default: moneda, 
-        metrica_default: metrica 
+        user_id: userId, agencia_nombre: agenciaNombre, agencia_logo: agenciaLogo, 
+        agencia_web: agenciaWeb, agencia_pie: agenciaPie, moneda_default: moneda, metrica_default: metrica 
     });
-
     if (!error) { alert("¡Ajustes guardados correctamente!"); obtenerPerfil(); } else { alert("Error guardando configuraciones."); }
     setLoading(false);
   };
@@ -476,73 +873,26 @@ function AuditorDashboard() {
     setEnviandoFeedback(false);
   };
 
-  const analizarCampaña = async () => {
-    const userId = session?.user?.id;
-    if (!userId) return;
+  const abrirDetalleHallazgo = (hallazgo: any, tipo: "critico" | "mejora", reporteData: any) => {
+    const keywords_prob = reporteData?.keywords_problematicas || [];
+    const keywords_sug = reporteData?.keywords_sugeridas || [];
+    const textoRazonamiento = hallazgo.razonamiento || hallazgo.pitch_vendedor || reporteData?.pitch_vendedor || "Esta optimización corta la hemorragia de presupuesto y redirige la inversión hacia tráfico con verdadera intención de compra.";
+    setDetalleHallazgo({
+      titulo: hallazgo.titulo || "Oportunidad detectada", tipo, problema_detalle: hallazgo.problema_detalle || hallazgo.descripcion || "Se detectó una ineficiencia técnica en la configuración de la campaña.",
+      sugerencia: hallazgo.sugerencia || "Aplicar las correcciones recomendadas en Google Ads.", razonamiento: textoRazonamiento, resultado_esperado: hallazgo.resultado_esperado || "Ahorro inmediato y mejora del CTR.",
+      items: keywords_prob.length > 0 ? keywords_prob : [{ nombre: "Sin datos de keywords disponibles", gasto: "-", clics: 0, conversiones: 0 }],
+      sugerencias: keywords_sug.length > 0 ? keywords_sug.map((k: any) => ({ keyword: k.keyword, razon: `${k.razon}${k.cpc_estimado ? ' · CPC est. ' + k.cpc_estimado : ''}` })) : []
+    });
+  };
 
-    setLoading(true);
-    try {
-      const presObj = parseFloat(presupuestoObjetivo) || 0;
-      const gastoAct = parseFloat(gastoActual) || 0;
-      const today = new Date();
-      const currentDay = today.getDate();
-      const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-      
-      const dailySpend = currentDay > 1 ? gastoAct / currentDay : gastoAct; 
-      const projectedSpend = Math.round(dailySpend * daysInMonth);
-      const spendPercentage = presObj > 0 ? Math.round((projectedSpend / presObj) * 100) : 0;
-      const currentPercentage = presObj > 0 ? Math.min(Math.round((gastoAct / presObj) * 100), 100) : 0;
-
-      let pacingStatus = "optimo", pacingColor = "text-[#99CDD8]", pacingBg = "bg-[#99CDD8]", pacingMsg = idioma === 'es' ? `🟢 Pacing Perfecto: Proyecta gastar $${projectedSpend}` : `🟢 Perfect Pacing: Projected spend $${projectedSpend}`;
-
-      if (spendPercentage > 110) { pacingStatus = "overspend"; pacingColor = "text-[#E66767]"; pacingBg = "bg-[#E66767]"; pacingMsg = idioma === 'es' ? `🔴 Peligro Overspend: Proyecta gastar $${projectedSpend} (${spendPercentage}%)` : `🔴 Overspend Warning: Projected spend $${projectedSpend} (${spendPercentage}%)`; } 
-      else if (spendPercentage < 90) { pacingStatus = "underspend"; pacingColor = "text-[#EAB308]"; pacingBg = "bg-[#EAB308]"; pacingMsg = idioma === 'es' ? `🟡 Peligro Underspend: Proyecta gastar solo $${projectedSpend}` : `🟡 Underspend Warning: Projected spend only $${projectedSpend}`; }
-
-      const pacingData = { presupuesto: presObj, gasto: gastoAct, proyectado: projectedSpend, porcentajeProyectado: spendPercentage, porcentajeActual: currentPercentage, estado: pacingStatus, color: pacingColor, bg: pacingBg, mensaje: pacingMsg };
-
-      const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY!);
-      const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
-      const idiomaInstruccion = idioma === 'es' ? 'ESPAÑOL' : 'INGLÉS';
-      
-      const datosEstructurados = `Presupuesto Objetivo: ${presObj}\nGasto Actual: ${gastoAct}\nConversiones: ${conversiones}\nCPA / ROAS actual: ${cpaRoas}\nTipo de Campaña: ${tipoCampana}\nContexto/Notas del cliente: ${notas}`;
-      const prompt = `Actúa como un auditor experto en Google Ads. Analiza estos datos y devuelve ÚNICAMENTE un JSON con esta estructura exacta, redactado en ${idiomaInstruccion}. No digas nada antes ni después. { "score_general": 45, "sub_scores": {"estructura": 50, "conversiones": 20, "presupuesto": 60, "keywords": 40}, "hallazgos": { "graves_rojo": [{"titulo": "...", "descripcion": "..."}], "debiles_amarillo": [{"titulo": "...", "descripcion": "..."}], "bien_verde": [{"titulo": "...", "descripcion": "..."}] }, "checklist": [ {"tarea": "...", "impacto": "Alto", "color": "rojo"}, {"tarea": "...", "impacto": "Medio", "color": "amarillo"} ] } Datos a analizar: ${datosEstructurados}`;
-      
-      const result = await model.generateContent(prompt);
-      let text = (await result.response).text();
-      const startIndex = text.indexOf('{'); const endIndex = text.lastIndexOf('}');
-      const jsonLimpio = text.substring(startIndex, endIndex + 1);
-      const parsedReporte = JSON.parse(jsonLimpio);
-      parsedReporte.pacing = pacingData;
-      setReporte(parsedReporte);
-
-      await supabase.from('historial_auditorias').insert([{ 
-          user_id: userId, 
-          score: parsedReporte.score_general, 
-          reporte_json: parsedReporte, 
-          nombre_cuenta: nombreCuenta || "Sin nombre" 
-      }]);
-      
-      cargarHistorial(); setTareasCompletadas([]); setSubVistaReporte("avanzado"); setVista("reporte_lectura");
-    } catch (error) { console.error("Error completo:", error); alert("Error al analizar. Verificá tu API Key y la consola."); }
-    setLoading(false);
+  const copiarKeyword = (kw: string) => {
+    navigator.clipboard.writeText(kw).then(() => { setCopiedKw(kw); setTimeout(() => setCopiedKw(null), 2000); });
   };
 
   const getDashboardStatus = (score: number) => {
-    if (score < 50) return { 
-      label: "Crítico", color: "text-[#E66767]", bgTints: "bg-[#E66767]/10", 
-      border: "border-[#E66767]/20", borderLeft: "border-l-[#E66767]", icon: AlertTriangle, 
-      msg: "Atención urgente requerida" 
-    };
-    if (score < 80) return { 
-      label: "Atención", color: "text-[#EAB308]", bgTints: "bg-[#EAB308]/10", 
-      border: "border-[#EAB308]/20", borderLeft: "border-l-[#EAB308]", icon: Zap, 
-      msg: "Métricas bajo observación" 
-    };
-    return { 
-      label: "Óptimo", color: "text-[#99CDD8]", bgTints: "bg-[#99CDD8]/10", 
-      border: "border-[#99CDD8]/20", borderLeft: "border-l-[#99CDD8]", icon: CheckCircle2, 
-      msg: "Cuentas estables y sanas" 
-    };
+    if (score < 50) return { label: "Crítico", color: "text-[#E66767]", bgTints: "bg-[#E66767]/10", hex: "#E66767", icon: AlertTriangle, msg: "Atención urgente requerida" };
+    if (score < 80) return { label: "Atención", color: "text-[#EAB308]", bgTints: "bg-[#EAB308]/10", hex: "#EAB308", icon: Zap, msg: "Métricas bajo observación" };
+    return { label: "Óptimo", color: "text-[#10B981]", bgTints: "bg-[#10B981]/10", hex: "#10B981", icon: CheckCircle2, msg: "Cuentas estables y sanas" };
   };
 
   const parseDate = (dateString: string) => { if (!dateString) return new Date().toLocaleDateString(); return new Date(dateString).toLocaleDateString(); };
@@ -555,8 +905,6 @@ function AuditorDashboard() {
   });
 
   const totalAuditorias = historial.length;
-  const promedioScore = totalAuditorias > 0 ? Math.round(historial.reduce((acc, curr) => acc + curr.score, 0) / totalAuditorias) : 0;
-  const avgStatus = getDashboardStatus(promedioScore);
   
   let totalFugas = 0; let totalOportunidades = 0;
   let totalCriticas = 0; let totalOptimas = 0;
@@ -568,7 +916,6 @@ function AuditorDashboard() {
       const nombre = h.nombre_cuenta || t[idioma].cuentaSinNombre;
       if (h.score < 50) totalCriticas++;
       if (h.score >= 80) totalOptimas++;
-
       if (h.reporte_json?.hallazgos?.graves_rojo) { 
         const cantRojas = h.reporte_json.hallazgos.graves_rojo.length; 
         if (cantRojas > 0) { totalFugas += cantRojas; cuentasRojas.push({ nombre, cant: cantRojas, reporte: h.reporte_json }); } 
@@ -580,12 +927,29 @@ function AuditorDashboard() {
   });
 
   cuentasRojas.sort((a,b) => b.cant - a.cant); cuentasAmarillas.sort((a,b) => b.cant - a.cant);
-  const ultimaAuditoria = historial.length > 0 ? historial[0] : null;
+  
   const fugasIndividuales = ultimaAuditoria?.reporte_json?.hallazgos?.graves_rojo?.length || 0;
+  const oportunidadesIndividuales = ultimaAuditoria?.reporte_json?.hallazgos?.debiles_amarillo?.length || 0;
+
+  const scoreHistorico = historial.slice(0, 8).reverse().map((h: any) => h.score);
+  const fechasHistorico = historial.slice(0, 8).reverse().map((h: any) => h.created_at || '');
+
+  const diasDesdeUltimaAuditoria = () => {
+    if (!ultimaAuditoria?.created_at) return null;
+    const diff = Date.now() - new Date(ultimaAuditoria.created_at).getTime();
+    const dias = Math.floor(diff / (1000 * 60 * 60 * 24));
+    if (dias === 0) return "hoy";
+    if (dias === 1) return "hace 1 día";
+    return `hace ${dias} días`;
+  };
+
+  const nGramaData = ultimaAuditoria?.reporte_json?.n_gramas || null;
+  const ahorroNGramas = nGramaData?.ahorro_estimado || 0;
+  const palabrasBasura = nGramaData?.cantidad_palabras || 0;
 
   if (status === "loading") return (
     <div className="h-screen w-full flex justify-center items-center bg-[#FDE8D3]">
-      <div className="w-16 h-16 rounded-2xl flex items-center justify-center font-black text-[#262B27] text-4xl shadow-lg bg-[#F3C3B2] animate-pulse">M</div>
+      <div className="w-16 h-16 rounded-2xl flex items-center justify-center font-black text-[#0a0a0a] text-4xl shadow-lg bg-[#E0E7FF] animate-pulse">M</div>
     </div>
   );
 
@@ -594,68 +958,84 @@ function AuditorDashboard() {
       <style dangerouslySetInnerHTML={{__html: `
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Inter:wght@400;500;600;700;900&display=swap');
         
-        /* Tema de la Landing Page (Solo activo cuando no hay sesión) */
-        ${!session ? `
-          body { font-family: 'Inter', sans-serif; background-color: #FDE8D3 !important; color: #262B27; }
-          .font-serif { font-family: 'Playfair Display', serif; }
-          .perspective-1000 { perspective: 1000px; }
-          .transform-style-3d { transform-style: preserve-3d; }
-          .translate-z-[-60px] { transform: translateZ(-60px); }
-          .translate-z-[0px] { transform: translateZ(0px); }
-          .translate-z-[40px] { transform: translateZ(40px); }
-          .translate-z-[50px] { transform: translateZ(50px); }
-          .translate-z-[60px] { transform: translateZ(60px); }
-          .translate-z-[80px] { transform: translateZ(80px); }
-          .rotate-x-[15deg] { transform: rotateX(15deg) rotateY(-25deg); }
-          .hover\\:rotate-x-[-5deg]:hover { transform: rotateX(-5deg) rotateY(5deg); }
-        ` : `
-          /* Tema Dashboard SaaS: Limpio, oscuro verdoso, sin fondos animados */
-          body { font-family: 'Inter', sans-serif; background-color: #131714 !important; color: #E8EBE4; }
-          @media print {
-            body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; background: white !important; height: auto !important; }
-            @page { margin: 15mm; }
-            .print-container { height: auto !important; overflow: visible !important; position: static !important; }
-          }
-        `}
+        body { 
+          font-family: 'Inter', sans-serif; 
+          background-color: ${!session ? '#FDE8D3' : '#0a0a0a'} !important; 
+          color: #0a0a0a; 
+        }
+
+        .font-serif { font-family: 'Playfair Display', serif; }
+        .perspective-1000 { perspective: 1000px; }
+        .transform-style-3d { transform-style: preserve-3d; }
+        .translate-z-[-60px] { transform: translateZ(-60px); }
+        .translate-z-[0px] { transform: translateZ(0px); }
+        .translate-z-[40px] { transform: translateZ(40px); }
+        .translate-z-[50px] { transform: translateZ(50px); }
+        .translate-z-[60px] { transform: translateZ(60px); }
+        .translate-z-[80px] { transform: translateZ(80px); }
+        .rotate-x-[15deg] { transform: rotateX(15deg) rotateY(-25deg); }
+        .hover\\:rotate-x-[-5deg]:hover { transform: rotateX(-5deg) rotateY(5deg); }
+
+        @media print {
+          body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; background: white !important; height: auto !important; }
+          @page { margin: 15mm; }
+          .print-container { height: auto !important; overflow: visible !important; position: static !important; }
+          @keyframes shrinkBar { from { width: '100%'; } to { width: '0%'; } }
+          .animate-shrink-bar { animation: shrinkBar 9.5s linear forwards; }
+        }
 
         @keyframes fadeInCustom { 0% { opacity: 0; transform: translateY(10px); } 100% { opacity: 1; transform: translateY(0); } }
         .animate-fade-custom { animation: fadeInCustom 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         
-        /* Custom Scrollbar for Dashboard */
+        @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        @keyframes slideOutRight { from { transform: translateX(0); } to { transform: translateX(100%); } }
+        @keyframes fadeInBg { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes fadeOutBg { from { opacity: 1; } to { opacity: 0; } }
+        
+        .animate-slide-in-right { animation: slideInRight 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+        .animate-slide-out-right { animation: slideOutRight 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+        .animate-fade-in-bg { animation: fadeInBg 0.5s ease-out forwards; }
+        .animate-fade-out-bg { animation: fadeOutBg 0.5s ease-out forwards; }
+        
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #2C352E; border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: #8A968C; }
+        ::-webkit-scrollbar-thumb { background: #44403C; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #A8A29E; }
+
+        @keyframes shrinkBar { from { width: '100%'; } to { width: '0%'; } }
+        .animate-shrink-bar { animation: shrinkBar 9.5s linear forwards; }
+
+        @keyframes shrinkBar { from { width: '100%'; } to { width: '0%'; } }
+        .animate-shrink-bar { animation: shrinkBar 9.5s linear forwards; }
+
+        @keyframes vaciarBarra { from { width: 100%; } to { width: 0%; } }
+        .animate-barra-tiempo { animation: vaciarBarra 9.5s linear forwards; }
+        
+        @keyframes deslizarAfuera { to { transform: translateX(150%); opacity: 0; } }
+        .animate-salida-total { animation: deslizarAfuera 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
       `}} />
 
-      <div className={`flex h-screen w-full font-sans overflow-hidden print-container relative ${!session ? "bg-[#FDE8D3] selection:bg-[#F3C3B2] selection:text-[#262B27] text-[#262B27]" : "bg-[#131714] selection:bg-[#F3C3B2] selection:text-[#131714] text-[#E8EBE4]"}`}>
+      <div style={{ zoom: 0.75 }} className={`flex h-[133.33vh] w-full font-sans overflow-hidden print-container relative ${!session ? "bg-[#FDE8D3] selection:bg-[#E0E7FF] selection:text-[#0a0a0a]" : "bg-[#0a0a0a] selection:bg-[#F3C3B2] selection:text-[#0a0a0a]"}`}>
         
-        {/* FONDO LANDING: Esfera de alambre */}
         {!session && <AuditWireframeBackground />}
 
-        {/* FONDO DASHBOARD: Ruido visual premium (Solo logueados) */}
-        {session && <NoiseBackground />}
-
-        {/* ========================================================================= */}
-        {/* VISTA: LANDING PAGE (USUARIOS NO LOGUEADOS - TEMA CLARO Y PASTEL)         */ }
-        {/* ========================================================================= */}
         {!session ? (
-          <div className="w-full h-full overflow-y-auto overflow-x-hidden relative z-10">
+          <div className="w-full h-full overflow-y-auto overflow-x-hidden relative z-10 text-[#0a0a0a]">
             <nav className="w-full max-w-[1400px] mx-auto px-6 py-6 flex justify-between items-center z-50 relative">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-[#262B27] text-2xl shadow-sm bg-[#F3C3B2]">M</div>
-                <span className="font-bold text-2xl tracking-tight text-[#262B27]">Mora Analytics</span>
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-[#0a0a0a] text-2xl shadow-sm bg-[#E0E7FF]">M</div>
+                <span className="font-bold text-2xl tracking-tight text-[#0a0a0a]">Mora Analytics</span>
               </div>
-              <div className="hidden md:flex items-center gap-8 font-medium text-[#657166]">
-                <Link href="/como-funciona" className="hover:text-[#262B27] transition-colors">Cómo funciona</Link>
-                <Link href="/precios" className="hover:text-[#262B27] transition-colors">Precios</Link>
-                <Link href="/faq" className="hover:text-[#262B27] transition-colors">FAQ</Link>
+              <div className="hidden md:flex items-center gap-8 font-medium text-[#4B5563]">
+                <Link href="/como-funciona" className="hover:text-[#0a0a0a] transition-colors">Cómo funciona</Link>
+                <Link href="/precios" className="hover:text-[#0a0a0a] transition-colors">Precios</Link>
+                <Link href="/faq" className="hover:text-[#0a0a0a] transition-colors">FAQ</Link>
               </div>
               <div className="flex items-center gap-4">
-                <button onClick={() => setIdioma(idioma === "es" ? "en" : "es")} className="text-sm font-bold text-[#657166] hover:text-[#262B27] transition-colors uppercase hidden sm:block">
+                <button onClick={() => setIdioma(idioma === "es" ? "en" : "es")} className="text-sm font-bold text-[#4B5563] hover:text-[#0a0a0a] transition-colors uppercase hidden sm:block">
                   {idioma}
                 </button>
-                <button onClick={iniciarSesion} className="bg-[#262B27] text-[#FDE8D3] px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-[#262B27]/90 transition-colors shadow-lg border border-[#262B27]">
+                <button onClick={iniciarSesion} className="bg-[#0a0a0a] text-[#FDE8D3] px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-[#0a0a0a]/90 transition-colors shadow-lg border border-[#0a0a0a]">
                   {t[idioma].login}
                 </button>
               </div>
@@ -664,26 +1044,26 @@ function AuditorDashboard() {
             <section className="relative pt-12 pb-20 lg:pt-24 lg:pb-28 overflow-hidden z-10 px-6 max-w-[1400px] mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-8 items-center min-h-[75vh]">
               <FadeInOnScroll>
                 <div className="flex flex-col items-start text-left lg:pr-10">
-                  <div className="border border-[#CFD6C4]/80 bg-[#CFD6C4]/30 px-4 py-1.5 rounded-full text-[10px] font-bold tracking-widest uppercase mb-8 flex items-center gap-3 text-[#262B27]">
-  <span className="w-2 h-2 rounded-full bg-[#F3C3B2] animate-pulse"></span>
-  Auditorías con IA
-</div>
-<h1 className="text-[3.5rem] md:text-6xl lg:text-[4rem] font-serif text-[#262B27] font-black leading-[1.1] mb-6 tracking-tight">
-  Detectá <br className="hidden lg:block" />
-  <span className="italic text-[#C4614A]">fugas de dinero</span> <br className="hidden lg:block" />
-  en tus campañas de Google&nbsp;Ads.
-</h1>
-<p className="text-[#657166] text-lg md:text-xl mb-10 max-w-lg leading-relaxed font-medium">
-  Conectá tu cuenta y dejá que nuestra IA audite el gasto con precisión quirúrgica. Generá reportes de marca blanca listos para enviar en segundos.
-</p>
-<button onClick={iniciarSesion} className="bg-[#C4614A] text-white px-8 py-4 rounded-2xl font-bold text-lg hover:scale-105 hover:bg-[#a84c38] transition-all shadow-[0_10px_30px_rgba(196,97,74,0.4)] flex items-center justify-center w-full sm:w-auto">
-  Comenzar prueba gratis
-</button>
+                  <div className="border border-[#CFD6C4]/80 bg-[#CFD6C4]/30 px-4 py-1.5 rounded-full text-[10px] font-bold tracking-widest uppercase mb-8 flex items-center gap-3 text-[#0a0a0a]">
+                    <span className="w-2 h-2 rounded-full bg-[#E0E7FF] animate-pulse"></span>
+                    Análisis con IA
+                  </div>
+                  <h1 className="text-[3.5rem] md:text-6xl lg:text-[4rem] font-serif text-[#0a0a0a] font-black leading-[1.1] mb-6 tracking-tight">
+                    Detectá <br className="hidden lg:block" />
+                    <span className="italic text-[#C4614A]">fugas de dinero</span> <br className="hidden lg:block" />
+                    en tus campañas de Google&nbsp;Ads.
+                  </h1>
+                  <p className="text-[#4B5563] text-lg md:text-xl mb-10 max-w-lg leading-relaxed font-medium">
+                    Subí tu reporte de Google Ads y dejá que nuestra IA audite el gasto con precisión quirúrgica. Resultados en segundos.
+                  </p>
+                  <button onClick={iniciarSesion} className="bg-[#C4614A] text-white px-8 py-4 rounded-2xl font-bold text-lg hover:scale-105 hover:bg-[#a84c38] transition-all shadow-[0_10px_30px_rgba(196,97,74,0.4)] flex items-center justify-center w-full sm:w-auto">
+                    Comenzar prueba gratis
+                  </button>
 
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mt-8 text-[13px] text-[#657166] font-semibold w-full">
-                     <span className="flex items-center gap-2"><CheckCircle2 size={16} className="text-[#99CDD8]" strokeWidth={3} /> Sin tarjeta de crédito</span>
-                     <span className="flex items-center gap-2"><CheckCircle2 size={16} className="text-[#99CDD8]" strokeWidth={3} /> Conexión segura de solo lectura</span>
-                     <span className="flex items-center gap-2"><CheckCircle2 size={16} className="text-[#99CDD8]" strokeWidth={3} /> Cancelá cuando quieras</span>
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mt-8 text-[13px] text-[#4B5563] font-semibold w-full">
+                     <span className="flex items-center gap-2"><CheckCircle2 size={16} className="text-[#10B981]" strokeWidth={3} /> Sin tarjeta de crédito</span>
+                     <span className="flex items-center gap-2"><CheckCircle2 size={16} className="text-[#10B981]" strokeWidth={3} /> Solo subís un CSV</span>
+                     <span className="flex items-center gap-2"><CheckCircle2 size={16} className="text-[#10B981]" strokeWidth={3} /> Cancelá cuando quieras</span>
                   </div>
                 </div>
               </FadeInOnScroll>
@@ -692,53 +1072,49 @@ function AuditorDashboard() {
                 <div className="relative w-full h-[500px] lg:h-[650px] flex justify-center items-center mt-10 lg:mt-0 perspective-1000">
                    <div className="relative w-full max-w-md lg:max-w-lg transform-style-3d transition-transform duration-[1000ms] hover:rotate-x-[-5deg] rotate-x-[15deg]">
                      
-                      {/* CARD: GASTO DIARIO */}
                       <div className="absolute top-[-60px] left-[-80px] w-72 bg-white/60 backdrop-blur-md border border-[#CFD6C4]/60 shadow-[0_20px_40px_rgba(207,214,196,0.3)] rounded-2xl p-7 translate-z-[-60px]">
-                         <p className="text-[10px] font-bold text-[#657166] uppercase tracking-widest mb-4">Gasto Diario</p>
+                         <p className="text-[10px] font-bold text-[#4B5563] uppercase tracking-widest mb-4">Gasto Diario</p>
                          <div className="flex items-end gap-2 h-24 opacity-80">
                            {[40, 60, 30, 80, 50, 90, 70].map((h, i) => (
-                              <div key={i} className="flex-1 bg-[#99CDD8]/40 rounded-t-sm" style={{height: `${h}%`}}></div>
+                              <div key={i} className="flex-1 bg-[#10B981]/40 rounded-t-sm" style={{height: `${h}%`}}></div>
                            ))}
                          </div>
                       </div>
 
-                      {/* CARD: RESUMEN IA NUEVA */}
                       <div className="absolute top-[30px] left-[-110px] z-30 bg-white/95 backdrop-blur-xl border border-[#CFD6C4]/80 shadow-[0_15px_30px_rgba(38,43,39,0.1)] rounded-2xl p-5 translate-z-[50px] w-56 hidden md:block">
-                          <p className="text-[10px] font-bold text-[#657166] uppercase tracking-widest mb-3">Resumen de IA</p>
+                          <p className="text-[10px] font-bold text-[#4B5563] uppercase tracking-widest mb-3">Resumen de IA</p>
                           <div className="space-y-2">
-                              <div className="flex justify-between items-center"><span className="text-xs font-bold text-[#262B27]">Fugas críticas:</span> <span className="text-xs font-black text-[#E66767]">3</span></div>
-                              <div className="flex justify-between items-center"><span className="text-xs font-bold text-[#262B27]">Oportunidades:</span> <span className="text-xs font-black text-[#EAB308]">5</span></div>
-                              <div className="border-t border-[#CFD6C4]/50 pt-2 mt-2 flex justify-between items-center"><span className="text-xs font-bold text-[#262B27]">Ahorro est.:</span> <span className="text-sm font-black text-[#99CDD8]">$850/m</span></div>
+                              <div className="flex justify-between items-center"><span className="text-xs font-bold text-[#0a0a0a]">Fugas críticas:</span> <span className="text-xs font-black text-[#E66767]">3</span></div>
+                              <div className="flex justify-between items-center"><span className="text-xs font-bold text-[#0a0a0a]">Oportunidades:</span> <span className="text-xs font-black text-[#EAB308]">5</span></div>
+                              <div className="border-t border-[#CFD6C4]/50 pt-2 mt-2 flex justify-between items-center"><span className="text-xs font-bold text-[#0a0a0a]">Ahorro est.:</span> <span className="text-sm font-black text-[#10B981]">$850/m</span></div>
                           </div>
                       </div>
 
-                      {/* CARD PRINCIPAL */}
                       <div className="relative z-10 w-full bg-white/95 backdrop-blur-2xl border border-[#CFD6C4]/80 shadow-[0_30px_60px_rgba(38,43,39,0.15)] rounded-[2rem] p-8 translate-z-[0px]">
                          <div className="flex justify-between items-center mb-6 border-b border-[#CFD6C4]/50 pb-4">
-                            <p className="font-bold text-[#262B27] flex items-center gap-2 text-lg"><LayoutGrid size={20}/> Rendimiento</p>
-                            <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider bg-[#DAEBE3]/50 text-[#262B27] px-3 py-1 rounded-full">
-                              <span className="w-1.5 h-1.5 rounded-full bg-[#DAEBE3] border border-[#262B27]/20 animate-pulse"></span> Search
+                            <p className="font-bold text-[#0a0a0a] flex items-center gap-2 text-lg"><LayoutGrid size={20}/> Rendimiento</p>
+                            <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider bg-[#DAEBE3]/50 text-[#0a0a0a] px-3 py-1 rounded-full">
+                              <span className="w-1.5 h-1.5 rounded-full bg-[#DAEBE3] border border-[#0a0a0a]/20 animate-pulse"></span> Search
                             </span>
                          </div>
                          <div className="flex justify-center items-center flex-col py-2 mb-6">
-                            <p className="text-xs font-bold text-[#657166] uppercase tracking-widest mb-3">Score de Salud</p>
-                            <div className="w-32 h-32 rounded-full flex items-center justify-center border-[8px] border-[#FDE8D3] text-5xl font-black text-[#262B27] shadow-inner bg-[#DAEBE3]">
+                            <p className="text-xs font-bold text-[#4B5563] uppercase tracking-widest mb-3">Score de Salud</p>
+                            <div className="w-32 h-32 rounded-full flex items-center justify-center border-[8px] border-[#FDE8D3] text-5xl font-black text-[#0a0a0a] shadow-inner bg-[#DAEBE3]">
                               84
                             </div>
                          </div>
                          <div className="grid grid-cols-2 gap-4">
                             <div className="bg-[#FDE8D3]/50 p-5 rounded-xl border border-[#CFD6C4]/40">
-                               <p className="text-[10px] font-bold text-[#657166] uppercase tracking-wider mb-1">Gasto Total</p>
-                               <p className="text-3xl font-black text-[#262B27]">$8.2k</p>
+                               <p className="text-[10px] font-bold text-[#4B5563] uppercase tracking-wider mb-1">Gasto Total</p>
+                               <p className="text-3xl font-black text-[#0a0a0a]">$8.2k</p>
                             </div>
                             <div className="bg-[#FDE8D3]/50 p-5 rounded-xl border border-[#CFD6C4]/40">
-                               <p className="text-[10px] font-bold text-[#657166] uppercase tracking-wider mb-1">Conversiones</p>
-                               <p className="text-3xl font-black text-[#262B27]">142</p>
+                               <p className="text-[10px] font-bold text-[#4B5563] uppercase tracking-wider mb-1">Conversiones</p>
+                               <p className="text-3xl font-black text-[#0a0a0a]">142</p>
                             </div>
                          </div>
                       </div>
 
-                      {/* CARD: FUGA CRITICA (Agrandada y con borde rojo) */}
                       <div className="absolute bottom-[-50px] right-[-60px] z-20 w-80 bg-white/95 backdrop-blur-xl border border-[#E66767]/40 shadow-[0_20px_40px_rgba(230,103,103,0.15)] rounded-2xl p-6 translate-z-[80px]">
                          <div className="flex items-start gap-4">
                             <div className="w-12 h-12 rounded-xl bg-[#E66767]/10 flex items-center justify-center flex-shrink-0 border border-[#E66767]/30">
@@ -746,19 +1122,17 @@ function AuditorDashboard() {
                             </div>
                             <div>
                                <p className="text-sm font-black text-[#E66767] leading-tight mb-1">Fuga Crítica Detectada</p>
-                               <p className="text-xs text-[#657166] font-medium">Keywords irrelevantes</p>
+                               <p className="text-xs text-[#4B5563] font-medium">Keywords irrelevantes</p>
                                <span className="inline-block mt-3 text-sm font-black text-white bg-[#E66767] px-3 py-1.5 rounded-md shadow-sm">-$620 / mes</span>
                             </div>
                          </div>
                       </div>
 
-                      {/* CARD: SINCRONIZADO */}
-                      <div className="absolute top-[-25px] right-[20px] z-30 bg-[#DAEBE3] text-[#262B27] px-4 py-2 rounded-full font-bold text-[10px] uppercase shadow-lg border border-[#CFD6C4] translate-z-[40px] flex items-center gap-2">
-                        <span className="w-2 h-2 bg-[#262B27] rounded-full animate-pulse"></span> Sincronizado
+                      <div className="absolute top-[-25px] right-[20px] z-30 bg-[#DAEBE3] text-[#0a0a0a] px-4 py-2 rounded-full font-bold text-[10px] uppercase shadow-lg border border-[#CFD6C4] translate-z-[40px] flex items-center gap-2">
+                        <span className="w-2 h-2 bg-[#0a0a0a] rounded-full animate-pulse"></span> Análisis listo
                       </div>
 
-                      {/* CARD: ROAS */}
-                      <div className="absolute bottom-[80px] left-[-50px] z-30 bg-[#99CDD8] text-[#262B27] p-5 rounded-2xl shadow-[0_15px_30px_rgba(153,205,216,0.6)] translate-z-[60px] flex flex-col border border-[#CFD6C4]">
+                      <div className="absolute bottom-[80px] left-[-50px] z-30 bg-[#10B981] text-[#0a0a0a] p-5 rounded-2xl shadow-[0_15px_30px_rgba(153,205,216,0.6)] translate-z-[60px] flex flex-col border border-[#CFD6C4]">
                         <p className="text-[10px] font-bold uppercase tracking-widest opacity-80 mb-1">ROAS Proyectado</p>
                         <p className="text-3xl font-black flex items-center gap-1"><TrendingUp size={20} strokeWidth={4}/> +12.4%</p>
                       </div>
@@ -772,36 +1146,30 @@ function AuditorDashboard() {
               <section className="max-w-[1400px] mx-auto px-6 py-20 border-t border-[#CFD6C4]/40">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 mb-12 items-end">
                    <div className="lg:col-span-1">
-                     <p className="inline-block px-3 py-1.5 rounded-md text-[10px] font-bold tracking-widest uppercase text-[#262B27] bg-[#99CDD8]/40 mb-4">Cómo funciona</p>
-                     <h2 className="text-4xl md:text-5xl font-serif font-black text-[#262B27] leading-tight">Optimización en<br/>3 pasos.</h2>
+                     <p className="inline-block px-3 py-1.5 rounded-md text-[10px] font-bold tracking-widest uppercase text-[#0a0a0a] bg-[#10B981]/40 mb-4">Cómo funciona</p>
+                     <h2 className="text-4xl md:text-5xl font-serif font-black text-[#0a0a0a] leading-tight">Optimización en<br/>3 pasos.</h2>
                    </div>
                    <div className="lg:col-span-2">
-                     <p className="text-lg text-[#657166] lg:max-w-xl font-medium">Conectás tu cuenta y en menos de 3 minutos tenés el primer reporte de fugas listo para actuar o compartir con tu cliente.</p>
+                     <p className="text-lg text-[#4B5563] lg:max-w-xl font-medium">Exportás tu reporte de Google Ads, lo subís, y en menos de 2 minutos tenés el diagnóstico completo listo para actuar.</p>
                    </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                    <div className="bg-white/60 backdrop-blur-sm border border-[#CFD6C4]/60 p-8 rounded-[2rem] hover:bg-white hover:border-[#CFD6C4] transition-all shadow-sm group">
-                      <div className="w-14 h-14 rounded-2xl bg-[#CFD6C4]/40 flex items-center justify-center text-[#262B27] mb-6 group-hover:scale-110 transition-transform"><Users size={24} /></div>
-                      <h3 className="text-xl font-bold text-[#262B27] mb-3">1. Conectá</h3>
-                      <p className="text-[#657166] leading-relaxed font-medium">Vinculá Google Ads en un clic. Acceso de solo lectura, totalmente seguro.</p>
+                      <div className="w-14 h-14 rounded-2xl bg-[#CFD6C4]/40 flex items-center justify-center text-[#0a0a0a] mb-6 group-hover:scale-110 transition-transform"><Upload size={24} /></div>
+                      <h3 className="text-xl font-bold text-[#0a0a0a] mb-3">1. Exportá</h3>
+                      <p className="text-[#4B5563] leading-relaxed font-medium">Descargá el reporte de keywords desde Google Ads en formato CSV.</p>
                    </div>
-                   <div className="bg-white/60 backdrop-blur-sm border border-[#CFD6C4]/60 p-8 rounded-[2rem] hover:bg-white hover:border-[#99CDD8] transition-all shadow-sm group">
-                      <div className="w-14 h-14 rounded-2xl bg-[#99CDD8]/40 flex items-center justify-center text-[#262B27] mb-6 group-hover:scale-110 transition-transform"><Search size={24} /></div>
-                      <h3 className="text-xl font-bold text-[#262B27] mb-3">2. Diagnosticá</h3>
-                      <p className="text-[#657166] leading-relaxed font-medium">La IA detecta automáticamente los puntos exactos de desperdicio de dinero.</p>
+                   <div className="bg-white/60 backdrop-blur-sm border border-[#CFD6C4]/60 p-8 rounded-[2rem] hover:bg-white hover:border-[#10B981] transition-all shadow-sm group">
+                      <div className="w-14 h-14 rounded-2xl bg-[#10B981]/40 flex items-center justify-center text-[#0a0a0a] mb-6 group-hover:scale-110 transition-transform"><Search size={24} /></div>
+                      <h3 className="text-xl font-bold text-[#0a0a0a] mb-3">2. Diagnosticá</h3>
+                      <p className="text-[#4B5563] leading-relaxed font-medium">La IA detecta automáticamente los puntos exactos de desperdicio de dinero.</p>
                    </div>
-                   <div className="bg-white/60 backdrop-blur-sm border border-[#CFD6C4]/60 p-8 rounded-[2rem] hover:bg-white hover:border-[#F3C3B2] transition-all shadow-sm group">
-                      <div className="w-14 h-14 rounded-2xl bg-[#F3C3B2]/40 flex items-center justify-center text-[#262B27] mb-6 group-hover:scale-110 transition-transform"><FileText size={24} /></div>
-                      <h3 className="text-xl font-bold text-[#262B27] mb-3">3. Ejecutá</h3>
-                      <p className="text-[#657166] leading-relaxed font-medium">Exportá reportes impecables en PDF para tu cliente o aplicá los cambios.</p>
+                   <div className="bg-white/60 backdrop-blur-sm border border-[#CFD6C4]/60 p-8 rounded-[2rem] hover:bg-white hover:border-[#E0E7FF] transition-all shadow-sm group">
+                      <div className="w-14 h-14 rounded-2xl bg-[#E0E7FF]/40 flex items-center justify-center text-[#0a0a0a] mb-6 group-hover:scale-110 transition-transform"><FileText size={24} /></div>
+                      <h3 className="text-xl font-bold text-[#0a0a0a] mb-3">3. Ejecutá</h3>
+                      <p className="text-[#4B5563] leading-relaxed font-medium">Aplicá las recomendaciones directamente en Google Ads con guías paso a paso.</p>
                    </div>
-                </div>
-
-                <div className="mt-8 text-center md:text-left">
-                  <Link href="/como-funciona" className="inline-flex items-center gap-2 text-[#657166] font-bold text-sm hover:text-[#262B27] transition-colors bg-[#CFD6C4]/20 px-4 py-2 rounded-lg border border-[#CFD6C4]/50">
-                    Ver el recorrido de la plataforma en detalle <ArrowRight size={14}/>
-                  </Link>
                 </div>
               </section>
             </FadeInOnScroll>
@@ -809,23 +1177,22 @@ function AuditorDashboard() {
             <FadeInOnScroll>
               <section className="max-w-[1400px] mx-auto px-6 py-20 border-t border-[#CFD6C4]/40">
                 <div className="text-center mb-16">
-                  <p className="inline-block px-3 py-1.5 rounded-md text-[10px] font-bold tracking-widest uppercase text-[#262B27] bg-[#DAEBE3] mb-4">Precios Simples</p>
-                  <h2 className="text-4xl md:text-5xl font-serif font-black text-[#262B27] mb-4">Elegí tu camino.</h2>
-                  <p className="text-[#657166] font-medium">Todos los planes incluyen 14 días de prueba gratis. Cancelá cuando quieras.</p>
+                  <p className="inline-block px-3 py-1.5 rounded-md text-[10px] font-bold tracking-widest uppercase text-[#0a0a0a] bg-[#DAEBE3] mb-4">Precios Simples</p>
+                  <h2 className="text-4xl md:text-5xl font-serif font-black text-[#0a0a0a] mb-4">Elegí tu camino.</h2>
+                  <p className="text-[#4B5563] font-medium">Todos los planes incluyen 14 días de prueba gratis. Cancelá cuando quieras.</p>
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-                  
                   <TiltWrapper>
                     <div className="bg-white/60 backdrop-blur-sm border-2 border-transparent hover:border-[#DAEBE3] p-10 rounded-[2rem] flex flex-col justify-between hover:bg-white transition-colors shadow-sm hover:shadow-[0_20px_40px_rgba(218,235,227,0.4)] h-full cursor-pointer">
                       <div>
-                        <h3 className="text-xl font-bold text-[#262B27] mb-2">Starter</h3>
-                        <p className="text-[#657166] mb-8 text-sm font-medium">Para probar el poder de la IA en tu negocio.</p>
-                        <div className="text-5xl font-black text-[#262B27] mb-8">$0<span className="text-lg text-[#657166] font-medium">/mes</span></div>
-                        <ul className="space-y-4 mb-10 text-sm font-medium text-[#262B27]">
-                          <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#DAEBE3]" strokeWidth={3} /> 1 Cuenta publicitaria</li>
-                          <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#DAEBE3]" strokeWidth={3} /> Auditoría Básica IA</li>
-                          <li className="flex items-center gap-3 text-[#657166]/50 line-through"><CheckCircle2 size={18} className="text-[#CFD6C4]/30" strokeWidth={3} /> Marca Blanca</li>
+                        <h3 className="text-xl font-bold text-[#0a0a0a] mb-2">Starter</h3>
+                        <p className="text-[#4B5563] mb-8 text-sm font-medium">Para probar el poder de la IA en tu negocio.</p>
+                        <div className="text-5xl font-black text-[#0a0a0a] mb-8">$0<span className="text-lg text-[#4B5563] font-medium">/mes</span></div>
+                        <ul className="space-y-4 mb-10 text-sm font-medium text-[#0a0a0a]">
+                          <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#DAEBE3]" strokeWidth={3} /> 1 auditoría por mes</li>
+                          <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#DAEBE3]" strokeWidth={3} /> Diagnóstico básico IA</li>
+                          <li className="flex items-center gap-3 text-[#4B5563]/50 line-through"><CheckCircle2 size={18} className="text-[#CFD6C4]/30" strokeWidth={3} /> Historial de evolución</li>
                         </ul>
                       </div>
                       <button onClick={iniciarSesion} className="w-full bg-[#C4614A] hover:bg-[#a84c38] text-white font-bold py-4 rounded-xl transition-colors shadow-md mt-auto">Empezar gratis</button>
@@ -833,15 +1200,15 @@ function AuditorDashboard() {
                   </TiltWrapper>
 
                   <TiltWrapper>
-                    <div className="bg-white/60 backdrop-blur-sm border-2 border-transparent hover:border-[#99CDD8] p-10 rounded-[2rem] flex flex-col justify-between hover:bg-white transition-colors shadow-sm hover:shadow-[0_20px_40px_rgba(153,205,216,0.4)] h-full cursor-pointer">
+                    <div className="bg-white/60 backdrop-blur-sm border-2 border-transparent hover:border-[#10B981] p-10 rounded-[2rem] flex flex-col justify-between hover:bg-white transition-colors shadow-sm hover:shadow-[0_20px_40px_rgba(153,205,216,0.4)] h-full cursor-pointer">
                       <div>
-                        <h3 className="text-xl font-bold text-[#262B27] mb-2">Individual</h3>
-                        <p className="text-[#657166] mb-8 text-sm font-medium">Para emprendedores gestionando sus anuncios.</p>
-                        <div className="text-5xl font-black text-[#262B27] mb-8">$19<span className="text-lg text-[#657166] font-medium">/mes</span></div>
-                        <ul className="space-y-4 mb-10 text-sm font-medium text-[#262B27]">
-                          <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#99CDD8]" strokeWidth={3} /> Hasta 3 Cuentas</li>
-                          <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#99CDD8]" strokeWidth={3} /> Auditorías Avanzadas</li>
-                          <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#99CDD8]" strokeWidth={3} /> Exportación PDF</li>
+                        <h3 className="text-xl font-bold text-[#0a0a0a] mb-2">Individual</h3>
+                        <p className="text-[#4B5563] mb-8 text-sm font-medium">Para emprendedores gentionando sus anuncios.</p>
+                        <div className="text-5xl font-black text-[#0a0a0a] mb-8">$19<span className="text-lg text-[#4B5563] font-medium">/mes</span></div>
+                        <ul className="space-y-4 mb-10 text-sm font-medium text-[#0a0a0a]">
+                          <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#10B981]" strokeWidth={3} /> Auditorías ilimitadas</li>
+                          <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#10B981]" strokeWidth={3} /> Historial y evolución del score</li>
+                          <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#10B981]" strokeWidth={3} /> Exportación PDF</li>
                         </ul>
                       </div>
                       <button onClick={iniciarSesion} className="w-full bg-[#C4614A] hover:bg-[#a84c38] text-white font-bold py-4 rounded-xl transition-colors shadow-md mt-auto">Prueba de 14 días</button>
@@ -849,27 +1216,20 @@ function AuditorDashboard() {
                   </TiltWrapper>
 
                   <TiltWrapper>
-                    <div className="bg-white/60 backdrop-blur-sm border-2 border-transparent hover:border-[#F3C3B2] p-10 rounded-[2rem] flex flex-col justify-between hover:bg-white transition-colors shadow-sm hover:shadow-[0_20px_40px_rgba(243,195,178,0.4)] h-full cursor-pointer">
+                    <div className="bg-white/60 backdrop-blur-sm border-2 border-transparent hover:border-[#E0E7FF] p-10 rounded-[2rem] flex flex-col justify-between hover:bg-white transition-colors shadow-sm hover:shadow-[0_20px_40px_rgba(243,195,178,0.4)] h-full cursor-pointer">
                       <div>
-                        <h3 className="text-xl font-bold text-[#262B27] mb-2">Agency</h3>
-                        <p className="text-[#657166] mb-8 text-sm font-medium">El centro de comando para agencias.</p>
-                        <div className="text-5xl font-black text-[#262B27] mb-8">$49<span className="text-lg text-[#657166] font-medium">/mes</span></div>
-                        <ul className="space-y-4 mb-10 text-sm font-medium text-[#262B27]">
-                          <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#F3C3B2]" strokeWidth={3} /> Cuentas Ilimitadas</li>
-                          <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#F3C3B2]" strokeWidth={3} /> Marca Blanca Total</li>
-                          <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#F3C3B2]" strokeWidth={3} /> Dashboard Multi-Cliente</li>
+                        <h3 className="text-xl font-bold text-[#0a0a0a] mb-2">Agency</h3>
+                        <p className="text-[#4B5563] mb-8 text-sm font-medium">El centro de comando para agencias.</p>
+                        <div className="text-5xl font-black text-[#0a0a0a] mb-8">$49<span className="text-lg text-[#4B5563] font-medium">/mes</span></div>
+                        <ul className="space-y-4 mb-10 text-sm font-medium text-[#0a0a0a]">
+                          <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#E0E7FF]" strokeWidth={3} /> Cuentas Ilimitadas</li>
+                          <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#E0E7FF]" strokeWidth={3} /> Marca Blanca Total</li>
+                          <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#E0E7FF]" strokeWidth={3} /> Dashboard Multi-Cliente</li>
                         </ul>
                       </div>
                       <button onClick={iniciarSesion} className="w-full bg-[#C4614A] hover:bg-[#a84c38] text-white font-bold py-4 rounded-xl transition-colors shadow-md mt-auto">Prueba de 14 días</button>
                     </div>
                   </TiltWrapper>
-
-                </div>
-
-                <div className="mt-12 text-center">
-                  <Link href="/precios" className="inline-flex items-center gap-2 text-[#657166] font-bold text-sm hover:text-[#262B27] transition-colors bg-[#CFD6C4]/20 px-4 py-2 rounded-lg border border-[#CFD6C4]/50">
-                    Ver la tabla de comparación completa <ArrowRight size={14}/>
-                  </Link>
                 </div>
               </section>
             </FadeInOnScroll>
@@ -877,764 +1237,1108 @@ function AuditorDashboard() {
             <FadeInOnScroll>
               <section className="max-w-4xl mx-auto px-6 py-20 mb-12 border-t border-[#CFD6C4]/40">
                 <div className="text-center mb-12">
-                  <h2 className="text-4xl font-serif font-black text-[#262B27]">Preguntas Frecuentes</h2>
+                  <h2 className="text-4xl font-serif font-black text-[#0a0a0a]">Preguntas Frecuentes</h2>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                    <div className="bg-white/60 backdrop-blur-sm border border-[#CFD6C4]/60 p-6 rounded-2xl hover:bg-white transition-colors">
-                      <h4 className="text-lg font-bold text-[#262B27] mb-2">¿Mora hace cambios en mis campañas sin avisar?</h4>
-                      <p className="text-[#657166] text-sm leading-relaxed font-medium">No. Mora audita y sugiere. Vos tenés el control total. Nunca tocaremos tu presupuesto sin permiso.</p>
+                      <h4 className="text-lg font-bold text-[#0a0a0a] mb-2">¿Mora hace cambios en mis campañas sin avisar?</h4>
+                      <p className="text-[#4B5563] text-sm leading-relaxed font-medium">No. Mora audita y sugiere. Vos tenés el control total. Nunca tocaremos tu cuenta sin permiso.</p>
                    </div>
                    <div className="bg-white/60 backdrop-blur-sm border border-[#CFD6C4]/60 p-6 rounded-2xl hover:bg-white transition-colors">
-                      <h4 className="text-lg font-bold text-[#262B27] mb-2">¿Necesito ser un experto en Google Ads?</h4>
-                      <p className="text-[#657166] text-sm leading-relaxed font-medium">Para nada. Te decimos dónde estás perdiendo dinero y cómo solucionarlo en español claro.</p>
+                      <h4 className="text-lg font-bold text-[#0a0a0a] mb-2">¿Necesito ser un experto en Google Ads?</h4>
+                      <p className="text-[#4B5563] text-sm leading-relaxed font-medium">Para nada. Te decimos dónde estás perdiendo dinero y cómo solucionarlo en español claro.</p>
                    </div>
                    <div className="bg-white/60 backdrop-blur-sm border border-[#CFD6C4]/60 p-6 rounded-2xl hover:bg-white transition-colors">
-                      <h4 className="text-lg font-bold text-[#262B27] mb-2">¿Qué es la 'Marca Blanca Total'?</h4>
-                      <p className="text-[#657166] text-sm leading-relaxed font-medium">Exclusiva del Plan Agency, te permite exportar auditorías en PDF con el logo, colores y web de tu agencia.</p>
+                      <h4 className="text-lg font-bold text-[#0a0a0a] mb-2">¿Qué formato usan para los reportes?</h4>
+                      <p className="text-[#4B5563] text-sm leading-relaxed font-medium">Extraemos todo vía API para tu comodidad.</p>
                    </div>
                    <div className="bg-white/60 backdrop-blur-sm border border-[#CFD6C4]/60 p-6 rounded-2xl hover:bg-white transition-colors">
-                      <h4 className="text-lg font-bold text-[#262B27] mb-2">¿Mis datos están seguros?</h4>
-                      <p className="text-[#657166] text-sm leading-relaxed font-medium">100%. Solo solicitamos permisos de lectura. No usamos tus datos para entrenar modelos públicos.</p>
+                      <h4 className="text-lg font-bold text-[#0a0a0a] mb-2">¿Mis datos están seguros?</h4>
+                      <p className="text-[#4B5563] text-sm leading-relaxed font-medium">100%. Tus datos se usan solo para generar el análisis y no se comparten con terceros.</p>
                    </div>
-                </div>
-
-                <div className="mt-8 text-center">
-                  <Link href="/faq" className="inline-flex items-center gap-2 text-[#657166] font-bold text-sm hover:text-[#262B27] transition-colors bg-[#CFD6C4]/20 px-4 py-2 rounded-lg border border-[#CFD6C4]/50">
-                    Leer todas las preguntas frecuentes <ArrowRight size={14}/>
-                  </Link>
                 </div>
               </section>
             </FadeInOnScroll>
 
-            <footer className="border-t border-[#CFD6C4]/50 bg-white/40 py-12 text-center text-[#657166] text-sm relative z-10">
+            <footer className="border-t border-[#CFD6C4]/50 bg-white/40 py-12 text-center text-[#4B5563] text-sm relative z-10">
               <div className="flex items-center justify-center gap-2 mb-4">
-                <div className="w-6 h-6 rounded flex items-center justify-center font-black text-[#262B27] text-xs bg-[#F3C3B2]">M</div>
-                <span className="font-bold text-[#262B27]">Mora Analytics</span>
+                <div className="w-6 h-6 rounded flex items-center justify-center font-black text-[#0a0a0a] text-xs bg-[#E0E7FF]">M</div>
+                <span className="font-bold text-[#0a0a0a]">Mora Analytics</span>
               </div>
               <p className="mb-4 font-medium">© {new Date().getFullYear()} Mora Analytics. All rights reserved.</p>
               <div className="flex justify-center gap-6 text-xs font-bold uppercase tracking-wider">
-                <Link href="/privacidad" className="hover:text-[#262B27] transition-colors">Privacidad</Link>
-                <Link href="/terminos" className="hover:text-[#262B27] transition-colors">Términos</Link>
+                <Link href="/privacidad" className="hover:text-[#0a0a0a] transition-colors">Privacidad</Link>
+                <Link href="/terminos" className="hover:text-[#0a0a0a] transition-colors">Términos</Link>
               </div>
             </footer>
           </div>
         ) : (
-          
-          /* ========================================================================= */
-          /* VISTA: DASHBOARD LOGUEADO (NUEVO TEMA SAAS EMPRESARIAL)                   */
-          /* ========================================================================= */
           <>
-            <aside className="w-64 bg-[#1A1F1B] border-r border-[#2C352E] flex flex-col justify-between print:hidden z-20 relative shadow-2xl">
-              <div>
-                <div className="h-20 flex items-center px-6 border-b border-[#2C352E] gap-3">
-                   <div className="w-8 h-8 rounded-lg flex items-center justify-center font-black text-[#262B27] text-xl shadow-sm bg-[#F3C3B2]">M</div>
-                   <span className="text-xl font-bold text-[#E8EBE4] tracking-wide">Mora Analytics</span>
-                </div>
-
-                <div className="px-4 mt-6 mb-4">
-                  <button onClick={() => { setVista("nueva"); setReporte(null); setMostrarPagos(false); }} className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-[#262B27] bg-[#F3C3B2] hover:bg-[#eab3a1] transition-colors">
-                    <Plus size={18} strokeWidth={3} /> {t[idioma].nueva}
-                  </button>
-                </div>
-
-                <div className="px-4 mb-2 mt-6">
-                  <p className="text-[10px] font-bold text-[#8A968C] uppercase tracking-widest px-2 mb-2">Principal</p>
-                  {[ 
-                    { icon: LayoutGrid, text: t[idioma].dashboard, view: 'dashboard' }, 
-                    { icon: Users, text: t[idioma].clientes, view: 'historial' }
-                  ].map((link, idx) => (
-                    <button key={idx} onClick={() => { setVista(link.view as any); setReporte(null); setMostrarPagos(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${ (vista === link.view || (vista === 'reporte_lectura' && link.view === 'historial')) ? "bg-[#2C352E] text-[#E8EBE4]" : "text-[#8A968C] hover:bg-[#2C352E]/50 hover:text-[#E8EBE4]" }`}>
-                      <link.icon size={18} strokeWidth={2} className={(vista === link.view || (vista === 'reporte_lectura' && link.view === 'historial')) ? "text-[#99CDD8]" : ""} /> 
-                      {link.text}
-                      {link.view === 'historial' && totalAuditorias > 0 && (
-                        <span className="ml-auto bg-[#E66767] text-[#131714] text-[10px] font-bold px-2 py-0.5 rounded-full">{totalAuditorias}</span>
-                      )}
-                    </button>
-                  ))}
-                </div>
+            {/* BARRA LATERAL OSCURA */}
+            <aside className="w-64 md:w-72 bg-[#0a0a0a] flex-shrink-0 flex flex-col py-8 relative z-20 text-[#E5E7EB] shadow-[10px_0_30px_rgba(0,0,0,0.1)]">
+              <div className="px-8 mb-8">
+                <h1 className="text-2xl font-black text-white tracking-tighter flex items-center gap-2">
+                  <span className="bg-[#F3C3B2] text-[#0a0a0a] w-8 h-8 rounded-lg flex items-center justify-center text-lg shadow-sm">M</span>
+                  Mora
+                </h1>
               </div>
-              
-              <div className="mx-4 mb-6 p-4 rounded-xl bg-[#131714] border border-[#2C352E]">
-                 <div className="flex items-center gap-3 mb-3">
-                   <div>
-                     <p className={`text-xs font-bold text-[#E8EBE4]`}>Soporte VIP</p>
-                     <p className="text-[10px] text-[#8A968C] mt-0.5">Línea directa · 1h respuesta</p>
-                   </div>
-                 </div>
-                 <button onClick={() => window.location.href = "mailto:soporte@tuagencia.com"} className="w-full py-2 text-xs font-bold text-[#F3C3B2] border border-[#F3C3B2]/30 bg-[#F3C3B2]/5 hover:bg-[#F3C3B2]/10 rounded-lg transition-colors">
-                   Contactar Soporte
-                 </button>
-              </div>
+
+              <nav className="flex-1 flex flex-col gap-2 relative px-4">
+                <button 
+                  onClick={() => setVista("dashboard")}
+                  className={`w-full text-left py-3.5 pr-4 flex items-center gap-3 font-bold transition-all duration-300 rounded-lg ${
+                    vista === "dashboard" || vista === "detalle_hallazgo"
+                    ? "bg-white/10 text-white border-l-4 border-[#F3C3B2] pl-5" 
+                    : "text-[#8A968C] hover:bg-white/5 hover:text-white pl-6"
+                  }`}
+                >
+                  <LayoutDashboard size={20} className={vista === "dashboard" || vista === "detalle_hallazgo" ? "text-[#F3C3B2]" : ""} />
+                  Dashboard
+                </button>
+
+                <button 
+                  onClick={() => setVista("campañas")}
+                  className={`w-full text-left py-3.5 pr-4 flex items-center gap-3 font-bold transition-all duration-300 rounded-lg ${
+                    vista === "campañas"
+                    ? "bg-white/10 text-white border-l-4 border-[#F3C3B2] pl-5" 
+                    : "text-[#8A968C] hover:bg-white/5 hover:text-white pl-6"
+                  }`}
+                >
+                  <Folder size={20} className={vista === "campañas" ? "text-[#F3C3B2]" : ""} />
+                  Campañas
+                </button>
+
+                <button 
+                  onClick={() => setVista("historial")}
+                  className={`w-full text-left py-3.5 pr-4 flex items-center gap-3 font-bold transition-all duration-300 rounded-lg ${
+                    vista === "historial" || vista === "reporte_lectura"
+                    ? "bg-white/10 text-white border-l-4 border-[#F3C3B2] pl-5" 
+                    : "text-[#8A968C] hover:bg-white/5 hover:text-white pl-6"
+                  }`}
+                >
+                  <FileText size={20} className={vista === "historial" || vista === "reporte_lectura" ? "text-[#F3C3B2]" : ""} />
+                  Mis Reportes
+                </button>
+
+                <button 
+                  onClick={() => setVista("feedback")}
+                  className={`w-full text-left py-3.5 pr-4 flex items-center gap-3 font-bold transition-all duration-300 rounded-lg ${
+                    vista === "feedback"
+                    ? "bg-white/10 text-white border-l-4 border-[#F3C3B2] pl-5" 
+                    : "text-[#8A968C] hover:bg-white/5 hover:text-white pl-6"
+                  }`}
+                >
+                  <MessageSquare size={20} className={vista === "feedback" ? "text-[#F3C3B2]" : ""} />
+                  Sugerencias
+                </button>
+              </nav>
             </aside>
 
-            <main className="flex-1 flex flex-col relative overflow-y-auto z-10 print:overflow-visible print:h-auto print:static bg-transparent">
-              
-              <header className="h-20 flex justify-between items-center px-8 print:hidden border-b border-[#2C352E] bg-[#131714]/80 backdrop-blur-md sticky top-0 z-30">
-                <h2 className="text-xl font-bold text-[#E8EBE4] tracking-tight min-w-[200px]">
-                  {vista === 'dashboard' && t[idioma].dashboard}
-                  {vista === 'nueva' && t[idioma].nueva}
-                  {vista === 'historial' && t[idioma].clientes}
-                  {vista === 'reporte_lectura' && t[idioma].detalleCliente}
-                  {vista === 'perfil' && t[idioma].configuracion}
-                  {vista === 'feedback' && t[idioma].buzonSug}
-                  {vista === 'facturacion' && t[idioma].facturacionTitulo}
-                </h2>
-
-                <div className="hidden md:flex items-center justify-center flex-1 max-w-md mx-8">
-                   <div className="relative w-full group">
-                      <Search size={14} className="absolute left-4 top-1/2 transform -translate-y-1/2 text-[#8A968C] group-focus-within:text-[#E8EBE4] transition-colors" />
-                      <input type="text" placeholder={t[idioma].buscarGlobal} value={busqueda} onChange={(e) => {setBusqueda(e.target.value); if (vista !== "historial" && e.target.value !== "") setVista("historial"); }} className="w-full bg-[#1A1F1B] border border-[#2C352E] rounded-full pl-10 pr-4 py-2 text-sm text-[#E8EBE4] focus:outline-none focus:border-[#8A968C] transition-all placeholder:text-[#8A968C]" />
-                   </div>
+            {/* LIENZO PRINCIPAL */}
+            <main className="flex-1 bg-[#1C1917] rounded-[2.5rem] relative z-10 flex flex-col overflow-hidden text-[#F5F0EB] shadow-[inset_0_4px_20px_rgba(0,0,0,0.5)] border border-[#44403C]/50 my-4 mr-4 md:my-5 md:mr-5">
+              <header className="px-8 md:px-10 pt-8 pb-6 flex justify-between items-center shrink-0 w-full mx-auto relative z-50 border-b border-[#44403C]/30">
+                <div>
+                  <p className="text-[#A8A29E] font-black tracking-widest text-[10px] uppercase mb-1">
+                     {vista === 'dashboard' && "Vista General"}
+                     {vista === 'nueva' && "Nueva Auditoría"}
+                     {vista === 'historial' && "Historial de Análisis"}
+                     {vista === 'reporte_lectura' && "Detalle del Cliente"}
+                     {vista === 'perfil' && "Preferencias"}
+                     {vista === 'feedback' && "Buzón"}
+                     {vista === 'facturacion' && "Suscripción"}
+                  </p>
+                  <h1 className="text-3xl font-black tracking-tight text-[#F5F0EB]">
+                     {vista === 'dashboard' ? `¡Hola, ${session?.user?.name?.split(' ')[0] || 'Valeria'}!` : 
+                      vista === 'nueva' ? 'Auditor IA' :
+                      vista === 'historial' ? 'Mis Reportes' :
+                      vista === 'campañas' ? 'Gestor de Campañas' :
+                      vista === 'reporte_lectura' ? (nombreCuenta || t[idioma].cuentaSinNombre) :
+                      vista === 'perfil' ? 'Configuración' :
+                      vista === 'feedback' ? 'Ayudanos a mejorar' :
+                      vista === 'facturacion' ? 'Facturación y Planes' : 'Mora Analytics'
+                     }
+                  </h1>
                 </div>
                 
-                <div className="relative min-w-[200px] flex justify-end items-center gap-4">
-                   
-                   <div className="hidden lg:flex items-center bg-[#1A1F1B] border border-[#2C352E] rounded-full p-1 mr-2">
-                     <button onClick={() => setModoPlan('individual')} className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest transition-colors ${modoPlan === 'individual' ? 'bg-[#2C352E] text-[#E8EBE4]' : 'text-[#8A968C] hover:text-[#E8EBE4]'}`}>Individual</button>
-                     <button onClick={() => setModoPlan('agencia')} className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest transition-colors ${modoPlan === 'agencia' ? 'bg-[#2C352E] text-[#E8EBE4]' : 'text-[#8A968C] hover:text-[#E8EBE4]'}`}>Agencia</button>
-                   </div>
+                <div className="flex items-center gap-6">
+                  {vista === 'historial' && (
+                    <div className="hidden md:flex items-center bg-[#292524] border border-[#44403C] px-4 py-2.5 rounded-xl shadow-sm">
+                       <Search size={16} className="text-[#A8A29E] mr-2" />
+                       <input type="text" placeholder="Buscar cuenta..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} className="bg-transparent border-none outline-none text-sm text-[#F5F0EB] placeholder-[#A8A29E] w-48 font-bold" />
+                    </div>
+                  )}
 
-                   <div className="relative">
-                     <button onClick={() => {setMenuNotificaciones(!menuNotificaciones); setMenuPerfil(false)}} className="p-2 hover:bg-[#1A1F1B] border border-transparent hover:border-[#2C352E] rounded-full transition-colors relative">
-                       <Bell size={18} className="text-[#8A968C] hover:text-[#E8EBE4]" />
-                       {totalCriticas > 0 && <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#E66767] rounded-full border border-[#131714]"></span>}
-                     </button>
-                   </div>
+                  <button
+                    onClick={() => setModoSimple(!modoSimple)}
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border transition-all text-[11px] font-black uppercase tracking-widest shadow-lg ${
+                      modoSimple 
+                        ? "bg-[#F3C3B2]/10 border-[#F3C3B2] text-[#F3C3B2]" 
+                        : "bg-[#292524] border-[#44403C] text-[#A8A29E] hover:text-[#F5F0EB]"
+                    }`}
+                  >
+                    <Sparkles size={14} className={modoSimple ? "animate-pulse" : ""} />
+                    {modoSimple ? "Modo Simple" : "Modo Técnico"}
+                  </button>
 
-                   <button onClick={() => {setMenuPerfil(!menuPerfil); setMenuNotificaciones(false)}} className="flex items-center gap-3 hover:bg-[#1A1F1B] p-1.5 rounded-full transition-colors border border-transparent hover:border-[#2C352E] pr-3">
-                      <div className="relative">
-                        <div className="w-8 h-8 rounded-full bg-[#99CDD8] flex items-center justify-center text-[#131714] font-bold text-xs">
-                          {session.user?.name?.charAt(0) || 'U'}
-                        </div>
-                        {/* Puntito verde de estado Online/Plan Activo */}
-                        <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-[#131714] rounded-full"></span>
+                  <div className="relative z-[60]">
+                    <button 
+                      onClick={() => {
+                        setMostrarCentroAlertas(!mostrarCentroAlertas);
+                        if (!mostrarCentroAlertas) setAlertasNoLeidas(false);
+                      }} 
+                      className="relative p-2.5 rounded-full bg-[#292524] border border-[#44403C] hover:border-[#E07070]/50 transition-colors shadow-lg flex items-center justify-center"
+                    >
+                      <Bell size={20} className={alertas.length > 0 ? "text-[#E07070]" : "text-[#A8A29E]"} />
+                      {alertas.length > 0 && alertasNoLeidas && (
+                        <span className="absolute -top-1 -right-1 w-5 h-5 bg-[#E07070] text-[#0a0a0a] text-[11px] font-black rounded-full flex items-center justify-center border-2 border-[#1C1917]">
+                          {alertas.length}
+                        </span>
+                      )}
+                    </button>
+
+                    <div className={`absolute top-full right-0 mt-4 w-80 md:w-96 bg-[#292524] border border-[#44403C] rounded-2xl shadow-2xl overflow-hidden transition-all duration-300 origin-top-right ${mostrarCentroAlertas ? 'opacity-100 scale-100 visible' : 'opacity-0 scale-95 invisible'}`}>
+                      <div className="p-4 border-b border-[#44403C] bg-[#1C1917] flex justify-between items-center">
+                        <span className="font-black text-[#F5F0EB] uppercase tracking-widest text-[10px]">Centro de Alertas</span>
+                        <span className="text-[9px] bg-[#E07070]/10 text-[#E07070] font-black uppercase tracking-widest px-2 py-1 rounded-md border border-[#E07070]/20">
+                          {alertas.length} Pendientes
+                        </span>
                       </div>
-                      <div className="text-left hidden lg:block">
-                        <p className="text-xs font-bold text-[#E8EBE4] leading-tight">{session.user?.name?.split(' ')[0] || "User"}</p>
-                        <p className="text-[10px] text-[#8A968C] font-medium mt-0.5">{modoPlan === 'agencia' ? 'Agency' : 'Individual'} <ChevronDown size={10} className="inline ml-1"/></p>
+                      <div className="max-h-96 overflow-y-auto">
+                        {alertas.length === 0 ? (
+                          <div className="p-6 text-center text-[#A8A29E] text-sm font-bold">Todo en orden. No hay alertas.</div>
+                        ) : (
+                          alertas.map(alerta => (
+                            <div key={alerta.id} className="p-5 border-b border-[#44403C]/50 hover:bg-[#1C1917] transition-colors">
+                              <h4 className="text-[#F3C3B2] font-black text-xs uppercase tracking-widest flex items-center gap-2"><Zap size={14}/> {alerta.titulo}</h4>
+                              <p className="text-[11px] text-[#A8A29E] mt-2 leading-relaxed font-medium">{alerta.mensaje}</p>
+                              <button onClick={() => { 
+                                if (alerta.hallazgoData) {
+                                  abrirDetalleHallazgo(alerta.hallazgoData, "critico", ultimaAuditoria?.reporte_json);
+                                } else {
+                                  setMostrarConfirmacion(true); 
+                                }
+                                setMostrarCentroAlertas(false); 
+                              }} className="mt-4 w-full bg-[#E07070]/10 hover:bg-[#E07070] text-[#E07070] hover:text-[#0a0a0a] border border-[#E07070]/30 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-colors shadow-sm">
+                                {alerta.accion}
+                              </button>
+                            </div>
+                          ))
+                        )}
                       </div>
-                   </button>
+                    </div>
+                  </div>
 
-                   {menuPerfil && (
-                     <>
-                       <div className="fixed inset-0 z-40 cursor-default" onClick={() => setMenuPerfil(false)}></div>
-                       <div className="absolute right-0 top-full mt-2 w-56 bg-[#1A1F1B] border border-[#2C352E] rounded-xl shadow-2xl py-2 z-50 animate-fade-custom">
-                          <div className="py-1">
-                            <button onClick={() => { setVista("perfil"); setMenuPerfil(false); }} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-[#8A968C] hover:bg-[#2C352E]/50 hover:text-[#E8EBE4] transition-colors"><Settings size={16} /> {t[idioma].configuracion}</button>
-                            <button onClick={() => { setVista("facturacion"); setMenuPerfil(false); }} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-[#8A968C] hover:bg-[#2C352E]/50 hover:text-[#E8EBE4] transition-colors"><CreditCard size={16} /> {t[idioma].facturacion}</button>
-                          </div>
-                          <div className="border-t border-[#2C352E] mt-1 pt-2">
-                            <button onClick={() => supabase.auth.signOut()} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-[#E66767] hover:bg-[#E66767]/10 transition-colors font-medium"><LogOut size={16} /> {t[idioma].salir}</button>
-                          </div>
-                       </div>
-                     </>
-                   )}
+                  <div className="flex items-center gap-3 bg-[#292524] border border-[#44403C] p-1.5 pr-4 rounded-full shadow-lg relative group cursor-pointer hover:bg-[#44403C]/50 transition-colors">
+                    <div className="w-10 h-10 rounded-full bg-[#F3C3B2]/20 border border-[#F3C3B2]/40 text-[#F3C3B2] flex items-center justify-center text-lg font-black">
+                      {session?.user?.name?.charAt(0).toUpperCase() || 'V'}
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-[#F5F0EB] font-bold text-sm leading-tight">{session?.user?.name?.split(' ')[0] || 'Valeria'}</span>
+                      <span className="text-[#A8A29E] text-[9px] font-black uppercase tracking-widest mt-0.5">Mora Pro</span>
+                    </div>
+                    <ChevronDown size={14} className="text-[#A8A29E] ml-2 group-hover:rotate-180 transition-transform duration-300" />
+
+                    <div className="absolute top-full right-0 mt-2 w-56 bg-[#292524] border border-[#44403C] rounded-2xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 overflow-hidden flex flex-col translate-y-2 group-hover:translate-y-0">
+                       <button onClick={() => setVista("perfil")} className="flex items-center gap-3 px-5 py-3.5 text-sm font-bold text-[#A8A29E] hover:text-[#F5F0EB] hover:bg-[#44403C]/50 transition-colors text-left"><Settings size={16} /> Configuración</button>
+                       <button onClick={() => setVista("facturacion")} className="flex items-center gap-3 px-5 py-3.5 text-sm font-bold text-[#A8A29E] hover:text-[#F5F0EB] hover:bg-[#44403C]/50 transition-colors text-left"><CreditCard size={16} /> Facturación</button>
+                       <div className="h-px bg-[#44403C] w-full"></div>
+                       <button onMouseDown={cerrarSesion} className="flex items-center gap-3 px-5 py-3.5 text-sm font-bold text-[#E07070] hover:bg-[#E07070]/10 transition-colors text-left"><LogOut size={16} /> Cerrar sesión</button>
+                    </div>
+                  </div>
                 </div>
               </header>
+              
+              {/* CONTENEDOR SCROLLEABLE INTERNO */}
+              <div className="flex-1 overflow-y-auto overflow-x-hidden px-8 md:px-12 pb-32">
 
-              <div className="p-8 pb-32 max-w-[1400px] mx-auto w-full print:p-0 print:pb-0" key={vista}>
-                
-                {vista === "dashboard" && modoPlan === "agencia" && (
-                  <div className="animate-fade-custom print:hidden flex flex-col gap-8">
-                    <div>
-                      <h2 className="text-2xl font-bold text-[#E8EBE4]">{t[idioma].panelPrin}</h2>
-                      <p className="text-[#8A968C] text-sm mt-1">{t[idioma].panelDesc}</p>
-                    </div>
-                    
-                    {/* METRIC CARDS SUPERIORES */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                       
-                       {/* 1. Salud Promedio */}
-                       <div className={`bg-[#1A1F1B] border border-[#2C352E] rounded-2xl p-6 flex flex-col min-h-[180px] border-l-4 ${avgStatus.borderLeft} ${avgStatus.bgTints}`}>
-                          <p className={`text-[10px] font-bold ${avgStatus.color} uppercase tracking-widest mb-4 flex items-center gap-2`}><Activity size={14}/> {t[idioma].saludG}</p>
-                          <div className="flex items-baseline gap-1 mt-auto">
-                            {/* SCORE MASIVO */}
-                            <span className={`text-[5.5rem] font-black ${avgStatus.color} leading-[0.8] tracking-tighter`}>{promedioScore}</span>
-                            <span className="text-[#8A968C] font-bold text-xl mb-1">/100</span>
-                          </div>
-                          <div className="mt-5">
-                             {/* ALERTA DE PESO (Badge) */}
-                             <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold ${avgStatus.bgTints} ${avgStatus.color} border ${avgStatus.border}`}>
-                               <avgStatus.icon size={14}/> {avgStatus.msg}
-                             </span>
-                          </div>
-                       </div>
-
-                       {/* 2. Total Cuentas */}
-                       <div className="bg-[#1A1F1B] border border-[#2C352E] rounded-2xl p-6 flex flex-col justify-between min-h-[180px] border-l-4 border-l-[#99CDD8]">
-                          <p className="text-[10px] font-bold text-[#8A968C] uppercase tracking-widest mb-2 flex items-center gap-2"><Users size={14}/> {t[idioma].totAud}</p>
-                          <div className="mt-auto">
-                            <span className="text-[4rem] font-black text-[#E8EBE4] tracking-tighter leading-none">{totalAuditorias}</span>
-                            <p className="text-xs text-[#8A968C] mt-3 font-medium">Cuentas auditadas</p>
-                          </div>
-                          {totalAuditorias > 0 && (
-                            <div className="mt-4 pt-4 border-t border-[#2C352E] grid grid-cols-2 gap-2 text-center">
-                               <div className="bg-[#E66767]/10 rounded py-1 border border-[#E66767]/20"><p className="text-[10px] font-bold text-[#E66767] uppercase">{totalCriticas} Críticas</p></div>
-                               <div className="bg-[#99CDD8]/10 rounded py-1 border border-[#99CDD8]/20"><p className="text-[10px] font-bold text-[#99CDD8] uppercase">{totalOptimas} Óptimas</p></div>
-                            </div>
+              {/* DASHBOARD INDIVIDUAL */}
+              {vista === "dashboard" && (
+                <div className="animate-fade-custom print:hidden flex flex-col gap-6 w-full mx-auto">
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-6">
+                     
+                    {/* 1. Salud de la Cuenta */}
+                    <div className="bg-gradient-to-b from-[#292524] to-[#1C1917] border border-[#44403C] border-t-white/10 shadow-2xl rounded-3xl p-6 flex items-center justify-between min-h-[220px] relative overflow-hidden">
+                      <div className="flex flex-col h-full justify-between w-full relative z-10">
+                        <p className="text-[10px] font-black text-[#A8A29E] uppercase tracking-widest flex items-center gap-2"><Activity size={14} className="text-[#F3C3B2]"/> Salud de la Cuenta</p>
+                        
+                        <div className="flex flex-col items-center gap-4 mt-2">
+                          {ultimaAuditoria && (
+                            <ScoreRing score={ultimaAuditoria.score} size={120} />
                           )}
-                       </div>
 
-                       {/* 3. Fugas Críticas */}
-                       <div className="bg-[#1A1F1B] border border-[#2C352E] rounded-2xl p-6 flex flex-col justify-between min-h-[180px] border-l-4 border-l-[#E66767]">
-                          <p className="text-[10px] font-bold text-[#E66767] uppercase tracking-widest mb-2 flex items-center gap-2"><AlertTriangle size={14}/> {t[idioma].fugasDet}</p>
-                          <div className="mt-auto">
-                            <span className="text-[4rem] font-black text-[#E8EBE4] tracking-tighter leading-none">{totalFugas}</span>
-                            <p className="text-xs text-[#8A968C] mt-3 font-medium">Problemas activos</p>
-                          </div>
-                          {cuentasRojas.length > 0 && (
-                            <div className="mt-4 pt-3 border-t border-[#2C352E]">
-                              <p className="text-[9px] text-[#8A968C] uppercase tracking-widest mb-2">{t[idioma].afectaA}</p>
-                              <div className="space-y-1.5">
-                                {cuentasRojas.slice(0, 2).map((c,i) => (
-                                  <div key={i} className="flex justify-between items-center text-xs">
-                                     <span className="text-[#E8EBE4] truncate pr-2">{c.nombre}</span>
-                                     <span className="text-[#E66767] font-bold bg-[#E66767]/10 px-1.5 rounded">{c.cant}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                       </div>
-
-                       {/* 4. Oportunidades */}
-                       <div className="bg-[#1A1F1B] border border-[#2C352E] rounded-2xl p-6 flex flex-col justify-between min-h-[180px] border-l-4 border-l-[#EAB308]">
-                          <p className="text-[10px] font-bold text-[#EAB308] uppercase tracking-widest mb-2 flex items-center gap-2"><Zap size={14}/> {t[idioma].oporMej}</p>
-                          <div className="mt-auto">
-                            <span className="text-[4rem] font-black text-[#E8EBE4] tracking-tighter leading-none">{totalOportunidades}</span>
-                            <p className="text-xs text-[#8A968C] mt-3 font-medium">Áreas de mejora</p>
-                          </div>
-                          {cuentasAmarillas.length > 0 && (
-                            <div className="mt-4 pt-3 border-t border-[#2C352E]">
-                              <p className="text-[9px] text-[#8A968C] uppercase tracking-widest mb-2">{t[idioma].afectaA}</p>
-                              <div className="space-y-1.5">
-                                {cuentasAmarillas.slice(0, 2).map((c,i) => (
-                                  <div key={i} className="flex justify-between items-center text-xs">
-                                     <span className="text-[#E8EBE4] truncate pr-2">{c.nombre}</span>
-                                     <span className="text-[#EAB308] font-bold bg-[#EAB308]/10 px-1.5 rounded">{c.cant}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                       </div>
+                          <button 
+                            onClick={ejecutarAuditoriaConIA} 
+                            disabled={loading}
+                            className="w-full text-[10px] uppercase tracking-widest font-black border border-[#44403C] bg-[#F3C3B2]/10 text-[#F3C3B2] hover:bg-[#F3C3B2] hover:text-[#0a0a0a] transition-colors px-5 py-2.5 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {loading ? "MORA ESTÁ ANALIZANDO..." : "EJECUTAR AUDITORÍA PRO"}
+                          </button>
+                        </div>
+                      </div>
                     </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                       {/* TABLA DE AUDITORÍAS DENSA */}
-                       <div className="lg:col-span-2 bg-[#1A1F1B] border border-[#2C352E] rounded-2xl p-6 flex flex-col">
+                     {/* 2. Fugas Críticas */}
+                     <div className="bg-gradient-to-b from-[#292524] to-[#1C1917] border border-[#44403C] border-t-white/10 shadow-2xl rounded-3xl p-6 flex flex-col justify-between min-h-[160px] relative overflow-hidden group">
+                        <div className="absolute top-5 right-5 px-3 py-1.5 rounded-lg bg-[#E07070]/10 border border-[#E07070]/20 text-[#E07070] text-[9px] font-black uppercase tracking-widest">Crítico</div>
+                        <div className="w-12 h-12 rounded-2xl bg-[#E07070]/15 flex items-center justify-center mb-3 border border-[#E07070]/30 shadow-inner">
+                          <AlertTriangle size={22} className="text-[#E07070]" />
+                        </div>
+                        <div>
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-5xl font-black text-white tracking-tighter leading-none">{fugasIndividuales}</span>
+                            <span className="text-xs font-black text-[#A8A29E] uppercase tracking-widest">Fugas</span>
+                          </div>
+                        </div>
+                     </div>
+
+                     {/* 3. DESTRIPADOR (Fugas en Palabras) */}
+                     <div 
+                        onClick={() => {
+                          if (ahorroNGramas > 0) {
+                            setDetalleHallazgo({
+                              titulo: "Destripador de Búsquedas",
+                              tipo: "critico",
+                              problema_detalle: "Detectamos palabras clave que se repiten ineficientemente y drenan presupuesto sin convertir.",
+                              sugerencia: nGramaData?.palabras?.join(", ") || "Revisar reporte",
+                              razonamiento: "Estas palabras atraen tráfico sin intención de compra. Al negativizarlas, obligamos a Google a buscar tráfico calificado.",
+                              resultado_esperado: `Ahorro estimado de aprox. $${ahorroNGramas}/mes.`,
+                              items: [],
+                              sugerencias: []
+                            });
+                          }
+                        }}
+                        className={`bg-gradient-to-b from-[#292524] to-[#1C1917] border border-[#44403C] border-t-white/10 shadow-2xl rounded-3xl p-6 flex flex-col justify-between min-h-[160px] relative overflow-hidden group transition-all ${ahorroNGramas > 0 ? 'cursor-pointer hover:border-[#F3C3B2]/50' : 'opacity-70 grayscale'}`}
+                     >
+                        <div className="absolute top-5 right-5 px-3 py-1.5 rounded-lg bg-[#F3C3B2]/10 border border-[#F3C3B2]/20 text-[#F3C3B2] text-[9px] font-black uppercase tracking-widest">N-Gramos</div>
+                        <div className="w-12 h-12 rounded-2xl bg-[#F3C3B2]/15 flex items-center justify-center mb-3 border border-[#F3C3B2]/30 shadow-inner">
+                          <Trash2 size={22} className="text-[#F3C3B2]" />
+                        </div>
+                        <div>
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-5xl font-black text-[#F3C3B2] tracking-tighter leading-none">${ahorroNGramas}</span>
+                            <span className="text-xs font-black text-[#A8A29E] uppercase tracking-widest">Ahorro</span>
+                          </div>
+                          <p className="text-[10px] text-[#A8A29E] mt-2 font-bold uppercase tracking-widest">En {palabrasBasura} palabras basura</p>
+                        </div>
+                     </div>
+
+                     {/* 4. Oportunidades */}
+                     <div className="bg-gradient-to-b from-[#292524] to-[#1C1917] border border-[#44403C] border-t-white/10 shadow-2xl rounded-3xl p-6 flex flex-col justify-between min-h-[160px] relative overflow-hidden group">
+                        <div className="absolute top-5 right-5 px-3 py-1.5 rounded-lg bg-[#D4A843]/10 border border-[#D4A843]/20 text-[#D4A843] text-[9px] font-black uppercase tracking-widest">Atención</div>
+                        <div className="w-12 h-12 rounded-2xl bg-[#D4A843]/15 flex items-center justify-center mb-3 border border-[#D4A843]/30 shadow-inner">
+                          <Zap size={22} className="text-[#D4A843]" />
+                        </div>
+                        <div>
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-5xl font-black text-white tracking-tighter leading-none">{oportunidadesIndividuales}</span>
+                            <span className="text-xs font-black text-[#A8A29E] uppercase tracking-widest">Mejoras</span>
+                          </div>
+                        </div>
+                     </div>
+                     
+                  </div>
+
+                  {/* QUICK WINS DEL DÍA */}
+                  {quickWinsDelDia.length > 0 && (
+                    <div className="bg-[#292524] border border-[#44403C] shadow-2xl rounded-3xl p-6 w-full animate-fade-custom">
+                      {quickWinsCompletados.length === quickWinsDelDia.length ? (
+                        <div className="p-8 text-center flex flex-col items-center justify-center bg-[#10B981]/10 border-2 border-dashed border-[#10B981]/30 rounded-2xl animate-fade-custom">
+                          <div className="w-16 h-16 rounded-full bg-[#10B981]/20 flex items-center justify-center text-[#10B981] mb-4 shadow-lg animate-bounce">
+                            <CheckCircle2 size={32} strokeWidth={3} />
+                          </div>
+                          <h3 className="text-2xl font-black text-white tracking-tight">¡Cuenta blindada por hoy! 🎉</h3>
+                          <p className="text-[#A8A29E] text-sm mt-2 max-w-md font-medium leading-relaxed">
+                            Completaste las 3 acciones prioritarias recomendadas por Mora para este ciclo. El capital diario de tu cliente está seguro.
+                          </p>
+                        </div>
+                      ) : (
+                        <div>
                           <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-lg font-bold text-[#E8EBE4]">{t[idioma].ultAud}</h3>
-                            <button onClick={() => setVista("historial")} className="text-xs font-bold text-[#8A968C] hover:text-[#E8EBE4] transition-colors">{t[idioma].verTodas}</button>
+                            <div>
+                              <h3 className="text-base font-black text-[#F5F0EB] flex items-center gap-2">
+                                <Zap className="text-[#F3C3B2]" size={20} /> Quick Wins del Día
+                              </h3>
+                              <p className="text-[11px] text-[#A8A29E] mt-1 font-bold uppercase tracking-widest">Las 3 acciones críticas de mayor impacto económico directo</p>
+                            </div>
+                            <span className="text-[10px] font-black bg-[#1C1917] border border-[#44403C] text-[#F3C3B2] px-3 py-1.5 rounded-lg">
+                              {quickWinsCompletados.length} de {quickWinsDelDia.length} Completados
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            {quickWinsDelDia.map((win: any, idx: number) => {
+                              const winId = win.id_rastreo || `win-${idx}-${win.titulo}`;
+                              const esCompletado = quickWinsCompletados.includes(winId);
+
+                              return (
+                                <div 
+                                  key={winId} 
+                                  className={`bg-[#1C1917] border rounded-2xl p-5 flex flex-col justify-between transition-all relative overflow-hidden ${
+                                    esCompletado ? 'border-[#10B981]/30 opacity-50 bg-[#10B981]/5' : 'border-[#44403C] hover:border-[#44403C]/80 shadow-md'
+                                  }`}
+                                >
+                                  <div>
+                                    <div className="flex justify-between items-center mb-3">
+                                      <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded border ${
+                                        esCompletado 
+                                          ? 'bg-[#10B981]/10 text-[#10B981] border-[#10B981]/20' 
+                                          : win.tipo === 'critico' 
+                                            ? 'bg-[#E07070]/10 text-[#E07070] border-[#E07070]/20' 
+                                            : 'bg-[#D4A843]/10 text-[#D4A843] border-[#D4A843]/20'
+                                      }`}>
+                                        {esCompletado ? 'Solucionado' : win.tipo === 'critico' ? 'Urgente' : 'Optimización'}
+                                      </span>
+                                    </div>
+                                    <h4 className={`text-sm font-bold text-[#F5F0EB] leading-tight ${esCompletado ? 'line-through opacity-60' : ''}`}>
+                                      {win.titulo}
+                                    </h4>
+                                    <p className="text-[11px] text-[#A8A29E] mt-2 font-medium line-clamp-2 leading-relaxed">
+                                      {modoSimple ? (win.descripcion_simple || win.descripcion) : (win.descripcion_tecnica || win.descripcion)}
+                                    </p>
+                                  </div>
+
+                                  <div className="mt-5 pt-3 border-t border-[#44403C]/30 flex items-center justify-between gap-4 shrink-0">
+                                    <button 
+                                      onClick={() => abrirDetalleHallazgo(win, win.tipo, ultimaAuditoria?.reporte_json)}
+                                      className="text-[10px] font-black uppercase tracking-widest text-[#A8A29E] hover:text-[#F5F0EB] transition-colors"
+                                    >
+                                      Ver detalle
+                                    </button>
+                                    
+                                    {!esCompletado ? (
+                                      <button 
+                                        onClick={() => {
+                                          setQuickWinsCompletados([...quickWinsCompletados, winId]);
+                                          setToastState({ show: true, status: 'success', timeLeft: 5 });
+                                        }}
+                                        className="bg-[#F3C3B2] hover:bg-[#eab3a1] text-[#0a0a0a] font-black text-[10px] uppercase tracking-widest px-4 py-2 rounded-xl transition-all shadow-sm"
+                                      >
+                                        Corregir Ahora
+                                      </button>
+                                    ) : (
+                                      <span className="text-[#10B981] flex items-center gap-1 text-[10px] font-black uppercase tracking-widest">
+                                        <Check size={14} strokeWidth={3} /> Listo
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* PACING DE PRESUPUESTO */}
+                  <div className="bg-[#292524] border border-[#44403C] shadow-lg rounded-3xl p-6 w-full">
+                    <div className="flex justify-between items-center mb-6">
+                      <div>
+                        <h3 className="text-base font-black text-[#F5F0EB] flex items-center gap-2">
+                          <Target className="text-[#F3C3B2]" size={20} /> Pacing de Presupuesto
+                        </h3>
+                        <p className="text-[11px] text-[#A8A29E] mt-1 font-bold uppercase tracking-widest">Consumo vs Proyección</p>
+                      </div>
+                    </div>
+
+                    {cargandoCampanas ? (
+                      <div className="flex justify-center items-center py-12">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#F3C3B2]"></div>
+                      </div>
+                    ) : campanas.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-10 text-center">
+                         <Folder className="w-12 h-12 text-[#44403C] mb-3" />
+                         <p className="text-[#F5F0EB] font-bold">Sin datos de presupuesto</p>
+                         <p className="text-[#A8A29E] text-sm mt-1">Conecta tus campañas para ver la proyección.</p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                        {campanas.filter(c => c.estado === 'ENABLED').map((campana) => {
+                          const gasto = campana.gasto || 0;
+                          const presupuesto = campana.presupuesto || 1;
+                          const conversiones = campana.conversiones || 0;
+                          const cpaActual = conversiones > 0 ? (gasto / conversiones) : gasto;
+
+                          const hoy = new Date();
+                          const ultimoDiaMes = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).getDate();
+                          const diaActual = hoy.getDate();
+                          const diasRestantes = Math.max(1, ultimoDiaMes - diaActual);
+                          
+                          const presupuestoRestante = presupuesto - gasto;
+                          const ajusteDiarioRecomendado = Math.max(0, presupuestoRestante / diasRestantes);
+                          const porcentajeGasto = (gasto / presupuesto) * 100;
+
+                          return (
+                            <div key={campana.id} className="bg-[#1C1917] border border-[#44403C] rounded-2xl p-6 relative overflow-hidden">
+                              <div className="absolute top-0 left-0 h-1.5 bg-[#292524] w-full">
+                                <div 
+                                  className="h-full bg-[#E07070] transition-all duration-1000 ease-out" 
+                                  style={{ width: `${Math.min(porcentajeGasto, 100)}%` }}
+                                ></div>
+                              </div>
+                              
+                              <div className="mb-6 mt-2 flex justify-between items-start">
+                                <div>
+                                  <h3 className="font-bold text-[#F5F0EB] text-lg truncate">{campana.nombre}</h3>
+                                  <span className="text-[10px] uppercase tracking-widest font-black px-2.5 py-1 rounded-md mt-2 inline-block bg-[#10B981]/10 text-[#10B981]">
+                                    Activa
+                                  </span>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-[9px] text-[#A8A29E] font-black uppercase tracking-widest">Presupuesto Restante</p>
+                                  <p className="text-lg font-black text-[#F5F0EB]">${presupuestoRestante.toLocaleString()}</p>
+                                </div>
+                              </div>
+
+                              <div className="bg-[#E07070]/10 border border-[#E07070]/30 rounded-xl p-4 mb-4 flex items-center justify-between shadow-inner">
+                                <div>
+                                  <p className="text-[10px] text-[#E07070] font-black tracking-widest uppercase">GPS de Inversión</p>
+                                  <p className="text-sm text-[#F5F0EB] font-medium">Gasto diario recomendado:</p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-2xl font-black text-[#F3C3B2]">${ajusteDiarioRecomendado.toFixed(2)}</p>
+                                  <p className="text-[9px] text-[#A8A29E] font-bold uppercase italic">por los próximos {diasRestantes} días</p>
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-3">
+                                <div className="bg-[#292524] rounded-xl p-4 border border-[#44403C]/50">
+                                  <p className="text-[10px] text-[#A8A29E] font-black tracking-widest uppercase mb-1">CPA</p>
+                                  <p className="text-xl font-black text-[#F3C3B2]">${cpaActual.toLocaleString(undefined, {maximumFractionDigits:2})}</p>
+                                </div>
+                                <div className="bg-[#292524] rounded-xl p-4 border border-[#44403C]/50">
+                                  <p className="text-[10px] text-[#A8A29E] font-black tracking-widest uppercase mb-1">Conversiones</p>
+                                  <p className="text-xl font-black text-[#F5F0EB]">{conversiones}</p>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* EVOLUCIÓN DEL SCORE */}
+                  {scoreHistorico.length >= 2 && (
+                    <div className="bg-[#292524] border border-[#44403C] shadow-lg rounded-3xl p-6 w-full">
+                      <div className="flex justify-between items-center mb-4">
+                        <div>
+                          <h3 className="text-base font-black text-[#F5F0EB]">Evolución del score</h3>
+                          <p className="text-[11px] text-[#A8A29E] mt-1 font-bold uppercase tracking-widest">Últimas {scoreHistorico.length} auditorías</p>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <div className="text-right">
+                            <p className="text-[9px] text-[#A8A29E] uppercase tracking-widest font-black">Mejor score</p>
+                            <p className="text-sm font-black text-[#F3C3B2]">{Math.max(...scoreHistorico)}/100</p>
+                          </div>
+                          {(() => {
+                            const delta = scoreHistorico[scoreHistorico.length - 1] - scoreHistorico[0];
+                            const color = delta >= 0 ? 'text-[#7EB893] bg-[#7EB893]/10 border border-[#7EB893]/30' : 'text-[#E07070] bg-[#E07070]/10 border border-[#E07070]/30';
+                            return (
+                              <span className={`text-xs font-black px-3 py-1.5 rounded-lg shadow-sm ${color}`}>
+                                {delta >= 0 ? '+' : ''}{delta} pts
+                              </span>
+                            );
+                          })()}
+                        </div>
+                      </div>
+                      <div className="mt-4 w-full">
+                        <ScoreSparkline data={scoreHistorico} fechas={fechasHistorico} />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* PROBLEMAS Y OPORTUNIDADES DETALLADOS */}
+                  {ultimaAuditoria && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
+                      {ultimaAuditoria.reporte_json?.hallazgos?.graves_rojo?.map((item: any, i: number) => (
+                        <div
+                          key={i}
+                          className="bg-[#292524] border border-[#44403C] shadow-lg rounded-3xl p-6 cursor-pointer hover:border-[#E07070]/50 hover:shadow-xl transition-all group relative overflow-hidden"
+                          onClick={() => abrirDetalleHallazgo(item, "critico", ultimaAuditoria.reporte_json)}
+                        >
+                          <div className="absolute top-0 left-0 w-1 h-full bg-[#E07070]"></div>
+                          <div className="flex justify-between items-start mb-3">
+                            <div className="flex items-center gap-2">
+                              <div className="w-6 h-6 rounded-md bg-[#E07070]/10 flex items-center justify-center"><AlertTriangle size={12} className="text-[#E07070]" /></div>
+                              <span className="text-[10px] font-black uppercase tracking-widest text-[#E07070]">Impacto Alto</span>
+                            </div>
+                            <ChevronRight size={16} className="text-[#A8A29E] group-hover:text-[#F5F0EB] transition-colors" />
+                          </div>
+                          <p className="text-lg font-black text-[#F5F0EB] mt-2">{item.titulo}</p>
+                          <p className="text-sm text-[#A8A29E] font-medium mt-2 leading-relaxed line-clamp-2">{modoSimple ? (item.descripcion_simple || item.descripcion) : (item.descripcion_tecnica || item.descripcion)}</p>
+                        </div>
+                      ))}
+                      {ultimaAuditoria.reporte_json?.hallazgos?.debiles_amarillo?.map((item: any, i: number) => (
+                        <div
+                          key={i}
+                          className="bg-[#292524] border border-[#44403C] shadow-lg rounded-3xl p-6 cursor-pointer hover:border-[#D4A843]/50 hover:shadow-xl transition-all group relative overflow-hidden"
+                          onClick={() => abrirDetalleHallazgo(item, "mejora", ultimaAuditoria.reporte_json)}
+                        >
+                          <div className="absolute top-0 left-0 w-1 h-full bg-[#D4A843]"></div>
+                          <div className="flex justify-between items-start mb-3">
+                            <div className="flex items-center gap-2">
+                              <div className="w-6 h-6 rounded-md bg-[#D4A843]/10 flex items-center justify-center"><Zap size={12} className="text-[#D4A843]" /></div>
+                              <span className="text-[10px] font-black uppercase tracking-widest text-[#D4A843]">Mejora</span>
+                            </div>
+                            <ChevronRight size={16} className="text-[#A8A29E] group-hover:text-[#F5F0EB] transition-colors" />
+                          </div>
+                          <p className="text-lg font-black text-[#F5F0EB] mt-2">{item.titulo}</p>
+                          <p className="text-sm text-[#A8A29E] font-medium mt-2 leading-relaxed line-clamp-2">{modoSimple ? (item.descripcion_simple || item.descripcion) : (item.descripcion_tecnica || item.descripcion)}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* MATRIZ DE CAMPAÑAS */}
+                  {(() => {
+                    const activas = campanas.filter(c => c.estado === 'ENABLED');
+                    
+                    if (activas.length === 0) {
+                      return (
+                        <div className="w-full mt-6">
+                          <div className="flex justify-between items-center mb-4 px-1">
+                            <div>
+                              <h3 className="text-base font-black text-[#F5F0EB] flex items-center gap-2">
+                                <LayoutGrid className="text-[#D4A843]" size={20} /> Matriz de Rendimiento
+                              </h3>
+                              <p className="text-[11px] text-[#A8A29E] mt-1 font-bold uppercase tracking-widest">Distribución de Campañas</p>
+                            </div>
+                          </div>
+                          <div className="bg-[#292524] border border-[#44403C] rounded-2xl p-8 text-center text-[#A8A29E] text-sm">
+                            No hay campañas activas suficientes para generar la matriz.
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    const gastoTotal = activas.reduce((acc, c) => acc + (c.gasto || 0), 0);
+                    const convTotales = activas.reduce((acc, c) => acc + (c.conversiones || 0), 0);
+                    const cpaPromedio = convTotales > 0 ? gastoTotal / convTotales : 50;
+
+                    const estrellas = activas.filter(c => (c.conversiones || 0) >= 3 && (c.gasto / (c.conversiones || 1)) < cpaPromedio * 0.85);
+                    
+                    const basura = activas.filter(c => 
+                      ((c.conversiones || 0) >= 3 && (c.gasto / (c.conversiones || 1)) > cpaPromedio * 1.20) || 
+                      ((c.conversiones || 0) < 3 && (c.gasto > (c.presupuesto || 0) * 0.80))
+                    );
+
+                    const dudosos = activas.filter(c => 
+                      (c.conversiones || 0) >= 3 && 
+                      (c.gasto / (c.conversiones || 1)) >= cpaPromedio * 0.85 && 
+                      (c.gasto / (c.conversiones || 1)) <= cpaPromedio * 1.20
+                    );
+
+                    const potenciales = activas.filter(c => 
+                      (c.conversiones || 0) < 3 && 
+                      (c.gasto <= (c.presupuesto || 0) * 0.80)
+                    );
+
+                    const abrirMatriz = (tipo: string, lista: any[]) => {
+                      if (lista.length === 0) return;
+                      let tit, desc, sug, raz;
+                      if (tipo === 'estrella') { tit = "Estrellas"; desc = "Rendimiento top."; sug = "Escalar presupuesto."; raz = "CPA muy por debajo del promedio."; }
+                      else if (tipo === 'basura') { tit = "Basura / Parásitos"; desc = "Drenando dinero."; sug = "Pausar o corregir."; raz = "CPA altísimo o gasto sin conversión."; }
+                      else if (tipo === 'dudosos') { tit = "Dudosos"; desc = "Rendimiento tibio."; sug = "Optimizar keywords."; raz = "CPA cerca del promedio."; }
+                      else { tit = "Potenciales"; desc = "Poca data."; sug = "Darle más tiempo."; raz = "Fase de aprendizaje del algoritmo."; }
+
+                      setDetalleHallazgo({
+                        titulo: tit, tipo: tipo === 'basura' ? 'critico' : 'mejora',
+                        problema_detalle: `${desc} Afecta a: ${lista.map(c => c.nombre).join(", ")}`,
+                        sugerencia: sug, razonamiento: raz, resultado_esperado: "Optimización del ROAS global.",
+                        items: [], sugerencias: []
+                      });
+                    };
+
+                    return (
+                      <div className="w-full mt-6">
+                        <div className="flex justify-between items-center mb-4 px-1">
+                          <div>
+                            <h3 className="text-base font-black text-[#F5F0EB] flex items-center gap-2">
+                              <LayoutGrid className="text-[#D4A843]" size={20} /> Matriz de Rendimiento
+                            </h3>
+                            <p className="text-[11px] text-[#A8A29E] mt-1 font-bold uppercase tracking-widest">Distribución de Campañas</p>
+                          </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          <div onClick={() => abrirMatriz('estrella', estrellas)} className={`bg-[#292524] border-2 border-[#10B981]/50 rounded-2xl p-5 flex flex-col justify-between shadow-sm transition-all ${estrellas.length > 0 ? 'cursor-pointer hover:border-[#10B981] hover:bg-[#10B981]/5' : 'opacity-50 cursor-not-allowed'}`}>
+                            <span className="text-[10px] font-black text-[#10B981] uppercase tracking-widest mb-4">Escalar</span>
+                            <span className="text-4xl font-black text-[#F5F0EB]">{estrellas.length}</span>
                           </div>
                           
-                          {historial.length === 0 ? (
-                            <div className="flex-1 flex items-center justify-center text-[#8A968C] text-sm font-medium py-10 border border-dashed border-[#2C352E] rounded-xl">No hay auditorías recientes.</div>
-                          ) : (
-                            <div className="flex-1 border-t border-[#2C352E]">
-                              <div className="grid grid-cols-12 gap-4 py-3 border-b border-[#2C352E] text-[9px] font-bold text-[#8A968C] uppercase tracking-widest">
-                                <div className="col-span-5">{t[idioma].thCliente}</div>
-                                <div className="col-span-3 text-center">{t[idioma].score}</div>
-                                <div className="col-span-2 text-center">{t[idioma].thEstado}</div>
-                                <div className="col-span-2 text-right">{t[idioma].thAccion}</div>
-                              </div>
-                              <div className="divide-y divide-[#2C352E]">
-                                {historial.slice(0, 5).map((item, index) => {
-                                  const st = getDashboardStatus(item.score);
-                                  return (
-                                    <div key={index} className="grid grid-cols-12 gap-4 py-4 items-center hover:bg-[#2C352E]/30 transition-colors -mx-4 px-4 rounded-lg">
-                                      
-                                      <div className="col-span-5 flex items-center gap-3">
-                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${st.bgTints} ${st.color} border border-transparent`}>{item.score}</div>
-                                        <div>
-                                          <p className="font-bold text-[#E8EBE4] text-sm truncate">{item.nombre_cuenta || "Sin nombre"}</p>
-                                          <p className="text-[10px] text-[#8A968C] mt-0.5">{parseDate(item.created_at)}</p>
-                                        </div>
-                                      </div>
-                                      
-                                      <div className="col-span-3 flex flex-col justify-center px-4">
-                                         <div className="flex justify-between items-end mb-1">
-                                           <span className={`text-sm font-bold ${st.color}`}>{item.score}</span>
-                                           <span className="text-[9px] text-[#8A968C]">/100</span>
-                                         </div>
-                                         <div className="w-full h-1.5 bg-[#131714] rounded-full overflow-hidden border border-[#2C352E]/50">
-                                           <div className={`h-full rounded-full transition-all`} style={{width: `${item.score}%`, backgroundColor: st.color.replace('text-[', '').replace(']', '')}}></div>
-                                         </div>
-                                      </div>
-
-                                      <div className="col-span-2 flex justify-center">
-                                         <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-[10px] font-bold ${st.bgTints} ${st.color}`}>
-                                           <span className={`w-1.5 h-1.5 rounded-full bg-current`}></span> {st.label}
-                                         </span>
-                                      </div>
-
-                                      <div className="col-span-2 flex justify-end items-center gap-2">
-                                        <button onClick={() => { setReporte(item.reporte_json); setNombreCuenta(item.nombre_cuenta || "Sin nombre"); setSubVistaReporte("diagnostico"); setVista("reporte_lectura"); }} className="text-[10px] uppercase tracking-widest font-bold border border-[#2C352E] hover:bg-[#2C352E] text-[#E8EBE4] px-3 py-1.5 rounded transition-colors">
-                                          {t[idioma].abrirAud}
-                                        </button>
-                                        <button onClick={() => borrarAuditoria(item.id)} className="text-[#8A968C] hover:text-[#E66767] p-1.5 transition-colors"><Trash2 size={14} /></button>
-                                      </div>
-
-                                    </div>
-                                  )
-                                })}
-                              </div>
-                            </div>
-                          )}
-                       </div>
-
-                       {/* ACTIVIDAD RECIENTE */}
-                       <div className="bg-[#1A1F1B] border border-[#2C352E] rounded-2xl p-6">
-                          <h3 className="text-sm font-bold text-[#E8EBE4] mb-6">{t[idioma].actRec}</h3>
-                          {historial.length === 0 ? (
-                            <div className="text-[#8A968C] text-sm font-medium text-center py-10">No hay actividad.</div>
-                          ) : (
-                            <ul className="space-y-6">
-                               {historial.slice(0, 5).map((item, i) => {
-                                  const st = getDashboardStatus(item.score);
-                                  return (
-                                    <li key={i} className="flex gap-4 items-start relative">
-                                       {i !== historial.slice(0,5).length - 1 && <div className="absolute left-[3px] top-4 bottom-[-24px] w-px bg-[#2C352E]"></div>}
-                                       <div className={`w-2 h-2 mt-1.5 rounded-full z-10 flex-shrink-0`} style={{backgroundColor: st.color.replace('text-[', '').replace(']', '')}}></div>
-                                       <div>
-                                          <p className="text-xs text-[#8A968C] font-medium leading-tight">Se auditó la cuenta <span className="text-[#E8EBE4] font-bold">{item.nombre_cuenta || "Sin nombre"}</span></p>
-                                          <div className="flex items-center gap-2 mt-1.5">
-                                            <p className="text-[10px] text-[#8A968C]">{parseDate(item.created_at)}</p>
-                                            <span className={`text-[9px] font-bold px-1.5 rounded ${st.color} ${st.bgTints}`}>Score {item.score}</span>
-                                          </div>
-                                       </div>
-                                     </li>
-                                  )
-                               })}
-                            </ul>
-                          )}
-                       </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* DASHBOARD INDIVIDUAL (Diseño Separado) */}
-                {vista === "dashboard" && modoPlan === "individual" && (
-                  <div className="animate-fade-custom print:hidden flex flex-col gap-8 relative z-10">
-                    <div>
-                      <h2 className="text-2xl font-bold text-[#E8EBE4]">Resumen de Negocio</h2>
-                      <p className="text-[#8A968C] text-sm mt-1">El estado de tu cuenta de Google Ads y herramientas para crecer.</p>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                       
-                       {/* SALUD DE LA CUENTA INDIVIDUAL */}
-                       <div className={`bg-[#1A1F1B] border border-[#2C352E] rounded-2xl p-6 flex flex-col min-h-[180px] border-l-4 ${ultimaAuditoria ? getDashboardStatus(ultimaAuditoria.score).borderLeft : 'border-[#2C352E]'}`}>
-                          <p className="text-[10px] font-bold text-[#8A968C] uppercase tracking-widest mb-4 flex items-center gap-2"><Activity size={14}/> Salud de la Cuenta</p>
-                          {ultimaAuditoria ? (
-                            <div className="flex flex-col h-full">
-                               <div className="flex items-baseline gap-1 mt-auto mb-4">
-                                 <span className={`text-[5rem] font-black leading-[0.8] tracking-tighter ${getDashboardStatus(ultimaAuditoria.score).color}`}>
-                                   {ultimaAuditoria.score}
-                                 </span>
-                                 <span className="text-[#8A968C] font-bold text-xl mb-1">/100</span>
-                               </div>
-                               <button onClick={() => { setReporte(ultimaAuditoria.reporte_json); setNombreCuenta(ultimaAuditoria.nombre_cuenta); setVista("reporte_lectura"); }} className="w-full text-[10px] uppercase tracking-widest font-bold border border-[#2C352E] bg-[#131714] hover:bg-[#2C352E] text-[#E8EBE4] px-4 py-2.5 rounded-lg transition-colors mt-auto text-center">
-                                 {t[idioma].abrirAud}
-                               </button>
-                            </div>
-                          ) : (
-                            <div className="flex-1 flex items-center justify-center text-[#8A968C] text-sm font-medium">No hay datos.</div>
-                          )}
-                       </div>
-
-                       {/* FUGAS CRÍTICAS */}
-                       <div className="bg-[#1A1F1B] border border-[#2C352E] rounded-2xl p-6 flex flex-col justify-between min-h-[180px] border-l-4 border-[#E66767]">
-                          <p className="text-[10px] font-bold text-[#E66767] uppercase tracking-widest mb-4 flex items-center gap-2"><AlertTriangle size={14}/> Fugas Críticas</p>
-                          {ultimaAuditoria ? (
-                            <div className="mt-auto">
-                              <span className="text-[4rem] font-black text-[#E8EBE4] tracking-tighter leading-none">{fugasIndividuales}</span>
-                              <p className="text-xs text-[#8A968C] mt-3 font-medium">Problemas consumiendo presupuesto ahora mismo.</p>
-                            </div>
-                          ) : (
-                             <div className="flex-1 flex items-center justify-center text-[#8A968C] text-sm font-medium">No hay datos.</div>
-                          )}
-                       </div>
-
-                       {/* EJECUTAR AUDITORÍA */}
-                       <div className="bg-[#1A1F1B] border border-dashed border-[#8A968C]/50 hover:border-[#F3C3B2] rounded-2xl p-6 flex flex-col justify-center items-center text-center min-h-[180px] transition-colors cursor-pointer group" onClick={() => setVista("nueva")}>
-                          <div className="w-12 h-12 rounded-full bg-[#131714] border border-[#2C352E] flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                             <Zap size={20} className="text-[#F3C3B2]" />
+                          <div onClick={() => abrirMatriz('potencial', potenciales)} className={`bg-[#292524] border-2 border-blue-400/50 rounded-2xl p-5 flex flex-col justify-between shadow-sm transition-all ${potenciales.length > 0 ? 'cursor-pointer hover:border-blue-400 hover:bg-blue-400/5' : 'opacity-50 cursor-not-allowed'}`}>
+                            <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-4">Testear</span>
+                            <span className="text-4xl font-black text-[#F5F0EB]">{potenciales.length}</span>
                           </div>
-                          <h3 className="font-bold text-[#E8EBE4] text-sm">Ejecutar Nueva Auditoría</h3>
-                          <p className="text-xs text-[#8A968C] mt-2 px-2">Actualizá los datos de tu cuenta para ver el score de hoy.</p>
-                       </div>
-                    </div>
-
-                    <div>
-                      <h3 className="text-[10px] font-bold text-[#8A968C] uppercase tracking-widest mb-4 mt-6 px-2">Herramientas Exclusivas</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                         <div className="bg-[#1A1F1B] border border-[#2C352E] rounded-xl p-6 opacity-60 grayscale hover:grayscale-0 transition-all cursor-not-allowed relative overflow-hidden group">
-                            <div className="absolute top-4 right-4"><span className="text-[8px] font-bold uppercase tracking-widest px-2 py-1 bg-[#131714] border border-[#2C352E] rounded text-[#8A968C] group-hover:text-[#F3C3B2] group-hover:border-[#F3C3B2]/50 transition-colors">Pronto</span></div>
-                            <div className="w-8 h-8 rounded-lg bg-[#99CDD8]/10 flex items-center justify-center text-[#99CDD8] mb-4"><BookOpen size={16}/></div>
-                            <h4 className="font-bold text-[#E8EBE4] text-sm mb-1">Traductor de Métricas IA</h4>
-                            <p className="text-xs text-[#8A968C] leading-relaxed">Leé tu cuenta de Google Ads en lenguaje de negocios simple.</p>
-                         </div>
-                         <div className="bg-[#1A1F1B] border border-[#2C352E] rounded-xl p-6 opacity-60 grayscale hover:grayscale-0 transition-all cursor-not-allowed relative overflow-hidden group">
-                            <div className="absolute top-4 right-4"><span className="text-[8px] font-bold uppercase tracking-widest px-2 py-1 bg-[#131714] border border-[#2C352E] rounded text-[#8A968C] group-hover:text-[#F3C3B2] group-hover:border-[#F3C3B2]/50 transition-colors">Pronto</span></div>
-                            <div className="w-8 h-8 rounded-lg bg-[#F3C3B2]/10 flex items-center justify-center text-[#F3C3B2] mb-4"><Type size={16}/></div>
-                            <h4 className="font-bold text-[#E8EBE4] text-sm mb-1">Generador de Anuncios</h4>
-                            <p className="text-xs text-[#8A968C] leading-relaxed">Títulos y descripciones redactados por IA listos para usar.</p>
-                         </div>
-                         <div className="bg-[#1A1F1B] border border-[#2C352E] rounded-xl p-6 opacity-60 grayscale hover:grayscale-0 transition-all cursor-not-allowed relative overflow-hidden group">
-                            <div className="absolute top-4 right-4"><span className="text-[8px] font-bold uppercase tracking-widest px-2 py-1 bg-[#131714] border border-[#2C352E] rounded text-[#8A968C] group-hover:text-[#F3C3B2] group-hover:border-[#F3C3B2]/50 transition-colors">Pronto</span></div>
-                            <div className="w-8 h-8 rounded-lg bg-[#4ADE80]/10 flex items-center justify-center text-[#4ADE80] mb-4"><Calculator size={16}/></div>
-                            <h4 className="font-bold text-[#E8EBE4] text-sm mb-1">Simulador de Presupuesto</h4>
-                            <p className="text-xs text-[#8A968C] leading-relaxed">Proyectá cuántas ventas tendrías si subís o bajás la inversión.</p>
-                         </div>
+                          
+                          <div onClick={() => abrirMatriz('dudoso', dudosos)} className={`bg-[#292524] border-2 border-[#EAB308]/50 rounded-2xl p-5 flex flex-col justify-between shadow-sm transition-all ${dudosos.length > 0 ? 'cursor-pointer hover:border-[#EAB308] hover:bg-[#EAB308]/5' : 'opacity-50 cursor-not-allowed'}`}>
+                            <span className="text-[10px] font-black text-[#EAB308] uppercase tracking-widest mb-4">Observar</span>
+                            <span className="text-4xl font-black text-[#F5F0EB]">{dudosos.length}</span>
+                          </div>
+                          
+                          <div onClick={() => abrirMatriz('basura', basura)} className={`bg-[#292524] border-2 border-[#E07070]/50 rounded-2xl p-5 flex flex-col justify-between shadow-sm transition-all ${basura.length > 0 ? 'cursor-pointer hover:border-[#E07070] hover:bg-[#E07070]/5' : 'opacity-50 cursor-not-allowed'}`}>
+                            <span className="text-[10px] font-black text-[#E07070] uppercase tracking-widest mb-4">Apagar</span>
+                            <span className="text-4xl font-black text-[#F5F0EB]">{basura.length}</span>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                )}
+                    );
+                  })()}
+                </div>
+              )}
 
-                {/* VISTA: NUEVA AUDITORÍA */}
-                {vista === "nueva" && (
-                  <div className="animate-fade-custom print:hidden relative z-10">
-                    <div className="bg-[#1A1F1B] border border-[#2C352E] p-8 md:p-12 rounded-[2rem] shadow-xl mb-8 max-w-4xl mx-auto">
-                      <div className="flex items-center gap-4 mb-8 pb-8 border-b border-[#2C352E]">
-                        <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-[#262B27] shadow-sm bg-[#F3C3B2]"><Zap size={24} /></div>
-                        <div><h1 className="text-2xl font-bold text-[#E8EBE4]">{t[idioma].nueva}</h1><p className="text-[#8A968C] text-sm mt-1">{t[idioma].ingresaDatos}</p></div>
-                      </div>
-                      
-                      <div className="mb-6"><label className="block text-[10px] font-bold text-[#8A968C] uppercase tracking-widest mb-2">{t[idioma].placeholderNombre}</label><input type="text" placeholder={t[idioma].placeholderNombre} className="w-full p-3.5 bg-[#131714] border border-[#2C352E] rounded-xl text-[#E8EBE4] focus:border-[#F3C3B2] focus:outline-none transition-all text-sm" value={nombreCuenta} onChange={(e) => setNombreCuenta(e.target.value)} /></div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                        <div><label className="block text-[10px] font-bold text-[#8A968C] uppercase tracking-widest mb-2">{t[idioma].presupuestoObj}</label><input type="number" placeholder={t[idioma].placeholderPres} className="w-full p-3.5 bg-[#131714] border border-[#2C352E] rounded-xl text-[#E8EBE4] focus:border-[#F3C3B2] focus:outline-none transition-all text-sm" value={presupuestoObjetivo} onChange={(e) => setPresupuestoObjetivo(e.target.value)} /></div>
-                        <div><label className="block text-[10px] font-bold text-[#8A968C] uppercase tracking-widest mb-2">{t[idioma].gastoAct}</label><input type="number" placeholder={t[idioma].placeholderGasto} className="w-full p-3.5 bg-[#131714] border border-[#2C352E] rounded-xl text-[#E8EBE4] focus:border-[#F3C3B2] focus:outline-none transition-all text-sm" value={gastoActual} onChange={(e) => setGastoActual(e.target.value)} /></div>
-                        
-                        <div><label className="block text-[10px] font-bold text-[#8A968C] uppercase tracking-widest mb-2">{t[idioma].conversiones}</label><input type="number" placeholder={t[idioma].placeholderConv} className="w-full p-3.5 bg-[#131714] border border-[#2C352E] rounded-xl text-[#E8EBE4] focus:border-[#F3C3B2] focus:outline-none transition-all text-sm" value={conversiones} onChange={(e) => setConversiones(e.target.value)} /></div>
-                        <div><label className="block text-[10px] font-bold text-[#8A968C] uppercase tracking-widest mb-2">{t[idioma].cparoas}</label><input type="text" placeholder={`Ej: ${metrica} objetivo...`} className="w-full p-3.5 bg-[#131714] border border-[#2C352E] rounded-xl text-[#E8EBE4] focus:border-[#F3C3B2] focus:outline-none transition-all text-sm" value={cpaRoas} onChange={(e) => setCpaRoas(e.target.value)} /></div>
-                      </div>
+              {/* SIDE DRAWER (PANEL LATERAL) */}
+              {detalleHallazgo && (
+                <div className="fixed inset-0 z-[100] flex justify-end print:hidden">
+                  <div
+                    className={`absolute inset-0 bg-[#0a0a0a]/40 backdrop-blur-sm cursor-pointer ${isClosing ? 'animate-fade-out-bg' : 'animate-fade-in-bg'}`}
+                    onClick={cerrarDetalle}
+                  ></div>
 
-                      <div className="mb-6">
-                          <label className="block text-[10px] font-bold text-[#8A968C] uppercase tracking-widest mb-2">{t[idioma].tipoCamp}</label>
-                          <div className="relative"><select className="w-full p-3.5 bg-[#131714] border border-[#2C352E] rounded-xl text-[#E8EBE4] focus:border-[#F3C3B2] focus:outline-none transition-all appearance-none cursor-pointer text-sm" value={tipoCampana} onChange={(e) => setTipoCampana(e.target.value)}><option value="Búsqueda (Search)">Búsqueda (Search)</option><option value="Performance Max">Performance Max</option><option value="Display">Display</option><option value="Shopping">Shopping</option><option value="Video (YouTube)">Video (YouTube)</option><option value="Mix de Campañas">Mix de Campañas</option></select><ChevronDown size={18} className="absolute right-4 top-1/2 transform -translate-y-1/2 text-[#8A968C] pointer-events-none" /></div>
+                  <div className={`relative w-full max-w-xl h-full bg-[#F4F4F5] border-l border-[#E5E7EB] shadow-[0_0_50px_rgba(0,0,0,0.3)] flex flex-col overflow-hidden ${isClosing ? 'animate-slide-out-right' : 'animate-slide-in-right'}`}>
+                    
+                    <div className="flex items-center justify-between p-6 md:p-8 border-b border-[#E5E7EB] bg-[#FFFFFF]">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-inner ${detalleHallazgo.tipo === 'critico' ? 'bg-[#E66767]/10 border border-[#E66767]/20' : 'bg-[#EAB308]/10 border border-[#EAB308]/20'}`}>
+                          {detalleHallazgo.tipo === 'critico' ? <AlertTriangle size={18} className="text-[#E66767]" /> : <Zap size={18} className="text-[#EAB308]" />}
+                        </div>
+                        <span className="text-xs font-black uppercase tracking-widest text-[#0a0a0a]">
+                          {detalleHallazgo.tipo === 'critico' ? 'Fuga Crítica' : 'Oportunidad'}
+                        </span>
                       </div>
-
-                      <div className="mb-8"><label className="block text-[10px] font-bold text-[#8A968C] uppercase tracking-widest mb-2">{t[idioma].contexto}</label><textarea className="w-full h-24 p-3.5 bg-[#131714] border border-[#2C352E] rounded-xl text-[#E8EBE4] focus:border-[#F3C3B2] focus:outline-none transition-all resize-none text-sm" placeholder={t[idioma].placeholderContexto} value={notas} onChange={(e) => setNotas(e.target.value)} /></div>
-                      
-                      <button onClick={analizarCampaña} disabled={loading || !nombreCuenta || !presupuestoObjetivo || !gastoActual || !conversiones} className="w-full text-[#262B27] bg-[#F3C3B2] hover:bg-[#eab3a1] px-6 py-4 rounded-xl font-bold text-sm disabled:opacity-50 transition-colors shadow-md flex justify-center items-center gap-2">
-                        {loading ? <span className="animate-pulse">{t[idioma].btnAnalizando}</span> : <><Sparkles size={18}/> {t[idioma].btnAnalizar}</>}
+                      <button onClick={cerrarDetalle} className="flex items-center gap-2 text-[10px] font-black text-[#4B5563] hover:text-[#0a0a0a] transition-colors uppercase tracking-widest bg-[#F4F4F5] border border-[#E5E7EB] shadow-sm px-4 py-2.5 rounded-xl hover:bg-[#E5E7EB]">
+                        Cerrar <ArrowRight size={16} />
                       </button>
                     </div>
-                  </div>
-                )}
 
-                {/* VISTA: LECTURA DE REPORTE */}
-                {vista === "reporte_lectura" && reporte && (
-                  <div className="animate-fade-custom print:bg-white print:m-0 print:p-0 relative z-10 max-w-5xl mx-auto">
-                    
-                    <div className="mb-6 flex justify-between items-center print:hidden">
-                       <button onClick={() => setVista("dashboard")} className="flex items-center gap-2 text-[#8A968C] hover:text-[#E8EBE4] font-medium transition-colors text-sm"><ArrowLeft size={16} /> {t[idioma].volver}</button>
-                       
-                       <div className="flex bg-[#1A1F1B] border border-[#2C352E] rounded-lg p-1 gap-1">
-                          <button onClick={() => setSubVistaReporte("diagnostico")} className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${subVistaReporte === 'diagnostico' ? 'bg-[#2C352E] text-[#E8EBE4]' : 'text-[#8A968C] hover:text-[#E8EBE4]'}`}><FileText size={14}/> {t[idioma].tabDiag}</button>
-                          <button onClick={() => setSubVistaReporte("checklist")} className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${subVistaReporte === 'checklist' ? 'bg-[#F3C3B2]/20 text-[#F3C3B2]' : 'text-[#8A968C] hover:text-[#E8EBE4]'}`}><ListChecks size={14}/> {t[idioma].tabCheck}</button>
-                          <button onClick={() => setSubVistaReporte("avanzado")} className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${subVistaReporte === 'avanzado' ? 'bg-[#2C352E] text-[#E8EBE4]' : 'text-[#8A968C] hover:text-[#E8EBE4]'}`}><LayoutGrid size={14}/> {t[idioma].tabAvanzado}</button>
-                       </div>
+                    <div className="flex-1 overflow-y-auto p-6 md:p-8 flex flex-col gap-8 min-h-0 bg-[#F4F4F5] break-words">
+                      <h2 className="text-3xl font-black text-[#0a0a0a] leading-tight shrink-0">{detalleHallazgo.titulo}</h2>
+
+                      <div className={`p-6 rounded-3xl border shadow-sm shrink-0 ${detalleHallazgo.tipo === 'critico' ? 'bg-[#FFFFFF] border-[#E66767]/30' : 'bg-[#FFFFFF] border-[#EAB308]/30'}`}>
+                        <p className={`text-[10px] font-black uppercase tracking-widest mb-4 flex items-center gap-2 text-[#0a0a0a]`}>
+                          <Target size={16} className={detalleHallazgo.tipo === 'critico' ? 'text-[#E66767]' : 'text-[#EAB308]'} /> 1. El Problema Técnico
+                        </p>
+                        <p className="text-base text-[#4B5563] font-medium leading-relaxed">{detalleHallazgo.problema_detalle}</p>
+                      </div>
+
+                      <div className="p-6 rounded-3xl border bg-[#FFFFFF] border-[#10B981]/40 shadow-sm shrink-0">
+                        <p className="text-[10px] font-black uppercase tracking-widest mb-4 flex items-center gap-2 text-[#0a0a0a]">
+                          <CheckCircle2 size={16} className="text-[#10B981]" /> 2. Acción a Tomar
+                        </p>
+                        <p className="text-base text-[#0a0a0a] font-bold leading-relaxed mb-6">{detalleHallazgo.sugerencia}</p>
+
+                        <button
+                          onClick={() => copiarKeyword(detalleHallazgo.sugerencia)}
+                          className={`w-full flex justify-center items-center gap-2 text-sm font-black py-4 rounded-xl transition-all shadow-sm ${
+                            copiedKw === detalleHallazgo.sugerencia 
+                              ? 'bg-[#10B981] text-[#0a0a0a] border border-[#10B981]' 
+                              : 'bg-[#F4F4F5] text-[#0a0a0a] hover:bg-[#E5E7EB] border border-[#E5E7EB] hover:border-[#10B981]'
+                          }`}
+                        >
+                          {copiedKw === detalleHallazgo.sugerencia ? <Check size={18} /> : <Copy size={18} />}
+                          {copiedKw === detalleHallazgo.sugerencia ? '¡Instrucción copiada!' : 'Copiar Instrucción para Google Ads'}
+                        </button>
+                      </div>
+
+                      <div className="p-8 rounded-3xl border border-[#E5E7EB] bg-[#FFFFFF] shadow-inner relative overflow-hidden shrink-0">
+                        <div className="absolute top-0 left-0 w-1.5 h-full bg-[#8A968C]"></div>
+                        <p className="text-[10px] font-black uppercase tracking-widest mb-4 flex items-center gap-2 text-[#0a0a0a]">
+                          <BookOpen size={16} className="text-[#8A968C]" /> 3. ¿Por qué hacemos esto?
+                        </p>
+                        <p className="text-base text-[#0a0a0a] font-semibold leading-relaxed italic">
+                          "{detalleHallazgo.razonamiento || "Esta optimización corta la hemorragia de presupuesto y redirige la inversión hacia tráfico con verdadera intención de compra."}"
+                        </p>
+                      </div>
+
+                      <div className="p-6 rounded-3xl border border-[#E0E7FF]/50 bg-[#E0E7FF]/10 flex items-center gap-5 shadow-sm mt-2 mb-8 shrink-0">
+                        <div className="w-14 h-14 rounded-full bg-[#FFFFFF] border border-[#E0E7FF] flex items-center justify-center flex-shrink-0 shadow-sm">
+                          <TrendUp size={24} className="text-[#6366F1]" strokeWidth={3} />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-[10px] font-black uppercase tracking-widest mb-1 text-[#0a0a0a]">4. Resultado Proyectado</p>
+                          <p className="text-xl font-black text-[#0a0a0a] leading-tight">{detalleHallazgo.resultado_esperado}</p>
+                        </div>
+                      </div>
                     </div>
+                  </div>
+                </div>
+              )}
 
-                    <div className="bg-[#1A1F1B] border border-[#2C352E] p-10 rounded-2xl shadow-xl print:bg-white print:text-black print:border-none print:shadow-none print:p-0">
-                      
-                      <div className="hidden print:flex justify-between items-center mb-10 border-b-2 border-slate-200 pb-6">
-                        <div>{modoPlan === 'agencia' && perfil?.agencia_logo ? <img src={perfil.agencia_logo} alt="Logo Agencia" className="h-16 object-contain" /> : <div className="flex items-center gap-2"><span className="text-3xl">🐾</span><span className="text-3xl font-black text-slate-800">Mora Analytics</span></div>}</div>
-                        <div className="text-right">
-                          <h2 className="text-2xl font-black text-slate-800 tracking-tight">{modoPlan === 'agencia' && perfil?.agencia_nombre ? perfil.agencia_nombre : "Auditoría Estratégica"}</h2>
-                          {modoPlan === 'agencia' && agenciaWeb && <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-widest">{agenciaWeb}</p>}
-                          <p className="text-sm font-medium text-slate-500 mt-1">{new Date().toLocaleDateString()}</p>
-                        </div>
+              {/* VISTA: MIS REPORTES */}
+              {vista === "historial" && !vistaComparacion && (
+                <div className="animate-fade-custom print:hidden relative z-10 w-full max-w-[1400px] mx-auto flex flex-col gap-6">
+                  
+                  <div className="flex justify-between items-center mb-6">
+                    <div>
+                      <h2 className="text-3xl font-black text-[#F5F0EB]">Historial de Auditorías</h2>
+                      <p className="text-[#A8A29E] text-sm mt-1 font-medium">Compará el progreso de tus cuentas en el tiempo.</p>
+                    </div>
+                    {comparacionIds.length === 2 && (
+                      <button onClick={() => setVistaComparacion(true)} className="animate-fade-custom flex items-center gap-2 px-6 py-3 rounded-xl font-black text-sm bg-[#F3C3B2] text-[#0a0a0a] hover:bg-[#eab3a1] transition-all shadow-lg hover:shadow-[#F3C3B2]/20 hover:scale-105 uppercase tracking-widest border border-[#F3C3B2]/50">
+                        <BarChart3 size={18} /> Comparar Selección
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col gap-4">
+                    {clientesFiltrados.length === 0 ? (
+                      <div className="bg-[#1C1917] border border-[#44403C] rounded-[2rem] p-16 text-center text-[#A8A29E] text-base font-medium">
+                        No se encontraron auditorías.
                       </div>
+                    ) : (
+                      clientesFiltrados.map((item, index) => {
+                        const accountAudits = historial.filter(h => h.nombre_cuenta === item.nombre_cuenta);
+                        const currentIdxInAccount = accountAudits.findIndex(h => h.id === item.id);
+                        const previousAudit = currentIdxInAccount !== -1 && currentIdxInAccount + 1 < accountAudits.length ? accountAudits[currentIdxInAccount + 1] : null;
+                        const delta = previousAudit ? item.score - previousAudit.score : null;
+                        
+                        const st = getDashboardStatus(item.score);
+                        const gastoDesperdiciado = item.reporte_json?.resumen?.gasto_desperdiciado || 0;
+                        const fugas = item.reporte_json?.hallazgos?.graves_rojo?.length || 0;
+                        const mejoras = item.reporte_json?.hallazgos?.debiles_amarillo?.length || 0;
+                        const isSelected = comparacionIds.includes(item.id);
 
-                      <div className="flex justify-between items-center mb-10 pb-10 border-b border-[#2C352E] print:border-slate-200 print:mb-12">
-                        <div>
-                          <h2 className="text-[10px] font-bold text-[#8A968C] uppercase tracking-widest mb-2 print:text-slate-500 print:text-xs">{nombreCuenta || t[idioma].cuentaSinNombre}</h2>
-                          <div className="flex items-center gap-5">
-                            <div className={`w-16 h-16 rounded-xl flex items-center justify-center border-2 border-[#2C352E] text-2xl font-black text-[#E8EBE4] print:border-slate-300 print:text-slate-800`}>{reporte.score_general}</div>
-                            <div><h3 className="text-2xl font-bold text-[#E8EBE4] print:text-slate-900">{t[idioma].score}</h3><p className="text-[#8A968C] text-xs mt-1 print:text-slate-500">{t[idioma].puntajeBasado}</p></div>
-                          </div>
-                        </div>
-                        {subVistaReporte === "diagnostico" && modoPlan === 'agencia' && <button onClick={descargarPDF} className="bg-[#2C352E] hover:bg-[#8A968C] text-[#E8EBE4] px-4 py-2 rounded-lg text-sm font-bold transition-all print:hidden shadow-sm">{t[idioma].exportar}</button>}
-                      </div>
-                      
-                      {subVistaReporte === "diagnostico" && (
-                        <div className="space-y-6 animate-fade-custom">
-                          {reporte.hallazgos?.graves_rojo?.length > 0 && (
-                            <div className="border-l-4 border-l-[#E66767] bg-[#E66767]/5 p-6 rounded-xl border border-[#2C352E] print:bg-red-50 print:border-red-100 print:shadow-sm">
-                              <h3 className="text-sm font-bold text-[#E66767] uppercase tracking-widest mb-4 flex items-center gap-2 print:text-red-700"><AlertTriangle size={18}/> {t[idioma].problemas}</h3>
-                              {reporte.hallazgos.graves_rojo.map((item: any, i: number) => (<p key={i} className="mb-4 text-[#8A968C] text-sm leading-relaxed print:text-slate-700 print:break-inside-avoid"><b className="text-[#E8EBE4] print:text-slate-900 font-bold">{item.titulo}:</b> <br/>{item.descripcion}</p>))}
-                            </div>
-                          )}
-                          {reporte.hallazgos?.debiles_amarillo?.length > 0 && (
-                            <div className="border-l-4 border-l-[#EAB308] bg-[#EAB308]/5 p-6 rounded-xl border border-[#2C352E] print:bg-amber-50 print:border-amber-100 print:shadow-sm">
-                              <h3 className="text-sm font-bold text-[#EAB308] uppercase tracking-widest mb-4 flex items-center gap-2 print:text-amber-700"><Zap size={18}/> {t[idioma].mejoras}</h3>
-                              {reporte.hallazgos.debiles_amarillo.map((item: any, i: number) => (<p key={i} className="mb-4 text-[#8A968C] text-sm leading-relaxed print:text-slate-700 print:break-inside-avoid"><b className="text-[#E8EBE4] print:text-slate-900 font-bold">{item.titulo}:</b> <br/>{item.descripcion}</p>))}
-                            </div>
-                          )}
-                          {reporte.hallazgos?.bien_verde?.length > 0 && (
-                            <div className="border-l-4 border-l-[#99CDD8] bg-[#99CDD8]/5 p-6 rounded-xl border border-[#2C352E] print:bg-emerald-50 print:border-emerald-100 print:shadow-sm">
-                              <h3 className="text-sm font-bold text-[#99CDD8] uppercase tracking-widest mb-4 flex items-center gap-2 print:text-emerald-700"><CheckCircle2 size={18}/> {t[idioma].aciertos}</h3>
-                              {reporte.hallazgos.bien_verde.map((item: any, i: number) => (<p key={i} className="mb-4 text-[#8A968C] text-sm leading-relaxed print:text-slate-700 print:break-inside-avoid"><b className="text-[#E8EBE4] print:text-slate-900 font-bold">{item.titulo}:</b> <br/>{item.descripcion}</p>))}
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {subVistaReporte === "checklist" && (
-                         <div className="animate-fade-custom bg-[#131714] border border-[#2C352E] rounded-xl p-8">
-                            <div className="flex items-center justify-between mb-8 pb-4 border-b border-[#2C352E]">
-                               <div>
-                                 <h3 className="text-lg font-bold text-[#E8EBE4] flex items-center gap-2"><ListChecks size={20} className="text-[#F3C3B2]" /> Optimización Rápida</h3>
-                                 <p className="text-[#8A968C] text-xs mt-1">Completá estas tareas para mejorar el Score.</p>
-                               </div>
-                               <div className="text-right">
-                                 <p className="text-[10px] font-bold text-[#8A968C] uppercase tracking-widest">Progreso</p>
-                                 <p className="text-lg font-bold text-[#F3C3B2]">{tareasCompletadas.length} / {reporte.checklist?.length || 0}</p>
-                               </div>
-                            </div>
-
-                            {reporte.checklist ? (
-                              <div className="space-y-3">
-                                {reporte.checklist.map((item: any, i: number) => {
-                                  const esCompletada = tareasCompletadas.includes(i);
-                                  return (
-                                    <div key={i} className={`flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-lg border transition-all duration-300 ${esCompletada ? "bg-[#99CDD8]/5 border-[#99CDD8]/20 opacity-50" : "bg-[#1A1F1B] border-[#2C352E] hover:border-[#F3C3B2]/50"}`}>
-                                       <div className="flex items-start gap-4">
-                                         <button onClick={() => toggleTarea(i)} className={`mt-0.5 w-5 h-5 rounded border flex items-center justify-center transition-colors ${esCompletada ? "bg-[#99CDD8] border-[#99CDD8] text-[#131714]" : "border-[#8A968C] hover:border-[#F3C3B2]"}`}>
-                                            {esCompletada && <CheckSquare size={14} strokeWidth={3} />}
-                                         </button>
-                                         <div>
-                                           <p className={`font-bold text-sm transition-all ${esCompletada ? "line-through text-[#8A968C]" : "text-[#E8EBE4]"}`}>{item.tarea}</p>
-                                           <div className="flex gap-2 mt-1.5">
-                                             <span className={`text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded ${item.color === 'rojo' ? 'bg-[#E66767]/10 text-[#E66767]' : 'bg-[#EAB308]/10 text-[#EAB308]'}`}>Prioridad {item.impacto}</span>
-                                           </div>
-                                         </div>
-                                       </div>
-                                       <button onClick={() => setMostrarConfirmacion(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-md font-bold text-[10px] uppercase tracking-widest bg-[#2C352E] text-[#E8EBE4] hover:bg-[#8A968C] transition-colors group">
-                                          <Sparkles size={12} className="text-[#F3C3B2] group-hover:animate-pulse" /> {t[idioma].autoApply}
-                                       </button>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            ) : (
-                              <div className="text-center text-[#8A968C] text-sm py-10">Esta auditoría no tiene Checklist.</div>
-                            )}
-                         </div>
-                      )}
-
-                      {subVistaReporte === "avanzado" && (
-                         <div className="animate-fade-custom grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        return (
+                          <div key={item.id} className={`bg-[#1C1917] border hover:border-[#F3C3B2]/50 rounded-[1.5rem] p-6 flex items-center justify-between gap-6 transition-all shadow-sm hover:shadow-lg group ${isSelected ? 'border-[#F3C3B2] bg-[#F3C3B2]/5' : 'border-[#44403C]'}`}>
                             
-                            {reporte.pacing ? (
-                              <div className="bg-[#131714] border border-[#2C352E] rounded-xl p-6 flex flex-col justify-center">
-                                 <h3 className="text-sm font-bold text-[#E8EBE4] mb-1 flex items-center gap-2"><Clock size={16} className={reporte.pacing.color}/> {t[idioma].pacingTit}</h3>
-                                 <p className="text-xs text-[#8A968C] mb-6">{t[idioma].pacingDesc}</p>
-                                 
-                                 <div className="flex justify-between items-end mb-2">
-                                    <div><p className="text-[10px] font-bold text-[#8A968C] uppercase tracking-widest">Gasto Actual</p><p className="text-2xl font-black text-[#E8EBE4] mt-1">${reporte.pacing.gasto}</p></div>
-                                    <div className="text-right"><p className="text-[10px] font-bold text-[#8A968C] uppercase tracking-widest">Presupuesto</p><p className="text-lg font-bold text-[#8A968C] mt-1">${reporte.pacing.presupuesto}</p></div>
-                                 </div>
-                                 <div className="w-full bg-[#1A1F1B] rounded-full h-2 mb-4 border border-[#2C352E] overflow-hidden">
-                                   <div className={`${reporte.pacing.bg} h-2 rounded-full transition-all duration-1000`} style={{width: `${reporte.pacing.porcentajeActual}%`}}></div>
-                                 </div>
-                                 <p className={`text-[10px] font-bold ${reporte.pacing.color} uppercase tracking-widest`}>
-                                   {reporte.pacing.mensaje}
-                                 </p>
-                              </div>
-                            ) : (
-                              <div className="bg-[#131714] border border-[#2C352E] rounded-xl p-6 flex items-center justify-center text-[#8A968C] text-xs text-center">
-                                Este reporte no tiene datos de presupuesto.
-                              </div>
-                            )}
-
-                            <div className="bg-[#131714] border border-[#2C352E] rounded-xl p-6">
-                               <div className="flex justify-between items-start mb-6">
-                                 <div>
-                                   <h3 className="text-sm font-bold text-[#E8EBE4] mb-1 flex items-center gap-2"><LayoutGrid size={16} className="text-[#F3C3B2]"/> {t[idioma].matrizTit}</h3>
-                                   <p className="text-xs text-[#8A968C]">{t[idioma].matrizDesc}</p>
-                                 </div>
-                                 <span className="px-2 py-0.5 bg-[#2C352E] text-[#8A968C] text-[9px] font-bold rounded uppercase tracking-widest">Pronto</span>
-                               </div>
-                               
-                               <div className="grid grid-cols-2 gap-2 h-32 opacity-30 grayscale cursor-not-allowed">
-                                  <div className="bg-[#99CDD8]/10 border border-[#99CDD8]/20 rounded-lg p-2 flex flex-col justify-between">
-                                    <span className="text-[9px] font-bold text-[#99CDD8] uppercase">{t[idioma].escalar}</span>
-                                    <span className="text-lg font-black text-[#E8EBE4]">?</span>
-                                  </div>
-                                  <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-2 flex flex-col justify-between">
-                                    <span className="text-[9px] font-bold text-blue-400 uppercase">{t[idioma].potenciales}</span>
-                                    <span className="text-lg font-black text-[#E8EBE4]">?</span>
-                                  </div>
-                                  <div className="bg-[#EAB308]/10 border border-[#EAB308]/20 rounded-lg p-2 flex flex-col justify-between">
-                                    <span className="text-[9px] font-bold text-[#EAB308] uppercase">{t[idioma].observar}</span>
-                                    <span className="text-lg font-black text-[#E8EBE4]">?</span>
-                                  </div>
-                                  <div className="bg-[#E66767]/10 border border-[#E66767]/20 rounded-lg p-2 flex flex-col justify-between">
-                                    <span className="text-[9px] font-bold text-[#E66767] uppercase">{t[idioma].apagar}</span>
-                                    <span className="text-lg font-black text-[#E8EBE4]">?</span>
-                                  </div>
-                               </div>
+                            <div className="flex items-center gap-4">
+                              <button 
+                                onClick={() => {
+                                  if (isSelected) setComparacionIds(comparacionIds.filter(id => id !== item.id));
+                                  else if (comparacionIds.length < 2) setComparacionIds([...comparacionIds, item.id]);
+                                }}
+                                className={`w-6 h-6 rounded border-2 flex items-center justify-center transition-colors ${isSelected ? 'bg-[#F3C3B2] border-[#F3C3B2] text-[#0a0a0a]' : 'border-[#44403C] hover:border-[#A8A29E]'}`}
+                              >
+                                {isSelected && <Check size={14} strokeWidth={3} />}
+                              </button>
                             </div>
 
-                         </div>
-                      )}
+                            <div className="w-1/5 min-w-[180px]">
+                              <p className="font-black text-[#F5F0EB] text-xl truncate mb-1">{item.nombre_cuenta || 'Cuenta Sin Nombre'}</p>
+                              <p className="text-xs font-bold text-[#A8A29E] uppercase tracking-widest">{parseDate(item.created_at)}</p>
+                            </div>
 
-                      <div className="hidden print:block mt-16 pt-6 border-t border-slate-200 text-center"><p className="text-xs text-slate-400 font-medium">{agenciaPie}</p></div>
-                    </div>
-                  </div>
-                )}
-
-                {/* VISTA: HISTORIAL */}
-                {vista === "historial" && (
-                  <div className="animate-fade-custom bg-[#1A1F1B] border border-[#2C352E] p-8 rounded-2xl shadow-xl flex flex-col min-h-[600px] print:hidden relative z-10 max-w-5xl mx-auto">
-                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
-                       <div>
-                         <h2 className="text-2xl font-bold text-[#E8EBE4]">{modoPlan === 'agencia' ? t[idioma].monitoreo : "Historial de Auditorías"}</h2>
-                         <p className="text-sm text-[#8A968C] mt-1">{t[idioma].tenes} {historial.length} {t[idioma].registradas}</p>
-                       </div>
-
-                       <div className="flex bg-[#131714] p-1 rounded-lg border border-[#2C352E]">
-                           <button onClick={() => setFiltroEstado("todos")} className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${filtroEstado === 'todos' ? 'bg-[#2C352E] text-[#E8EBE4]' : 'text-[#8A968C] hover:text-[#E8EBE4]'}`}>{t[idioma].todos}</button>
-                           <button onClick={() => setFiltroEstado("critico")} className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 ${filtroEstado === 'critico' ? 'bg-[#E66767]/10 text-[#E66767]' : 'text-[#8A968C] hover:text-[#E66767]'}`}><span className="w-1.5 h-1.5 rounded-full bg-current"></span> {t[idioma].criticos}</button>
-                           <button onClick={() => setFiltroEstado("atencion")} className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 ${filtroEstado === 'atencion' ? 'bg-[#EAB308]/10 text-[#EAB308]' : 'text-[#8A968C] hover:text-[#EAB308]'}`}><span className="w-1.5 h-1.5 rounded-full bg-current"></span> {t[idioma].atencion}</button>
-                       </div>
-                    </div>
-                    
-                    <div className="flex-1 border-t border-[#2C352E]">
-                      <div className="grid grid-cols-12 gap-4 py-3 border-b border-[#2C352E] text-[10px] font-bold text-[#8A968C] uppercase tracking-widest items-center px-4">
-                        <div className="col-span-4">{t[idioma].thCliente}</div>
-                        <div className="col-span-2 text-center">{t[idioma].thFecha}</div>
-                        <div className="col-span-2 text-center">{t[idioma].score}</div>
-                        <div className="col-span-2 text-center">Estado</div>
-                        <div className="col-span-2 text-right">{t[idioma].thAccion}</div>
-                      </div>
-
-                      {clientesFiltrados.length === 0 ? (
-                        <div className="p-10 text-center text-[#8A968C] text-sm font-medium border border-dashed border-[#2C352E] rounded-xl mt-4">No se encontraron auditorías.</div>
-                      ) : (
-                        <div className="divide-y divide-[#2C352E]">
-                          {clientesFiltrados.map((item, index) => {
-                            const st = getDashboardStatus(item.score);
-
-                            return (
-                              <div key={index} className="grid grid-cols-12 gap-4 py-4 items-center hover:bg-[#2C352E]/30 transition-colors px-4 rounded-lg">
-                                <div className="col-span-4 flex items-center gap-3">
-                                  <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${st.bgTints} ${st.color} border border-transparent flex-shrink-0`}>{item.score}</div>
-                                  <p className="font-bold text-[#E8EBE4] text-sm truncate">{item.nombre_cuenta || t[idioma].cuentaSinNombre}</p>
+                            <div className="w-1/5 flex items-center gap-4">
+                              <span className={`text-[52px] font-black tracking-tighter ${st.color}`}>{item.score}</span>
+                              {delta !== null && delta !== 0 && (
+                                <div className={`flex flex-col items-center justify-center px-2.5 py-1.5 rounded-lg border shadow-inner ${delta > 0 ? 'bg-[#10B981]/10 border-[#10B981]/20 text-[#10B981]' : 'bg-[#E07070]/10 border-[#E07070]/20 text-[#E07070]'}`}>
+                                  <span className="text-[10px] font-black uppercase tracking-widest leading-none">
+                                    {delta > 0 ? '+' : ''}{delta} pts
+                                  </span>
                                 </div>
-                                <div className="col-span-2 text-center"><p className="text-xs text-[#8A968C] font-medium">{parseDate(item.created_at)}</p></div>
-                                
-                                <div className="col-span-2 flex flex-col justify-center px-2">
-                                  <div className="w-full h-1.5 bg-[#131714] rounded-full overflow-hidden border border-[#2C352E]/50">
-                                    <div className={`h-full rounded-full transition-all`} style={{width: `${item.score}%`, backgroundColor: st.color.replace('text-[', '').replace(']', '')}}></div>
-                                  </div>
-                                </div>
+                              )}
+                            </div>
 
-                                <div className="col-span-2 flex justify-center">
-                                  <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-[10px] font-bold ${st.bgTints} ${st.color}`}><st.icon size={10} /> {st.label}</span>
-                                </div>
-
-                                <div className="col-span-2 flex justify-end items-center gap-3">
-                                  <button onClick={() => { setReporte(item.reporte_json); setNombreCuenta(item.nombre_cuenta || t[idioma].cuentaSinNombre); setSubVistaReporte("diagnostico"); setVista("reporte_lectura"); }} className="text-[10px] uppercase tracking-widest font-bold text-[#8A968C] border border-[#2C352E] hover:text-[#E8EBE4] hover:bg-[#2C352E] px-3 py-1.5 rounded transition-colors">
-                                    {t[idioma].abrirAud}
-                                  </button>
-                                  <button onClick={() => borrarAuditoria(item.id)} className="text-[#8A968C] hover:text-[#E66767] transition-colors p-1" title="Eliminar">
-                                    <Trash2 size={14} />
-                                  </button>
-                                </div>
+                            <div className="w-1/5">
+                              <div className="bg-[#292524] border border-[#44403C] rounded-xl p-3 inline-block">
+                                <p className="text-[9px] font-black text-[#A8A29E] uppercase tracking-widest mb-1">Gasto Desperdiciado</p>
+                                <p className="text-lg font-black text-[#E07070]">
+                                  {gastoDesperdiciado > 0 ? `-$${gastoDesperdiciado.toLocaleString()}` : '$0.00'}
+                                </p>
                               </div>
-                            )
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
+                            </div>
 
-                {/* VISTA: CONFIGURACIÓN / PERFIL */}
-                {vista === "perfil" && (
-                  <div className="animate-fade-custom bg-[#1A1F1B] border border-[#2C352E] p-10 rounded-2xl shadow-xl max-w-4xl mx-auto print:hidden relative z-10">
-                    <div className="flex items-center gap-4 mb-8 pb-6 border-b border-[#2C352E]">
-                       <div className="w-10 h-10 bg-[#2C352E] rounded-xl flex items-center justify-center text-[#E8EBE4]"><Settings size={20} /></div>
-                       <div>
-                          <h2 className="text-xl font-bold text-[#E8EBE4]">{t[idioma].configuracion}</h2>
-                          <p className="text-[#8A968C] text-xs mt-1">{t[idioma].persPdf}</p>
+                            <div className="w-1/5 flex flex-col gap-2">
+                              <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg w-max border ${fugas > 0 ? 'bg-[#E07070]/10 text-[#E07070] border-[#E07070]/20' : 'bg-[#292524] text-[#A8A29E] border-[#44403C]'}`}>
+                                {fugas} {fugas === 1 ? 'Fuga' : 'Fugas'}
+                              </span>
+                              <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg w-max border ${mejoras > 0 ? 'bg-[#EAB308]/10 text-[#EAB308] border-[#EAB308]/20' : 'bg-[#292524] text-[#A8A29E] border-[#44403C]'}`}>
+                                {mejoras} {mejoras === 1 ? 'Mejora' : 'Mejoras'}
+                              </span>
+                            </div>
+
+                            <div className="flex justify-end gap-3">
+                              <button onClick={() => borrarAuditoria(item.id)} className="text-[#8A968C] hover:text-[#E66767] transition-colors p-3.5 bg-[#292524] border border-[#44403C] rounded-xl hover:border-[#E66767]/30 shadow-sm"><Trash2 size={16} /></button>
+                              
+                              <button 
+                                onClick={() => window.open(`/api/pdf?id=${item.id}`, '_self')}
+                                className="bg-[#F3C3B2] text-[#0a0a0a] hover:bg-[#eab3a1] px-5 py-3.5 rounded-xl text-xs uppercase tracking-widest font-black transition-all shadow-sm flex items-center gap-1.5"
+                              >
+                                <FileText size={14} /> PDF
+                              </button>
+
+                              <button 
+                                onClick={() => { setReporte(item.reporte_json); setNombreCuenta(item.nombre_cuenta || 'Sin nombre'); setSubVistaReporte("diagnostico"); setVista("reporte_lectura"); }} 
+                                className="bg-[#292524] border border-[#44403C] text-[#A8A29E] hover:text-[#F5F0EB] hover:border-[#F5F0EB] px-6 py-3.5 rounded-xl text-xs uppercase tracking-widest font-black transition-all shadow-sm"
+                              >
+                                Ver Solitario
+                              </button>
+                            </div>
+
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* VISTA: COMPARACIÓN */}
+              {vista === "historial" && vistaComparacion && (() => {
+                 const selected = historial.filter(h => comparacionIds.includes(h.id)).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+                 if (selected.length !== 2) return null;
+                 const auditA = selected[0]; 
+                 const auditB = selected[1]; 
+
+                 const deltaScore = auditB.score - auditA.score;
+                 const wasteA = auditA.reporte_json?.resumen?.gasto_desperdiciado || 0;
+                 const wasteB = auditB.reporte_json?.resumen?.gasto_desperdiciado || 0;
+                 const deltaWaste = wasteA - wasteB; 
+                 
+                 const fugasA = auditA.reporte_json?.hallazgos?.graves_rojo || [];
+                 const fugasB = auditB.reporte_json?.hallazgos?.graves_rojo || [];
+                 
+                 const getID = (item: any) => item.id_rastreo || item.titulo;
+                 const aplicadas = fugasA.filter((a: any) => !fugasB.some((b: any) => getID(b) === getID(a)));
+                 const persistentes = fugasA.filter((a: any) => fugasB.some((b: any) => getID(b) === getID(a)));
+                 const nuevas = fugasB.filter((b: any) => !fugasA.some((a: any) => getID(a) === getID(b)));
+
+                 return (
+                  <div className="animate-fade-custom print:hidden relative z-10 w-full max-w-[1400px] mx-auto flex flex-col gap-8">
+                    <div className="flex justify-between items-center border-b border-[#44403C]/50 pb-6">
+                      <div className="flex items-center gap-4">
+                        <button onClick={() => { setVistaComparacion(false); setComparacionIds([]); }} className="p-2.5 rounded-xl bg-[#292524] border border-[#44403C] text-[#A8A29E] hover:text-[#F5F0EB] transition-colors"><ArrowLeft size={18} /></button>
+                        <div>
+                          <h2 className="text-3xl font-black text-[#F5F0EB]">Rendición de Cuentas</h2>
+                          <p className="text-[#A8A29E] text-sm mt-1 font-medium uppercase tracking-widest text-[10px] font-black">{auditA.nombre_cuenta}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-6 items-stretch">
+                       <div className="bg-[#1C1917] border border-[#44403C] rounded-3xl p-8 opacity-60">
+                         <p className="text-[10px] font-black text-[#A8A29E] uppercase tracking-widest mb-6 bg-[#292524] w-max px-3 py-1.5 rounded-lg border border-[#44403C]">Foto Pasada ({parseDate(auditA.created_at)})</p>
+                         <div className="flex justify-between items-end">
+                           <div><p className="text-[10px] text-[#A8A29E] uppercase font-black tracking-widest">Score Antiguo</p><p className="text-5xl font-black text-[#F5F0EB]">{auditA.score}</p></div>
+                           <div className="text-right"><p className="text-[10px] text-[#A8A29E] uppercase font-black tracking-widest">Desperdicio</p><p className="text-2xl font-black text-[#E07070]">-${wasteA}</p></div>
+                         </div>
+                       </div>
+
+                       <div className="flex flex-col justify-center items-center bg-[#292524] border-2 border-[#44403C] rounded-3xl p-8 shadow-2xl relative">
+                          <p className="absolute top-[-12px] bg-[#1C1917] px-4 py-1 rounded-full text-[10px] font-black text-[#A8A29E] uppercase tracking-widest border border-[#44403C]">Impacto Generado</p>
+                          <div className="text-center mb-6 w-full">
+                            <p className="text-[10px] text-[#A8A29E] uppercase font-black tracking-widest mb-1">Evolución de Salud</p>
+                            <span className={`text-6xl font-black tracking-tighter ${deltaScore >= 0 ? 'text-[#10B981]' : 'text-[#E07070]'}`}>
+                              {deltaScore > 0 ? '+' : ''}{deltaScore} <span className="text-xl">pts</span>
+                            </span>
+                          </div>
+                          <div className="w-full h-px bg-[#44403C]/50 mb-6"></div>
+                          <div className="text-center w-full">
+                            <p className="text-[10px] text-[#A8A29E] uppercase font-black tracking-widest mb-1">Evolución de Presupuesto</p>
+                            <span className={`text-3xl font-black ${deltaWaste >= 0 ? 'text-[#10B981]' : 'text-[#E07070]'}`}>
+                              {deltaWaste > 0 ? 'Se salvaron ' : 'Se perdieron extras '}
+                              ${Math.abs(deltaWaste).toLocaleString()}
+                            </span>
+                          </div>
+                       </div>
+
+                       <div className="bg-[#1C1917] border-2 border-[#F3C3B2]/30 shadow-[0_0_30px_rgba(243,195,178,0.05)] rounded-3xl p-8">
+                         <p className="text-[10px] font-black text-[#F3C3B2] uppercase tracking-widest mb-6 bg-[#F3C3B2]/10 w-max px-3 py-1.5 rounded-lg border border-[#F3C3B2]/20">Foto Actual ({parseDate(auditB.created_at)})</p>
+                         <div className="flex justify-between items-end">
+                           <div><p className="text-[10px] text-[#A8A29E] uppercase font-black tracking-widest">Score Actual</p><p className="text-5xl font-black text-[#F5F0EB]">{auditB.score}</p></div>
+                           <div className="text-right"><p className="text-[10px] text-[#A8A29E] uppercase font-black tracking-widest">Desperdicio</p><p className="text-2xl font-black text-[#E07070]">-${wasteB}</p></div>
+                         </div>
                        </div>
                     </div>
+
+                    <div className="mt-4">
+                      <h3 className="text-xl font-black text-[#F5F0EB] mb-6 flex items-center gap-3"><CheckSquare className="text-[#F3C3B2]"/> Evaluación de Ejecución</h3>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+                        <div className="flex flex-col gap-4">
+                          <div className="bg-[#10B981]/10 border border-[#10B981]/20 p-4 rounded-2xl flex items-center gap-3">
+                            <div className="w-8 h-8 bg-[#10B981]/20 rounded-lg flex items-center justify-center"><CheckCircle2 size={16} className="text-[#10B981]"/></div>
+                            <div><p className="text-[#10B981] font-black text-sm">Fugas Tapadas</p><p className="text-[10px] text-[#A8A29E] uppercase tracking-widest font-black">Buen trabajo</p></div>
+                          </div>
+                          {aplicadas.length === 0 ? <p className="text-center text-[#A8A29E] text-xs font-bold py-4">No se taparon fugas pasadas.</p> : aplicadas.map((item: any, i: number) => (
+                            <div key={i} className="bg-[#292524] border border-[#10B981]/30 p-5 rounded-2xl shadow-inner border-l-4 border-l-[#10B981]">
+                              <p className="text-[#F5F0EB] text-sm font-black leading-tight line-through opacity-70">{item.titulo}</p>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="flex flex-col gap-4">
+                          <div className="bg-[#EAB308]/10 border border-[#EAB308]/20 p-4 rounded-2xl flex items-center gap-3">
+                            <div className="w-8 h-8 bg-[#EAB308]/20 rounded-lg flex items-center justify-center"><AlertTriangle size={16} className="text-[#EAB308]"/></div>
+                            <div><p className="text-[#EAB308] font-black text-sm">Fugas Ignoradas</p><p className="text-[10px] text-[#A8A29E] uppercase tracking-widest font-black">Siguen drenando plata</p></div>
+                          </div>
+                          {persistentes.length === 0 ? <p className="text-center text-[#A8A29E] text-xs font-bold py-4">Sin fugas arrastradas.</p> : persistentes.map((item: any, i: number) => (
+                            <div key={i} className="bg-[#292524] border border-[#EAB308]/30 p-5 rounded-2xl shadow-inner border-l-4 border-l-[#EAB308]">
+                              <p className="text-[#F5F0EB] text-sm font-black leading-tight">{item.titulo}</p>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="flex flex-col gap-4">
+                          <div className="bg-[#E07070]/10 border border-[#E07070]/20 p-4 rounded-2xl flex items-center gap-3">
+                            <div className="w-8 h-8 bg-[#E07070]/20 rounded-lg flex items-center justify-center"><Zap size={16} className="text-[#E07070]"/></div>
+                            <div><p className="text-[#E07070] font-black text-sm">Nuevos Fuegos</p><p className="text-[10px] text-[#A8A29E] uppercase tracking-widest font-black">Problemas nacidos hoy</p></div>
+                          </div>
+                          {nuevas.length === 0 ? <p className="text-center text-[#A8A29E] text-xs font-bold py-4">No hay problemas nuevos.</p> : nuevas.map((item: any, i: number) => (
+                            <div key={i} className="bg-[#292524] border border-[#E07070]/30 p-5 rounded-2xl shadow-inner border-l-4 border-l-[#E07070]">
+                              <p className="text-[#F5F0EB] text-sm font-black leading-tight">{item.titulo}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                 );
+              })()}
+
+              {/* VISTA: LECTURA DE REPORTE INDIVIDUAL */}
+              {vista === "reporte_lectura" && reporte && (
+                <div className="animate-fade-custom relative z-10 w-full max-w-[1400px] mx-auto flex flex-col gap-6">
+                  <div className="mb-6 flex justify-between items-center">
+                     <button onClick={() => setVista("historial")} className="flex items-center gap-2 p-2.5 rounded-xl bg-[#292524] border border-[#44403C] text-[#A8A29E] hover:text-[#F5F0EB] font-bold transition-colors text-sm"><ArrowLeft size={18} /></button>
+                     
+                     <button 
+                       onClick={() => {
+                         const actual = historial.find(h => h.reporte_json === reporte);
+                         if (actual) window.open(`/api/pdf?id=${actual.id}`, '_self');
+                       }}
+                       className="bg-[#F3C3B2] text-[#0a0a0a] hover:bg-[#eab3a1] px-5 py-2.5 rounded-xl text-xs uppercase tracking-widest font-black transition-all shadow-sm flex items-center gap-1.5 ml-auto mr-4"
+                     >
+                       <FileText size={14} /> Exportar PDF
+                     </button>
+
+                     <div className="px-4 py-2 bg-[#292524] border border-[#44403C] rounded-xl shadow-sm text-xs font-black uppercase tracking-widest text-[#F3C3B2]">
+                       Diagnóstico Estático
+                     </div>
+                  </div>
+
+                  <div className="bg-[#1C1917] border border-[#44403C] p-12 rounded-[2.5rem] shadow-sm">
+                    <div className="flex justify-between items-center mb-12 pb-12 border-b border-[#44403C]/50">
+                      <div>
+                        <h2 className="text-[10px] font-black text-[#A8A29E] uppercase tracking-widest mb-3">Foto del Estado de Cuenta</h2>
+                        <div className="flex items-center gap-6">
+                          <div className={`w-24 h-24 rounded-3xl flex items-center justify-center border border-[#44403C] bg-[#292524] text-4xl font-black text-[#F5F0EB] shadow-inner`}>
+                            {reporte.health_score ?? reporte.score_general ?? 0}
+                          </div>
+                          <div><h3 className="text-4xl font-black text-[#F5F0EB]">{t[idioma].score}</h3><p className="text-[#A8A29E] text-sm mt-2 font-bold">{t[idioma].puntajeBasado}</p></div>
+                        </div>
+                      </div>
+                    </div>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                      <div className="space-y-6">
-                        <h3 className="text-[10px] font-bold text-[#8A968C] uppercase tracking-widest mb-4">Marca Blanca Visual</h3>
-                        <div><label className="block text-[10px] font-bold text-[#8A968C] mb-2 uppercase tracking-widest">{t[idioma].nomAgencia}</label><input type="text" className="w-full p-3.5 bg-[#131714] border border-[#2C352E] rounded-xl text-[#E8EBE4] focus:border-[#8A968C] focus:outline-none transition-all text-sm" value={agenciaNombre} onChange={(e) => setAgenciaNombre(e.target.value)} /></div>
-                        <div><label className="block text-[10px] font-bold text-[#8A968C] mb-2 uppercase tracking-widest">{t[idioma].sitioWeb}</label><input type="text" placeholder="Ej: www.tuagencia.com" className="w-full p-3.5 bg-[#131714] border border-[#2C352E] rounded-xl text-[#E8EBE4] focus:border-[#8A968C] focus:outline-none transition-all text-sm" value={agenciaWeb} onChange={(e) => setAgenciaWeb(e.target.value)} /></div>
-                        <div>
-                          <label className="block text-[10px] font-bold text-[#8A968C] mb-2 uppercase tracking-widest">{t[idioma].logoPdf}</label>
-                          <div className="flex items-center gap-6 p-4 border border-[#2C352E] rounded-xl bg-[#131714]">
-                            {agenciaLogo ? <img src={agenciaLogo} alt="Logo" className="w-12 h-12 object-contain rounded bg-white p-1" /> : <div className="w-12 h-12 bg-[#2C352E] rounded flex items-center justify-center text-[#8A968C] text-[9px] uppercase font-bold text-center border border-dashed border-[#8A968C]">Sube</div>}
-                            <div className="flex-1"><input type="file" accept="image/*" onChange={subirLogo} disabled={uploading} className="w-full text-xs text-[#8A968C] cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-[10px] file:uppercase file:tracking-widest file:font-bold file:bg-[#2C352E] file:text-[#E8EBE4] hover:file:bg-[#8A968C] transition-all" /></div>
+                    <div className="space-y-8 animate-fade-custom grid grid-cols-1 gap-8">
+                      {reporte.hallazgos?.graves_rojo?.length > 0 && (
+                        <div className="bg-[#292524] p-10 rounded-3xl border border-[#E07070]/30 shadow-sm">
+                          <h3 className="text-base font-black text-[#E07070] uppercase tracking-widest mb-8 flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-[#E07070]/10 flex items-center justify-center"><AlertTriangle size={20}/></div> 
+                            {t[idioma].problemas}
+                          </h3>
+                          <div className="space-y-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+                            {reporte.hallazgos.graves_rojo.map((item: any, i: number) => (
+                              <div key={i} className="border-l-4 border-[#E07070]/30 pl-5">
+                                <p className="text-[#F5F0EB] font-black text-xl mb-2">{item.titulo}</p>
+                                <p className="text-[#A8A29E] text-base leading-relaxed font-medium">{modoSimple ? (item.descripcion_simple || item.descripcion) : (item.descripcion_tecnica || item.descripcion)}</p>
+                              </div>
+                            ))}
                           </div>
                         </div>
-                        <div><label className="block text-[10px] font-bold text-[#8A968C] mb-2 uppercase tracking-widest">{t[idioma].piePagina}</label><textarea className="w-full h-20 p-3.5 bg-[#131714] border border-[#2C352E] rounded-xl text-[#E8EBE4] text-sm focus:border-[#8A968C] focus:outline-none transition-all resize-none" value={agenciaPie} onChange={(e) => setAgenciaPie(e.target.value)} /></div>
-                      </div>
-
-                      <div className="space-y-6">
-                        <h3 className="text-[10px] font-bold text-[#8A968C] uppercase tracking-widest mb-4">Preferencias de Trabajo</h3>
-                        <div>
-                          <label className="block text-[10px] font-bold text-[#8A968C] mb-2 uppercase tracking-widest">{t[idioma].monedaDef}</label>
-                          <div className="relative"><select className="w-full p-3.5 bg-[#131714] border border-[#2C352E] rounded-xl text-[#E8EBE4] focus:border-[#8A968C] focus:outline-none transition-all appearance-none cursor-pointer text-sm" value={moneda} onChange={(e) => setMoneda(e.target.value)}><option value="USD ($)">Dólares USD ($)</option><option value="EUR (€)">Euros EUR (€)</option><option value="ARS ($)">Pesos Argentinos ARS ($)</option><option value="MXN ($)">Pesos Mexicanos MXN ($)</option></select><ChevronDown size={16} className="absolute right-4 top-1/2 transform -translate-y-1/2 text-[#8A968C] pointer-events-none" /></div>
+                      )}
+                      {reporte.hallazgos?.debiles_amarillo?.length > 0 && (
+                        <div className="bg-[#292524] p-10 rounded-3xl border border-[#D4A843]/30 shadow-sm">
+                          <h3 className="text-base font-black text-[#D4A843] uppercase tracking-widest mb-8 flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-[#D4A843]/10 flex items-center justify-center"><Zap size={20}/></div> 
+                            {t[idioma].mejoras}
+                          </h3>
+                          <div className="space-y-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+                            {reporte.hallazgos.debiles_amarillo.map((item: any, i: number) => (
+                              <div key={i} className="border-l-4 border-[#D4A843]/30 pl-5">
+                                <p className="text-[#F5F0EB] font-black text-xl mb-2">{item.titulo}</p>
+                                <p className="text-[#A8A29E] text-base leading-relaxed font-medium">{modoSimple ? (item.descripcion_simple || item.descripcion) : (item.descripcion_tecnica || item.descripcion)}</p>
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                        <div>
-                          <label className="block text-[10px] font-bold text-[#8A968C] mb-2 uppercase tracking-widest">{t[idioma].metricaDef}</label>
-                          <div className="relative"><select className="w-full p-3.5 bg-[#131714] border border-[#2C352E] rounded-xl text-[#E8EBE4] focus:border-[#8A968C] focus:outline-none transition-all appearance-none cursor-pointer text-sm" value={metrica} onChange={(e) => setMetrica(e.target.value)}><option value="ROAS">ROAS (Retorno de Inversión)</option><option value="CPA">CPA (Costo por Adquisición)</option><option value="ROI">ROI</option></select><ChevronDown size={16} className="absolute right-4 top-1/2 transform -translate-y-1/2 text-[#8A968C] pointer-events-none" /></div>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="border-t border-[#2C352E] mt-10 pt-6">
-                      <button onClick={guardarAjustesAgencia} disabled={loading || uploading} className="w-full md:w-auto md:px-8 text-[#262B27] bg-[#F3C3B2] px-6 py-3 rounded-xl font-bold text-sm hover:bg-[#eab3a1] disabled:opacity-50 transition-colors shadow-sm">{loading ? t[idioma].guardando : t[idioma].guardarAj}</button>
+                      )}
                     </div>
                   </div>
-                )}
+                </div>
+              )}
 
-                {/* VISTA: FACTURACIÓN */}
-                {vista === "facturacion" && (
-                  <div className="animate-fade-custom bg-[#1A1F1B] border border-[#2C352E] p-10 rounded-2xl shadow-xl max-w-2xl mx-auto print:hidden relative z-10">
-                    <div className="flex items-center gap-4 mb-8 pb-6 border-b border-[#2C352E]">
-                       <div className="w-10 h-10 bg-[#2C352E] rounded-xl flex items-center justify-center text-[#E8EBE4]"><CreditCard size={20} /></div>
-                       <div>
-                          <h2 className="text-xl font-bold text-[#E8EBE4]">{t[idioma].facturacionTitulo}</h2>
-                          <p className="text-[#8A968C] text-xs mt-1">{t[idioma].facturacionDesc}</p>
-                       </div>
-                    </div>
-                    <div className="bg-[#131714] border border-[#2C352E] rounded-xl p-6 mb-6 flex justify-between items-center">
+              {/* VISTA: CONFIGURACIÓN */}
+              {vista === "perfil" && (
+                <div className="animate-fade-custom bg-[#FFFFFF] border border-[#E5E7EB] p-10 rounded-[2rem] shadow-sm max-w-4xl mx-auto print:hidden relative z-10 w-full">
+                  <div className="flex items-center gap-4 mb-8 pb-6 border-b border-[#F4F4F5]">
+                     <div className="w-14 h-14 bg-[#F4F4F5] border border-[#E5E7EB] shadow-sm rounded-2xl flex items-center justify-center text-[#0a0a0a]"><Settings size={24} /></div>
+                     <div>
+                        <h2 className="text-3xl font-black text-[#0a0a0a]">{t[idioma].configuracion}</h2>
+                        <p className="text-[#4B5563] text-sm mt-1 font-medium">{t[idioma].persPdf}</p>
+                     </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                    <div className="space-y-6">
+                      <h3 className="text-xs font-black text-[#0a0a0a] uppercase tracking-widest mb-6 border-b border-[#F4F4F5] pb-2">Marca Blanca Visual</h3>
+                      <div><label className="block text-[10px] font-bold text-[#8A968C] mb-2 uppercase tracking-widest">{t[idioma].nomAgencia}</label><input type="text" className="w-full p-4 bg-[#F4F4F5] border border-[#E5E7EB] rounded-xl text-[#0a0a0a] font-bold shadow-inner focus:border-[#E0E7FF] focus:bg-[#FAFAF9] focus:outline-none transition-all text-sm" value={agenciaNombre} onChange={(e) => setAgenciaNombre(e.target.value)} /></div>
+                      <div><label className="block text-[10px] font-bold text-[#8A968C] mb-2 uppercase tracking-widest">{t[idioma].sitioWeb}</label><input type="text" placeholder="Ej: www.tuagencia.com" className="w-full p-4 bg-[#F4F4F5] border border-[#E5E7EB] rounded-xl text-[#0a0a0a] font-bold shadow-inner focus:border-[#E0E7FF] focus:bg-[#FAFAF9] focus:outline-none transition-all text-sm" value={agenciaWeb} onChange={(e) => setAgenciaWeb(e.target.value)} /></div>
                       <div>
-                        <p className="text-[10px] font-bold text-[#8A968C] uppercase tracking-widest mb-2">{t[idioma].planActual}</p>
-                        <div className="flex items-center gap-3">
-                          <span className="text-2xl font-black text-[#E8EBE4]">{perfil?.plan === 'pro' ? 'Mora Pro' : 'Mora Free'}</span>
-                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#99CDD8]/10 text-[#99CDD8] uppercase tracking-widest">{t[idioma].activa}</span>
+                        <label className="block text-[10px] font-bold text-[#8A968C] mb-2 uppercase tracking-widest">{t[idioma].logoPdf}</label>
+                        <div className="flex items-center gap-6 p-4 border border-[#E5E7EB] rounded-xl bg-[#F4F4F5] shadow-inner">
+                          {agenciaLogo ? <img src={agenciaLogo} alt="Logo" className="w-14 h-14 object-contain rounded bg-white p-1 border border-[#E5E7EB] shadow-sm" /> : <div className="w-14 h-14 bg-[#FAFAF9] rounded-lg flex items-center justify-center text-[#8A968C] text-[9px] uppercase font-black text-center border border-dashed border-[#8A968C]">Sube</div>}
+                          <div className="flex-1"><input type="file" accept="image/*" onChange={subirLogo} disabled={uploading} className="w-full text-xs text-[#4B5563] font-bold cursor-pointer file:mr-4 file:py-2.5 file:px-5 file:rounded-lg file:border-0 file:text-[10px] file:uppercase file:tracking-widest file:font-black file:bg-[#FAFAF9] file:border file:border-[#E5E7EB] file:text-[#0a0a0a] hover:file:bg-white hover:file:shadow-sm transition-all" /></div>
                         </div>
-                        {/* FECHA DE RENOVACIÓN AÑADIDA */}
-                        <p className="text-xs text-[#8A968C] mt-2 font-medium">Renueva el 14 de Abril, 2026</p>
+                      </div>
+                      <div><label className="block text-[10px] font-bold text-[#8A968C] mb-2 uppercase tracking-widest">{t[idioma].piePagina}</label><textarea className="w-full h-24 p-4 bg-[#F4F4F5] border border-[#E5E7EB] rounded-xl text-[#0a0a0a] font-bold shadow-inner text-sm focus:border-[#E0E7FF] focus:bg-[#FAFAF9] focus:outline-none transition-all resize-none" value={agenciaPie} onChange={(e) => setAgenciaPie(e.target.value)} /></div>
+                    </div>
+
+                    <div className="space-y-6">
+                      <h3 className="text-xs font-black text-[#0a0a0a] uppercase tracking-widest mb-6 border-b border-[#F4F4F5] pb-2">Preferencias de Trabajo</h3>
+                      <div>
+                        <label className="block text-[10px] font-bold text-[#8A968C] mb-2 uppercase tracking-widest">{t[idioma].monedaDef}</label>
+                        <div className="relative"><select className="w-full p-4 bg-[#F4F4F5] border border-[#E5E7EB] rounded-xl text-[#0a0a0a] font-bold shadow-inner focus:border-[#E0E7FF] focus:bg-[#FAFAF9] focus:outline-none transition-all appearance-none cursor-pointer text-sm" value={moneda} onChange={(e) => setMoneda(e.target.value)}><option value="USD ($)">Dólares USD ($)</option><option value="EUR (€)">Euros EUR (€)</option><option value="ARS ($)">Pesos Argentinos ARS ($)</option><option value="MXN ($)">Pesos Mexicanos MXN ($)</option></select><ChevronDown size={16} className="absolute right-4 top-1/2 transform -translate-y-1/2 text-[#4B5563] pointer-events-none" /></div>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-[#8A968C] mb-2 uppercase tracking-widest">{t[idioma].metricaDef}</label>
+                        <div className="relative"><select className="w-full p-4 bg-[#F4F4F5] border border-[#E5E7EB] rounded-xl text-[#0a0a0a] font-bold shadow-inner focus:border-[#E0E7FF] focus:bg-[#FAFAF9] focus:outline-none transition-all appearance-none cursor-pointer text-sm" value={metrica} onChange={(e) => setMetrica(e.target.value)}><option value="ROAS">ROAS (Retorno de Inversión)</option><option value="CPA">CPA (Costo por Adquisición)</option><option value="ROI">ROI</option></select><ChevronDown size={16} className="absolute right-4 top-1/2 transform -translate-y-1/2 text-[#4B5563] pointer-events-none" /></div>
                       </div>
                     </div>
-                    <button className="w-full text-[#E8EBE4] bg-[#2C352E] px-6 py-3.5 rounded-xl text-sm font-bold transition-colors mt-2 flex justify-center items-center gap-2 cursor-not-allowed opacity-70"><CreditCard size={16} /> {t[idioma].gestionarStripe} <span className="text-[#F3C3B2] text-[9px] uppercase tracking-widest ml-2">{t[idioma].pronto}</span></button>
                   </div>
-                )}
+                  <div className="border-t border-[#E5E7EB] mt-10 pt-8 flex justify-end max-w-5xl mx-auto">
+                    <button onClick={guardarAjustesAgencia} disabled={loading || uploading} className="w-full md:w-auto md:px-10 text-[#0a0a0a] bg-[#E0E7FF] hover:bg-[#eab3a1] px-6 py-4 rounded-xl font-black text-sm uppercase tracking-widest disabled:opacity-50 transition-colors shadow-md">{loading ? t[idioma].guardando : t[idioma].guardarAj}</button>
+                  </div>
+                </div>
+              )}
 
-                {/* VISTA: FEEDBACK */}
-                {vista === "feedback" && (
-                  <div className="animate-fade-custom bg-[#1A1F1B] border border-[#2C352E] p-10 rounded-2xl shadow-xl max-w-2xl mx-auto text-center print:hidden relative z-10">
-                    <div className="flex justify-center mb-6"><div className="w-12 h-12 bg-[#2C352E] rounded-xl flex items-center justify-center text-[#E8EBE4]"><MessageSquare size={24} /></div></div>
-                    <h2 className="text-xl font-bold mb-2 text-[#E8EBE4]">{t[idioma].ayudanos}</h2>
-                    <p className="text-[#8A968C] text-sm mb-8 font-medium">{t[idioma].bug}</p>
-                    <textarea className="w-full h-32 p-4 bg-[#131714] border border-[#2C352E] rounded-xl mb-6 text-[#E8EBE4] focus:border-[#F3C3B2] focus:outline-none resize-none transition-all text-sm" placeholder={t[idioma].escribiSug} value={mensajeFeedback} onChange={(e) => setMensajeFeedback(e.target.value)} />
-                    <button onClick={mandarFeedback} disabled={enviandoFeedback || !mensajeFeedback} className="w-full text-[#262B27] bg-[#F3C3B2] hover:bg-[#eab3a1] px-6 py-3.5 rounded-xl font-bold text-sm disabled:opacity-50 transition-colors">{enviandoFeedback ? t[idioma].enviando : t[idioma].enviarSug}</button>
+              {/* VISTA: FACTURACIÓN */}
+              {vista === "facturacion" && (
+                <div className="animate-fade-custom bg-[#FFFFFF] border border-[#E5E7EB] p-10 rounded-[2rem] shadow-sm max-w-3xl mx-auto print:hidden relative z-10 w-full">
+                  <div className="flex items-center gap-4 mb-10 pb-6 border-b border-[#F4F4F5]">
+                     <div className="w-14 h-14 bg-[#F4F4F5] border border-[#E5E7EB] shadow-sm rounded-2xl flex items-center justify-center text-[#0a0a0a]"><CreditCard size={24} /></div>
+                     <div>
+                        <h2 className="text-3xl font-black text-[#0a0a0a]">{t[idioma].facturacionTitulo}</h2>
+                        <p className="text-[#4B5563] text-sm mt-1 font-medium">{t[idioma].facturacionDesc}</p>
+                     </div>
                   </div>
-                )}
+                  <div className="bg-[#F4F4F5] border border-[#E5E7EB] rounded-2xl p-8 mb-8 flex justify-between items-center shadow-inner">
+                    <div>
+                      <p className="text-[10px] font-bold text-[#8A968C] uppercase tracking-widest mb-3">{t[idioma].planActual}</p>
+                      <div className="flex items-center gap-4">
+                        <span className="text-3xl font-black text-[#0a0a0a]">{perfil?.plan === 'pro' ? 'Mora Pro' : 'Mora Free'}</span>
+                        <span className="px-3 py-1 rounded-md text-[10px] font-black bg-[#FAFAF9] border border-[#10B981] text-[#10B981] uppercase tracking-widest shadow-sm">{t[idioma].activa}</span>
+                      </div>
+                      <p className="text-sm text-[#4B5563] mt-3 font-medium">Renueva el 14 de Abril, 2026</p>
+                    </div>
+                  </div>
+                  <button className="w-full text-[#4B5563] bg-[#FAFAF9] border border-[#E5E7EB] hover:bg-white px-6 py-4 rounded-xl text-sm font-black transition-colors mt-2 flex justify-center items-center gap-2 cursor-not-allowed shadow-sm uppercase tracking-widest"><CreditCard size={18} /> {t[idioma].gestionarStripe} <span className="text-[#E0E7FF] text-[9px] uppercase tracking-widest ml-2 bg-[#E0E7FF]/10 px-2 py-0.5 rounded">{t[idioma].pronto}</span></button>
+                </div>
+              )}
+
+              {/* VISTA: SUGERENCIAS */}
+              {vista === "feedback" && (
+                <div className="animate-fade-custom bg-[#FFFFFF] border border-[#E5E7EB] p-10 md:p-14 rounded-[2rem] shadow-sm max-w-3xl mx-auto text-center print:hidden relative z-10 w-full">
+                  <div className="flex justify-center mb-8"><div className="w-20 h-20 bg-[#FDE8D3] border border-[#E0E7FF]/50 rounded-[1.5rem] flex items-center justify-center text-[#0a0a0a] shadow-sm"><MessageSquare size={32} /></div></div>
+                  <h2 className="text-3xl font-black mb-3 text-[#0a0a0a]">{t[idioma].ayudanos}</h2>
+                  <p className="text-[#4B5563] text-base mb-10 font-medium">{t[idioma].bug}</p>
+                  <textarea className="w-full h-40 p-5 bg-[#F4F4F5] border border-[#E5E7EB] shadow-inner rounded-2xl mb-8 text-[#0a0a0a] font-medium focus:border-[#E0E7FF] focus:bg-[#FAFAF9] focus:outline-none resize-none transition-all text-sm leading-relaxed" placeholder={t[idioma].escribiSug} value={mensajeFeedback} onChange={(e) => setMensajeFeedback(e.target.value)} />
+                  <button onClick={mandarFeedback} disabled={enviandoFeedback || !mensajeFeedback} className="w-full text-[#0a0a0a] bg-[#E0E7FF] hover:bg-[#eab3a1] px-6 py-4 rounded-xl font-black text-sm uppercase tracking-widest disabled:opacity-50 transition-colors shadow-md">{enviandoFeedback ? t[idioma].enviando : t[idioma].enviarSug}</button>
+                </div>
+              )}
+              {vista === "campañas" && renderGestorCampañas()}
 
               </div>
             </main>
@@ -1642,72 +2346,107 @@ function AuditorDashboard() {
         )}
       </div>
 
-      {/* BOTÓN FLOTANTE DE FEEDBACK (Vuelve a estar activo si hay sesión) */}
-      {session && (
-        <button onClick={() => { setVista("feedback"); setReporte(null); setMenuPerfil(false); }} className="fixed bottom-8 right-8 z-50 bg-[#F3C3B2] text-[#131714] hover:bg-[#eab3a1] px-5 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 transition-transform flex items-center gap-2 border border-[#F3C3B2]/20 print:hidden">
-          <MessageSquare size={18} /> {t[idioma].feedback}
-        </button>
-      )}
-
-      {/* MODAL CONFIRMACIÓN AUTO-APPLY */}
+      {/* CONFIRMACIÓN AUTO-APPLY */}
       {mostrarConfirmacion && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 print:hidden">
-          <div className="absolute inset-0 bg-[#131714]/90 backdrop-blur-sm cursor-pointer" onClick={() => setMostrarConfirmacion(false)}></div>
-          <div className="bg-[#1A1F1B] border border-[#2C352E] shadow-2xl rounded-2xl w-full max-w-md relative z-10 animate-fade-custom overflow-hidden">
+          <div className="absolute inset-0 bg-[#0a0a0a]/40 backdrop-blur-sm cursor-pointer" onClick={() => setMostrarConfirmacion(false)}></div>
+          <div className="bg-[#FAFAF9] border border-[#E5E7EB] shadow-2xl rounded-3xl w-full max-w-md relative z-10 animate-fade-custom overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-1 bg-[#EAB308]"></div>
-            <div className="p-6 md:p-8">
+            <div className="p-8">
               <div className="flex items-center gap-4 mb-6">
-                <div className="w-10 h-10 rounded-xl bg-[#EAB308]/10 flex items-center justify-center text-[#EAB308] flex-shrink-0">
-                  <AlertTriangle size={20} />
+                <div className="w-14 h-14 rounded-2xl bg-[#EAB308]/10 border border-[#EAB308]/30 flex items-center justify-center text-[#EAB308] flex-shrink-0 shadow-sm">
+                  <AlertTriangle size={24} />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-[#E8EBE4] leading-tight">Confirmar Acción</h3>
-                  <p className="text-xs text-[#8A968C] mt-1">Conexión con Google Ads</p>
+                  <h3 className="text-xl font-black text-[#0a0a0a] leading-tight">Confirmar Acción</h3>
+                  <p className="text-xs text-[#8A968C] mt-1 font-bold uppercase tracking-widest">Atención requerida</p>
                 </div>
               </div>
-              <p className="text-[#8A968C] text-sm leading-relaxed mb-8">
-                <strong className="text-[#E8EBE4]">⚠️ ATENCIÓN:</strong> Estás por ejecutar cambios directos en el presupuesto y estado de las campañas.<br/><br/>
-                ¿Confirmás que revisaste el impacto de esta acción y deseás aplicar los cambios?
+              <p className="text-[#4B5563] text-sm leading-relaxed mb-8 font-medium">
+                Estás por marcar esta tarea como lista. ¿Confirmás que ya aplicaste estos cambios en tu cuenta de Google Ads?
               </p>
               <div className="flex flex-col sm:flex-row gap-3">
-                <button onClick={() => setMostrarConfirmacion(false)} className="px-5 py-2.5 rounded-lg font-bold text-xs text-[#E8EBE4] bg-[#2C352E] hover:bg-[#8A968C] transition-colors w-full uppercase tracking-widest">
-                  Cancelar
-                </button>
-                <button onClick={aplicarCambios} className="px-5 py-2.5 rounded-lg font-bold text-xs text-[#262B27] bg-[#F3C3B2] hover:bg-[#eab3a1] transition-colors w-full flex justify-center items-center gap-2 uppercase tracking-widest">
-                  <Sparkles size={14} /> Aplicar
-                </button>
+                <button onClick={() => setMostrarConfirmacion(false)} className="px-5 py-3 rounded-xl font-bold text-xs text-[#4B5563] bg-[#F4F4F5] border border-[#E5E7EB] hover:bg-[#FFFFFF] transition-colors w-full uppercase tracking-widest shadow-sm">Cancelar</button>
+                <button onClick={aplicarCambios} className="px-5 py-3 rounded-xl font-black text-xs text-[#0a0a0a] bg-[#E0E7FF] hover:bg-[#eab3a1] transition-colors w-full flex justify-center items-center gap-2 uppercase tracking-widest shadow-md"><Sparkles size={16} /> Confirmar</button>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* TOAST UNDO */}
-      {toastState.show && (
-        <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-[120] bg-[#1A1F1B] border border-[#2C352E] shadow-2xl rounded-xl overflow-hidden flex flex-col w-80 animate-fade-custom">
-           <div className="p-4 flex justify-between items-center">
+      {/* TOASTS FLOTANTES */}
+      <div className="fixed bottom-10 right-10 z-[110] flex flex-col gap-4 pointer-events-none print:hidden">
+        {toastsActivos.map((toast, index) => (
+          <div 
+            key={toast.id} 
+            className={`bg-[#1C1917] border border-[#E07070]/40 p-5 rounded-2xl shadow-[0_20px_40px_rgba(0,0,0,0.5)] w-80 md:w-96 pointer-events-auto relative overflow-hidden ${
+              toast.isLeaving ? 'animate-salida-total' : 'animate-slide-in-right'
+            }`}
+            style={{ animationDelay: toast.isLeaving ? '0ms' : `${index * 150}ms` }}
+          >
+            <div className="absolute top-0 left-0 w-1 h-full bg-[#E07070] z-10"></div>
+            
+            <div className="absolute bottom-0 left-0 w-full h-1 bg-[#292524]">
+              <div className="h-full bg-[#E07070] animate-barra-tiempo"></div>
+            </div>
+
+            <div className="flex justify-between items-start relative z-10">
+              <h4 className="text-[#F5F0EB] font-black text-xs uppercase tracking-widest flex items-center gap-2">
+                <AlertTriangle size={14} className="text-[#E07070]" /> {toast.titulo}
+              </h4>
               <div className="flex items-center gap-3">
-                 {toastState.status === 'success' && <CheckCircle2 className="text-[#99CDD8]" size={18} />}
-                 {toastState.status === 'undoing' && <RefreshCcw className="text-[#EAB308] animate-spin" size={18} />}
-                 {toastState.status === 'reverted' && <Undo2 className="text-[#8A968C]" size={18} />}
-                 
+                <button 
+                  onClick={() => {
+                    setToastsActivos(prev => prev.map(t => t.id === toast.id ? { ...t, isLeaving: true } : t));
+                    setTimeout(() => setToastsActivos(prev => prev.filter(t => t.id !== toast.id)), 600);
+                  }} 
+                  className="text-[#A8A29E] hover:text-[#F5F0EB] transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+            <p className="text-[11px] text-[#A8A29E] mt-2 mb-3 font-medium leading-relaxed relative z-10">{toast.mensaje}</p>
+            
+            <button 
+               onClick={() => {
+                  if (toast.hallazgoData) {
+                    abrirDetalleHallazgo(toast.hallazgoData, "critico", ultimaAuditoria?.reporte_json);
+                  }
+                  setToastsActivos(prev => prev.map(t => t.id === toast.id ? { ...t, isLeaving: true } : t));
+                  setTimeout(() => setToastsActivos(prev => prev.filter(t => t.id !== toast.id)), 600);
+               }} 
+               className="relative z-10 mt-1 w-full bg-[#E07070]/10 hover:bg-[#E07070] text-[#E07070] hover:text-[#0a0a0a] border border-[#E07070]/30 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-colors"
+            >
+               {toast.accion}
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {/* TOAST DE ÉXITO */}
+      {toastState.show && (
+        <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-[120] bg-[#FAFAF9] border border-[#E5E7EB] shadow-2xl rounded-2xl overflow-hidden flex flex-col w-80 animate-fade-custom">
+           <div className="p-5 flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                 {toastState.status === 'success' && <CheckCircle2 className="text-[#10B981]" size={24} />}
+                 {toastState.status === 'undoing' && <RefreshCcw className="text-[#EAB308] animate-spin" size={24} />}
+                 {toastState.status === 'reverted' && <Undo2 className="text-[#4B5563]" size={24} />}
                  <div>
-                    <p className="text-xs font-bold text-[#E8EBE4]">
-                      {toastState.status === 'success' ? 'Cambios aplicados.' : 
-                       toastState.status === 'undoing' ? 'Revertiendo...' : 'Cambios revertidos.'}
+                    <p className="text-sm font-black text-[#0a0a0a]">
+                      {toastState.status === 'success' ? 'Tarea completada.' : 
+                       toastState.status === 'undoing' ? 'Deshaciendo...' : 'Revertido.'}
                     </p>
-                    {toastState.status === 'success' && <p className="text-[9px] text-[#8A968C] font-medium uppercase tracking-widest mt-0.5">Permanentes en {toastState.timeLeft}s</p>}
+                    {toastState.status === 'success' && <p className="text-[10px] text-[#8A968C] font-bold uppercase tracking-widest mt-0.5">Se cierra en {toastState.timeLeft}s</p>}
                  </div>
               </div>
               {toastState.status === 'success' && (
-                <button onClick={deshacerCambios} className="text-[#F3C3B2] hover:text-[#E8EBE4] font-bold text-[10px] uppercase tracking-widest transition-colors px-2 py-1 bg-[#F3C3B2]/10 rounded">
-                   Deshacer
-                </button>
+                <button onClick={deshacerCambios} className="text-[#0a0a0a] font-black text-[9px] uppercase tracking-widest transition-colors px-3 py-2 bg-[#FDE8D3] hover:bg-[#E0E7FF] rounded-lg shadow-sm border border-[#E0E7FF]/50">Deshacer</button>
               )}
            </div>
            {toastState.status === 'success' && (
-              <div className="w-full bg-[#131714] h-1">
-                 <div className="bg-[#99CDD8] h-1 transition-all duration-1000 ease-linear" style={{ width: `${(toastState.timeLeft / 15) * 100}%` }}></div>
+              <div className="w-full bg-[#F4F4F5] h-1.5 border-t border-[#E5E7EB]">
+                 <div className="bg-[#10B981] h-1.5 transition-all duration-1000 ease-linear" style={{ width: `${(toastState.timeLeft / 15) * 100}%` }}></div>
               </div>
            )}
         </div>
