@@ -1,0 +1,192 @@
+# Mora Analytics — Cursor Rules
+
+## ¿Qué es Mora?
+Mora Analytics es una plataforma B2B SaaS de suscripción que audita y optimiza campañas de Google Ads usando IA. Está dirigida a agencias de marketing y anunciantes independientes de habla hispana. El producto opera bajo un **modelo Copilot**: la IA genera recomendaciones y sugerencias, pero el usuario debe confirmar explícitamente cada acción antes de que se ejecute. Ninguna acción se aplica automáticamente sobre Google Ads.
+
+---
+
+## Sugerencias y Mejoras
+
+Cursor puede y debe sugerir mejoras, nuevas features, librerías adicionales, o enfoques alternativos cuando considere que hay una mejor solución. Las reglas de stack aplican al código existente — para funcionalidad nueva, las sugerencias son bienvenidas siempre que se presenten como opciones para que el desarrollador decida.
+
+Ejemplos de cuándo sugerir:
+- Hay una librería que resolvería algo más elegantemente
+- Un patrón de código podría simplificarse significativamente
+- Una feature podría implementarse de una forma que el desarrollador no consideró
+- Existe una mejor práctica de seguridad o performance aplicable
+
+Siempre presentar las sugerencias como opciones, nunca aplicarlas sin confirmación.
+
+---
+
+## Stack Tecnológico — NO usar alternativas en código existente
+
+- **Framework**: Next.js 15+ con App Router (nunca Pages Router)
+- **Lenguaje**: TypeScript estricto — nunca usar `any`, tipar todo explícitamente
+- **Estilos**: Tailwind CSS — sin CSS modules, sin styled-components, sin estilos inline salvo casos excepcionales
+- **Iconos**: Lucide React — nunca importar de otras librerías de iconos
+- **Base de datos & Auth**: Supabase (PostgreSQL) con Row Level Security (RLS) habilitado en todas las tablas
+- **Pagos**: Lemon Squeezy — no usar Stripe ni ningún otro proveedor de pagos
+- **IA**: Google Gemini API — motor de inteligencia artificial de toda la plataforma. No usar OpenAI, Anthropic ni otros proveedores
+- **Reportes PDF**: `@react-pdf/renderer` server-side — generación vectorial, nunca html-to-pdf ni puppeteer
+- **Deploy**: Vercel
+
+---
+
+## Archivos Clave en `lib/`
+
+- **`lib/googleAds.ts`** — cliente de Google Ads API. Actualmente usa datos mock temporales mientras se completa la integración real con la API. No modificar la estructura sin confirmación explícita.
+- **`lib/motorMora.ts`** — motor de procesamiento server-side. Recibe los datos crudos de Google Ads, ejecuta toda la lógica matemática y de análisis en el servidor, y devuelve el objeto `reporte_json` limpio y estructurado para que la base de datos lo guarde y el PDF lo pueda renderizar. Es lógica real, no mock.
+
+---
+
+## Estructura Objetivo del Proyecto
+
+```
+app/
+├── page.tsx                    ← landing page
+├── dashboard/
+│   └── page.tsx                ← vista general del dashboard
+├── campanas/
+│   └── page.tsx                ← lista de campañas con scores
+├── reportes/
+│   └── page.tsx                ← historial de auditorías + comparación + descarga PDF
+├── api/
+│   ├── audit/
+│   └── pdf/
+│       └── route.ts
+├── components/
+│   ├── pdf/
+│   │   └── ReportePDF.tsx
+│   ├── dashboard/
+│   ├── campanas/
+│   └── ui/                    ← componentes reutilizables
+├── como-funciona/
+├── faq/
+├── precios/
+├── privacidad/
+└── terminos/
+lib/
+├── googleAds.ts               ← cliente Google Ads API (datos mock temporales)
+└── motorMora.ts               ← motor de procesamiento y análisis (lógica real)
+```
+
+> **Nota**: El proyecto está actualmente en proceso de reorganización. El código principal vive en `app/page.tsx` y se está migrando progresivamente a esta estructura.
+
+---
+
+## Seguridad — Reglas Críticas
+
+- **API keys y secrets nunca en el frontend** — Gemini, Google Ads y Supabase Service Role solo se llaman desde Server Components o API routes
+- **Gemini API**: nunca llamarla desde código cliente — siempre via API route del servidor
+- **Google Ads API**: nunca llamarla desde código cliente — siempre server-side
+- Las variables `GEMINI_API_KEY`, `GOOGLE_CLIENT_SECRET`, `SUPABASE_SERVICE_ROLE_KEY` nunca deben aparecer en código con `"use client"` ni ser expuestas al browser bajo ninguna circunstancia
+- Solo las variables con prefijo `NEXT_PUBLIC_` pueden usarse en el cliente
+- **`SUPABASE_SERVICE_ROLE_KEY`** es especialmente crítica — bypasea RLS completamente, solo en API routes
+- Auth con OAuth 2.0 (Google) via Supabase Auth
+- Cookies HttpOnly para manejo de sesión — nunca `localStorage` para tokens
+- RLS activo en Supabase: toda query debe respetar las políticas de la tabla
+- Sin API keys hardcodeadas en ningún archivo — siempre variables de entorno
+- Validar siempre los datos del usuario en el servidor, nunca confiar solo en validaciones del cliente
+
+---
+
+## Modelo Copilot — Regla de Negocio Crítica
+
+**Toda acción que modifique datos en Google Ads requiere confirmación explícita del usuario.**
+
+- La IA sugiere, el usuario aprueba
+- Implementar siempre un paso de confirmación (modal, botón de confirmar) antes de ejecutar write operations
+- Las acciones deben ser reversibles cuando sea posible (Deshacer/Undo)
+- Nunca ejecutar cambios en Google Ads de forma automática o silenciosa
+
+---
+
+## Funciones Implementadas
+
+### 1. Conectividad y Core
+- Autenticación OAuth con cuentas reales de Google Ads
+- Extracción de datos via Google Ads API (integración en desarrollo — actualmente con datos mock)
+- Write Access con botones de acción directa + red de seguridad (Deshacer/Undo)
+
+### 2. Análisis y Finanzas
+- **Health Score**: Puntuación general de la cuenta
+- **Budget Pacing**: Control visual del ritmo de gasto mensual
+- **GPS del Presupuesto**: Recomendación matemática exacta de ajuste diario
+- **Matriz de Ganadores y Perdedores**: Cuadrantes visuales → Escalar / Apagar / Observar / Testear
+- **Estrategia Robin Hood**: Detecta campañas "basura" (CPA >20% sobre promedio de cuenta), calcula presupuesto diario desperdiciado, identifica campaña "estrella" (conversiones >15% más baratas que promedio), y sugiere exactamente cuánto transferir via banner salmón. El usuario confirma antes de ejecutar.
+- **Action Plan**: Plan de acción con tareas priorizadas
+- **Campaign Performance Matrix**: Análisis visual de rendimiento por campaña
+- **Advanced Analysis**: Análisis profundo con Gemini
+
+### 3. Motor de IA (Gemini)
+- **Destripador de Búsquedas (N-Gramos)**: Rendimiento por palabras individuales dentro de los términos de búsqueda
+- **Detector de Fugas por Franja Horaria (Dayparting)**: Horas del día con gasto sin retorno
+- **Razonamiento Lógico-Matemático**: System prompt diseñado para atar sugerencias a umbrales estrictos y datos reales
+- **Traductor de Métricas IA**: Explica la cuenta en lenguaje de negocios
+- **Monitor de Impacto**: Gráfico evolutivo que correlaciona cambios realizados con mejora del Health Score
+
+---
+
+## Planes de Suscripción
+
+| Plan | Precio | Target |
+|------|--------|--------|
+| Starter | Gratis | Prueba |
+| Individual | $19/mes | Anunciantes individuales |
+| Agency | $49/mes | Agencias con múltiples cuentas |
+
+---
+
+## Idioma
+
+- La interfaz está en **español**
+- Textos dirigidos al usuario en **español rioplatense** (vos, no tú)
+- Terminología técnica de Google Ads en español cuando existe traducción establecida
+
+---
+
+## Convenciones de Código
+
+### TypeScript
+- Tipos explícitos siempre — prohibido `any`
+- Interfaces para objetos de dominio (campañas, métricas, usuarios)
+- Union types o enums para estados fijos
+
+### Next.js App Router
+- Server Components por defecto
+- `"use client"` solo cuando sea necesario (hooks, event handlers, interactividad)
+- API routes en `/app/api/`
+- Server Actions para mutaciones cuando aplique
+
+### Componentes
+- Un componente por archivo
+- Nombres en PascalCase
+- Props tipadas con interfaces explícitas
+
+### Supabase
+- Cliente del servidor en Server Components (`createServerClient`)
+- Nunca bypassear RLS
+- Queries tipadas con los tipos generados de Supabase
+
+### Tailwind
+- Clases utilitarias directamente en JSX
+- Extraer a componente cuando el bloque de clases se repite 3+ veces
+- Evitar `@apply` en CSS
+
+---
+
+## Lo que Cursor NO debe hacer
+
+- Usar `any` en TypeScript
+- Usar Pages Router (`/pages/`) — siempre App Router (`/app/`)
+- Hardcodear API keys, secrets o strings de conexión
+- Ejecutar write operations en Google Ads sin confirmación del usuario
+- Usar librerías de iconos que no sean Lucide React
+- Reemplazar Tailwind con otra solución de estilos
+- Usar `localStorage` para tokens o datos sensibles
+- Generar PDFs con puppeteer o html-to-pdf
+- Sugerir OpenAI, Anthropic u otros proveedores de IA — el proveedor es Gemini
+- Sugerir Stripe u otros proveedores de pagos — el proveedor es Lemon Squeezy
+- Llamar APIs externas (Gemini, Google Ads) desde código cliente
+- Tocar `app/page.tsx` principal sin instrucción explícita — tiene 2000+ líneas de código en producción
