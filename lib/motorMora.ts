@@ -38,7 +38,69 @@ export interface DatosAuditoriaInput {
   conversiones_totales: number;
   clics_totales: number;
   campanas: CampanaMora[];
-  terminos?: TerminoBusqueda[]; 
+  terminos?: TerminoBusqueda[];
+  // Nombre/s de marca del cliente para proteger términos que la mencionan.
+  // Puede ser una palabra ("acme"), varias separadas por coma, o un array.
+  marca_cliente?: string | string[];
+}
+
+// ============================================================================
+// DESTRIPADOR DE BÚSQUEDAS (N-Gramos)
+// ============================================================================
+export type CategoriaIntencionId =
+  | "gratuita_educativa"
+  | "baja_calidad"
+  | "competencia"
+  | "soporte_empleo"
+  | "otro";
+
+export interface DestripadorTermino {
+  termino: string;
+  gasto: number;
+  clics: number;
+  conversiones: number;
+  campana_id: string;
+  campana_nombre: string;
+  categoria_intencion: CategoriaIntencionId;
+  match_recomendado: "EXACTA" | "FRASE";
+  motivo: string;
+  protegido: boolean;
+  motivo_proteccion?: string;
+}
+
+export interface DestripadorToken {
+  token: string;
+  apariciones: number;
+  gasto_total: number;
+  ejemplo_termino: string;
+  categoria_intencion: CategoriaIntencionId;
+  protegido: boolean;
+  motivo_proteccion?: string;
+}
+
+export interface DestripadorCategoriaResumen {
+  id: CategoriaIntencionId;
+  label: string;
+  cantidad_terminos: number;
+  ahorro: number;
+}
+
+export interface DestripadorReporte {
+  ahorro_estimado: number;
+  cantidad_palabras_basura: number;
+  total_terminos_analizados: number;
+  terminos_protegidos: number;
+  terminos: DestripadorTermino[];
+  tokens: DestripadorToken[];
+  categorias: DestripadorCategoriaResumen[];
+  marcas_detectadas: string[];
+  tokens_protegidos_por_conversion: string[];
+  generado_en: string;
+  safe_apply: {
+    requiere_confirmacion: boolean;
+    undo_disponible: boolean;
+    nivel_riesgo: "alto";
+  };
 }
 
 // ============================================================================
@@ -663,6 +725,255 @@ export function calcularPlanRobinHood(
 }
 
 // ============================================================================
+// DESTRIPADOR — Helpers deterministas
+// ============================================================================
+
+const STOPWORDS_ES = new Set([
+  "de", "del", "la", "el", "los", "las", "un", "una", "unos", "unas",
+  "en", "con", "para", "por", "y", "o", "u", "a", "al", "su", "sus",
+  "es", "son", "este", "esta", "estos", "estas", "ese", "esa", "esos", "esas",
+  "mi", "mis", "me", "te", "se", "lo", "que", "mas", "más", "muy", "sin",
+  "como", "cómo", "qué", "cuál", "cuales", "cuáles", "donde", "dónde",
+]);
+
+const LEXICO_INTENCION: Record<CategoriaIntencionId, string[]> = {
+  gratuita_educativa: [
+    "gratis", "free", "pdf", "descargar", "descarga", "download",
+    "manual", "manuales", "tutorial", "tutoriales", "ejemplo", "ejemplos",
+    "casero", "casera", "diy", "hazlo", "hazla", "wikipedia",
+    "ejercicio", "ejercicios", "apk", "registro",
+  ],
+  baja_calidad: [
+    "barato", "barata", "baratos", "baratas",
+    "economico", "económico", "economica", "económica",
+    "lowcost", "ganga", "gangas", "regalado", "regalada",
+    "usado", "usados", "usada", "usadas",
+    "segunda", "mano", "oferta", "ofertas", "descuento", "descuentos",
+  ],
+  competencia: [
+    "alternativa", "alternativas", "competidor", "competidores",
+    "competencia", "comparativa", "comparativas", "ranking", "vs", "versus",
+  ],
+  soporte_empleo: [
+    "trabajo", "trabajos", "empleo", "empleos", "vacante", "vacantes",
+    "curriculum", "cv", "carrera",
+    "telefono", "teléfono", "contacto", "horario", "horarios",
+    "queja", "quejas", "reclamo", "reclamos",
+    "devolucion", "devolución", "cancelar", "cancelación", "cancelacion",
+    "anular", "reembolso", "suscripcion", "suscripción",
+    "opinion", "opiniones", "opinión", "negativa", "negativas",
+    "problema", "problemas", "error", "fallo", "soporte",
+  ],
+  otro: [],
+};
+
+const ETIQUETAS_INTENCION: Record<CategoriaIntencionId, string> = {
+  gratuita_educativa: "Intención gratuita / educativa",
+  baja_calidad: "Intención de baja calidad",
+  competencia: "Intención de competencia",
+  soporte_empleo: "Soporte / empleo / quejas",
+  otro: "Otros",
+};
+
+function tokenizarTermino(termino: string): string[] {
+  return termino
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9ñ\s]/g, " ")
+    .split(/\s+/)
+    .map(t => t.trim())
+    .filter(Boolean);
+}
+
+function clasificarIntencionPorTokens(tokens: string[]): CategoriaIntencionId {
+  const setTokens = new Set(tokens);
+  const orden: CategoriaIntencionId[] = [
+    "gratuita_educativa", "baja_calidad", "competencia", "soporte_empleo",
+  ];
+  for (const cat of orden) {
+    if (LEXICO_INTENCION[cat].some(palabra => setTokens.has(palabra))) {
+      return cat;
+    }
+  }
+  return "otro";
+}
+
+function clasificarIntencionToken(token: string): CategoriaIntencionId {
+  const orden: CategoriaIntencionId[] = [
+    "gratuita_educativa", "baja_calidad", "competencia", "soporte_empleo",
+  ];
+  for (const cat of orden) {
+    if (LEXICO_INTENCION[cat].includes(token)) return cat;
+  }
+  return "otro";
+}
+
+function normalizarMarcas(marca?: string | string[]): string[] {
+  if (!marca) return [];
+  const lista = Array.isArray(marca) ? marca : marca.split(",");
+  const resultado = new Set<string>();
+  lista.forEach(entrada => {
+    tokenizarTermino(entrada).forEach(t => {
+      if (t.length >= 2) resultado.add(t);
+    });
+  });
+  return Array.from(resultado);
+}
+
+function decidirMatchRecomendado(termino: string, gasto: number): "EXACTA" | "FRASE" {
+  const cantidadPalabras = tokenizarTermino(termino).length;
+  if (cantidadPalabras <= 2) return "EXACTA";
+  if (gasto >= 200) return "EXACTA";
+  return "FRASE";
+}
+
+interface ContextoDestripador {
+  terminosConConversion: TerminoBusqueda[];
+  marcasTokens: string[];
+  campanasMap: Map<string, CampanaMora>;
+}
+
+function construirContextoDestripador(
+  datos: DatosAuditoriaInput,
+  campanasLimpias: CampanaMora[],
+  terminos: TerminoBusqueda[]
+): ContextoDestripador {
+  return {
+    terminosConConversion: terminos.filter(t => t.conversiones > 0),
+    marcasTokens: normalizarMarcas(datos.marca_cliente),
+    campanasMap: new Map(campanasLimpias.map(c => [c.id, c])),
+  };
+}
+
+function construirDestripador(
+  terminosFuga: TerminoBusqueda[],
+  contexto: ContextoDestripador
+): DestripadorReporte {
+  const { terminosConConversion, marcasTokens, campanasMap } = contexto;
+
+  const tokensConConversion = new Set<string>();
+  terminosConConversion.forEach(t => {
+    tokenizarTermino(t.termino_exacto).forEach(tk => tokensConConversion.add(tk));
+  });
+
+  const terminos: DestripadorTermino[] = terminosFuga.map(term => {
+    const tokens = tokenizarTermino(term.termino_exacto);
+    const tocaMarca = tokens.some(tk => marcasTokens.includes(tk));
+    const camp = campanasMap.get(term.id_campana_asociada);
+
+    return {
+      termino: term.termino_exacto,
+      gasto: parseFloat(term.gasto.toFixed(2)),
+      clics: term.clics,
+      conversiones: term.conversiones,
+      campana_id: term.id_campana_asociada,
+      campana_nombre: camp?.nombre || "Campaña sin nombre",
+      categoria_intencion: clasificarIntencionPorTokens(tokens),
+      match_recomendado: decidirMatchRecomendado(term.termino_exacto, term.gasto),
+      motivo: "Gasto sin conversión por encima del umbral seguro de la cuenta.",
+      protegido: tocaMarca,
+      motivo_proteccion: tocaMarca
+        ? "Contiene una palabra de la marca declarada por el cliente."
+        : undefined,
+    };
+  });
+
+  // Agregación de tokens (1-gramas) sobre términos fuga.
+  type AccToken = {
+    apariciones: number;
+    gasto_total: number;
+    ejemplo: string;
+  };
+  const acumulador = new Map<string, AccToken>();
+
+  terminosFuga.forEach(term => {
+    const tokens = tokenizarTermino(term.termino_exacto);
+    const tokensUnicos = Array.from(new Set(tokens));
+    tokensUnicos.forEach(tk => {
+      if (tk.length < 3) return;
+      if (STOPWORDS_ES.has(tk)) return;
+      const actual = acumulador.get(tk);
+      if (actual) {
+        actual.apariciones += 1;
+        actual.gasto_total += term.gasto;
+      } else {
+        acumulador.set(tk, {
+          apariciones: 1,
+          gasto_total: term.gasto,
+          ejemplo: term.termino_exacto,
+        });
+      }
+    });
+  });
+
+  const tokens: DestripadorToken[] = Array.from(acumulador.entries())
+    .map(([token, info]) => {
+      const tocaMarca = marcasTokens.includes(token);
+      const tocaConversion = tokensConConversion.has(token);
+      const protegido = tocaMarca || tocaConversion;
+      const motivo = tocaMarca
+        ? "Forma parte del nombre de la marca declarada."
+        : tocaConversion
+          ? "Aparece en términos que sí convirtieron en la ventana analizada."
+          : undefined;
+      return {
+        token,
+        apariciones: info.apariciones,
+        gasto_total: parseFloat(info.gasto_total.toFixed(2)),
+        ejemplo_termino: info.ejemplo,
+        categoria_intencion: clasificarIntencionToken(token),
+        protegido,
+        motivo_proteccion: motivo,
+      };
+    })
+    .filter(t => t.apariciones >= 2 || t.gasto_total >= 50)
+    .sort((a, b) => b.gasto_total - a.gasto_total);
+
+  const ahorroEstimado = terminos
+    .filter(t => !t.protegido)
+    .reduce((acc, t) => acc + t.gasto, 0);
+
+  const cantidadPalabrasBasura = tokens.filter(t => !t.protegido).length;
+
+  const categoriasIds: CategoriaIntencionId[] = [
+    "gratuita_educativa", "baja_calidad", "competencia", "soporte_empleo", "otro",
+  ];
+
+  const categorias: DestripadorCategoriaResumen[] = categoriasIds
+    .map(id => {
+      const items = terminos.filter(t => t.categoria_intencion === id && !t.protegido);
+      return {
+        id,
+        label: ETIQUETAS_INTENCION[id],
+        cantidad_terminos: items.length,
+        ahorro: parseFloat(items.reduce((acc, t) => acc + t.gasto, 0).toFixed(2)),
+      };
+    })
+    .filter(c => c.cantidad_terminos > 0);
+
+  return {
+    ahorro_estimado: parseFloat(ahorroEstimado.toFixed(2)),
+    cantidad_palabras_basura: cantidadPalabrasBasura,
+    total_terminos_analizados: terminos.length,
+    terminos_protegidos: terminos.filter(t => t.protegido).length,
+    terminos,
+    tokens,
+    categorias,
+    marcas_detectadas: marcasTokens,
+    tokens_protegidos_por_conversion: tokens
+      .filter(t => t.protegido && !marcasTokens.includes(t.token))
+      .map(t => t.token),
+    generado_en: new Date().toISOString(),
+    safe_apply: {
+      requiere_confirmacion: true,
+      undo_disponible: false,
+      nivel_riesgo: "alto",
+    },
+  };
+}
+
+// ============================================================================
 // FASE 2: EL CEREBRO MATEMÁTICO DETERMINISTA
 // ============================================================================
 export function generarEsqueletoAuditoria(datos: DatosAuditoriaInput) {
@@ -706,7 +1017,7 @@ export function generarEsqueletoAuditoria(datos: DatosAuditoriaInput) {
   let gastoDesperdiciadoTotal = 0;
   const fugasCriticas: FugaCritica[] = [];
   const fugasParciales: FugaParcial[] = [];
-  const tokensToxicos: string[] = [];
+  const terminosFugaCriticaCrudos: TerminoBusqueda[] = [];
   const hallazgosRojos: HallazgoMora[] = [];
   const hallazgosAmarillos: HallazgoMora[] = [];
 
@@ -722,14 +1033,7 @@ export function generarEsqueletoAuditoria(datos: DatosAuditoriaInput) {
     if (term.conversiones === 0 && (cumpleReglaA || cumpleReglaB || cumpleReglaC)) {
       gastoDesperdiciadoTotal += term.gasto;
       fugasCriticas.push({ termino: term.termino_exacto, gasto: term.gasto, conversiones: 0, justificacion: "Superó límite dinámico de inversión sin retorno.", accion: "Negativizar" });
-
-      const palabras = term.termino_exacto.toLowerCase().split(" ");
-      const disparadoresToxicos = ["gratis", "pdf", "barata", "barato", "descargar"];
-      palabras.forEach(palabra => {
-        if (disparadoresToxicos.includes(palabra) && !tokensToxicos.includes(palabra)) {
-          tokensToxicos.push(palabra);
-        }
-      });
+      terminosFugaCriticaCrudos.push(term);
     }
     else if (term.conversiones >= 1 && term.clics > 20) {
       const cpaTermino = term.gasto / term.conversiones;
@@ -751,12 +1055,18 @@ export function generarEsqueletoAuditoria(datos: DatosAuditoriaInput) {
     }
   });
 
+  // Construcción del Destripador de Búsquedas (objeto enriquecido)
+  const destripador = construirDestripador(
+    terminosFugaCriticaCrudos,
+    construirContextoDestripador(datos, campanasLimpias, terminosCrudos)
+  );
+
   if (fugasCriticas.length > 0) {
     hallazgosRojos.push({
       id_rastreo: "GENERADOR_NEGATIVOS_URGENTE",
-      titulo: `Generador de Negativos: ${fugasCriticas.length} Fugas Críticas`,
-      descripcion_tecnica: "", 
-      descripcion_simple: ""   
+      titulo: `Destripador de Búsquedas: ${destripador.terminos.filter(t => !t.protegido).length} términos drenando presupuesto`,
+      descripcion_tecnica: "",
+      descripcion_simple: ""
     });
   }
 
@@ -829,7 +1139,19 @@ export function generarEsqueletoAuditoria(datos: DatosAuditoriaInput) {
     fugas_criticas: fugasCriticas,
     fugas_parciales: fugasParciales,
     robin_hood: planRobinHood,
-    ngramas: { tokens_toxicos: tokensToxicos, tokens_estrella: [] },
+    destripador,
+    n_gramas: {
+      ahorro_estimado: destripador.ahorro_estimado,
+      cantidad_palabras: destripador.cantidad_palabras_basura,
+      palabras: destripador.tokens
+        .filter(t => !t.protegido)
+        .slice(0, 12)
+        .map(t => t.token),
+    },
+    ngramas: {
+      tokens_toxicos: destripador.tokens.filter(t => !t.protegido).map(t => t.token),
+      tokens_estrella: [],
+    },
     dayparting: { horas_toxicas: [], horas_estrella: [] },
     canibalizacion: [],
     hallazgos: {

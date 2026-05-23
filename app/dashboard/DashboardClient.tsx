@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import Link from "next/link";
 import { 
@@ -11,7 +11,14 @@ import {
   Upload, Copy, Check, TrendingUp as TrendUp, ChevronRight, Folder, LayoutDashboard, X
 } from 'lucide-react';
 import { extraerDatosGoogle, construirDatosAuditoria } from '../../lib/googleAds'; 
-import { calcularPlanRobinHood, calcularScoreCampana } from '../../lib/motorMora';
+import { calcularPlanRobinHood, calcularScoreCampana, type DestripadorReporte } from '../../lib/motorMora';
+import {
+  loadDestripadorEstado,
+  marcarTerminosCopiados,
+  marcarTerminosMitigados,
+  terminoKey,
+  type DestripadorEstadoPersistido,
+} from '../../lib/destripadorEstado';
 import {
   createSafeApplyPlan,
   executeLocalSafeApply,
@@ -21,6 +28,7 @@ import {
   type SafeApplyPlan,
 } from '../../lib/safeApply';
 import { supabase } from "../../lib/supabase/browser";
+import DestripadorPanel from './DestripadorPanel';
 
 export type AuditorVista = "dashboard" | "nueva" | "historial" | "perfil" | "feedback" | "reporte_lectura" | "facturacion" | "detalle_hallazgo" | "campañas";
 
@@ -629,6 +637,11 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
     message: string;
   }>({ show: false, status: "success", timeLeft: 10, message: "" });
   const [matrizAbierta, setMatrizAbierta] = useState<MatrizBucketId | null>(null);
+  const [destripadorAbierto, setDestripadorAbierto] = useState(false);
+  const [destripadorEstado, setDestripadorEstado] = useState<DestripadorEstadoPersistido>({
+    mitigados: {},
+    copiados: {},
+  });
 
   const navegar = (nextVista: AuditorVista, path: string) => {
     setVista(nextVista);
@@ -751,6 +764,24 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
   };
   
   const ultimaAuditoria = historial.length > 0 ? historial[0] : null;
+
+  useEffect(() => {
+    const auditId = ultimaAuditoria?.id;
+    if (auditId == null) {
+      setDestripadorEstado({ mitigados: {}, copiados: {} });
+      return;
+    }
+    setDestripadorEstado(loadDestripadorEstado(auditId));
+  }, [ultimaAuditoria?.id]);
+
+  const mitigadosKeys = useMemo(
+    () => new Set(Object.keys(destripadorEstado.mitigados)),
+    [destripadorEstado.mitigados]
+  );
+  const copiadosKeys = useMemo(
+    () => new Set(Object.keys(destripadorEstado.copiados)),
+    [destripadorEstado.copiados]
+  );
 
   const quickWinsDelDia = (() => {
     if (!ultimaAuditoria?.reporte_json?.hallazgos) return [];
@@ -1176,6 +1207,10 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
   };
 
   const abrirDetalleHallazgo = (hallazgo: any, tipo: "critico" | "mejora", reporteData: any) => {
+    if (hallazgo?.id_rastreo === "GENERADOR_NEGATIVOS_URGENTE" && reporteData?.destripador) {
+      setDestripadorAbierto(true);
+      return;
+    }
     const keywords_prob = reporteData?.keywords_problematicas || [];
     const keywords_sug = reporteData?.keywords_sugeridas || [];
     const textoRazonamiento = hallazgo.razonamiento || hallazgo.pitch_vendedor || reporteData?.pitch_vendedor || "Esta optimización corta la hemorragia de presupuesto y redirige la inversión hacia tráfico con verdadera intención de compra.";
@@ -1245,9 +1280,64 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
     return `hace ${dias} días`;
   };
 
-  const nGramaData = ultimaAuditoria?.reporte_json?.n_gramas || null;
-  const ahorroNGramas = nGramaData?.ahorro_estimado || 0;
-  const palabrasBasura = nGramaData?.cantidad_palabras || 0;
+  const destripadorReporte: DestripadorReporte | null = ultimaAuditoria?.reporte_json?.destripador || null;
+  const nGramaLegacy = ultimaAuditoria?.reporte_json?.n_gramas || null;
+
+  const terminosPendientesDestripador = useMemo(() => {
+    if (!destripadorReporte) return [];
+    return destripadorReporte.terminos.filter(
+      t =>
+        !t.protegido &&
+        !mitigadosKeys.has(terminoKey(t)) &&
+        !copiadosKeys.has(terminoKey(t))
+    );
+  }, [destripadorReporte, mitigadosKeys, copiadosKeys]);
+
+  const terminosCopiadosDestripador = useMemo(() => {
+    if (!destripadorReporte) return [];
+    return destripadorReporte.terminos.filter(
+      t =>
+        !t.protegido &&
+        copiadosKeys.has(terminoKey(t)) &&
+        !mitigadosKeys.has(terminoKey(t))
+    );
+  }, [destripadorReporte, mitigadosKeys, copiadosKeys]);
+
+  const terminosAplicadosDestripador = useMemo(() => {
+    if (!destripadorReporte) return [];
+    return destripadorReporte.terminos.filter(
+      t => !t.protegido && mitigadosKeys.has(terminoKey(t))
+    );
+  }, [destripadorReporte, mitigadosKeys]);
+
+  const ahorroPendienteDestripador = useMemo(
+    () => terminosPendientesDestripador.reduce((acc, t) => acc + t.gasto, 0),
+    [terminosPendientesDestripador]
+  );
+
+  const ahorroNGramas = Math.round(
+    destripadorReporte
+      ? ahorroPendienteDestripador
+      : nGramaLegacy?.ahorro_estimado ?? 0
+  );
+  const palabrasBasura =
+    destripadorReporte?.cantidad_palabras_basura ?? nGramaLegacy?.cantidad_palabras ?? 0;
+  const terminosNegativizables = terminosPendientesDestripador.length;
+  const cantidadCopiadosDestripador = terminosCopiadosDestripador.length;
+  const cantidadAplicadosDestripador = terminosAplicadosDestripador.length;
+
+  const handleDestripadorMitigar = (keys: string[], planId?: string) => {
+    const auditId = ultimaAuditoria?.id;
+    if (auditId == null) return;
+    setDestripadorEstado(marcarTerminosMitigados(auditId, keys, planId));
+    setToastState({ show: true, status: 'success', timeLeft: 5 });
+  };
+
+  const handleDestripadorCopiar = (keys: string[]) => {
+    const auditId = ultimaAuditoria?.id;
+    if (auditId == null) return;
+    setDestripadorEstado(marcarTerminosCopiados(auditId, keys));
+  };
 
   if (status === "loading") return (
     <div className="h-screen w-full flex justify-center items-center bg-[#FDE8D3]">
@@ -1795,22 +1885,29 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
                      </div>
 
                      {/* 3. DESTRIPADOR (Fugas en Palabras) */}
+                     {(() => {
+                       const tieneDatos =
+                         !!destripadorReporte &&
+                         (terminosNegativizables > 0 ||
+                           cantidadCopiadosDestripador > 0 ||
+                           cantidadAplicadosDestripador > 0 ||
+                           palabrasBasura > 0);
+                       const subtituloPartes: string[] = [];
+                       if (terminosNegativizables > 0) subtituloPartes.push(`${terminosNegativizables} pendientes`);
+                       if (cantidadCopiadosDestripador > 0) subtituloPartes.push(`${cantidadCopiadosDestripador} copiados`);
+                       if (cantidadAplicadosDestripador > 0) subtituloPartes.push(`${cantidadAplicadosDestripador} aplicados`);
+                       const subtitulo =
+                         subtituloPartes.length > 0
+                           ? subtituloPartes.join(" · ")
+                           : palabrasBasura > 0
+                             ? `En ${palabrasBasura} palabras basura`
+                             : "Sin pendientes";
+                       return (
                      <div 
                         onClick={() => {
-                          if (ahorroNGramas > 0) {
-                            setDetalleHallazgo({
-                              titulo: "Destripador de Búsquedas",
-                              tipo: "critico",
-                              problema_detalle: "Detectamos palabras clave que se repiten ineficientemente y drenan presupuesto sin convertir.",
-                              sugerencia: nGramaData?.palabras?.join(", ") || "Revisar reporte",
-                              razonamiento: "Estas palabras atraen tráfico sin intención de compra. Al negativizarlas, obligamos a Google a buscar tráfico calificado.",
-                              resultado_esperado: `Ahorro estimado de aprox. $${ahorroNGramas}/mes.`,
-                              items: [],
-                              sugerencias: []
-                            });
-                          }
+                          if (tieneDatos) setDestripadorAbierto(true);
                         }}
-                        className={`bg-gradient-to-b from-[#292524] to-[#1C1917] border border-[#44403C] border-t-white/10 shadow-2xl rounded-3xl p-6 flex flex-col justify-between min-h-[160px] relative overflow-hidden group transition-all ${ahorroNGramas > 0 ? 'cursor-pointer hover:border-[#F3C3B2]/50' : 'opacity-70 grayscale'}`}
+                        className={`bg-gradient-to-b from-[#292524] to-[#1C1917] border border-[#44403C] border-t-white/10 shadow-2xl rounded-3xl p-6 flex flex-col justify-between min-h-[160px] relative overflow-hidden group transition-all ${tieneDatos ? 'cursor-pointer hover:border-[#F3C3B2]/50' : 'opacity-70 grayscale'}`}
                      >
                         <div className="absolute top-5 right-5 px-3 py-1.5 rounded-lg bg-[#F3C3B2]/10 border border-[#F3C3B2]/20 text-[#F3C3B2] text-[9px] font-black uppercase tracking-widest">N-Gramos</div>
                         <div className="w-12 h-12 rounded-2xl bg-[#F3C3B2]/15 flex items-center justify-center mb-3 border border-[#F3C3B2]/30 shadow-inner">
@@ -1818,12 +1915,16 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
                         </div>
                         <div>
                           <div className="flex items-baseline gap-2">
-                            <span className="text-5xl font-black text-[#F3C3B2] tracking-tighter leading-none">${ahorroNGramas}</span>
-                            <span className="text-xs font-black text-[#A8A29E] uppercase tracking-widest">Ahorro</span>
+                            <span className="text-5xl font-black text-[#F3C3B2] tracking-tighter leading-none">${ahorroNGramas.toLocaleString()}</span>
+                            <span className="text-xs font-black text-[#A8A29E] uppercase tracking-widest">Recuperable</span>
                           </div>
-                          <p className="text-[10px] text-[#A8A29E] mt-2 font-bold uppercase tracking-widest">En {palabrasBasura} palabras basura</p>
+                          <p className="text-[10px] text-[#A8A29E] mt-2 font-bold uppercase tracking-widest">
+                            {subtitulo}
+                          </p>
                         </div>
                      </div>
+                       );
+                     })()}
 
                      {/* 4. Oportunidades */}
                      <div className="bg-gradient-to-b from-[#292524] to-[#1C1917] border border-[#44403C] border-t-white/10 shadow-2xl rounded-3xl p-6 flex flex-col justify-between min-h-[160px] relative overflow-hidden group">
@@ -1911,12 +2012,16 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
                                     {!esCompletado ? (
                                       <button 
                                         onClick={() => {
-                                          setQuickWinsCompletados([...quickWinsCompletados, winId]);
-                                          setToastState({ show: true, status: 'success', timeLeft: 5 });
+                                          if (win.id_rastreo === "GENERADOR_NEGATIVOS_URGENTE" && destripadorReporte) {
+                                            setDestripadorAbierto(true);
+                                          } else {
+                                            setQuickWinsCompletados([...quickWinsCompletados, winId]);
+                                            setToastState({ show: true, status: 'success', timeLeft: 5 });
+                                          }
                                         }}
                                         className="bg-[#F3C3B2] hover:bg-[#eab3a1] text-[#0a0a0a] font-black text-[10px] uppercase tracking-widest px-4 py-2 rounded-xl transition-all shadow-sm"
                                       >
-                                        Corregir Ahora
+                                        {win.id_rastreo === "GENERADOR_NEGATIVOS_URGENTE" ? "Abrir Destripador" : "Corregir Ahora"}
                                       </button>
                                     ) : (
                                       <span className="text-[#10B981] flex items-center gap-1 text-[10px] font-black uppercase tracking-widest">
@@ -2409,6 +2514,18 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
                   })()}
                 </div>
               )}
+
+              {/* DESTRIPADOR DE BÚSQUEDAS — Panel especializado */}
+              <DestripadorPanel
+                destripador={destripadorReporte}
+                open={destripadorAbierto}
+                auditId={ultimaAuditoria?.id ?? null}
+                mitigadosKeys={mitigadosKeys}
+                copiadosKeys={copiadosKeys}
+                onClose={() => setDestripadorAbierto(false)}
+                onMitigar={handleDestripadorMitigar}
+                onCopiar={handleDestripadorCopiar}
+              />
 
               {/* SIDE DRAWER (PANEL LATERAL) */}
               {detalleHallazgo && (
