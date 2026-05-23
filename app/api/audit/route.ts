@@ -149,6 +149,7 @@ export async function POST(req: Request) {
         clics: Number(c.clics || c.Clics || 0),
         conversiones: Number(c.conversiones || c.Conversiones || 0),
         cpa_actual: Number(c.cpa_actual || c.cpa || c.CPA_Actual || 0),
+        cpa_objetivo: c.cpa_objetivo !== undefined ? Number(c.cpa_objetivo) : undefined,
         quality_score: c.quality_score !== undefined ? Number(c.quality_score) : undefined,
         quality_ctr: c.quality_ctr ? String(c.quality_ctr) : undefined,
         quality_relevance: c.quality_relevance ? String(c.quality_relevance) : undefined,

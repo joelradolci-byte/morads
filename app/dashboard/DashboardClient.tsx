@@ -10,7 +10,8 @@ import {
   Bell, ListChecks, LayoutGrid, CheckSquare, Sparkles, Undo2, RefreshCcw, Type, Calculator, BookOpen,
   Upload, Copy, Check, TrendingUp as TrendUp, ChevronRight, Folder, LayoutDashboard, X
 } from 'lucide-react';
-import { extraerDatosGoogle } from '../../lib/googleAds'; 
+import { extraerDatosGoogle, construirDatosAuditoria } from '../../lib/googleAds'; 
+import { calcularScoreCampana } from '../../lib/motorMora';
 import { supabase } from "../../lib/supabase/browser";
 
 export type AuditorVista = "dashboard" | "nueva" | "historial" | "perfil" | "feedback" | "reporte_lectura" | "facturacion" | "detalle_hallazgo" | "campañas";
@@ -23,6 +24,21 @@ const vistaPorRuta: Record<string, AuditorVista> = {
   "/facturacion": "facturacion",
   "/sugerencias": "feedback",
 };
+
+function colorClassesPorTag(tag: string) {
+  switch (tag) {
+    case "ESTRELLA":
+      return { border: "hover:border-[#10B981]", text: "text-[#10B981]", bg: "bg-[#10B981]/10", bar: "bg-[#10B981]" };
+    case "BASURA":
+      return { border: "hover:border-[#E07070]", text: "text-[#E07070]", bg: "bg-[#E07070]/10", bar: "bg-[#E07070]" };
+    case "POTENCIAL":
+      return { border: "hover:border-blue-400", text: "text-blue-400", bg: "bg-blue-400/10", bar: "bg-blue-400" };
+    case "DUDOSO":
+      return { border: "hover:border-[#EAB308]", text: "text-[#EAB308]", bg: "bg-[#EAB308]/10", bar: "bg-[#EAB308]" };
+    default:
+      return { border: "border-[#44403C]", text: "text-[#A8A29E]", bg: "bg-[#A8A29E]/10", bar: "bg-[#A8A29E]" };
+  }
+}
 
 function FadeInOnScroll({ children, delay = 0 }: { children: React.ReactNode, delay?: number }) {
   const [isVisible, setVisible] = useState(false);
@@ -494,7 +510,7 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
     setLoading(true);
     try {
       console.log("1. Extrayendo métricas del .lib...");
-      const datosParaAuditar = await extraerDatosGoogle();
+      const datosParaAuditar = await construirDatosAuditoria();
 
       console.log("2. Enviando datos a Gemini 3.1 Flash...");
       const res = await fetch('/api/audit', {
@@ -596,7 +612,7 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
 
   const renderGestorCampañas = () => {
     const activas = campanas.filter(c => c.estado === 'ENABLED');
-    const gastoTotal = activas.reduce((acc, c) => acc + (c.gasto || 0), 0);
+    const gastoTotal = activas.reduce((acc, c) => acc + (c.gasto_mensual || 0), 0);
     const convTotales = activas.reduce((acc, c) => acc + (c.conversiones || 0), 0);
     const cpaPromedio = convTotales > 0 ? gastoTotal / convTotales : 50;
 
@@ -636,36 +652,18 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
         {!cargandoCampanas && campanas.length > 0 && modoVista === 'grid' && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {campanas.map(c => {
-              const gasto = c.gasto || 0;
-              const presupuesto = c.presupuesto || 1; 
-              const conversiones = c.conversiones || 0;
-              const cpaActual = conversiones > 0 ? (gasto / conversiones) : gasto;
-              
-              let tag = "EVALUANDO";
-              let score = 50;
-              let colorClasses = { border: "border-[#44403C]", text: "text-[#A8A29E]", bg: "bg-[#A8A29E]/10" };
-              let penalizacion = "Rendimiento dentro del promedio.";
-
-              if (conversiones < 3) {
-                tag = "POTENCIAL"; score = 65; colorClasses = { border: "hover:border-blue-400", text: "text-blue-400", bg: "bg-blue-400/10" };
-                penalizacion = "Fase de aprendizaje. Darle tiempo.";
-              } else if (cpaActual < cpaPromedio * 0.85) {
-                tag = "ESTRELLA"; score = Math.min(98, 100 - Math.floor((cpaActual / cpaPromedio) * 10)); colorClasses = { border: "hover:border-[#10B981]", text: "text-[#10B981]", bg: "bg-[#10B981]/10" };
-                penalizacion = "Excelente CPA. Sugerimos escalar inversión.";
-              } else if (cpaActual > cpaPromedio * 1.20) {
-                tag = "BASURA"; score = Math.max(12, Math.floor(50 - ((cpaActual - cpaPromedio) / cpaPromedio) * 40)); colorClasses = { border: "hover:border-[#E07070]", text: "text-[#E07070]", bg: "bg-[#E07070]/10" };
-                penalizacion = "Drenando presupuesto. CPA insostenible.";
-              } else {
-                tag = "DUDOSO"; score = 75; colorClasses = { border: "hover:border-[#EAB308]", text: "text-[#EAB308]", bg: "bg-[#EAB308]/10" };
-                penalizacion = "Requiere optimización manual de palabras clave.";
-              }
+              const evaluacion = calcularScoreCampana(c, cpaPromedio);
+              const { score, tag, penalizacion, cpaActual, gasto } = evaluacion;
+              const presupuesto = Math.max(evaluacion.presupuesto, 1);
+              const colorClasses = colorClassesPorTag(tag);
+              const cpaObjetivo = c.cpa_objetivo ?? cpaPromedio;
 
               const handleClick = () => {
                 abrirDetalleHallazgo({
                   titulo: `Campaña ${tag}: ${c.nombre}`,
                   descripcion: penalizacion,
                   sugerencia: tag === "BASURA" ? "Pausar campaña temporalmente o reducir gasto en un 50%" : tag === "ESTRELLA" ? "Aumentar presupuesto un 15%" : "Revisar términos de búsqueda",
-                  razonamiento: `El CPA de esta campaña es de $${cpaActual.toFixed(2)}, mientras que el promedio de tu cuenta es $${cpaPromedio.toFixed(2)}.`
+                  razonamiento: `El CPA de esta campaña es de $${cpaActual.toFixed(2)}, mientras que el objetivo es $${cpaObjetivo.toFixed(2)}.`
                 }, tag === "BASURA" ? "critico" : "mejora", {});
               };
 
@@ -699,7 +697,7 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
                   <div className="flex justify-between items-end border-t border-[#44403C] pt-4">
                     <div>
                       <p className="text-[#A8A29E] text-[10px] uppercase tracking-wider mb-1">CPA Actual</p>
-                      <p className={`font-mono text-lg font-black ${cpaActual > cpaPromedio * 1.2 ? 'text-[#E07070]' : 'text-[#22c55e]'}`}>${cpaActual.toLocaleString(undefined, {maximumFractionDigits:2})}</p>
+                      <p className={`font-mono text-lg font-black ${cpaActual > cpaObjetivo * 1.2 ? 'text-[#E07070]' : 'text-[#22c55e]'}`}>${cpaActual.toLocaleString(undefined, {maximumFractionDigits:2})}</p>
                     </div>
                     <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded ${colorClasses.bg} ${colorClasses.text}`}>{tag}</span>
                   </div>
@@ -723,24 +721,9 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
               </thead>
               <tbody className="divide-y divide-[#44403C]">
                 {campanas.map(c => {
-                  const gasto = c.gasto || 0;
-                  const presupuesto = c.presupuesto || 1;
-                  const conversiones = c.conversiones || 0;
-                  const cpaActual = conversiones > 0 ? (gasto / conversiones) : gasto;
-                  
-                  let tag = "EVALUANDO";
-                  let score = 50;
-                  let colorClasses = { border: "border-[#44403C]", text: "text-[#A8A29E]", bg: "bg-[#A8A29E]/10", bar: "bg-[#A8A29E]" };
-
-                  if (conversiones < 3) {
-                    tag = "POTENCIAL"; score = 65; colorClasses = { border: "hover:border-blue-400", text: "text-blue-400", bg: "bg-blue-400/10", bar: "bg-blue-400" };
-                  } else if (cpaActual < cpaPromedio * 0.85) {
-                    tag = "ESTRELLA"; score = Math.min(98, 100 - Math.floor((cpaActual / cpaPromedio) * 10)); colorClasses = { border: "hover:border-[#10B981]", text: "text-[#10B981]", bg: "bg-[#10B981]/10", bar: "bg-[#10B981]" };
-                  } else if (cpaActual > cpaPromedio * 1.20) {
-                    tag = "BASURA"; score = Math.max(12, Math.floor(50 - ((cpaActual - cpaPromedio) / cpaPromedio) * 40)); colorClasses = { border: "hover:border-[#E07070]", text: "text-[#E07070]", bg: "bg-[#E07070]/10", bar: "bg-[#E07070]" };
-                  } else {
-                    tag = "DUDOSO"; score = 75; colorClasses = { border: "hover:border-[#EAB308]", text: "text-[#EAB308]", bg: "bg-[#EAB308]/10", bar: "bg-[#EAB308]" };
-                  }
+                  const evaluacion = calcularScoreCampana(c, cpaPromedio);
+                  const { score, tag, cpaActual, gasto } = evaluacion;
+                  const colorClasses = colorClassesPorTag(tag);
 
                   return (
                   <tr key={c.id} className="hover:bg-[#1C1917]/50 transition-colors group relative cursor-pointer" onClick={() => {
@@ -1676,10 +1659,10 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
                     ) : (
                       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                         {campanas.filter(c => c.estado === 'ENABLED').map((campana) => {
-                          const gasto = campana.gasto || 0;
-                          const presupuesto = campana.presupuesto || 1;
+                          const gasto = campana.gasto_mensual || 0;
+                          const presupuesto = campana.presupuesto_mensual || 1;
                           const conversiones = campana.conversiones || 0;
-                          const cpaActual = conversiones > 0 ? (gasto / conversiones) : gasto;
+                          const cpaActual = campana.cpa_actual ?? (conversiones > 0 ? (gasto / conversiones) : gasto);
 
                           const hoy = new Date();
                           const ultimoDiaMes = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).getDate();
@@ -1834,34 +1817,22 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
                       );
                     }
 
-                    const gastoTotal = activas.reduce((acc, c) => acc + (c.gasto || 0), 0);
+                    const gastoTotal = activas.reduce((acc, c) => acc + (c.gasto_mensual || 0), 0);
                     const convTotales = activas.reduce((acc, c) => acc + (c.conversiones || 0), 0);
                     const cpaPromedio = convTotales > 0 ? gastoTotal / convTotales : 50;
 
-                    const estrellas = activas.filter(c => (c.conversiones || 0) >= 3 && (c.gasto / (c.conversiones || 1)) < cpaPromedio * 0.85);
-                    
-                    const basura = activas.filter(c => 
-                      ((c.conversiones || 0) >= 3 && (c.gasto / (c.conversiones || 1)) > cpaPromedio * 1.20) || 
-                      ((c.conversiones || 0) < 3 && (c.gasto > (c.presupuesto || 0) * 0.80))
-                    );
-
-                    const dudosos = activas.filter(c => 
-                      (c.conversiones || 0) >= 3 && 
-                      (c.gasto / (c.conversiones || 1)) >= cpaPromedio * 0.85 && 
-                      (c.gasto / (c.conversiones || 1)) <= cpaPromedio * 1.20
-                    );
-
-                    const potenciales = activas.filter(c => 
-                      (c.conversiones || 0) < 3 && 
-                      (c.gasto <= (c.presupuesto || 0) * 0.80)
-                    );
+                    const evaluaciones = activas.map(c => ({ campana: c, evaluacion: calcularScoreCampana(c, cpaPromedio) }));
+                    const estrellas = evaluaciones.filter(e => e.evaluacion.tag === "ESTRELLA").map(e => e.campana);
+                    const basura = evaluaciones.filter(e => e.evaluacion.tag === "BASURA").map(e => e.campana);
+                    const dudosos = evaluaciones.filter(e => e.evaluacion.tag === "DUDOSO").map(e => e.campana);
+                    const potenciales = evaluaciones.filter(e => e.evaluacion.tag === "POTENCIAL").map(e => e.campana);
 
                     const abrirMatriz = (tipo: string, lista: any[]) => {
                       if (lista.length === 0) return;
                       let tit, desc, sug, raz;
-                      if (tipo === 'estrella') { tit = "Estrellas"; desc = "Rendimiento top."; sug = "Escalar presupuesto."; raz = "CPA muy por debajo del promedio."; }
+                      if (tipo === 'estrella') { tit = "Estrellas"; desc = "Rendimiento top."; sug = "Escalar presupuesto."; raz = "CPA por debajo del objetivo."; }
                       else if (tipo === 'basura') { tit = "Basura / Parásitos"; desc = "Drenando dinero."; sug = "Pausar o corregir."; raz = "CPA altísimo o gasto sin conversión."; }
-                      else if (tipo === 'dudosos') { tit = "Dudosos"; desc = "Rendimiento tibio."; sug = "Optimizar keywords."; raz = "CPA cerca del promedio."; }
+                      else if (tipo === 'dudosos') { tit = "Dudosos"; desc = "Rendimiento tibio."; sug = "Optimizar keywords."; raz = "CPA cerca o por encima del objetivo."; }
                       else { tit = "Potenciales"; desc = "Poca data."; sug = "Darle más tiempo."; raz = "Fase de aprendizaje del algoritmo."; }
 
                       setDetalleHallazgo({
