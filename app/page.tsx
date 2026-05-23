@@ -1,7 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { createClient } from "@supabase/supabase-js";
 import Link from "next/link";
 import { 
   Target, Users, Building2, MessageSquare, LogOut, ChevronDown, 
@@ -12,10 +11,18 @@ import {
   Upload, Copy, Check, TrendingUp as TrendUp, ChevronRight, Folder, LayoutDashboard, X
 } from 'lucide-react';
 import { extraerDatosGoogle } from '../lib/googleAds'; 
+import { supabase } from "../lib/supabase/browser";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey);
+export type AuditorVista = "dashboard" | "nueva" | "historial" | "perfil" | "feedback" | "reporte_lectura" | "facturacion" | "detalle_hallazgo" | "campañas";
+
+const vistaPorRuta: Record<string, AuditorVista> = {
+  "/dashboard": "dashboard",
+  "/campanas": "campañas",
+  "/reportes": "historial",
+  "/configuracion": "perfil",
+  "/facturacion": "facturacion",
+  "/sugerencias": "feedback",
+};
 
 function FadeInOnScroll({ children, delay = 0 }: { children: React.ReactNode, delay?: number }) {
   const [isVisible, setVisible] = useState(false);
@@ -371,7 +378,7 @@ function ScoreSparkline({ data, fechas }: { data: number[], fechas: string[] }) 
   );
 }
 
-function AuditorDashboard() {
+export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?: AuditorVista } = {}) {
   const [campanas, setCampanas] = useState<any[]>([]);
   const [cargandoCampanas, setCargandoCampanas] = useState(false);
   const [session, setSession] = useState<any>(null);
@@ -382,7 +389,7 @@ function AuditorDashboard() {
   const [copiedKw, setCopiedKw] = useState<string | null>(null);
   const [idioma, setIdioma] = useState<"es" | "en">("es");
   const [quickWinsCompletados, setQuickWinsCompletados] = useState<string[]>([]);
-  const [vista, setVista] = useState<"dashboard" | "nueva" | "historial" | "perfil" | "feedback" | "reporte_lectura" | "facturacion" | "detalle_hallazgo" | "campañas">("dashboard");
+  const [vista, setVista] = useState<AuditorVista>(initialVista);
   const [subVistaReporte, setSubVistaReporte] = useState<"diagnostico" | "checklist" | "avanzado">("diagnostico");
   const [detalleHallazgo, setDetalleHallazgo] = useState<any | null>(null);
   const [isClosing, setIsClosing] = useState(false);
@@ -412,6 +419,25 @@ function AuditorDashboard() {
   const [alertasNoLeidas, setAlertasNoLeidas] = useState(false);    
   const [modoVista, setModoVista] = useState('grid');
 
+  const navegar = (nextVista: AuditorVista, path: string) => {
+    setVista(nextVista);
+    window.history.pushState(null, "", path);
+  };
+
+  useEffect(() => {
+    setVista(initialVista);
+  }, [initialVista]);
+
+  useEffect(() => {
+    const sincronizarVistaConRuta = () => {
+      const nextVista = vistaPorRuta[window.location.pathname];
+      if (nextVista) setVista(nextVista);
+    };
+
+    window.addEventListener("popstate", sincronizarVistaConRuta);
+    return () => window.removeEventListener("popstate", sincronizarVistaConRuta);
+  }, []);
+
   useEffect(() => {
     const formatSession = (supaSession: any) => {
       if (!supaSession) return null;
@@ -433,6 +459,18 @@ function AuditorDashboard() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, supaSession) => {
       setSession(formatSession(supaSession));
       setStatus(supaSession ? "authenticated" : "unauthenticated");
+
+      if (supaSession?.provider_refresh_token) {
+        setTimeout(() => {
+          void supabase
+            .from('google_ads_tokens')
+            .upsert({ 
+              user_id: supaSession.user.id, 
+              refresh_token: supaSession.provider_refresh_token,
+              actualizado_el: new Date().toISOString()
+            });
+        }, 0);
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -785,7 +823,7 @@ function AuditorDashboard() {
   const borrarAuditoria = async (id: number) => {
     if (!window.confirm("¿Seguro que querés eliminar esta auditoría? Esta acción no se puede deshacer.")) return;
     const { error } = await supabase.from('historial_auditorias').delete().eq('id', id);
-    if (!error) { setHistorial(historial.filter(item => item.id !== id)); if (vista === "reporte_lectura") setVista("historial"); } 
+    if (!error) { setHistorial(historial.filter(item => item.id !== id)); if (vista === "reporte_lectura") navegar("historial", "/reportes"); } 
     else { alert("Error al eliminar la auditoría."); }
   };
 
@@ -813,24 +851,6 @@ function AuditorDashboard() {
     }
     if (vista === "historial" || vista === "dashboard") cargarHistorial();
   }, [vista, session]);
-
-  useEffect(() => {
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session && session.provider_refresh_token) {
-        await supabase
-          .from('google_ads_tokens')
-          .upsert({ 
-            user_id: session.user.id, 
-            refresh_token: session.provider_refresh_token,
-            actualizado_el: new Date().toISOString()
-          });
-      }
-    });
-
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
-  }, []);
 
   const cerrarSesion = async (e: any) => {
     e.stopPropagation();
@@ -869,7 +889,7 @@ function AuditorDashboard() {
     if (!mensajeFeedback.trim() || !session?.user?.email) return;
     setEnviandoFeedback(true);
     const { error } = await supabase.from('feedback').insert([{ usuario_email: session.user.email, mensaje: mensajeFeedback }]);
-    if (!error) { alert("¡Gracias por tu sugerencia!"); setMensajeFeedback(""); setVista("dashboard"); } else { alert("Error enviando feedback."); }
+    if (!error) { alert("¡Gracias por tu sugerencia!"); setMensajeFeedback(""); navegar("dashboard", "/dashboard"); } else { alert("Error enviando feedback."); }
     setEnviandoFeedback(false);
   };
 
@@ -1285,7 +1305,7 @@ function AuditorDashboard() {
 
               <nav className="flex-1 flex flex-col gap-2 relative px-4">
                 <button 
-                  onClick={() => setVista("dashboard")}
+                  onClick={() => navegar("dashboard", "/dashboard")}
                   className={`w-full text-left py-3.5 pr-4 flex items-center gap-3 font-bold transition-all duration-300 rounded-lg ${
                     vista === "dashboard" || vista === "detalle_hallazgo"
                     ? "bg-white/10 text-white border-l-4 border-[#F3C3B2] pl-5" 
@@ -1297,7 +1317,7 @@ function AuditorDashboard() {
                 </button>
 
                 <button 
-                  onClick={() => setVista("campañas")}
+                  onClick={() => navegar("campañas", "/campanas")}
                   className={`w-full text-left py-3.5 pr-4 flex items-center gap-3 font-bold transition-all duration-300 rounded-lg ${
                     vista === "campañas"
                     ? "bg-white/10 text-white border-l-4 border-[#F3C3B2] pl-5" 
@@ -1309,7 +1329,7 @@ function AuditorDashboard() {
                 </button>
 
                 <button 
-                  onClick={() => setVista("historial")}
+                  onClick={() => navegar("historial", "/reportes")}
                   className={`w-full text-left py-3.5 pr-4 flex items-center gap-3 font-bold transition-all duration-300 rounded-lg ${
                     vista === "historial" || vista === "reporte_lectura"
                     ? "bg-white/10 text-white border-l-4 border-[#F3C3B2] pl-5" 
@@ -1321,7 +1341,7 @@ function AuditorDashboard() {
                 </button>
 
                 <button 
-                  onClick={() => setVista("feedback")}
+                  onClick={() => navegar("feedback", "/sugerencias")}
                   className={`w-full text-left py-3.5 pr-4 flex items-center gap-3 font-bold transition-all duration-300 rounded-lg ${
                     vista === "feedback"
                     ? "bg-white/10 text-white border-l-4 border-[#F3C3B2] pl-5" 
@@ -1439,8 +1459,8 @@ function AuditorDashboard() {
                     <ChevronDown size={14} className="text-[#A8A29E] ml-2 group-hover:rotate-180 transition-transform duration-300" />
 
                     <div className="absolute top-full right-0 mt-2 w-56 bg-[#292524] border border-[#44403C] rounded-2xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 overflow-hidden flex flex-col translate-y-2 group-hover:translate-y-0">
-                       <button onClick={() => setVista("perfil")} className="flex items-center gap-3 px-5 py-3.5 text-sm font-bold text-[#A8A29E] hover:text-[#F5F0EB] hover:bg-[#44403C]/50 transition-colors text-left"><Settings size={16} /> Configuración</button>
-                       <button onClick={() => setVista("facturacion")} className="flex items-center gap-3 px-5 py-3.5 text-sm font-bold text-[#A8A29E] hover:text-[#F5F0EB] hover:bg-[#44403C]/50 transition-colors text-left"><CreditCard size={16} /> Facturación</button>
+                       <button onClick={() => navegar("perfil", "/configuracion")} className="flex items-center gap-3 px-5 py-3.5 text-sm font-bold text-[#A8A29E] hover:text-[#F5F0EB] hover:bg-[#44403C]/50 transition-colors text-left"><Settings size={16} /> Configuración</button>
+                       <button onClick={() => navegar("facturacion", "/facturacion")} className="flex items-center gap-3 px-5 py-3.5 text-sm font-bold text-[#A8A29E] hover:text-[#F5F0EB] hover:bg-[#44403C]/50 transition-colors text-left"><CreditCard size={16} /> Facturación</button>
                        <div className="h-px bg-[#44403C] w-full"></div>
                        <button onMouseDown={cerrarSesion} className="flex items-center gap-3 px-5 py-3.5 text-sm font-bold text-[#E07070] hover:bg-[#E07070]/10 transition-colors text-left"><LogOut size={16} /> Cerrar sesión</button>
                     </div>
@@ -2192,7 +2212,7 @@ function AuditorDashboard() {
               {vista === "reporte_lectura" && reporte && (
                 <div className="animate-fade-custom relative z-10 w-full max-w-[1400px] mx-auto flex flex-col gap-6">
                   <div className="mb-6 flex justify-between items-center">
-                     <button onClick={() => setVista("historial")} className="flex items-center gap-2 p-2.5 rounded-xl bg-[#292524] border border-[#44403C] text-[#A8A29E] hover:text-[#F5F0EB] font-bold transition-colors text-sm"><ArrowLeft size={18} /></button>
+                     <button onClick={() => navegar("historial", "/reportes")} className="flex items-center gap-2 p-2.5 rounded-xl bg-[#292524] border border-[#44403C] text-[#A8A29E] hover:text-[#F5F0EB] font-bold transition-colors text-sm"><ArrowLeft size={18} /></button>
                      
                      <button 
                        onClick={() => {
@@ -2455,6 +2475,6 @@ function AuditorDashboard() {
   );
 }
 
-export default function AuditorPageWrapper() {
-  return <AuditorDashboard />;
+export default function AuditorPageWrapper({ initialVista = "dashboard" }: { initialVista?: AuditorVista } = {}) {
+  return <AuditorDashboard initialVista={initialVista} />;
 }
