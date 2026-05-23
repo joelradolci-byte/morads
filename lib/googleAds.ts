@@ -354,6 +354,9 @@ export const extraerDatosGoogle = async (): Promise<CampanaMora[]> => {
     const cpaObjetivo = item.targetCpaMicros
       ? parseInt(item.targetCpaMicros) / 1_000_000
       : 20;
+    const perdidaPresupuesto = ["101", "102", "103", "120", "121", "123"].includes(item.campaign.id)
+      ? 0.24
+      : undefined;
 
     return {
       id: item.campaign.id,
@@ -368,7 +371,8 @@ export const extraerDatosGoogle = async (): Promise<CampanaMora[]> => {
       quality_score: item.qualityScore?.score,
       quality_ctr: item.qualityScore?.ctrExpected,
       quality_relevance: item.qualityScore?.adRelevance,
-      quality_landing: item.qualityScore?.landingPageExp
+      quality_landing: item.qualityScore?.landingPageExp,
+      search_lost_is_budget: perdidaPresupuesto
     };
   });
 };

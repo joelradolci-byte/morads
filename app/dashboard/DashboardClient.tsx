@@ -11,7 +11,15 @@ import {
   Upload, Copy, Check, TrendingUp as TrendUp, ChevronRight, Folder, LayoutDashboard, X
 } from 'lucide-react';
 import { extraerDatosGoogle, construirDatosAuditoria } from '../../lib/googleAds'; 
-import { calcularScoreCampana } from '../../lib/motorMora';
+import { calcularPlanRobinHood, calcularScoreCampana } from '../../lib/motorMora';
+import {
+  createSafeApplyPlan,
+  executeLocalSafeApply,
+  rollbackLocalSafeApply,
+  type SafeApplyAuditEntry,
+  type SafeApplyChange,
+  type SafeApplyPlan,
+} from '../../lib/safeApply';
 import { supabase } from "../../lib/supabase/browser";
 
 export type AuditorVista = "dashboard" | "nueva" | "historial" | "perfil" | "feedback" | "reporte_lectura" | "facturacion" | "detalle_hallazgo" | "campañas";
@@ -214,17 +222,6 @@ function impactoFinancieroEscalar(items: MatrizItemEval[]): number {
 
 function gastoEnBucket(items: MatrizItemEval[]): number {
   return items.reduce((acc, { campana }) => acc + (campana.gasto_mensual || 0), 0);
-}
-
-function insightRobinHoodMatriz(apagar: MatrizItemEval[], escalar: MatrizItemEval[]) {
-  const rescatable = apagar.reduce((acc, { campana }) => acc + (campana.gasto_mensual || 0) * 0.3, 0);
-  const destino = [...escalar].sort((a, b) => b.evaluacion.score - a.evaluacion.score)[0];
-  return {
-    rescatable: Math.round(rescatable),
-    destinoNombre: destino?.campana.nombre ?? null,
-    origenCount: apagar.length,
-    destinoCount: escalar.length,
-  };
 }
 
 function FadeInOnScroll({ children, delay = 0 }: { children: React.ReactNode, delay?: number }) {
@@ -622,15 +619,12 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
   const [alertasNoLeidas, setAlertasNoLeidas] = useState(false);    
   const [modoVista, setModoVista] = useState('grid');
   const [pacingAccionPendiente, setPacingAccionPendiente] = useState<PacingAccionPendiente | null>(null);
-  const [pacingUndo, setPacingUndo] = useState<{
-    campanaId: string;
-    campanaNombre: string;
-    valorAnterior: number;
-    valorPropuesto: number;
-  } | null>(null);
+  const [pacingUndo, setPacingUndo] = useState<SafeApplyPlan | null>(null);
+  const [robinAccionPendiente, setRobinAccionPendiente] = useState<SafeApplyPlan | null>(null);
+  const [safeApplyAuditLog, setSafeApplyAuditLog] = useState<SafeApplyAuditEntry[]>([]);
   const [pacingToast, setPacingToast] = useState<{
     show: boolean;
-    status: "success" | "undoing" | "reverted";
+    status: "success" | "undoing" | "reverted" | "review";
     timeLeft: number;
     message: string;
   }>({ show: false, status: "success", timeLeft: 10, message: "" });
@@ -996,16 +990,32 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
   const confirmarAccionPacing = () => {
     if (!pacingAccionPendiente) return;
     const { campanaId, campanaNombre, valorAnterior, valorPropuesto } = pacingAccionPendiente;
-    setCampanas(prev =>
-      prev.map(c => (c.id === campanaId ? { ...c, presupuesto_mensual: valorPropuesto } : c))
-    );
-    setPacingUndo({ campanaId, campanaNombre, valorAnterior, valorPropuesto });
+    const safePlan = createSafeApplyPlan({
+      id: `pacing-${campanaId}-${Date.now()}`,
+      title: `Ajuste de presupuesto: ${campanaNombre}`,
+      scope: "budget",
+      risk: "medio",
+      reason: pacingAccionPendiente.motivo,
+      expectedImpact: pacingAccionPendiente.impacto,
+      changes: [{
+        targetId: campanaId,
+        targetName: campanaNombre,
+        field: "presupuesto_mensual",
+        before: valorAnterior,
+        after: valorPropuesto,
+        reason: pacingAccionPendiente.motivo,
+      }],
+    });
+    const result = executeLocalSafeApply(campanas, safePlan);
+    setCampanas(result.entities);
+    setSafeApplyAuditLog(prev => [result.audit, ...prev].slice(0, 20));
+    setPacingUndo(result.status === "aplicado" ? safePlan : null);
     setPacingAccionPendiente(null);
     setPacingToast({
       show: true,
-      status: "success",
-      timeLeft: 10,
-      message: `Presupuesto ajustado para ${campanaNombre}.`,
+      status: result.status === "requiere_revision" ? "review" : result.status === "cancelado" ? "reverted" : "success",
+      timeLeft: result.status === "aplicado" ? 10 : 0,
+      message: result.status === "aplicado" ? `Presupuesto ajustado para ${campanaNombre}.` : result.message,
     });
   };
 
@@ -1013,15 +1023,58 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
     if (!pacingUndo) return;
     setPacingToast(prev => ({ ...prev, status: "undoing", message: "Deshaciendo cambio..." }));
     setTimeout(() => {
-      setCampanas(prev =>
-        prev.map(c =>
-          c.id === pacingUndo.campanaId ? { ...c, presupuesto_mensual: pacingUndo.valorAnterior } : c
-        )
-      );
+      const result = rollbackLocalSafeApply(campanas, pacingUndo);
+      setCampanas(result.entities);
+      setSafeApplyAuditLog(prev => [result.audit, ...prev].slice(0, 20));
       setPacingUndo(null);
-      setPacingToast({ show: true, status: "reverted", timeLeft: 0, message: "Cambio revertido." });
+      setPacingToast({ show: true, status: "reverted", timeLeft: 0, message: result.message });
       setTimeout(() => setPacingToast(prev => ({ ...prev, show: false })), 2000);
     }, 800);
+  };
+
+  const crearPlanSeguroRobin = (robin: ReturnType<typeof calcularPlanRobinHood>): SafeApplyPlan | null => {
+    if (!robin.aplica || !robin.destino) return null;
+    const cambiosOrigen: SafeApplyChange[] = robin.origenes.map(origen => ({
+      targetId: origen.campana_id,
+      targetName: origen.nombre,
+      field: "presupuesto_mensual",
+      before: origen.presupuesto_actual,
+      after: origen.presupuesto_propuesto,
+      reason: origen.motivo,
+    }));
+    const cambioDestino: SafeApplyChange = {
+      targetId: robin.destino.campana_id,
+      targetName: robin.destino.nombre,
+      field: "presupuesto_mensual",
+      before: robin.destino.presupuesto_actual,
+      after: robin.destino.presupuesto_propuesto,
+      reason: robin.destino.motivo,
+    };
+
+    return createSafeApplyPlan({
+      id: `robin-hood-${Date.now()}`,
+      title: "Reasignación Robin Hood",
+      scope: "budget",
+      risk: robin.confianza === "alta" ? "medio" : "alto",
+      reason: robin.justificacion,
+      expectedImpact: `+${robin.proyeccion.conversiones_extra_mensuales} conversiones/mes estimadas y ${robin.proyeccion.reduccion_cpa_global_pct}% menos CPA global.`,
+      changes: [...cambiosOrigen, cambioDestino],
+    });
+  };
+
+  const confirmarAccionRobin = () => {
+    if (!robinAccionPendiente) return;
+    const result = executeLocalSafeApply(campanas, robinAccionPendiente);
+    setCampanas(result.entities);
+    setSafeApplyAuditLog(prev => [result.audit, ...prev].slice(0, 20));
+    setPacingUndo(result.status === "aplicado" ? robinAccionPendiente : null);
+    setRobinAccionPendiente(null);
+    setPacingToast({
+      show: true,
+      status: result.status === "requiere_revision" ? "review" : result.status === "cancelado" ? "reverted" : "success",
+      timeLeft: result.status === "aplicado" ? 10 : 0,
+      message: result.status === "aplicado" ? "Reasignación Robin Hood aplicada y verificada." : result.message,
+    });
   };
 
   const obtenerPerfil = async () => {
@@ -1915,7 +1968,7 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
                           const cpaObjetivo = campana.cpa_objetivo ?? cpaPromedioVista;
                           const cpaCritico = evaluacion.cpaActual > cpaObjetivo * 1.2 || evaluacion.tag === "BASURA";
                           const accionPacing = obtenerAccionPacing(campana, pacing, evaluacion, cpaObjetivo);
-                          const fueAplicada = pacingUndo?.campanaId === campana.id;
+                          const fueAplicada = pacingUndo?.changes.some(change => change.targetId === campana.id);
                           const alerta = cpaCritico && pacing.estado === "Sobreinvirtiendo"
                             ? "Crítico: acelera gasto con CPA caro."
                             : cpaCritico
@@ -2102,7 +2155,7 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
                       cpaObjetivo: c.cpa_objetivo ?? cpaPromedio,
                     }));
                     const buckets = agruparMatriz(evaluaciones);
-                    const robin = insightRobinHoodMatriz(buckets.apagar, buckets.escalar);
+                    const robin = calcularPlanRobinHood(activas, cpaPromedio, "ecommerce", gastoTotal, convTotales);
 
                     const bloques: {
                       id: MatrizBucketId;
@@ -2182,14 +2235,93 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
                           </p>
                         </div>
 
-                        {robin.rescatable > 0 && robin.destinoCount > 0 && (
-                          <div className="mb-4 rounded-2xl border border-[#D4A843]/30 bg-[#D4A843]/5 px-4 py-3">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-[#D4A843] mb-1">Lectura estratégica</p>
-                            <p className="text-sm text-[#F5F0EB] font-medium leading-relaxed">
-                              ~${robin.rescatable.toLocaleString()}/mes podrían reasignarse desde {robin.origenCount} campaña{robin.origenCount !== 1 ? "s" : ""} perdedora{robin.origenCount !== 1 ? "s" : ""}
-                              {robin.destinoNombre ? ` hacia ${robin.destinoNombre}.` : "."}
-                            </p>
-                            <p className="text-[10px] text-[#A8A29E] mt-1.5 font-bold">Señal para estrategia Robin Hood — sin aplicar cambios desde aquí.</p>
+                        {robin.estado !== "sin_oportunidad" && (
+                          <div className={`mb-4 rounded-3xl border px-5 py-4 ${
+                            robin.aplica
+                              ? "border-[#D4A843]/40 bg-[#D4A843]/5"
+                              : "border-[#44403C] bg-[#292524]"
+                          }`}>
+                            <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-4">
+                              <div className="min-w-0">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-[#D4A843] mb-1">Robin Hood seguro</p>
+                                <h4 className="text-lg font-black text-[#F5F0EB] leading-tight">
+                                  {robin.aplica ? "Reasignación lista para aplicar" : "Reasignación bloqueada por seguridad"}
+                                </h4>
+                                <p className="text-sm text-[#A8A29E] font-medium leading-relaxed mt-1">{robin.justificacion}</p>
+                              </div>
+                              <div className="flex flex-wrap gap-2 shrink-0">
+                                <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border border-[#44403C] text-[#F5F0EB] bg-[#1C1917]">
+                                  Confianza {robin.confianza}
+                                </span>
+                                <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border border-[#10B981]/20 text-[#10B981] bg-[#10B981]/10">
+                                  Safe Apply
+                                </span>
+                              </div>
+                            </div>
+
+                            {robin.aplica && robin.destino && (
+                              <>
+                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mt-4">
+                                  <div className="rounded-2xl border border-[#E07070]/20 bg-[#E07070]/5 p-3">
+                                    <p className="text-[9px] font-black uppercase tracking-widest text-[#E07070] mb-2">Total a donar ahora</p>
+                                    <p className="text-2xl font-black text-[#F5F0EB]">${robin.total_reasignado.toLocaleString()}/mes</p>
+                                    {robin.presupuesto_rescatable > robin.total_reasignado && (
+                                      <p className="text-[9px] text-[#A8A29E] font-bold mt-1 leading-snug">
+                                        Potencial hasta ${robin.presupuesto_rescatable.toLocaleString()} · Mora aplica ${robin.total_reasignado.toLocaleString()} por seguridad.
+                                      </p>
+                                    )}
+                                    <div className="mt-2 space-y-1">
+                                      {robin.origenes.map(origen => (
+                                        <div key={origen.campana_id} className="flex justify-between gap-2 text-[10px] font-bold text-[#A8A29E]">
+                                          <span className="truncate" title={origen.nombre}>{origen.nombre}</span>
+                                          <span className="text-[#E07070] shrink-0">recorte -${origen.monto_recortado.toLocaleString()}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                    {robin.origenes.length > 0 && (
+                                      <p className="text-[9px] text-[#E07070] font-black uppercase tracking-widest mt-2 pt-2 border-t border-[#E07070]/20">
+                                        Suma donantes: ${robin.origenes.reduce((acc, o) => acc + o.monto_recortado, 0).toLocaleString()}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <div className="rounded-2xl border border-[#10B981]/20 bg-[#10B981]/5 p-3">
+                                    <p className="text-[9px] font-black uppercase tracking-widest text-[#10B981] mb-2">Recibe la donación</p>
+                                    <p className="text-sm font-black text-[#F5F0EB] truncate">{robin.destino.nombre}</p>
+                                    <p className="text-2xl font-black text-[#10B981] mt-1">+${robin.destino.monto_incrementado.toLocaleString()}/mes</p>
+                                    <p className="text-[10px] text-[#A8A29E] font-bold mt-1">
+                                      Margen escalable {robin.destino.margen_escalabilidad}% · Score {robin.destino.score_escalabilidad}
+                                    </p>
+                                  </div>
+                                  <div className="rounded-2xl border border-[#D4A843]/20 bg-[#D4A843]/5 p-3">
+                                    <p className="text-[9px] font-black uppercase tracking-widest text-[#D4A843] mb-2">Victoria estimada</p>
+                                    <p className="text-2xl font-black text-[#F5F0EB] leading-tight">
+                                      +{robin.proyeccion.conversiones_extra_mensuales}
+                                      <span className="text-sm font-black text-[#A8A29E] ml-1">conversiones/mes</span>
+                                    </p>
+                                    <p className="text-[10px] text-[#A8A29E] font-bold mt-1">
+                                      CPA global estimado -{robin.proyeccion.reduccion_cpa_global_pct}%
+                                    </p>
+                                    <p className="text-[9px] text-[#A8A29E] mt-2 leading-snug">{robin.proyeccion.supuesto}</p>
+                                  </div>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const plan = crearPlanSeguroRobin(robin);
+                                    if (plan) setRobinAccionPendiente(plan);
+                                  }}
+                                  className="mt-4 w-full sm:w-auto text-[10px] font-black uppercase tracking-widest px-4 py-3 rounded-xl border border-[#D4A843]/30 bg-[#D4A843]/10 text-[#D4A843] hover:bg-[#D4A843] hover:text-[#0a0a0a] transition-colors"
+                                >
+                                  Aplicar reasignación Robin Hood
+                                </button>
+                              </>
+                            )}
+
+                            {!robin.aplica && robin.bloqueos.length > 0 && (
+                              <p className="text-[10px] text-[#A8A29E] font-bold leading-relaxed mt-3">
+                                {robin.bloqueos[0]}
+                              </p>
+                            )}
                           </div>
                         )}
                         
@@ -2261,9 +2393,9 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
                                     {restantes > 0 && (
                                       <p className="text-[10px] text-[#A8A29E] font-bold text-center pt-1">+{restantes} más</p>
                                     )}
-                                    {bloque.id === "apagar" && robin.destinoNombre && (
+                                    {bloque.id === "apagar" && robin.destino && (
                                       <p className="text-[10px] text-[#D4A843] font-bold leading-snug pt-1 px-1">
-                                        Señal Robin Hood: reasignar hacia {robin.destinoNombre}
+                                        Señal Robin Hood: reasignar hacia {robin.destino.nombre}
                                       </p>
                                     )}
                                   </div>
@@ -2796,6 +2928,69 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
         </div>
       )}
 
+      {/* CONFIRMACIÓN ROBIN HOOD */}
+      {robinAccionPendiente && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 print:hidden">
+          <div className="absolute inset-0 bg-[#0a0a0a]/40 backdrop-blur-sm cursor-pointer" onClick={() => setRobinAccionPendiente(null)}></div>
+          <div className="bg-[#FAFAF9] border border-[#E5E7EB] shadow-2xl rounded-3xl w-full max-w-2xl relative z-10 animate-fade-custom overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-1 bg-[#D4A843]"></div>
+            <div className="p-8">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-14 h-14 rounded-2xl bg-[#D4A843]/10 border border-[#D4A843]/30 flex items-center justify-center text-[#D4A843] flex-shrink-0 shadow-sm">
+                  <ShieldCheck size={24} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-[#0a0a0a] leading-tight">Aplicar Robin Hood con red de seguridad</h3>
+                  <p className="text-xs text-[#8A968C] mt-1 font-bold uppercase tracking-widest">
+                    Preview, confirmación, verificación y Undo
+                  </p>
+                </div>
+              </div>
+
+              <p className="text-[#4B5563] text-sm leading-relaxed mb-4 font-medium">{robinAccionPendiente.reason}</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5 max-h-72 overflow-y-auto pr-1">
+                {robinAccionPendiente.changes.map(change => (
+                  <div key={`${change.targetId}-${change.after}`} className="bg-[#F4F4F5] border border-[#E5E7EB] rounded-2xl p-4">
+                    <p className="text-[10px] text-[#8A968C] font-black uppercase tracking-widest truncate">{change.targetName}</p>
+                    <div className="flex items-center justify-between gap-3 mt-2">
+                      <div>
+                        <p className="text-[10px] text-[#8A968C] uppercase font-bold">Antes</p>
+                        <p className="text-lg font-black text-[#4B5563]">${change.before.toLocaleString()}</p>
+                      </div>
+                      <ArrowRight size={16} className="text-[#8A968C] shrink-0" />
+                      <div className="text-right">
+                        <p className="text-[10px] text-[#8A968C] uppercase font-bold">Después</p>
+                        <p className={`text-lg font-black ${change.after > change.before ? "text-[#10B981]" : "text-[#E07070]"}`}>
+                          ${change.after.toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-[#8A968C] mt-2 leading-snug">{change.reason}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="rounded-2xl border border-[#10B981]/20 bg-[#10B981]/10 p-4 mb-6">
+                <p className="text-[10px] text-[#10B981] font-black uppercase tracking-widest mb-1">Contrato de seguridad</p>
+                <p className="text-xs text-[#4B5563] font-bold leading-relaxed">
+                  Mora validará que los presupuestos no hayan cambiado, aplicará el plan, verificará el resultado y habilitará Undo. Si detecta inconsistencia, detendrá la operación y marcará revisión manual.
+                </p>
+                <p className="text-[9px] text-[#8A968C] font-bold uppercase tracking-widest mt-2">
+                  Registros Safe Apply en sesión: {safeApplyAuditLog.length}
+                </p>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button onClick={() => setRobinAccionPendiente(null)} className="px-5 py-3 rounded-xl font-bold text-xs text-[#4B5563] bg-[#F4F4F5] border border-[#E5E7EB] hover:bg-[#FFFFFF] transition-colors w-full uppercase tracking-widest shadow-sm">Cancelar</button>
+                <button onClick={confirmarAccionRobin} className="px-5 py-3 rounded-xl font-black text-xs text-[#0a0a0a] bg-[#D4A843] hover:bg-[#e6bd55] transition-colors w-full flex justify-center items-center gap-2 uppercase tracking-widest shadow-md">
+                  <Sparkles size={16} /> Confirmar y aplicar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* CONFIRMACIÓN AUTO-APPLY */}
       {mostrarConfirmacion && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 print:hidden">
@@ -2882,6 +3077,7 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
               {pacingToast.status === "success" && <CheckCircle2 className="text-[#10B981] shrink-0" size={24} />}
               {pacingToast.status === "undoing" && <RefreshCcw className="text-[#EAB308] animate-spin shrink-0" size={24} />}
               {pacingToast.status === "reverted" && <Undo2 className="text-[#4B5563] shrink-0" size={24} />}
+              {pacingToast.status === "review" && <AlertTriangle className="text-[#E07070] shrink-0" size={24} />}
               <div className="min-w-0">
                 <p className="text-sm font-black text-[#0a0a0a] truncate">{pacingToast.message}</p>
                 {pacingToast.status === "success" && (

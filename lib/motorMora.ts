@@ -18,6 +18,9 @@ export interface CampanaMora {
   quality_ctr?: string;
   quality_relevance?: string;
   quality_landing?: string;
+  search_lost_is_budget?: number;
+  cuota_impresiones_perdida_presupuesto?: number;
+  impression_share_lost_budget?: number;
 }
 
 export interface TerminoBusqueda {
@@ -89,6 +92,77 @@ export interface ScoreCampanaResult {
   gasto: number;
   presupuesto: number;
   conversiones: number;
+}
+
+export interface RobinHoodOrigen {
+  campana_id: string;
+  nombre: string;
+  presupuesto_actual: number;
+  presupuesto_propuesto: number;
+  monto_recortado: number;
+  cpa_actual: number;
+  cpa_objetivo: number;
+  motivo: string;
+}
+
+export interface RobinHoodDestino {
+  campana_id: string;
+  nombre: string;
+  presupuesto_actual: number;
+  presupuesto_propuesto: number;
+  monto_incrementado: number;
+  cpa_actual: number;
+  cpa_objetivo: number;
+  margen_escalabilidad: number;
+  score_escalabilidad: number;
+  conversiones_extra_estimadas: number;
+  motivo: string;
+}
+
+export interface RobinHoodPlan {
+  aplica: boolean;
+  estado: "aplicable" | "observacion" | "bloqueado" | "sin_oportunidad";
+  confianza: "alta" | "media" | "baja";
+  campanas_origen: string[];
+  campanas_destino: string[];
+  presupuesto_rescatable: number;
+  total_reasignado: number;
+  justificacion: string;
+  origenes: RobinHoodOrigen[];
+  destino: RobinHoodDestino | null;
+  destinos_backup: RobinHoodDestino[];
+  proyeccion: {
+    conversiones_extra_mensuales: number;
+    cpa_global_actual: number;
+    cpa_global_estimado: number;
+    reduccion_cpa_global_pct: number;
+    supuesto: string;
+  };
+  bloqueos: string[];
+  safe_apply: {
+    requiere_confirmacion: boolean;
+    undo_disponible: boolean;
+    rollback_compensatorio: boolean;
+  };
+}
+
+interface FugaCritica {
+  termino: string;
+  gasto: number;
+  conversiones: number;
+  justificacion: string;
+  accion: string;
+}
+
+interface FugaParcial extends FugaCritica {
+  cpa_termino: number;
+}
+
+interface HallazgoMora {
+  id_rastreo: string;
+  titulo: string;
+  descripcion_tecnica: string;
+  descripcion_simple: string;
 }
 
 export function calcularScoreCampana(camp: CampanaMora, cpaPromedioCuenta = 20): ScoreCampanaResult {
@@ -303,6 +377,291 @@ function calcularHealthScoreCompuesto(
   return Math.round(clamp(score, 0, 100));
 }
 
+function perdidaCuotaPorPresupuesto(camp: CampanaMora): number | null {
+  const valor =
+    camp.search_lost_is_budget ??
+    camp.cuota_impresiones_perdida_presupuesto ??
+    camp.impression_share_lost_budget;
+  if (valor === undefined || Number.isNaN(valor)) return null;
+  return clamp(valor > 1 ? valor / 100 : valor, 0, 1);
+}
+
+function margenEscalabilidad(camp: CampanaMora): number {
+  const perdidaPorPresupuesto = perdidaCuotaPorPresupuesto(camp);
+  if (perdidaPorPresupuesto !== null) return perdidaPorPresupuesto;
+
+  if (camp.presupuesto_mensual <= 0) return 0;
+  const ejecucion = camp.gasto_mensual / camp.presupuesto_mensual;
+
+  if (ejecucion >= 0.95) return 0.35;
+  if (ejecucion >= 0.85) return 0.22;
+  if (ejecucion >= 0.75) return 0.12;
+  return 0;
+}
+
+function calcularConfianzaRobin(campanas: CampanaMora[]): RobinHoodPlan["confianza"] {
+  const conversiones = campanas.reduce((acc, camp) => acc + camp.conversiones, 0);
+  const clics = campanas.reduce((acc, camp) => acc + camp.clics, 0);
+  if (conversiones >= 50 && clics >= 1500) return "alta";
+  if (conversiones >= 15 && clics >= 500) return "media";
+  return "baja";
+}
+
+/** Reparte el monto final aplicado entre donantes; la suma de recortes = totalAplicar. */
+function prorratearOrigenesRobin(origenes: RobinHoodOrigen[], totalAplicar: number): RobinHoodOrigen[] {
+  if (origenes.length === 0 || totalAplicar <= 0) return [];
+
+  const bruto = origenes.reduce((acc, o) => acc + o.monto_recortado, 0);
+  if (bruto <= 0) return [];
+
+  if (totalAplicar >= bruto) {
+    return origenes.map(o => ({
+      ...o,
+      presupuesto_propuesto: o.presupuesto_actual - o.monto_recortado,
+    }));
+  }
+
+  const floors = origenes.map(o => Math.floor((o.monto_recortado / bruto) * totalAplicar));
+  let asignado = floors.reduce((acc, n) => acc + n, 0);
+  let restante = totalAplicar - asignado;
+
+  const porResto = origenes
+    .map((o, i) => ({
+      i,
+      resto: (o.monto_recortado / bruto) * totalAplicar - floors[i],
+    }))
+    .sort((a, b) => b.resto - a.resto);
+
+  const montos = [...floors];
+  for (let k = 0; k < restante && k < porResto.length; k++) {
+    montos[porResto[k].i]++;
+  }
+
+  return origenes
+    .map((o, i) => ({
+      ...o,
+      monto_recortado: montos[i],
+      presupuesto_propuesto: o.presupuesto_actual - montos[i],
+    }))
+    .filter(o => o.monto_recortado > 0);
+}
+
+export function calcularPlanRobinHood(
+  campanas: CampanaMora[],
+  cpaPromedioCuenta: number,
+  tipoNegocio: DatosAuditoriaInput["tipo_negocio"] = "ecommerce",
+  gastoTotalCuenta = 0,
+  conversionesTotales = 0
+): RobinHoodPlan {
+  let multRobinOrigen = 1.25;
+  let multRobinDestino = 0.80;
+  if (tipoNegocio === "lead_gen") {
+    multRobinOrigen = 1.35;
+    multRobinDestino = 0.82;
+  } else if (tipoNegocio === "high_ticket") {
+    multRobinOrigen = 1.50;
+    multRobinDestino = 0.75;
+  }
+
+  const activas = campanas.filter(c => c.estado.toLowerCase() === "enabled" || c.estado.toLowerCase() === "activa");
+  const confianza = calcularConfianzaRobin(activas);
+  const cpaSuperior = cpaPromedioCuenta * multRobinOrigen;
+  const cpaInferior = cpaPromedioCuenta * multRobinDestino;
+  const bloqueos: string[] = [];
+
+  const origenes = activas
+    .map((camp): RobinHoodOrigen | null => {
+      const cpaObjetivo = cpaObjetivoCampana(camp, cpaPromedioCuenta);
+      const ejecucion = camp.presupuesto_mensual > 0 ? camp.gasto_mensual / camp.presupuesto_mensual : 0;
+      const cpaMalo = camp.conversiones === 0
+        ? camp.gasto_mensual > cpaObjetivo * 1.5
+        : camp.cpa_actual > Math.max(cpaSuperior, cpaObjetivo * 1.2);
+      if (!cpaMalo || ejecucion <= 0.2 || camp.presupuesto_mensual <= 0) return null;
+
+      const techoRecorte = Math.max(0, camp.presupuesto_mensual - camp.gasto_mensual);
+      const recorteConservador = Math.min(camp.presupuesto_mensual * 0.2, camp.gasto_mensual * 0.3, techoRecorte);
+      const montoRecortado = Math.round(recorteConservador);
+      if (montoRecortado <= 0) {
+        bloqueos.push(`${camp.nombre}: sin margen para bajar presupuesto sin quedar debajo del gasto ya consumido.`);
+        return null;
+      }
+
+      return {
+        campana_id: camp.id,
+        nombre: camp.nombre,
+        presupuesto_actual: Math.round(camp.presupuesto_mensual),
+        presupuesto_propuesto: Math.round(camp.presupuesto_mensual - montoRecortado),
+        monto_recortado: montoRecortado,
+        cpa_actual: parseFloat(camp.cpa_actual.toFixed(2)),
+        cpa_objetivo: parseFloat(cpaObjetivo.toFixed(2)),
+        motivo: camp.conversiones === 0
+          ? "Gasto relevante sin conversiones y margen seguro de recorte."
+          : "CPA por encima del límite rentable y margen seguro de recorte.",
+      };
+    })
+    .filter((origen): origen is RobinHoodOrigen => origen !== null);
+
+  const destinos = activas
+    .map(camp => {
+      const cpaObjetivo = cpaObjetivoCampana(camp, cpaPromedioCuenta);
+      const margen = margenEscalabilidad(camp);
+      const score = calcularScoreCampana(camp, cpaPromedioCuenta);
+      const cpaEficiente = camp.conversiones >= 3 && camp.cpa_actual > 0 && camp.cpa_actual <= Math.min(cpaInferior, cpaObjetivo);
+      if (!cpaEficiente) return null;
+
+      const eficiencia = clamp(cpaObjetivo / Math.max(camp.cpa_actual, 1), 0, 2) / 2;
+      const confianzaData = clamp(camp.conversiones / 20, 0, 1);
+      const scoreEscalabilidad = Math.round(
+        clamp(margen, 0, 1) * 40 +
+        eficiencia * 35 +
+        confianzaData * 15 +
+        (score.score / 100) * 10
+      );
+
+      if (margen < 0.1) {
+        bloqueos.push(`${camp.nombre}: CPA eficiente, pero sin senal suficiente de demanda incremental.`);
+        return null;
+      }
+
+      return {
+        campana: camp,
+        cpaObjetivo,
+        margen,
+        scoreEscalabilidad,
+      };
+    })
+    .filter((destino): destino is { campana: CampanaMora; cpaObjetivo: number; margen: number; scoreEscalabilidad: number } => destino !== null)
+    .sort((a, b) => b.scoreEscalabilidad - a.scoreEscalabilidad);
+
+  const presupuestoRescatable = origenes.reduce((acc, origen) => acc + origen.monto_recortado, 0);
+  const destinoPrincipal = destinos[0];
+
+  if (origenes.length === 0 && destinos.length === 0) {
+    return {
+      aplica: false,
+      estado: "sin_oportunidad",
+      confianza,
+      campanas_origen: [],
+      campanas_destino: [],
+      presupuesto_rescatable: 0,
+      total_reasignado: 0,
+      justificacion: "No se detectaron campanas donantes ni receptoras con suficiente evidencia.",
+      origenes: [],
+      destino: null,
+      destinos_backup: [],
+      proyeccion: {
+        conversiones_extra_mensuales: 0,
+        cpa_global_actual: parseFloat(cpaPromedioCuenta.toFixed(2)),
+        cpa_global_estimado: parseFloat(cpaPromedioCuenta.toFixed(2)),
+        reduccion_cpa_global_pct: 0,
+        supuesto: "Sin reasignacion recomendada.",
+      },
+      bloqueos,
+      safe_apply: { requiere_confirmacion: true, undo_disponible: true, rollback_compensatorio: true },
+    };
+  }
+
+  if (origenes.length === 0 || !destinoPrincipal || presupuestoRescatable <= 0) {
+    return {
+      aplica: false,
+      estado: "bloqueado",
+      confianza,
+      campanas_origen: origenes.map(o => o.nombre),
+      campanas_destino: destinos.map(d => d.campana.nombre),
+      presupuesto_rescatable: presupuestoRescatable,
+      total_reasignado: 0,
+      justificacion: origenes.length === 0
+        ? "Hay posibles receptoras, pero Mora no encontro presupuesto seguro para rescatar."
+        : "Hay presupuesto rescatable, pero Mora no encontro una campana estrella con margen suficiente para absorberlo.",
+      origenes,
+      destino: null,
+      destinos_backup: [],
+      proyeccion: {
+        conversiones_extra_mensuales: 0,
+        cpa_global_actual: parseFloat(cpaPromedioCuenta.toFixed(2)),
+        cpa_global_estimado: parseFloat(cpaPromedioCuenta.toFixed(2)),
+        reduccion_cpa_global_pct: 0,
+        supuesto: "Operacion bloqueada por seguridad.",
+      },
+      bloqueos,
+      safe_apply: { requiere_confirmacion: true, undo_disponible: true, rollback_compensatorio: true },
+    };
+  }
+
+  const capPorConfianza = confianza === "alta" ? 0.2 : confianza === "media" ? 0.15 : 0.1;
+  const incrementoMaximoDestino = Math.round(destinoPrincipal.campana.presupuesto_mensual * capPorConfianza);
+  const totalReasignado = Math.max(0, Math.min(presupuestoRescatable, incrementoMaximoDestino));
+  const origenesAplicados = prorratearOrigenesRobin(origenes, totalReasignado);
+
+  if (totalReasignado <= 0) {
+    bloqueos.push(`${destinoPrincipal.campana.nombre}: el incremento seguro calculado es cero.`);
+  } else if (presupuestoRescatable > totalReasignado) {
+    bloqueos.push(
+      `Potencial detectado: $${Math.round(presupuestoRescatable)}. Por seguridad, Mora aplica $${Math.round(totalReasignado)} ahora.`
+    );
+  }
+
+  const conversionesExtra = totalReasignado > 0 ? totalReasignado / Math.max(destinoPrincipal.campana.cpa_actual, 1) : 0;
+  const cpaGlobalActual = cpaPromedioCuenta;
+  const gastoBase = gastoTotalCuenta > 0 ? gastoTotalCuenta : campanas.reduce((acc, camp) => acc + camp.gasto_mensual, 0);
+  const convBase = conversionesTotales > 0 ? conversionesTotales : campanas.reduce((acc, camp) => acc + camp.conversiones, 0);
+  const cpaGlobalEstimado = convBase + conversionesExtra > 0 ? gastoBase / (convBase + conversionesExtra) : cpaGlobalActual;
+  const reduccionCpa = cpaGlobalActual > 0 ? ((cpaGlobalActual - cpaGlobalEstimado) / cpaGlobalActual) * 100 : 0;
+
+  const destino: RobinHoodDestino = {
+    campana_id: destinoPrincipal.campana.id,
+    nombre: destinoPrincipal.campana.nombre,
+    presupuesto_actual: Math.round(destinoPrincipal.campana.presupuesto_mensual),
+    presupuesto_propuesto: Math.round(destinoPrincipal.campana.presupuesto_mensual + totalReasignado),
+    monto_incrementado: Math.round(totalReasignado),
+    cpa_actual: parseFloat(destinoPrincipal.campana.cpa_actual.toFixed(2)),
+    cpa_objetivo: parseFloat(destinoPrincipal.cpaObjetivo.toFixed(2)),
+    margen_escalabilidad: parseFloat((destinoPrincipal.margen * 100).toFixed(1)),
+    score_escalabilidad: destinoPrincipal.scoreEscalabilidad,
+    conversiones_extra_estimadas: parseFloat(conversionesExtra.toFixed(1)),
+    motivo: "CPA bajo objetivo, data suficiente y margen de crecimiento detectado.",
+  };
+
+  const destinosBackup = destinos.slice(1, 3).map(item => ({
+    campana_id: item.campana.id,
+    nombre: item.campana.nombre,
+    presupuesto_actual: Math.round(item.campana.presupuesto_mensual),
+    presupuesto_propuesto: Math.round(item.campana.presupuesto_mensual),
+    monto_incrementado: 0,
+    cpa_actual: parseFloat(item.campana.cpa_actual.toFixed(2)),
+    cpa_objetivo: parseFloat(item.cpaObjetivo.toFixed(2)),
+    margen_escalabilidad: parseFloat((item.margen * 100).toFixed(1)),
+    score_escalabilidad: item.scoreEscalabilidad,
+    conversiones_extra_estimadas: 0,
+    motivo: "Backup si el heroe principal queda sin margen o falla la verificacion.",
+  }));
+
+  return {
+    aplica: totalReasignado > 0,
+    estado: totalReasignado > 0 ? "aplicable" : "bloqueado",
+    confianza,
+    campanas_origen: origenesAplicados.map(o => o.nombre),
+    campanas_destino: [destino.nombre, ...destinosBackup.map(d => d.nombre)],
+    presupuesto_rescatable: Math.round(presupuestoRescatable),
+    total_reasignado: Math.round(totalReasignado),
+    justificacion: totalReasignado > 0
+      ? `Mora donará $${Math.round(totalReasignado)}/mes desde ${origenesAplicados.length} campaña${origenesAplicados.length !== 1 ? "s" : ""} hacia ${destino.nombre}.`
+      : "Operacion bloqueada por limites de seguridad.",
+    origenes: origenesAplicados,
+    destino,
+    destinos_backup: destinosBackup,
+    proyeccion: {
+      conversiones_extra_mensuales: parseFloat(conversionesExtra.toFixed(1)),
+      cpa_global_actual: parseFloat(cpaGlobalActual.toFixed(2)),
+      cpa_global_estimado: parseFloat(cpaGlobalEstimado.toFixed(2)),
+      reduccion_cpa_global_pct: parseFloat(Math.max(0, reduccionCpa).toFixed(1)),
+      supuesto: `Estimacion conservadora usando el CPA actual de ${destino.nombre}.`,
+    },
+    bloqueos,
+    safe_apply: { requiere_confirmacion: true, undo_disponible: true, rollback_compensatorio: true },
+  };
+}
+
 // ============================================================================
 // FASE 2: EL CEREBRO MATEMÁTICO DETERMINISTA
 // ============================================================================
@@ -327,12 +686,12 @@ export function generarEsqueletoAuditoria(datos: DatosAuditoriaInput) {
   }
 
   // PASO 1 — PERFIL DINÁMICO
-  let multGasto = 1.5, multRobinOrigen = 1.25, multRobinDestino = 0.80, multFugaParcial = 1.80;
+  let multGasto = 1.5, multFugaParcial = 1.80;
   
   if (datos.tipo_negocio === "lead_gen") {
-    multGasto = 2.0; multRobinOrigen = 1.35; multRobinDestino = 0.82; multFugaParcial = 2.00;
+    multGasto = 2.0; multFugaParcial = 2.00;
   } else if (datos.tipo_negocio === "high_ticket") {
-    multGasto = 3.0; multRobinOrigen = 1.50; multRobinDestino = 0.75; multFugaParcial = 2.50;
+    multGasto = 3.0; multFugaParcial = 2.50;
   }
 
   const cvrPromedioCuenta = datos.clics_totales > 0 ? datos.conversiones_totales / datos.clics_totales : null;
@@ -343,17 +702,13 @@ export function generarEsqueletoAuditoria(datos: DatosAuditoriaInput) {
     umbralClicsKeyword = Math.min(250, Math.max(40, (1 / cvrPromedioCuenta) * 2.5) * multConfianza);
   }
 
-  const cpaLimiteSuperior = datos.cpa_promedio_cuenta * multRobinOrigen;
-  const cpaLimiteInferior = datos.cpa_promedio_cuenta * multRobinDestino;
-  const umbralEjecucionPresupuesto = 0.85;
-
   // Variables de recolección
   let gastoDesperdiciadoTotal = 0;
-  let fugasCriticas: any[] = [];
-  let fugasParciales: any[] = [];
-  let tokensToxicos: string[] = [];
-  let hallazgosRojos: any[] = [];
-  let hallazgosAmarillos: any[] = [];
+  const fugasCriticas: FugaCritica[] = [];
+  const fugasParciales: FugaParcial[] = [];
+  const tokensToxicos: string[] = [];
+  const hallazgosRojos: HallazgoMora[] = [];
+  const hallazgosAmarillos: HallazgoMora[] = [];
 
   const presupuestoCampanasMap = new Map(campanasLimpias.map(c => [c.id, c.presupuesto_mensual]));
 
@@ -429,28 +784,20 @@ export function generarEsqueletoAuditoria(datos: DatosAuditoriaInput) {
   });
 
   // PASO 5 — ESTRATEGIA ROBIN HOOD
-  let campanasOrigen: string[] = [];
-  let campanasDestino: string[] = [];
-  let presupuestoRescatable = 0;
+  const planRobinHood = calcularPlanRobinHood(
+    campanasLimpias,
+    datos.cpa_promedio_cuenta,
+    datos.tipo_negocio,
+    datos.gasto_total_cuenta,
+    datos.conversiones_totales
+  );
 
-  campanasLimpias.forEach(camp => {
-    const ejecucion = camp.presupuesto_mensual > 0 ? camp.gasto_mensual / camp.presupuesto_mensual : 0;
-    
-    if (camp.cpa_actual > cpaLimiteSuperior && ejecucion > 0.20) {
-      campanasOrigen.push(camp.nombre);
-      presupuestoRescatable += (camp.gasto_mensual * 0.30);
-    } else if (camp.conversiones > 0 && camp.cpa_actual < cpaLimiteInferior && ejecucion > umbralEjecucionPresupuesto) {
-      campanasDestino.push(camp.nombre);
-    }
-  });
-
-  const aplicaRobinHood = campanasOrigen.length > 0 && campanasDestino.length > 0;
-  if (aplicaRobinHood) {
+  if (planRobinHood.estado === "aplicable") {
     hallazgosAmarillos.push({
       id_rastreo: "OPORTUNIDAD_ROBIN_HOOD",
       titulo: "Estrategia Robin Hood: Optimización Presupuestaria",
-      descripcion_tecnica: "", 
-      descripcion_simple: ""   
+      descripcion_tecnica: "",
+      descripcion_simple: ""
     });
   }
 
@@ -481,12 +828,7 @@ export function generarEsqueletoAuditoria(datos: DatosAuditoriaInput) {
     },
     fugas_criticas: fugasCriticas,
     fugas_parciales: fugasParciales,
-    robin_hood: {
-      aplica: aplicaRobinHood,
-      campanas_origen: campanasOrigen,
-      campanas_destino: campanasDestino,
-      justificacion: aplicaRobinHood ? `Se detectaron $${presupuestoRescatable.toFixed(2)} reasignables desde campañas ineficientes.` : "Condiciones no cumplidas."
-    },
+    robin_hood: planRobinHood,
     ngramas: { tokens_toxicos: tokensToxicos, tokens_estrella: [] },
     dayparting: { horas_toxicas: [], horas_estrella: [] },
     canibalizacion: [],

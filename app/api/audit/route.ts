@@ -62,9 +62,83 @@ const schemaMora = {
       type: SchemaType.OBJECT,
       properties: {
         aplica: { type: SchemaType.BOOLEAN },
+        estado: { type: SchemaType.STRING },
+        confianza: { type: SchemaType.STRING },
         campanas_origen: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
         campanas_destino: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
-        justificacion: { type: SchemaType.STRING }
+        presupuesto_rescatable: { type: SchemaType.NUMBER },
+        total_reasignado: { type: SchemaType.NUMBER },
+        justificacion: { type: SchemaType.STRING },
+        origenes: {
+          type: SchemaType.ARRAY,
+          items: {
+            type: SchemaType.OBJECT,
+            properties: {
+              campana_id: { type: SchemaType.STRING },
+              nombre: { type: SchemaType.STRING },
+              presupuesto_actual: { type: SchemaType.NUMBER },
+              presupuesto_propuesto: { type: SchemaType.NUMBER },
+              monto_recortado: { type: SchemaType.NUMBER },
+              cpa_actual: { type: SchemaType.NUMBER },
+              cpa_objetivo: { type: SchemaType.NUMBER },
+              motivo: { type: SchemaType.STRING }
+            }
+          }
+        },
+        destino: {
+          type: SchemaType.OBJECT,
+          properties: {
+            campana_id: { type: SchemaType.STRING },
+            nombre: { type: SchemaType.STRING },
+            presupuesto_actual: { type: SchemaType.NUMBER },
+            presupuesto_propuesto: { type: SchemaType.NUMBER },
+            monto_incrementado: { type: SchemaType.NUMBER },
+            cpa_actual: { type: SchemaType.NUMBER },
+            cpa_objetivo: { type: SchemaType.NUMBER },
+            margen_escalabilidad: { type: SchemaType.NUMBER },
+            score_escalabilidad: { type: SchemaType.NUMBER },
+            conversiones_extra_estimadas: { type: SchemaType.NUMBER },
+            motivo: { type: SchemaType.STRING }
+          }
+        },
+        destinos_backup: {
+          type: SchemaType.ARRAY,
+          items: {
+            type: SchemaType.OBJECT,
+            properties: {
+              campana_id: { type: SchemaType.STRING },
+              nombre: { type: SchemaType.STRING },
+              presupuesto_actual: { type: SchemaType.NUMBER },
+              presupuesto_propuesto: { type: SchemaType.NUMBER },
+              monto_incrementado: { type: SchemaType.NUMBER },
+              cpa_actual: { type: SchemaType.NUMBER },
+              cpa_objetivo: { type: SchemaType.NUMBER },
+              margen_escalabilidad: { type: SchemaType.NUMBER },
+              score_escalabilidad: { type: SchemaType.NUMBER },
+              conversiones_extra_estimadas: { type: SchemaType.NUMBER },
+              motivo: { type: SchemaType.STRING }
+            }
+          }
+        },
+        proyeccion: {
+          type: SchemaType.OBJECT,
+          properties: {
+            conversiones_extra_mensuales: { type: SchemaType.NUMBER },
+            cpa_global_actual: { type: SchemaType.NUMBER },
+            cpa_global_estimado: { type: SchemaType.NUMBER },
+            reduccion_cpa_global_pct: { type: SchemaType.NUMBER },
+            supuesto: { type: SchemaType.STRING }
+          }
+        },
+        bloqueos: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
+        safe_apply: {
+          type: SchemaType.OBJECT,
+          properties: {
+            requiere_confirmacion: { type: SchemaType.BOOLEAN },
+            undo_disponible: { type: SchemaType.BOOLEAN },
+            rollback_compensatorio: { type: SchemaType.BOOLEAN }
+          }
+        }
       }
     },
     ngramas: {
@@ -153,7 +227,10 @@ export async function POST(req: Request) {
         quality_score: c.quality_score !== undefined ? Number(c.quality_score) : undefined,
         quality_ctr: c.quality_ctr ? String(c.quality_ctr) : undefined,
         quality_relevance: c.quality_relevance ? String(c.quality_relevance) : undefined,
-        quality_landing: c.quality_landing ? String(c.quality_landing) : undefined
+        quality_landing: c.quality_landing ? String(c.quality_landing) : undefined,
+        search_lost_is_budget: c.search_lost_is_budget !== undefined ? Number(c.search_lost_is_budget) : undefined,
+        cuota_impresiones_perdida_presupuesto: c.cuota_impresiones_perdida_presupuesto !== undefined ? Number(c.cuota_impresiones_perdida_presupuesto) : undefined,
+        impression_share_lost_budget: c.impression_share_lost_budget !== undefined ? Number(c.impression_share_lost_budget) : undefined
       }));
 
       const gastoTotal = campanasNormalizadas.reduce((sum, c) => sum + c.gasto_mensual, 0);
