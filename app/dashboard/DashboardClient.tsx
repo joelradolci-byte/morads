@@ -40,6 +40,147 @@ function colorClassesPorTag(tag: string) {
   }
 }
 
+function calcularPacingCampana(campana: any) {
+  const gasto = campana.gasto_mensual || 0;
+  const presupuesto = campana.presupuesto_mensual || 0;
+  const hoy = new Date();
+  const diasMes = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).getDate();
+  const diaActual = hoy.getDate();
+  const diasRestantes = Math.max(1, diasMes - diaActual);
+  const porcentajeMes = (diaActual / diasMes) * 100;
+  const porcentajeGasto = presupuesto > 0 ? (gasto / presupuesto) * 100 : 0;
+  const desvio = porcentajeGasto - porcentajeMes;
+  const presupuestoRestante = presupuesto - gasto;
+  const ajusteDiarioRecomendado = Math.max(0, presupuestoRestante / diasRestantes);
+
+  if (presupuesto <= 0) {
+    return {
+      gasto,
+      presupuesto,
+      porcentajeGasto,
+      presupuestoRestante,
+      ajusteDiarioRecomendado,
+      estado: "Sin presupuesto",
+      descripcion: "Definí un presupuesto mensual para calcular ritmo.",
+      color: "text-[#A8A29E]",
+      bg: "bg-[#A8A29E]/10",
+      border: "border-[#44403C]",
+      bar: "bg-[#A8A29E]",
+    };
+  }
+
+  if (desvio > 10) {
+    return {
+      gasto,
+      presupuesto,
+      porcentajeGasto,
+      presupuestoRestante,
+      ajusteDiarioRecomendado,
+      estado: "Sobreinvirtiendo",
+      descripcion: "El gasto avanza más rápido que el mes.",
+      color: "text-[#E07070]",
+      bg: "bg-[#E07070]/10",
+      border: "border-[#E07070]/30",
+      bar: "bg-[#E07070]",
+    };
+  }
+
+  if (desvio < -10) {
+    return {
+      gasto,
+      presupuesto,
+      porcentajeGasto,
+      presupuestoRestante,
+      ajusteDiarioRecomendado,
+      estado: "Subinvirtiendo",
+      descripcion: "El gasto está por debajo del ritmo esperado.",
+      color: "text-[#EAB308]",
+      bg: "bg-[#EAB308]/10",
+      border: "border-[#EAB308]/30",
+      bar: "bg-[#EAB308]",
+    };
+  }
+
+  return {
+    gasto,
+    presupuesto,
+    porcentajeGasto,
+    presupuestoRestante,
+    ajusteDiarioRecomendado,
+    estado: "En ritmo",
+    descripcion: "Consumo alineado con el avance del mes.",
+    color: "text-[#10B981]",
+    bg: "bg-[#10B981]/10",
+    border: "border-[#10B981]/30",
+    bar: "bg-[#10B981]",
+  };
+}
+
+type PacingAccionPendiente = {
+  campanaId: string;
+  campanaNombre: string;
+  action: "REDUCE_BUDGET" | "INCREASE_BUDGET" | "SET_BUDGET";
+  valorAnterior: number;
+  valorPropuesto: number;
+  motivo: string;
+  impacto: string;
+  labelBoton: string;
+};
+
+function obtenerAccionPacing(
+  campana: any,
+  pacing: ReturnType<typeof calcularPacingCampana>,
+  evaluacion: ReturnType<typeof calcularScoreCampana>,
+  cpaObjetivo: number
+): Omit<PacingAccionPendiente, "campanaId" | "campanaNombre"> | null {
+  const presupuesto = campana.presupuesto_mensual || 0;
+  const gasto = campana.gasto_mensual || 0;
+
+  if (pacing.estado === "Sin presupuesto" && gasto > 0) {
+    const hoy = new Date();
+    const diasMes = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).getDate();
+    const propuesto = Math.round((gasto / Math.max(hoy.getDate(), 1)) * diasMes);
+    return {
+      action: "SET_BUDGET",
+      valorAnterior: 0,
+      valorPropuesto: propuesto,
+      motivo: "La campaña no tiene presupuesto mensual definido para medir ritmo.",
+      impacto: "Permite calcular pacing y evitar sobre o subinversión.",
+      labelBoton: "Definir presupuesto",
+    };
+  }
+
+  if (presupuesto <= 0) return null;
+
+  if (
+    pacing.estado === "Sobreinvirtiendo" &&
+    (evaluacion.cpaActual > cpaObjetivo * 1.2 || evaluacion.tag === "BASURA")
+  ) {
+    const propuesto = Math.max(Math.round(presupuesto * 0.85), Math.round(gasto));
+    return {
+      action: "REDUCE_BUDGET",
+      valorAnterior: presupuesto,
+      valorPropuesto: propuesto,
+      motivo: "La campaña gasta más rápido de lo esperado y su CPA supera el objetivo.",
+      impacto: "Frena el ritmo de inversión para no agotar presupuesto antes de fin de mes.",
+      labelBoton: "Reducir presupuesto",
+    };
+  }
+
+  if (pacing.estado === "Subinvirtiendo" && evaluacion.tag === "ESTRELLA") {
+    return {
+      action: "INCREASE_BUDGET",
+      valorAnterior: presupuesto,
+      valorPropuesto: Math.round(presupuesto * 1.1),
+      motivo: "La campaña está por debajo del ritmo esperado y tiene CPA eficiente.",
+      impacto: "Acelera la inversión para capturar demanda disponible.",
+      labelBoton: "Acelerar inversión",
+    };
+  }
+
+  return null;
+}
+
 function FadeInOnScroll({ children, delay = 0 }: { children: React.ReactNode, delay?: number }) {
   const [isVisible, setVisible] = useState(false);
   const domRef = useRef<HTMLDivElement>(null);
@@ -434,6 +575,19 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
   const [mostrarCentroAlertas, setMostrarCentroAlertas] = useState(false);
   const [alertasNoLeidas, setAlertasNoLeidas] = useState(false);    
   const [modoVista, setModoVista] = useState('grid');
+  const [pacingAccionPendiente, setPacingAccionPendiente] = useState<PacingAccionPendiente | null>(null);
+  const [pacingUndo, setPacingUndo] = useState<{
+    campanaId: string;
+    campanaNombre: string;
+    valorAnterior: number;
+    valorPropuesto: number;
+  } | null>(null);
+  const [pacingToast, setPacingToast] = useState<{
+    show: boolean;
+    status: "success" | "undoing" | "reverted";
+    timeLeft: number;
+    message: string;
+  }>({ show: false, status: "success", timeLeft: 10, message: "" });
 
   const navegar = (nextVista: AuditorVista, path: string) => {
     setVista(nextVista);
@@ -778,6 +932,50 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
 
   const aplicarCambios = () => { setMostrarConfirmacion(false); setToastState({show: true, status: 'success', timeLeft: 15}); };
   const deshacerCambios = () => { setToastState(prev => ({...prev, status: 'undoing'})); setTimeout(() => { setToastState(prev => ({...prev, status: 'reverted'})); setTimeout(() => { setToastState(prev => ({...prev, show: false})); }, 3000); }, 1500); };
+
+  useEffect(() => {
+    if (!pacingToast.show || pacingToast.status !== "success") return;
+    if (pacingToast.timeLeft <= 0) {
+      setPacingToast(prev => ({ ...prev, show: false }));
+      setPacingUndo(null);
+      return;
+    }
+    const timer = setTimeout(() => {
+      setPacingToast(prev => ({ ...prev, timeLeft: prev.timeLeft - 1 }));
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [pacingToast.show, pacingToast.status, pacingToast.timeLeft]);
+
+  const confirmarAccionPacing = () => {
+    if (!pacingAccionPendiente) return;
+    const { campanaId, campanaNombre, valorAnterior, valorPropuesto } = pacingAccionPendiente;
+    setCampanas(prev =>
+      prev.map(c => (c.id === campanaId ? { ...c, presupuesto_mensual: valorPropuesto } : c))
+    );
+    setPacingUndo({ campanaId, campanaNombre, valorAnterior, valorPropuesto });
+    setPacingAccionPendiente(null);
+    setPacingToast({
+      show: true,
+      status: "success",
+      timeLeft: 10,
+      message: `Presupuesto ajustado para ${campanaNombre}.`,
+    });
+  };
+
+  const deshacerAccionPacing = () => {
+    if (!pacingUndo) return;
+    setPacingToast(prev => ({ ...prev, status: "undoing", message: "Deshaciendo cambio..." }));
+    setTimeout(() => {
+      setCampanas(prev =>
+        prev.map(c =>
+          c.id === pacingUndo.campanaId ? { ...c, presupuesto_mensual: pacingUndo.valorAnterior } : c
+        )
+      );
+      setPacingUndo(null);
+      setPacingToast({ show: true, status: "reverted", timeLeft: 0, message: "Cambio revertido." });
+      setTimeout(() => setPacingToast(prev => ({ ...prev, show: false })), 2000);
+    }, 800);
+  };
 
   const obtenerPerfil = async () => {
     const userId = session?.user?.id;
@@ -1657,68 +1855,98 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
                          <p className="text-[#A8A29E] text-sm mt-1">Conecta tus campañas para ver la proyección.</p>
                       </div>
                     ) : (
-                      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                        {campanas.filter(c => c.estado === 'ENABLED').map((campana) => {
-                          const gasto = campana.gasto_mensual || 0;
-                          const presupuesto = campana.presupuesto_mensual || 1;
-                          const conversiones = campana.conversiones || 0;
-                          const cpaActual = campana.cpa_actual ?? (conversiones > 0 ? (gasto / conversiones) : gasto);
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        {(() => {
+                          const cpaPromedioVista = campanas.length > 0
+                            ? campanas.reduce((acc, c) => acc + (c.gasto_mensual || 0), 0) /
+                              Math.max(campanas.reduce((acc, c) => acc + (c.conversiones || 0), 0), 1)
+                            : 20;
 
-                          const hoy = new Date();
-                          const ultimoDiaMes = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).getDate();
-                          const diaActual = hoy.getDate();
-                          const diasRestantes = Math.max(1, ultimoDiaMes - diaActual);
-                          
-                          const presupuestoRestante = presupuesto - gasto;
-                          const ajusteDiarioRecomendado = Math.max(0, presupuestoRestante / diasRestantes);
-                          const porcentajeGasto = (gasto / presupuesto) * 100;
+                          return campanas.filter(c => c.estado === 'ENABLED').map((campana) => {
+                          const pacing = calcularPacingCampana(campana);
+                          const evaluacion = calcularScoreCampana(campana, cpaPromedioVista);
+                          const cpaObjetivo = campana.cpa_objetivo ?? cpaPromedioVista;
+                          const cpaCritico = evaluacion.cpaActual > cpaObjetivo * 1.2 || evaluacion.tag === "BASURA";
+                          const accionPacing = obtenerAccionPacing(campana, pacing, evaluacion, cpaObjetivo);
+                          const fueAplicada = pacingUndo?.campanaId === campana.id;
+                          const alerta = cpaCritico && pacing.estado === "Sobreinvirtiendo"
+                            ? "Crítico: acelera gasto con CPA caro."
+                            : cpaCritico
+                              ? "Ritmo correcto. CPA alto — revisar en auditoría."
+                              : pacing.estado === "Subinvirtiendo" && evaluacion.tag === "ESTRELLA"
+                              ? "Buen CPA: oportunidad para acelerar."
+                              : pacing.descripcion;
 
                           return (
-                            <div key={campana.id} className="bg-[#1C1917] border border-[#44403C] rounded-2xl p-6 relative overflow-hidden">
-                              <div className="absolute top-0 left-0 h-1.5 bg-[#292524] w-full">
-                                <div 
-                                  className="h-full bg-[#E07070] transition-all duration-1000 ease-out" 
-                                  style={{ width: `${Math.min(porcentajeGasto, 100)}%` }}
-                                ></div>
-                              </div>
-                              
-                              <div className="mb-6 mt-2 flex justify-between items-start">
-                                <div>
-                                  <h3 className="font-bold text-[#F5F0EB] text-lg truncate">{campana.nombre}</h3>
-                                  <span className="text-[10px] uppercase tracking-widest font-black px-2.5 py-1 rounded-md mt-2 inline-block bg-[#10B981]/10 text-[#10B981]">
-                                    Activa
+                            <div key={campana.id} className={`bg-[#1C1917] border ${pacing.border} rounded-2xl p-4 shadow-inner`}>
+                              <div className="flex items-start justify-between gap-3 mb-3">
+                                <div className="min-w-0">
+                                  <h3 className="font-bold text-[#F5F0EB] text-sm truncate" title={campana.nombre}>{campana.nombre}</h3>
+                                  <p className="text-[10px] text-[#A8A29E] font-bold uppercase tracking-widest mt-1">
+                                    Gastado: ${pacing.gasto.toLocaleString()} de ${pacing.presupuesto.toLocaleString()}
+                                  </p>
+                                </div>
+                                <div className="flex flex-col items-end gap-1 shrink-0">
+                                  <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md ${pacing.bg} ${pacing.color}`}>
+                                    {pacing.estado}
                                   </span>
-                                </div>
-                                <div className="text-right">
-                                  <p className="text-[9px] text-[#A8A29E] font-black uppercase tracking-widest">Presupuesto Restante</p>
-                                  <p className="text-lg font-black text-[#F5F0EB]">${presupuestoRestante.toLocaleString()}</p>
+                                  {fueAplicada && (
+                                    <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-[#10B981]/10 text-[#10B981]">
+                                      Aplicado
+                                    </span>
+                                  )}
                                 </div>
                               </div>
 
-                              <div className="bg-[#E07070]/10 border border-[#E07070]/30 rounded-xl p-4 mb-4 flex items-center justify-between shadow-inner">
+                              <div className="mb-4">
+                                <div className="h-2 bg-[#292524] rounded-full overflow-hidden">
+                                  <div
+                                    className={`h-full ${pacing.bar} transition-all duration-1000 ease-out`}
+                                    style={{ width: `${Math.min(pacing.porcentajeGasto, 100)}%` }}
+                                  ></div>
+                                </div>
+                                <div className="flex justify-between text-[10px] text-[#A8A29E] font-bold mt-1.5">
+                                  <span>{Math.round(pacing.porcentajeGasto)}% consumido</span>
+                                  <span>Restan ${pacing.presupuestoRestante.toLocaleString()}</span>
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-3 gap-2 mb-3">
                                 <div>
-                                  <p className="text-[10px] text-[#E07070] font-black tracking-widest uppercase">GPS de Inversión</p>
-                                  <p className="text-sm text-[#F5F0EB] font-medium">Gasto diario recomendado:</p>
+                                  <p className="text-[9px] text-[#A8A29E] uppercase font-black tracking-widest">Diario</p>
+                                  <p className="text-sm font-black text-[#F3C3B2]">${pacing.ajusteDiarioRecomendado.toFixed(0)}</p>
                                 </div>
-                                <div className="text-right">
-                                  <p className="text-2xl font-black text-[#F3C3B2]">${ajusteDiarioRecomendado.toFixed(2)}</p>
-                                  <p className="text-[9px] text-[#A8A29E] font-bold uppercase italic">por los próximos {diasRestantes} días</p>
+                                <div>
+                                  <p className="text-[9px] text-[#A8A29E] uppercase font-black tracking-widest">CPA</p>
+                                  <p className={`text-sm font-black ${cpaCritico ? 'text-[#E07070]' : 'text-[#10B981]'}`}>${evaluacion.cpaActual.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
+                                </div>
+                                <div>
+                                  <p className="text-[9px] text-[#A8A29E] uppercase font-black tracking-widest">Score</p>
+                                  <p className="text-sm font-black text-[#F5F0EB]">{evaluacion.score}</p>
                                 </div>
                               </div>
 
-                              <div className="grid grid-cols-2 gap-3">
-                                <div className="bg-[#292524] rounded-xl p-4 border border-[#44403C]/50">
-                                  <p className="text-[10px] text-[#A8A29E] font-black tracking-widest uppercase mb-1">CPA</p>
-                                  <p className="text-xl font-black text-[#F3C3B2]">${cpaActual.toLocaleString(undefined, {maximumFractionDigits:2})}</p>
-                                </div>
-                                <div className="bg-[#292524] rounded-xl p-4 border border-[#44403C]/50">
-                                  <p className="text-[10px] text-[#A8A29E] font-black tracking-widest uppercase mb-1">Conversiones</p>
-                                  <p className="text-xl font-black text-[#F5F0EB]">{conversiones}</p>
-                                </div>
+                              <div className={`rounded-xl px-3 py-2 border text-[11px] font-bold leading-snug mb-3 ${cpaCritico ? 'bg-[#E07070]/10 border-[#E07070]/30 text-[#F3C3B2]' : 'bg-[#292524] border-[#44403C] text-[#A8A29E]'}`}>
+                                {alerta}
                               </div>
+
+                              {accionPacing && (
+                                <button
+                                  type="button"
+                                  onClick={() => setPacingAccionPendiente({
+                                    campanaId: campana.id,
+                                    campanaNombre: campana.nombre,
+                                    ...accionPacing,
+                                  })}
+                                  className="w-full text-[10px] font-black uppercase tracking-widest px-3 py-2 rounded-xl border border-[#F3C3B2]/30 bg-[#F3C3B2]/10 text-[#F3C3B2] hover:bg-[#F3C3B2] hover:text-[#0a0a0a] transition-colors"
+                                >
+                                  {accionPacing.labelBoton}
+                                </button>
+                              )}
                             </div>
                           );
-                        })}
+                        });
+                        })()}
                       </div>
                     )}
                   </div>
@@ -2338,6 +2566,67 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
         )}
       </div>
 
+      {/* CONFIRMACIÓN ACCIÓN PACING */}
+      {pacingAccionPendiente && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 print:hidden">
+          <div className="absolute inset-0 bg-[#0a0a0a]/40 backdrop-blur-sm cursor-pointer" onClick={() => setPacingAccionPendiente(null)}></div>
+          <div className="bg-[#FAFAF9] border border-[#E5E7EB] shadow-2xl rounded-3xl w-full max-w-md relative z-10 animate-fade-custom overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-1 bg-[#F3C3B2]"></div>
+            <div className="p-8">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-14 h-14 rounded-2xl bg-[#F3C3B2]/10 border border-[#F3C3B2]/30 flex items-center justify-center text-[#F3C3B2] flex-shrink-0 shadow-sm">
+                  <Target size={24} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-[#0a0a0a] leading-tight">Confirmar ajuste de presupuesto</h3>
+                  <p className="text-xs text-[#8A968C] mt-1 font-bold uppercase tracking-widest">{pacingAccionPendiente.campanaNombre}</p>
+                </div>
+              </div>
+
+              <div className="bg-[#F4F4F5] border border-[#E5E7EB] rounded-2xl p-4 mb-4">
+                <p className="text-[10px] text-[#8A968C] font-black uppercase tracking-widest mb-2">Presupuesto mensual</p>
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] text-[#8A968C] uppercase font-bold">Antes</p>
+                    <p className="text-lg font-black text-[#4B5563]">
+                      {pacingAccionPendiente.valorAnterior > 0
+                        ? `$${pacingAccionPendiente.valorAnterior.toLocaleString()}`
+                        : "Sin definir"}
+                    </p>
+                  </div>
+                  <ArrowRight size={16} className="text-[#8A968C] shrink-0" />
+                  <div className="text-right">
+                    <p className="text-[10px] text-[#8A968C] uppercase font-bold">Después</p>
+                    <p className="text-lg font-black text-[#0a0a0a]">${pacingAccionPendiente.valorPropuesto.toLocaleString()}</p>
+                  </div>
+                </div>
+              </div>
+
+              <p className="text-[#4B5563] text-sm leading-relaxed mb-2 font-medium">{pacingAccionPendiente.motivo}</p>
+              <p className="text-[#8A968C] text-xs leading-relaxed mb-6">{pacingAccionPendiente.impacto}</p>
+              <p className="text-[10px] text-[#8A968C] font-bold uppercase tracking-widest mb-6">
+                Mora no aplicará este cambio hasta que lo confirmes.
+              </p>
+
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button
+                  onClick={() => setPacingAccionPendiente(null)}
+                  className="px-5 py-3 rounded-xl font-bold text-xs text-[#4B5563] bg-[#F4F4F5] border border-[#E5E7EB] hover:bg-[#FFFFFF] transition-colors w-full uppercase tracking-widest shadow-sm"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={confirmarAccionPacing}
+                  className="px-5 py-3 rounded-xl font-black text-xs text-[#0a0a0a] bg-[#F3C3B2] hover:bg-[#eab3a1] transition-colors w-full flex justify-center items-center gap-2 uppercase tracking-widest shadow-md"
+                >
+                  <Sparkles size={16} /> Confirmar y aplicar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* CONFIRMACIÓN AUTO-APPLY */}
       {mostrarConfirmacion && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 print:hidden">
@@ -2415,6 +2704,43 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
           </div>
         ))}
       </div>
+
+      {/* TOAST PACING CON UNDO */}
+      {pacingToast.show && (
+        <div className="fixed bottom-28 left-1/2 transform -translate-x-1/2 z-[125] bg-[#FAFAF9] border border-[#E5E7EB] shadow-2xl rounded-2xl overflow-hidden flex flex-col w-96 animate-fade-custom print:hidden">
+          <div className="p-5 flex justify-between items-center gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              {pacingToast.status === "success" && <CheckCircle2 className="text-[#10B981] shrink-0" size={24} />}
+              {pacingToast.status === "undoing" && <RefreshCcw className="text-[#EAB308] animate-spin shrink-0" size={24} />}
+              {pacingToast.status === "reverted" && <Undo2 className="text-[#4B5563] shrink-0" size={24} />}
+              <div className="min-w-0">
+                <p className="text-sm font-black text-[#0a0a0a] truncate">{pacingToast.message}</p>
+                {pacingToast.status === "success" && (
+                  <p className="text-[10px] text-[#8A968C] font-bold uppercase tracking-widest mt-0.5">
+                    Deshacer disponible por {pacingToast.timeLeft}s
+                  </p>
+                )}
+              </div>
+            </div>
+            {pacingToast.status === "success" && pacingUndo && (
+              <button
+                onClick={deshacerAccionPacing}
+                className="shrink-0 text-[#0a0a0a] font-black text-[9px] uppercase tracking-widest transition-colors px-3 py-2 bg-[#FDE8D3] hover:bg-[#E0E7FF] rounded-lg shadow-sm border border-[#E0E7FF]/50"
+              >
+                Deshacer
+              </button>
+            )}
+          </div>
+          {pacingToast.status === "success" && (
+            <div className="w-full bg-[#F4F4F5] h-1.5 border-t border-[#E5E7EB]">
+              <div
+                className="bg-[#10B981] h-1.5 transition-all duration-1000 ease-linear"
+                style={{ width: `${(pacingToast.timeLeft / 10) * 100}%` }}
+              ></div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* TOAST DE ÉXITO */}
       {toastState.show && (
