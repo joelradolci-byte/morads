@@ -181,6 +181,52 @@ function obtenerAccionPacing(
   return null;
 }
 
+type MatrizBucketId = "escalar" | "testear" | "observar" | "apagar";
+
+type MatrizItemEval = {
+  campana: any;
+  evaluacion: ReturnType<typeof calcularScoreCampana>;
+  cpaObjetivo: number;
+};
+
+function agruparMatriz(evaluaciones: MatrizItemEval[]) {
+  return {
+    escalar: evaluaciones.filter(e => e.evaluacion.tag === "ESTRELLA"),
+    testear: evaluaciones.filter(e => e.evaluacion.tag === "POTENCIAL"),
+    observar: evaluaciones.filter(e => e.evaluacion.tag === "DUDOSO"),
+    apagar: evaluaciones.filter(e => e.evaluacion.tag === "BASURA"),
+  };
+}
+
+function impactoFinancieroApagar(items: MatrizItemEval[]): number {
+  return items.reduce((acc, { campana, cpaObjetivo }) => {
+    const gasto = campana.gasto_mensual || 0;
+    const conv = campana.conversiones || 0;
+    if (conv === 0) return acc + gasto * 0.5;
+    const limite = conv * cpaObjetivo * 1.2;
+    return acc + Math.max(gasto * 0.3, Math.max(0, gasto - limite));
+  }, 0);
+}
+
+function impactoFinancieroEscalar(items: MatrizItemEval[]): number {
+  return items.reduce((acc, { campana }) => acc + (campana.gasto_mensual || 0) * 0.15, 0);
+}
+
+function gastoEnBucket(items: MatrizItemEval[]): number {
+  return items.reduce((acc, { campana }) => acc + (campana.gasto_mensual || 0), 0);
+}
+
+function insightRobinHoodMatriz(apagar: MatrizItemEval[], escalar: MatrizItemEval[]) {
+  const rescatable = apagar.reduce((acc, { campana }) => acc + (campana.gasto_mensual || 0) * 0.3, 0);
+  const destino = [...escalar].sort((a, b) => b.evaluacion.score - a.evaluacion.score)[0];
+  return {
+    rescatable: Math.round(rescatable),
+    destinoNombre: destino?.campana.nombre ?? null,
+    origenCount: apagar.length,
+    destinoCount: escalar.length,
+  };
+}
+
 function FadeInOnScroll({ children, delay = 0 }: { children: React.ReactNode, delay?: number }) {
   const [isVisible, setVisible] = useState(false);
   const domRef = useRef<HTMLDivElement>(null);
@@ -588,6 +634,7 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
     timeLeft: number;
     message: string;
   }>({ show: false, status: "success", timeLeft: 10, message: "" });
+  const [matrizAbierta, setMatrizAbierta] = useState<MatrizBucketId | null>(null);
 
   const navegar = (nextVista: AuditorVista, path: string) => {
     setVista(nextVista);
@@ -2049,59 +2096,181 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
                     const convTotales = activas.reduce((acc, c) => acc + (c.conversiones || 0), 0);
                     const cpaPromedio = convTotales > 0 ? gastoTotal / convTotales : 50;
 
-                    const evaluaciones = activas.map(c => ({ campana: c, evaluacion: calcularScoreCampana(c, cpaPromedio) }));
-                    const estrellas = evaluaciones.filter(e => e.evaluacion.tag === "ESTRELLA").map(e => e.campana);
-                    const basura = evaluaciones.filter(e => e.evaluacion.tag === "BASURA").map(e => e.campana);
-                    const dudosos = evaluaciones.filter(e => e.evaluacion.tag === "DUDOSO").map(e => e.campana);
-                    const potenciales = evaluaciones.filter(e => e.evaluacion.tag === "POTENCIAL").map(e => e.campana);
+                    const evaluaciones: MatrizItemEval[] = activas.map(c => ({
+                      campana: c,
+                      evaluacion: calcularScoreCampana(c, cpaPromedio),
+                      cpaObjetivo: c.cpa_objetivo ?? cpaPromedio,
+                    }));
+                    const buckets = agruparMatriz(evaluaciones);
+                    const robin = insightRobinHoodMatriz(buckets.apagar, buckets.escalar);
 
-                    const abrirMatriz = (tipo: string, lista: any[]) => {
-                      if (lista.length === 0) return;
-                      let tit, desc, sug, raz;
-                      if (tipo === 'estrella') { tit = "Estrellas"; desc = "Rendimiento top."; sug = "Escalar presupuesto."; raz = "CPA por debajo del objetivo."; }
-                      else if (tipo === 'basura') { tit = "Basura / Parásitos"; desc = "Drenando dinero."; sug = "Pausar o corregir."; raz = "CPA altísimo o gasto sin conversión."; }
-                      else if (tipo === 'dudosos') { tit = "Dudosos"; desc = "Rendimiento tibio."; sug = "Optimizar keywords."; raz = "CPA cerca o por encima del objetivo."; }
-                      else { tit = "Potenciales"; desc = "Poca data."; sug = "Darle más tiempo."; raz = "Fase de aprendizaje del algoritmo."; }
+                    const bloques: {
+                      id: MatrizBucketId;
+                      label: string;
+                      subtitulo: string;
+                      accionSugerida: string;
+                      color: string;
+                      border: string;
+                      hover: string;
+                      items: MatrizItemEval[];
+                      impactoLabel: string;
+                      impactoValor: number;
+                    }[] = [
+                      {
+                        id: "escalar",
+                        label: "Escalar",
+                        subtitulo: "CPA bajo objetivo",
+                        accionSugerida: "Subí presupuesto o priorizá estas campañas para capturar más demanda.",
+                        color: "text-[#10B981]",
+                        border: "border-[#10B981]/50",
+                        hover: "hover:border-[#10B981] hover:bg-[#10B981]/5",
+                        items: buckets.escalar,
+                        impactoLabel: "potencial conservador",
+                        impactoValor: Math.round(impactoFinancieroEscalar(buckets.escalar)),
+                      },
+                      {
+                        id: "testear",
+                        label: "Dar tiempo",
+                        subtitulo: "Pocas conversiones aún",
+                        accionSugerida: "Dejá que acumulen data antes de escalar o frenar.",
+                        color: "text-blue-400",
+                        border: "border-blue-400/50",
+                        hover: "hover:border-blue-400 hover:bg-blue-400/5",
+                        items: buckets.testear,
+                        impactoLabel: "en evaluación",
+                        impactoValor: Math.round(gastoEnBucket(buckets.testear)),
+                      },
+                      {
+                        id: "observar",
+                        label: "Revisar",
+                        subtitulo: "CPA mejorable",
+                        accionSugerida: "Optimizá pujas y términos antes de mover presupuesto.",
+                        color: "text-[#EAB308]",
+                        border: "border-[#EAB308]/50",
+                        hover: "hover:border-[#EAB308] hover:bg-[#EAB308]/5",
+                        items: buckets.observar,
+                        impactoLabel: "gasto monitoreado",
+                        impactoValor: Math.round(gastoEnBucket(buckets.observar)),
+                      },
+                      {
+                        id: "apagar",
+                        label: "Frenar",
+                        subtitulo: "CPA insostenible",
+                        accionSugerida: "Recortá o pausá; el presupuesto puede ir a campañas Escalar.",
+                        color: "text-[#E07070]",
+                        border: "border-[#E07070]/50",
+                        hover: "hover:border-[#E07070] hover:bg-[#E07070]/5",
+                        items: buckets.apagar,
+                        impactoLabel: "desperdiciados est.",
+                        impactoValor: Math.round(impactoFinancieroApagar(buckets.apagar)),
+                      },
+                    ];
 
-                      setDetalleHallazgo({
-                        titulo: tit, tipo: tipo === 'basura' ? 'critico' : 'mejora',
-                        problema_detalle: `${desc} Afecta a: ${lista.map(c => c.nombre).join(", ")}`,
-                        sugerencia: sug, razonamiento: raz, resultado_esperado: "Optimización del ROAS global.",
-                        items: [], sugerencias: []
-                      });
+                    const toggleMatriz = (id: MatrizBucketId, count: number) => {
+                      if (count === 0) return;
+                      setMatrizAbierta(prev => (prev === id ? null : id));
                     };
 
                     return (
                       <div className="w-full mt-6">
-                        <div className="flex justify-between items-center mb-4 px-1">
-                          <div>
-                            <h3 className="text-base font-black text-[#F5F0EB] flex items-center gap-2">
-                              <LayoutGrid className="text-[#D4A843]" size={20} /> Matriz de Rendimiento
-                            </h3>
-                            <p className="text-[11px] text-[#A8A29E] mt-1 font-bold uppercase tracking-widest">Distribución de Campañas</p>
-                          </div>
+                        <div className="mb-4 px-1">
+                          <h3 className="text-base font-black text-[#F5F0EB] flex items-center gap-2">
+                            <LayoutGrid className="text-[#D4A843]" size={20} /> Matriz de Rendimiento
+                          </h3>
+                          <p className="text-[11px] text-[#A8A29E] mt-1 font-bold uppercase tracking-widest">
+                            Clasificación por score, CPA vs objetivo y gasto · CPA cuenta ${cpaPromedio.toFixed(2)}
+                          </p>
                         </div>
+
+                        {robin.rescatable > 0 && robin.destinoCount > 0 && (
+                          <div className="mb-4 rounded-2xl border border-[#D4A843]/30 bg-[#D4A843]/5 px-4 py-3">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-[#D4A843] mb-1">Lectura estratégica</p>
+                            <p className="text-sm text-[#F5F0EB] font-medium leading-relaxed">
+                              ~${robin.rescatable.toLocaleString()}/mes podrían reasignarse desde {robin.origenCount} campaña{robin.origenCount !== 1 ? "s" : ""} perdedora{robin.origenCount !== 1 ? "s" : ""}
+                              {robin.destinoNombre ? ` hacia ${robin.destinoNombre}.` : "."}
+                            </p>
+                            <p className="text-[10px] text-[#A8A29E] mt-1.5 font-bold">Señal para estrategia Robin Hood — sin aplicar cambios desde aquí.</p>
+                          </div>
+                        )}
                         
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                          <div onClick={() => abrirMatriz('estrella', estrellas)} className={`bg-[#292524] border-2 border-[#10B981]/50 rounded-2xl p-5 flex flex-col justify-between shadow-sm transition-all ${estrellas.length > 0 ? 'cursor-pointer hover:border-[#10B981] hover:bg-[#10B981]/5' : 'opacity-50 cursor-not-allowed'}`}>
-                            <span className="text-[10px] font-black text-[#10B981] uppercase tracking-widest mb-4">Escalar</span>
-                            <span className="text-4xl font-black text-[#F5F0EB]">{estrellas.length}</span>
-                          </div>
-                          
-                          <div onClick={() => abrirMatriz('potencial', potenciales)} className={`bg-[#292524] border-2 border-blue-400/50 rounded-2xl p-5 flex flex-col justify-between shadow-sm transition-all ${potenciales.length > 0 ? 'cursor-pointer hover:border-blue-400 hover:bg-blue-400/5' : 'opacity-50 cursor-not-allowed'}`}>
-                            <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-4">Testear</span>
-                            <span className="text-4xl font-black text-[#F5F0EB]">{potenciales.length}</span>
-                          </div>
-                          
-                          <div onClick={() => abrirMatriz('dudoso', dudosos)} className={`bg-[#292524] border-2 border-[#EAB308]/50 rounded-2xl p-5 flex flex-col justify-between shadow-sm transition-all ${dudosos.length > 0 ? 'cursor-pointer hover:border-[#EAB308] hover:bg-[#EAB308]/5' : 'opacity-50 cursor-not-allowed'}`}>
-                            <span className="text-[10px] font-black text-[#EAB308] uppercase tracking-widest mb-4">Observar</span>
-                            <span className="text-4xl font-black text-[#F5F0EB]">{dudosos.length}</span>
-                          </div>
-                          
-                          <div onClick={() => abrirMatriz('basura', basura)} className={`bg-[#292524] border-2 border-[#E07070]/50 rounded-2xl p-5 flex flex-col justify-between shadow-sm transition-all ${basura.length > 0 ? 'cursor-pointer hover:border-[#E07070] hover:bg-[#E07070]/5' : 'opacity-50 cursor-not-allowed'}`}>
-                            <span className="text-[10px] font-black text-[#E07070] uppercase tracking-widest mb-4">Apagar</span>
-                            <span className="text-4xl font-black text-[#F5F0EB]">{basura.length}</span>
-                          </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                          {bloques.map(bloque => {
+                            const abierto = matrizAbierta === bloque.id;
+                            const tieneItems = bloque.items.length > 0;
+                            const listaVisible = bloque.items.slice(0, 5);
+                            const restantes = bloque.items.length - listaVisible.length;
+
+                            return (
+                              <div
+                                key={bloque.id}
+                                className={`bg-[#292524] border-2 ${bloque.border} rounded-2xl overflow-hidden shadow-sm transition-all ${tieneItems ? `cursor-pointer ${bloque.hover}` : "opacity-50"}`}
+                              >
+                                <button
+                                  type="button"
+                                  disabled={!tieneItems}
+                                  onClick={() => toggleMatriz(bloque.id, bloque.items.length)}
+                                  className="w-full p-4 text-left"
+                                >
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div className="min-w-0">
+                                      <span className={`text-[10px] font-black ${bloque.color} uppercase tracking-widest`}>{bloque.label}</span>
+                                      <p className="text-[9px] text-[#A8A29E] font-bold mt-0.5 normal-case tracking-normal">{bloque.subtitulo}</p>
+                                    </div>
+                                    {tieneItems && (
+                                      <ChevronDown
+                                        size={14}
+                                        className={`text-[#A8A29E] shrink-0 transition-transform ${abierto ? "rotate-180" : ""}`}
+                                      />
+                                    )}
+                                  </div>
+                                  <div className="flex items-baseline gap-2 mt-2">
+                                    <span className="text-3xl font-black text-[#F5F0EB]">{bloque.items.length}</span>
+                                    <span className="text-[10px] text-[#A8A29E] font-bold">campañas</span>
+                                  </div>
+                                  {tieneItems && (
+                                    <p className={`text-xs font-bold mt-2 ${bloque.color}`}>
+                                      ${bloque.impactoValor.toLocaleString()}/mes {bloque.impactoLabel}
+                                    </p>
+                                  )}
+                                  <p className="text-[10px] text-[#A8A29E] mt-3 leading-snug border-t border-[#44403C]/40 pt-2">
+                                    <span className="font-black uppercase tracking-widest text-[9px] block mb-1">Acción sugerida</span>
+                                    {bloque.accionSugerida}
+                                  </p>
+                                </button>
+
+                                {abierto && tieneItems && (
+                                  <div className="border-t border-[#44403C]/60 px-3 pb-3 space-y-1.5 animate-fade-in">
+                                    {listaVisible.map(({ campana, evaluacion, cpaObjetivo }) => (
+                                      <div
+                                        key={campana.id}
+                                        className="flex items-center justify-between gap-2 rounded-lg bg-[#1C1917] px-2.5 py-2 border border-[#44403C]/40"
+                                      >
+                                        <p className="text-[11px] font-bold text-[#F5F0EB] truncate flex-1" title={campana.nombre}>
+                                          {campana.nombre}
+                                        </p>
+                                        <div className="flex items-center gap-2 shrink-0 text-[10px] font-black">
+                                          <span className="text-[#A8A29E]">${evaluacion.cpaActual.toFixed(0)}</span>
+                                          <span className="text-[#44403C]">/</span>
+                                          <span className="text-[#A8A29E]">${cpaObjetivo.toFixed(0)}</span>
+                                          <span className={`px-1.5 py-0.5 rounded ${evaluacion.score >= 70 ? "bg-[#10B981]/10 text-[#10B981]" : evaluacion.score < 40 ? "bg-[#E07070]/10 text-[#E07070]" : "bg-[#EAB308]/10 text-[#EAB308]"}`}>
+                                            {evaluacion.score}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    ))}
+                                    {restantes > 0 && (
+                                      <p className="text-[10px] text-[#A8A29E] font-bold text-center pt-1">+{restantes} más</p>
+                                    )}
+                                    {bloque.id === "apagar" && robin.destinoNombre && (
+                                      <p className="text-[10px] text-[#D4A843] font-bold leading-snug pt-1 px-1">
+                                        Señal Robin Hood: reasignar hacia {robin.destinoNombre}
+                                      </p>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
                     );
