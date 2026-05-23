@@ -1,0 +1,2481 @@
+"use client";
+import { useState, useEffect, useRef } from "react";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import Link from "next/link";
+import { 
+  Target, Users, Building2, MessageSquare, LogOut, ChevronDown, 
+  Zap, AlertTriangle, CheckCircle2, CreditCard, Settings, 
+  Search, ArrowRight, ArrowLeft, TrendingUp, TrendingDown, LayoutPanelLeft,
+  FileText, BarChart3, ShieldCheck, Plus, Clock, Activity, Trash2, Lock, 
+  Bell, ListChecks, LayoutGrid, CheckSquare, Sparkles, Undo2, RefreshCcw, Type, Calculator, BookOpen,
+  Upload, Copy, Check, TrendingUp as TrendUp, ChevronRight, Folder, LayoutDashboard, X
+} from 'lucide-react';
+import { extraerDatosGoogle } from '../../lib/googleAds'; 
+import { supabase } from "../../lib/supabase/browser";
+
+export type AuditorVista = "dashboard" | "nueva" | "historial" | "perfil" | "feedback" | "reporte_lectura" | "facturacion" | "detalle_hallazgo" | "campañas";
+
+const vistaPorRuta: Record<string, AuditorVista> = {
+  "/dashboard": "dashboard",
+  "/campanas": "campañas",
+  "/reportes": "historial",
+  "/configuracion": "perfil",
+  "/facturacion": "facturacion",
+  "/sugerencias": "feedback",
+};
+
+function FadeInOnScroll({ children, delay = 0 }: { children: React.ReactNode, delay?: number }) {
+  const [isVisible, setVisible] = useState(false);
+  const domRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting) {
+        setVisible(true);
+        observer.unobserve(domRef.current!);
+      }
+    }, { threshold: 0.1 });
+    if (domRef.current) observer.observe(domRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div ref={domRef} className={`transition-all duration-1000 ease-out ${isVisible ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-12 scale-95'}`} style={{ transitionDelay: `${delay}ms` }}>
+      {children}
+    </div>
+  );
+}
+
+function TiltWrapper({ children }: { children: React.ReactNode }) {
+  const [transform, setTransform] = useState('perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)');
+  const [transition, setTransition] = useState('transform 0.5s ease-out');
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
+    const x = (e.clientX - left) / width;
+    const y = (e.clientY - top) / height;
+    const rotateX = (0.5 - y) * 10; 
+    const rotateY = (x - 0.5) * 10; 
+    setTransition('transform 0.1s ease-out'); 
+    setTransform(`perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.02, 1.02, 1.02)`);
+  };
+
+  const handleMouseLeave = () => {
+    setTransition('transform 0.5s ease-out'); 
+    setTransform('perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)');
+  };
+
+  return (
+    <div onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave} style={{ transform, transition }} className="w-full h-full will-change-transform">
+      {children}
+    </div>
+  );
+}
+
+const AuditWireframeBackground = () => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let width = window.innerWidth;
+    let height = window.innerHeight;
+    canvas.width = width;
+    canvas.height = height;
+
+    const nodes: any[] = [];
+    const edges: number[][] = [];
+    let radius = width > 1024 ? 400 : 280; 
+
+    for (let i = 0; i <= 16; i++) {
+      let lat = Math.PI * i / 16;
+      for (let j = 0; j <= 32; j++) {
+        let lon = 2 * Math.PI * j / 32;
+        let x = radius * Math.sin(lat) * Math.cos(lon);
+        let y = radius * Math.sin(lat) * Math.sin(lon);
+        let z = radius * Math.cos(lat);
+        const isErrorCandidate = (i > 8 && i < 13) && (j > 3 && j < 11);
+        const isError = isErrorCandidate && Math.random() > 0.4;
+        nodes.push({ x, y, z, isError, glow: 0, scaleFactor: 1 });
+      }
+    }
+
+    for (let i = 0; i < nodes.length; i++) {
+      let nextInLat = i + 1;
+      if (i % 33 !== 32 && nextInLat < nodes.length) edges.push([i, nextInLat]);
+      let nextInLon = i + 33;
+      if (nextInLon < nodes.length) edges.push([i, nextInLon]);
+    }
+
+    let angleX = 0;
+    let angleY = 0;
+    let scanY = -height * 0.5; 
+    let pulses: any[] = []; 
+    let animationFrameId: number;
+
+    const render = () => {
+      ctx.clearRect(0, 0, width, height);
+      angleX += 0.0006;
+      angleY += 0.0012;
+      scanY += 3.5; 
+      if (scanY > height * 1.3) scanY = -height * 0.4;
+
+      const centerX = width > 1024 ? width * 0.76 : width * 0.5;
+      const centerY = height * 0.5;
+
+      const projectedNodes = nodes.map(node => {
+        let x = node.x * Math.cos(angleY) - node.z * Math.sin(angleY);
+        let z = node.x * Math.sin(angleY) + node.z * Math.cos(angleY);
+        let y = node.y;
+
+        let y2 = y * Math.cos(angleX) - z * Math.sin(angleX);
+        let z2 = y * Math.sin(angleX) + z * Math.cos(angleX);
+        x = x; y = y2; z = z2;
+
+        const fov = 1100;
+        const scale = fov / (fov + z);
+        const x2d = (x * scale) + centerX;
+        const y2d = (y * scale) + centerY;
+        
+        const zNormalized = (z2 + radius) / (radius * 2);
+        const depthAlpha = 0.15 + 0.85 * zNormalized; 
+        
+        const distToScan = Math.abs(y2d - scanY);
+        if (distToScan < 45) {
+           node.glow = 1.0; 
+           node.scaleFactor = node.isError ? 1.6 : 1.2; 
+        } else {
+           node.glow *= node.isError ? 0.98 : 0.88; 
+           node.scaleFactor = 1 + (node.scaleFactor - 1) * 0.96; 
+        }
+        
+        return { x: x2d, y: y2d, scale: scale * node.scaleFactor, isError: node.isError, glow: Math.max(0.05, node.glow), depthAlpha: depthAlpha };
+      });
+
+      if (scanY > -100 && scanY < height + 100) {
+         const scanGradient = ctx.createLinearGradient(0, scanY - 20, 0, scanY + 20);
+         scanGradient.addColorStop(0, 'rgba(218, 235, 227, 0)');
+         scanGradient.addColorStop(0.5, 'rgba(218, 235, 227, 0.4)'); 
+         scanGradient.addColorStop(1, 'rgba(218, 235, 227, 0)');
+         ctx.fillStyle = scanGradient;
+         ctx.fillRect(centerX - radius * 1.5, scanY - 20, radius * 3, 40);
+         ctx.beginPath();
+         ctx.strokeStyle = 'rgba(218, 235, 227, 0.8)';
+         ctx.lineWidth = 1.5;
+         ctx.moveTo(centerX - radius * 1.2, scanY);
+         ctx.lineTo(centerX + radius * 1.2, scanY);
+         ctx.stroke();
+      }
+
+      ctx.lineWidth = 1.2; 
+      edges.forEach(edge => {
+        const p1 = projectedNodes[edge[0]];
+        const p2 = projectedNodes[edge[1]];
+        const edgeAlpha = (p1.depthAlpha + p2.depthAlpha) / 2;
+        ctx.beginPath();
+        ctx.strokeStyle = `rgba(38, 43, 39, ${0.35 * edgeAlpha})`; 
+        ctx.moveTo(p1.x, p1.y);
+        ctx.lineTo(p2.x, p2.y);
+        ctx.stroke();
+      });
+
+      if (Math.random() < 0.08) {
+        const randomEdge = edges[Math.floor(Math.random() * edges.length)];
+        pulses.push({ from: randomEdge[0], to: randomEdge[1], progress: 0, speed: 0.03 + Math.random() * 0.04 });
+      }
+
+      for (let i = pulses.length - 1; i >= 0; i--) {
+        let pulse = pulses[i];
+        pulse.progress += pulse.speed;
+        if (pulse.progress >= 1) { pulses.splice(i, 1); continue; }
+        const p1 = projectedNodes[pulse.from];
+        const p2 = projectedNodes[pulse.to];
+        const pulseDepth = (p1.depthAlpha + p2.depthAlpha) / 2;
+
+        if (pulseDepth > 0.5) {
+           const curX = p1.x + (p2.x - p1.x) * pulse.progress;
+           const curY = p1.y + (p2.y - p1.y) * pulse.progress;
+           const tailProg = Math.max(0, pulse.progress - 0.2);
+           const tailX = p1.x + (p2.x - p1.x) * tailProg;
+           const tailY = p1.y + (p2.y - p1.y) * tailProg;
+           ctx.beginPath();
+           const pulseGradient = ctx.createLinearGradient(curX, curY, tailX, tailY);
+           pulseGradient.addColorStop(0, `rgba(153, 205, 216, ${0.9 * pulseDepth})`); 
+           pulseGradient.addColorStop(1, `rgba(153, 205, 216, 0)`); 
+           ctx.strokeStyle = pulseGradient;
+           ctx.lineWidth = 3 * p1.scale;
+           ctx.lineCap = "round";
+           ctx.moveTo(curX, curY);
+           ctx.lineTo(tailX, tailY);
+           ctx.stroke();
+        }
+      }
+
+      projectedNodes.forEach(pn => {
+        let baseAlpha = 0.5 * pn.depthAlpha;
+        let fillColor = `rgba(38, 43, 39, ${baseAlpha})`;
+        if (pn.glow > 0.08) {
+           let glowStrength = pn.glow * pn.depthAlpha; 
+           if (pn.isError) {
+              fillColor = `rgba(239, 68, 68, ${0.3 + glowStrength * 0.7})`;
+              ctx.shadowBlur = 20 * glowStrength; 
+              ctx.shadowColor = `rgba(239, 68, 68, 1)`; 
+           } else {
+              fillColor = `rgba(74, 222, 128, ${0.3 + glowStrength * 0.7})`;
+              ctx.shadowBlur = 12 * glowStrength; 
+              ctx.shadowColor = `rgba(74, 222, 128, 0.8)`;
+           }
+        } else {
+           ctx.shadowBlur = 0;
+           ctx.shadowColor = 'transparent';
+        }
+        ctx.beginPath();
+        ctx.fillStyle = fillColor;
+        let nodeRadius = (pn.glow > 0.08) ? (pn.isError ? 3.5 : 2.2) : 1.8; 
+        ctx.arc(pn.x, pn.y, nodeRadius * pn.scale, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0; 
+      });
+      animationFrameId = requestAnimationFrame(render);
+    };
+
+    render();
+    const handleResize = () => { width = window.innerWidth; height = window.innerHeight; canvas.width = width; canvas.height = height; radius = width > 1024 ? 400 : 280; };
+    window.addEventListener('resize', handleResize);
+    return () => { window.removeEventListener('resize', handleResize); cancelAnimationFrame(animationFrameId); };
+  }, []);
+
+  return <canvas ref={canvasRef} className="fixed inset-0 w-full h-full pointer-events-none z-[1] print:hidden opacity-90" />;
+};
+
+const NoiseBackground = () => {
+  return (
+    <div className="fixed inset-0 w-full h-full pointer-events-none z-[1] print:hidden opacity-[0.03]" style={{ mixBlendMode: 'overlay' }}>
+      <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+        <filter id="noiseFilter">
+          <feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="3" stitchTiles="stitch" />
+        </filter>
+        <rect width="100%" height="100%" filter="url(#noiseFilter)" />
+      </svg>
+    </div>
+  );
+};
+
+const CurveTop = () => (
+  <svg className="absolute right-0 top-[-32px] w-8 h-8 text-[#F4F4F5] pointer-events-none" viewBox="0 0 32 32" fill="currentColor">
+    <path d="M0 32 L32 32 L32 0 A32 32 0 0 0 0 32 Z" />
+  </svg>
+);
+
+const CurveBottom = () => (
+  <svg className="absolute right-0 bottom-[-32px] w-8 h-8 text-[#F4F4F5] pointer-events-none" viewBox="0 0 32 32" fill="currentColor">
+    <path d="M0 0 L32 0 L32 32 A32 32 0 0 1 0 0 Z" />
+  </svg>
+);
+
+function ScoreRing({ score, size = 150 }: { score: number, size?: number }) {
+  const stroke = 12;
+  const radius = (size / 2) - stroke;
+  const circumference = radius * 2 * Math.PI;
+  const strokeDashoffset = circumference - (score / 100) * circumference;
+  
+  const color = score < 50 ? "#E07070" : score < 80 ? "#D4A843" : "#7EB893";
+
+  return (
+    <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
+      <div className="absolute inset-0 rounded-full blur-2xl opacity-20" style={{ backgroundColor: color }}></div>
+      <svg height={size} width={size} className="transform -rotate-90 relative z-10">
+        <circle stroke="rgba(0,0,0,0.4)" fill="transparent" strokeWidth={stroke} r={radius} cx={size/2} cy={size/2} />
+        <circle stroke={color} fill="transparent" strokeWidth={stroke} strokeDasharray={circumference + ' ' + circumference} style={{ strokeDashoffset }} strokeLinecap="round" r={radius} cx={size/2} cy={size/2} className="transition-all duration-1000 ease-out" />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center z-20">
+        <span className="text-6xl font-black text-white tracking-tighter drop-shadow-md">{score}</span>
+      </div>
+    </div>
+  );
+}
+
+function ScoreSparkline({ data, fechas }: { data: number[], fechas: string[] }) {
+  const [hovered, setHovered] = useState<number | null>(null);
+
+  if (!data || data.length < 2) return null;
+
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+  const range = max - min || 1;
+  const w = 500;
+  const h = 140; 
+  const padX = 40;
+  const padY = 45; 
+
+  const coords = data.map((v, i) => {
+    const x = padX + (i / (data.length - 1)) * (w - padX * 2);
+    const y = h - padY - ((v - min) / range) * (h - padY * 2);
+    return { x, y, v };
+  });
+
+  const polyline = coords.map(c => `${c.x},${c.y}`).join(' ');
+  const areaPoints = `${coords[0].x},${h} ${polyline} ${coords[coords.length-1].x},${h}`;
+
+  const formatFecha = (dateStr: string) => {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    return `${d.getDate()}/${d.getMonth()+1}`;
+  };
+
+  return (
+    <div className="relative w-full" style={{height: '160px'}}>
+      <svg viewBox={`0 0 ${w} ${h}`} className="w-full" style={{height:'140px'}} preserveAspectRatio="xMidYMid meet">
+        <defs>
+          <linearGradient id="sparkGrad2" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#F3C3B2" stopOpacity="0.2" />
+            <stop offset="100%" stopColor="#F3C3B2" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+
+        {[0, 25, 50, 75, 100].map(val => {
+          const y = h - padY - ((val - min) / range) * (h - padY * 2);
+          if (y < padY || y > h - padY + 5) return null;
+          return (
+            <line key={val} x1={padX} y1={y} x2={w - padX} y2={y}
+              stroke="#44403C" strokeWidth="1" strokeDasharray="4,4" />
+          );
+        })}
+
+        <polygon points={areaPoints} fill="url(#sparkGrad2)" />
+        <polyline points={polyline} fill="none" stroke="#F3C3B2" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />
+
+        {coords.map((c, i) => (
+          <g key={i}>
+            <circle cx={c.x} cy={c.y} r="5" fill="#F3C3B2" stroke="#292524" strokeWidth="2" />
+            <circle cx={c.x} cy={c.y} r="16" fill="transparent"
+              onMouseEnter={() => setHovered(i)}
+              onMouseLeave={() => setHovered(null)}
+              style={{cursor: 'pointer'}}
+            />
+            {hovered === i && (
+              <g>
+                <rect x={c.x - 28} y={c.y - 38} width="56" height="28" rx="6" fill="#1C1917" stroke="#44403C" strokeWidth="1" />
+                <text x={c.x} y={c.y - 23} textAnchor="middle" fill="#F5F0EB" fontSize="11" fontWeight="bold">{c.v}/100</text>
+                <text x={c.x} y={c.y - 12} textAnchor="middle" fill="#A8A29E" fontSize="9" fontWeight="500">{formatFecha(fechas[i])}</text>
+              </g>
+            )}
+          </g>
+        ))}
+      </svg>
+
+      <div className="flex justify-between mt-1" style={{ paddingLeft: `${(padX/w)*100}%`, paddingRight: `${(padX/w)*100}%` }}>
+        {fechas.map((f, i) => (
+          <span key={i} className={`text-[10px] font-bold transition-colors ${hovered === i ? 'text-[#F5F0EB]' : 'text-[#A8A29E]'}`}>
+            {formatFecha(f)}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?: AuditorVista } = {}) {
+  const [campanas, setCampanas] = useState<any[]>([]);
+  const [cargandoCampanas, setCargandoCampanas] = useState(false);
+  const [session, setSession] = useState<any>(null);
+  const [status, setStatus] = useState("loading");
+  const [nombreCuenta, setNombreCuenta] = useState("");
+  const [reporte, setReporte] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [copiedKw, setCopiedKw] = useState<string | null>(null);
+  const [idioma, setIdioma] = useState<"es" | "en">("es");
+  const [quickWinsCompletados, setQuickWinsCompletados] = useState<string[]>([]);
+  const [vista, setVista] = useState<AuditorVista>(initialVista);
+  const [subVistaReporte, setSubVistaReporte] = useState<"diagnostico" | "checklist" | "avanzado">("diagnostico");
+  const [detalleHallazgo, setDetalleHallazgo] = useState<any | null>(null);
+  const [isClosing, setIsClosing] = useState(false);
+  const [historial, setHistorial] = useState<any[]>([]);
+  const [cargandoHistorial, setCargandoHistorial] = useState(false);
+  const [comparacionIds, setComparacionIds] = useState<number[]>([]);
+  const [vistaComparacion, setVistaComparacion] = useState(false);
+  const [modoSimple, setModoSimple] = useState(false);
+  const [filtroEstado, setFiltroEstado] = useState<"todos" | "critico" | "atencion" | "optimo">("todos");
+  const [busqueda, setBusqueda] = useState(""); 
+  const [perfil, setPerfil] = useState<any>(null);
+  const [agenciaNombre, setAgenciaNombre] = useState("");
+  const [agenciaLogo, setAgenciaLogo] = useState("");
+  const [agenciaWeb, setAgenciaWeb] = useState("");
+  const [agenciaPie, setAgenciaPie] = useState("Auditoría generada con tecnología IA - Reporte Confidencial.");
+  const [moneda, setMoneda] = useState("USD ($)");
+  const [metrica, setMetrica] = useState("ROAS");
+  const [uploading, setUploading] = useState(false);
+  const [mensajeFeedback, setMensajeFeedback] = useState("");
+  const [enviandoFeedback, setEnviandoFeedback] = useState(false);
+  const [tareasCompletadas, setTareasCompletadas] = useState<number[]>([]);
+  const [mostrarConfirmacion, setMostrarConfirmacion] = useState(false);
+  const [toastState, setToastState] = useState<{show: boolean, status: 'success' | 'undoing' | 'reverted', timeLeft: number}>({show: false, status: 'success', timeLeft: 15});
+  const [alertas, setAlertas] = useState<any[]>([]);
+  const [toastsActivos, setToastsActivos] = useState<any[]>([]);
+  const [mostrarCentroAlertas, setMostrarCentroAlertas] = useState(false);
+  const [alertasNoLeidas, setAlertasNoLeidas] = useState(false);    
+  const [modoVista, setModoVista] = useState('grid');
+
+  const navegar = (nextVista: AuditorVista, path: string) => {
+    setVista(nextVista);
+    window.history.pushState(null, "", path);
+  };
+
+  useEffect(() => {
+    setVista(initialVista);
+  }, [initialVista]);
+
+  useEffect(() => {
+    const sincronizarVistaConRuta = () => {
+      const nextVista = vistaPorRuta[window.location.pathname];
+      if (nextVista) setVista(nextVista);
+    };
+
+    window.addEventListener("popstate", sincronizarVistaConRuta);
+    return () => window.removeEventListener("popstate", sincronizarVistaConRuta);
+  }, []);
+
+  useEffect(() => {
+    const formatSession = (supaSession: any) => {
+      if (!supaSession) return null;
+      return {
+        user: {
+          id: supaSession.user.id,
+          email: supaSession.user.email,
+          name: supaSession.user.user_metadata?.full_name || supaSession.user.user_metadata?.name || "Usuario",
+          image: supaSession.user.user_metadata?.avatar_url
+        }
+      };
+    };
+
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(formatSession(data.session));
+      setStatus(data.session ? "authenticated" : "unauthenticated");
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, supaSession) => {
+      setSession(formatSession(supaSession));
+      setStatus(supaSession ? "authenticated" : "unauthenticated");
+
+      if (supaSession?.provider_refresh_token) {
+        setTimeout(() => {
+          void supabase
+            .from('google_ads_tokens')
+            .upsert({ 
+              user_id: supaSession.user.id, 
+              refresh_token: supaSession.provider_refresh_token,
+              actualizado_el: new Date().toISOString()
+            });
+        }, 0);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const iniciarSesion = async () => {
+    await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { 
+        redirectTo: window.location.origin,
+        scopes: 'https://www.googleapis.com/auth/adwords',
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent',
+        }
+      }
+    });
+  };
+
+  const ejecutarAuditoriaConIA = async () => {
+    setLoading(true);
+    try {
+      console.log("1. Extrayendo métricas del .lib...");
+      const datosParaAuditar = await extraerDatosGoogle();
+
+      console.log("2. Enviando datos a Gemini 3.1 Flash...");
+      const res = await fetch('/api/audit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          datos: datosParaAuditar,
+          idioma_ui: "es"
+        })
+      });
+
+      if (!res.ok) throw new Error("Error en la respuesta del servidor de Mora");
+
+      const parsedReporte = await res.json();
+      setReporte(parsedReporte);
+      setQuickWinsCompletados([]);
+
+      const userId = session?.user?.id;
+      if (userId) {
+        await supabase.from('historial_auditorias').insert([{ 
+            user_id: userId, 
+            score: parsedReporte.health_score, 
+            reporte_json: parsedReporte, 
+            nombre_cuenta: nombreCuenta || "Cuenta Prueba" 
+        }]);
+        cargarHistorial(); 
+      }
+
+    } catch (error) {
+      console.error("Fallo crítico en la auditoría:", error);
+      alert("Hubo un problemita al procesar los datos con la IA. Revisá la consola.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const cerrarDetalle = () => {
+    setIsClosing(true);
+    setTimeout(() => {
+      setDetalleHallazgo(null);
+      setIsClosing(false);
+    }, 400); 
+  };
+  
+  const ultimaAuditoria = historial.length > 0 ? historial[0] : null;
+
+  const quickWinsDelDia = (() => {
+    if (!ultimaAuditoria?.reporte_json?.hallazgos) return [];
+    const rojos = ultimaAuditoria.reporte_json.hallazgos.graves_rojo || [];
+    const amarillos = ultimaAuditoria.reporte_json.hallazgos.debiles_amarillo || [];
+    const unificados = [
+      ...rojos.map((r: any) => ({ ...r, tipo: 'critico' })),
+      ...amarillos.map((a: any) => ({ ...a, tipo: 'mejora' }))
+    ];
+    return unificados.slice(0, 3);
+  })();
+
+  useEffect(() => {
+    if (!ultimaAuditoria?.reporte_json?.hallazgos?.graves_rojo) return;
+
+    const fugasIA = ultimaAuditoria.reporte_json.hallazgos.graves_rojo;
+
+    const nuevasAlertas = fugasIA.map((fuga: any, idx: number) => ({
+      id: `ai-alert-${ultimaAuditoria.id}-${idx}`, 
+      titulo: fuga.titulo,
+      mensaje: fuga.descripcion,
+      accion: "Ver Detalles",
+      tipo: "critico",
+      hallazgoData: fuga 
+    }));
+
+    if (nuevasAlertas.length > 0) {
+      setAlertas(nuevasAlertas);
+      setAlertasNoLeidas(true);
+      
+      setToastsActivos(nuevasAlertas.map((a: any) => ({ 
+        ...a, 
+        isLeaving: false, 
+        timeLeft: 10 
+      }))); 
+      
+      setTimeout(() => {
+        setToastsActivos(prev => prev.map(t => ({ ...t, isLeaving: true })));
+      }, 9500);
+
+      setTimeout(() => setToastsActivos([]), 10200);
+    }
+  }, [ultimaAuditoria?.id]); 
+
+  useEffect(() => {
+    const intervalo = setInterval(() => {
+      setToastsActivos(prev => prev.map(t => ({
+        ...t,
+        timeLeft: t.timeLeft > 0 ? t.timeLeft - 1 : 0
+      })));
+    }, 1000);
+    return () => clearInterval(intervalo);
+  }, []);
+
+  const renderGestorCampañas = () => {
+    const activas = campanas.filter(c => c.estado === 'ENABLED');
+    const gastoTotal = activas.reduce((acc, c) => acc + (c.gasto || 0), 0);
+    const convTotales = activas.reduce((acc, c) => acc + (c.conversiones || 0), 0);
+    const cpaPromedio = convTotales > 0 ? gastoTotal / convTotales : 50;
+
+    return (
+      <div className="flex-1 p-8 overflow-y-auto animate-fade-in">
+        <div className="flex justify-between items-end mb-8">
+          <div>
+            <h2 className="text-[#F5F0EB] text-3xl font-black uppercase tracking-tight">Gestor de Campañas</h2>
+            <p className="text-[#A8A29E] text-sm mt-1 font-medium">Análisis quirúrgico de rendimiento individual.</p>
+          </div>
+          <div className="flex gap-4 items-center">
+            <div className="bg-[#1C1917] p-1 rounded-lg border border-[#44403C] flex gap-1">
+              <button onClick={() => setModoVista('grid')} className={`p-2 rounded md transition-all ${modoVista === 'grid' ? 'bg-[#292524] text-[#E07070] shadow' : 'text-[#A8A29E] hover:text-[#F5F0EB]'}`}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+              </button>
+              <button onClick={() => setModoVista('list')} className={`p-2 rounded md transition-all ${modoVista === 'list' ? 'bg-[#292524] text-[#E07070] shadow' : 'text-[#A8A29E] hover:text-[#F5F0EB]'}`}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {cargandoCampanas && (
+          <div className="flex justify-center items-center py-24">
+             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#F3C3B2]"></div>
+          </div>
+        )}
+
+        {!cargandoCampanas && campanas.length === 0 && (
+          <div className="bg-[#1C1917] border border-[#44403C] rounded-2xl p-12 flex flex-col items-center justify-center text-center shadow-inner">
+             <Folder size={48} className="text-[#44403C] mb-4" />
+             <h3 className="text-xl font-bold text-[#F5F0EB]">Sin datos de campañas</h3>
+             <p className="text-[#A8A29E] mt-2 max-w-sm">Aún no hay campañas para mostrar. Conecta tu cuenta o inyecta datos de prueba desde el simulador.</p>
+          </div>
+        )}
+
+        {!cargandoCampanas && campanas.length > 0 && modoVista === 'grid' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {campanas.map(c => {
+              const gasto = c.gasto || 0;
+              const presupuesto = c.presupuesto || 1; 
+              const conversiones = c.conversiones || 0;
+              const cpaActual = conversiones > 0 ? (gasto / conversiones) : gasto;
+              
+              let tag = "EVALUANDO";
+              let score = 50;
+              let colorClasses = { border: "border-[#44403C]", text: "text-[#A8A29E]", bg: "bg-[#A8A29E]/10" };
+              let penalizacion = "Rendimiento dentro del promedio.";
+
+              if (conversiones < 3) {
+                tag = "POTENCIAL"; score = 65; colorClasses = { border: "hover:border-blue-400", text: "text-blue-400", bg: "bg-blue-400/10" };
+                penalizacion = "Fase de aprendizaje. Darle tiempo.";
+              } else if (cpaActual < cpaPromedio * 0.85) {
+                tag = "ESTRELLA"; score = Math.min(98, 100 - Math.floor((cpaActual / cpaPromedio) * 10)); colorClasses = { border: "hover:border-[#10B981]", text: "text-[#10B981]", bg: "bg-[#10B981]/10" };
+                penalizacion = "Excelente CPA. Sugerimos escalar inversión.";
+              } else if (cpaActual > cpaPromedio * 1.20) {
+                tag = "BASURA"; score = Math.max(12, Math.floor(50 - ((cpaActual - cpaPromedio) / cpaPromedio) * 40)); colorClasses = { border: "hover:border-[#E07070]", text: "text-[#E07070]", bg: "bg-[#E07070]/10" };
+                penalizacion = "Drenando presupuesto. CPA insostenible.";
+              } else {
+                tag = "DUDOSO"; score = 75; colorClasses = { border: "hover:border-[#EAB308]", text: "text-[#EAB308]", bg: "bg-[#EAB308]/10" };
+                penalizacion = "Requiere optimización manual de palabras clave.";
+              }
+
+              const handleClick = () => {
+                abrirDetalleHallazgo({
+                  titulo: `Campaña ${tag}: ${c.nombre}`,
+                  descripcion: penalizacion,
+                  sugerencia: tag === "BASURA" ? "Pausar campaña temporalmente o reducir gasto en un 50%" : tag === "ESTRELLA" ? "Aumentar presupuesto un 15%" : "Revisar términos de búsqueda",
+                  razonamiento: `El CPA de esta campaña es de $${cpaActual.toFixed(2)}, mientras que el promedio de tu cuenta es $${cpaPromedio.toFixed(2)}.`
+                }, tag === "BASURA" ? "critico" : "mejora", {});
+              };
+
+              return (
+              <div key={c.id} onClick={handleClick} className={`bg-[#292524] border border-[#44403C] rounded-xl p-5 transition-colors relative group cursor-pointer ${colorClasses.border}`}>
+                <div className="absolute -top-10 right-0 bg-[#1C1917] border border-[#44403C] text-[#F5F0EB] text-[10px] px-3 py-2 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 whitespace-nowrap shadow-xl">
+                  {penalizacion}
+                </div>
+                
+                <div className="flex justify-between items-start mb-4">
+                  <div className="flex flex-col gap-1.5 max-w-[75%]">
+                    <h3 className="text-[#F5F0EB] font-bold text-sm truncate" title={c.nombre}>{c.nombre}</h3>
+                    <span className={`text-[9px] uppercase tracking-widest font-black px-2 py-0.5 rounded w-max border ${c.estado === 'ENABLED' ? 'bg-[#10B981]/10 text-[#10B981] border-[#10B981]/20' : 'bg-[#78716c]/10 text-[#A8A29E] border-[#78716c]/30'}`}>
+                      {c.estado === 'ENABLED' ? 'Activa' : 'Pausada'}
+                    </span>
+                  </div>
+                  <div className="relative w-10 h-10 flex items-center justify-center">
+                    <svg className="w-full h-full transform -rotate-90">
+                      <circle cx="20" cy="20" r="16" stroke="currentColor" strokeWidth="4" fill="transparent" className="text-[#1C1917]" />
+                      <circle cx="20" cy="20" r="16" stroke="currentColor" strokeWidth="4" fill="transparent" strokeDasharray="100.5" strokeDashoffset={100.5 - (100.5 * score) / 100} className={colorClasses.text} />
+                    </svg>
+                    <span className="absolute text-[10px] font-black text-[#F5F0EB]">{score}</span>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex justify-between text-xs mb-1"><span className="text-[#A8A29E]">Gasto</span><span className="text-[#F5F0EB] font-mono">${gasto.toLocaleString()} / ${presupuesto.toLocaleString()}</span></div>
+                    <div className="w-full h-1 bg-[#1C1917] rounded-full overflow-hidden"><div className="h-full bg-[#A8A29E]" style={{ width: `${Math.min((gasto/presupuesto)*100, 100)}%` }}></div></div>
+                  </div>
+                  <div className="flex justify-between items-end border-t border-[#44403C] pt-4">
+                    <div>
+                      <p className="text-[#A8A29E] text-[10px] uppercase tracking-wider mb-1">CPA Actual</p>
+                      <p className={`font-mono text-lg font-black ${cpaActual > cpaPromedio * 1.2 ? 'text-[#E07070]' : 'text-[#22c55e]'}`}>${cpaActual.toLocaleString(undefined, {maximumFractionDigits:2})}</p>
+                    </div>
+                    <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded ${colorClasses.bg} ${colorClasses.text}`}>{tag}</span>
+                  </div>
+                </div>
+              </div>
+            )})}
+          </div>
+        )}
+
+        {!cargandoCampanas && campanas.length > 0 && modoVista === 'list' && (
+          <div className="bg-[#292524] border border-[#44403C] rounded-xl overflow-hidden">
+            <table className="w-full text-left">
+              <thead className="bg-[#1C1917] border-b border-[#44403C] text-[#A8A29E] text-[10px] uppercase tracking-widest">
+                <tr>
+                  <th className="p-4 font-black">Campaña & Salud</th>
+                  <th className="p-4 font-black">Gasto Mensual</th>
+                  <th className="p-4 font-black">CPA Actual</th>
+                  <th className="p-4 font-black">Promedio Cta.</th>
+                  <th className="p-4 font-black text-right">Veredicto</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#44403C]">
+                {campanas.map(c => {
+                  const gasto = c.gasto || 0;
+                  const presupuesto = c.presupuesto || 1;
+                  const conversiones = c.conversiones || 0;
+                  const cpaActual = conversiones > 0 ? (gasto / conversiones) : gasto;
+                  
+                  let tag = "EVALUANDO";
+                  let score = 50;
+                  let colorClasses = { border: "border-[#44403C]", text: "text-[#A8A29E]", bg: "bg-[#A8A29E]/10", bar: "bg-[#A8A29E]" };
+
+                  if (conversiones < 3) {
+                    tag = "POTENCIAL"; score = 65; colorClasses = { border: "hover:border-blue-400", text: "text-blue-400", bg: "bg-blue-400/10", bar: "bg-blue-400" };
+                  } else if (cpaActual < cpaPromedio * 0.85) {
+                    tag = "ESTRELLA"; score = Math.min(98, 100 - Math.floor((cpaActual / cpaPromedio) * 10)); colorClasses = { border: "hover:border-[#10B981]", text: "text-[#10B981]", bg: "bg-[#10B981]/10", bar: "bg-[#10B981]" };
+                  } else if (cpaActual > cpaPromedio * 1.20) {
+                    tag = "BASURA"; score = Math.max(12, Math.floor(50 - ((cpaActual - cpaPromedio) / cpaPromedio) * 40)); colorClasses = { border: "hover:border-[#E07070]", text: "text-[#E07070]", bg: "bg-[#E07070]/10", bar: "bg-[#E07070]" };
+                  } else {
+                    tag = "DUDOSO"; score = 75; colorClasses = { border: "hover:border-[#EAB308]", text: "text-[#EAB308]", bg: "bg-[#EAB308]/10", bar: "bg-[#EAB308]" };
+                  }
+
+                  return (
+                  <tr key={c.id} className="hover:bg-[#1C1917]/50 transition-colors group relative cursor-pointer" onClick={() => {
+                    abrirDetalleHallazgo({ titulo: `Campaña ${tag}: ${c.nombre}`, descripcion: "Análisis individual", sugerencia: "Revisar configuración de la campaña en Google Ads", razonamiento: `El CPA de esta campaña es de $${cpaActual.toFixed(2)}.` }, tag === "BASURA" ? "critico" : "mejora", {});
+                  }}>
+                    <td className="p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <p className="text-[#F5F0EB] font-bold text-sm">{c.nombre}</p>
+                            <span className={`text-[8px] uppercase tracking-widest font-black px-1.5 py-0.5 rounded border ${c.estado === 'ENABLED' ? 'bg-[#10B981]/10 text-[#10B981] border-[#10B981]/20' : 'bg-[#78716c]/10 text-[#A8A29E] border-[#78716c]/30'}`}>
+                              {c.estado === 'ENABLED' ? 'Activa' : 'Pausada'}
+                            </span>
+                          </div>
+                          <div className="w-48 h-1 bg-[#1C1917] mt-1.5 rounded-full overflow-hidden relative">
+                            <div className={`h-full ${colorClasses.bar}`} style={{ width: `${score}%` }}></div>
+                          </div>
+                        </div>
+                        <span className="text-xs font-black text-[#A8A29E] w-6">{score}</span>
+                      </div>
+                    </td>
+                    <td className="p-4 text-[#A8A29E] font-mono text-sm">${gasto.toLocaleString()}</td>
+                    <td className="p-4 font-mono font-bold text-sm"><span className={colorClasses.text}>${cpaActual.toLocaleString(undefined, {maximumFractionDigits:2})}</span></td>
+                    <td className="p-4 text-[#A8A29E] font-mono text-sm">${cpaPromedio.toLocaleString(undefined, {maximumFractionDigits:2})}</td>
+                    <td className="p-4 text-right">
+                      <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded inline-block ${colorClasses.bg} ${colorClasses.text}`}>{tag}</span>
+                    </td>
+                  </tr>
+                )})}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const t: any = {
+    es: { dashboard: "Dashboard", panelPrin: "Panel Principal", panelDesc: "Resumen del rendimiento global de tus cuentas.", saludG: "Salud Promedio", totAud: "Total Cuentas", fugasDet: "Fugas Críticas", oporMej: "Oportunidades", ultAud: "Últimas Auditorías", actRec: "Actividad Reciente", verTodas: "Ver todas →", generada: "Se auditó la cuenta", hace: "Hace", afectaA: "Afecta principalmente a", buscarGlobal: "Buscar cuenta por nombre...", nueva: "Auditor IA", clientes: "Panel de Clientes", reportes: "Reportes", feedback: "Sugerencias", configuracion: "Configuración", facturacion: "Facturación", salir: "Cerrar Sesión", placeholderNombre: "Nombre del Cliente o Cuenta", btnAnalizar: "Ejecutar Auditoría", btnAnalizando: "Analizando métricas...", exportar: "Exportar a PDF", score: "Score", problemas: "Problemas Graves", mejoras: "Áreas Débiles", aciertos: "Puntos Fuertes", login: "Iniciar sesión", tabDiag: "Diagnóstico IA", tabCheck: "Plan de Acción", tabAvanzado: "Análisis Avanzado", autoApply: "Corregir Ahora", msgAutoApply: "Disponible próximamente", pacingTit: "Pacing de Presupuesto", pacingDesc: "Ritmo de gasto proyectado", matrizTit: "Campaign Matrix", matrizDesc: "Distribución del gasto vs rendimiento", escalar: "ESTRELLAS (Escalar)", apagar: "BASURA (Apagar)", observar: "DUDOSOS (Observar)", potenciales: "POTENCIALES (Testear)", abrirAud: "Ver reporte", thCliente: "Cliente / Cuenta", thFecha: "Fecha", thEstado: "Estado", thAccion: "Acción", cuentaSinNombre: "Cuenta sin nombre", ingresos: "Ingresa los datos", buzonSug: "Buzón de sugerencias", facturacionTitulo: "Facturación y Planes", facturacionDesc: "Administrá tu suscripción", planActual: "Plan Actual", activa: "Active", gestionarStripe: "Gestionar en Stripe", pronto: "Pronto", ayudanos: "Ayudanos a mejorar", bug: "¿Encontraste un error?", escribiSug: "Escribí tu sugerencia aquí...", enviando: "Enviando...", enviarSug: "Enviar Sugerencia", persPdf: "Personalización de Marca Blanca", nomAgencia: "Nombre de Agencia", sitioWeb: "Sitio Web", logoPdf: "PDF Logo", subeLogo: "Subir", piePagina: "Pie de página legal", preferencias: "Preferencias Regionales", monedaDef: "Moneda Base", metricaDef: "Métrica Principal", guardando: "Guardando...", guardarAj: "Guardar Ajustes", puntajeBasado: "Puntaje en base a ineficiencias del presupuesto.", ingresaDatos: "Completá los datos de la campaña a auditar.", presupuestoObj: "Presupuesto Mensual", placeholderPres: "Ej: 1000", gastoAct: "Gasto actual", placeholderGasto: "Ej: 450", conversiones: "Conversiones", cparoas: "CPA / ROAS Actual", tipoCamp: "Campaign Type", contexto: "Context y Notas", placeholderConv: "Ej: 120", placeholderContexto: "Añadí contexto extra para la IA.", monitoreo: "Monitoreo", tenes: "Tenés", registradas: "cuentas registradas.", todos: "Todos", criticos: "Críticos", atencion: "Atención", optimos: "Óptimos", thTendencia: "Tendencia", volver: "Volver atrás", detalleCliente: "Detalle del Cliente" },
+    en: { dashboard: "Dashboard", panelPrin: "Main Dashboard", panelDesc: "Global overview of your accounts performance.", saludG: "Avg Health Score", totAud: "Total Accounts", fugasDet: "Critical Leaks", oporMej: "Opportunities", ultAud: "Recent Audits", actRec: "Recent Activity", verTodas: "View all →", generada: "Audit generated for", hace: "Ago", afectaA: "Mainly affecting", buscarGlobal: "Search account by name...", nueva: "AI Auditor", clientes: "Client Dashboard", reportes: "Reports", feedback: "Feedback", configuracion: "Settings", facturacion: "Billing", salir: "Sign Out", placeholderNombre: "Client or Account Name", btnAnalizar: "Run Audit", btnAnalizando: "Analyzing metrics...", exportar: "Export to PDF", score: "Score", problemas: "Critical Issues", mejoras: "Weak Areas", aciertos: "Strengths", login: "Log In", tabDiag: "AI Diagnosis", tabCheck: "Action Plan", tabAvanzado: "Advanced Analysis", autoApply: "Auto-Apply", msgAutoApply: "Coming soon", pacingTit: "Budget Pacing", pacingDesc: "Projected spend rhythm", matrizTit: "Campaign Matrix", matrizDesc: "Spend distribution vs performance", escalar: "STARS (Scale)", apagar: "TRASH (Pause)", observar: "DOUBTFUL (Observe)", potenciales: "POTENCIALES (Test)", abrirAud: "View report", thCliente: "Client / Account", thFecha: "Date", thEstado: "Status", thAccion: "Action", cuentaSinNombre: "Unnamed Account", ingresos: "Enter details", buzonSug: "Suggestion Box", facturacionTitulo: "Billing and Plans", facturacionDesc: "Manage your subscription", planActual: "Current Plan", activa: "Active", gestionarStripe: "Manage on Stripe", pronto: "Soon", ayudanos: "Help us improve", bug: "Found a bug?", escribiSug: "Write your suggestion here...", enviando: "Sending...", enviarSug: "Send Suggestion", persPdf: "White Label Customization", nomAgencia: "Agency Name", sitioWeb: "Website", logoPdf: "PDF Logo", subeLogo: "Upload", piePagina: "Legal Footer", preferences: "Regional Preferences", monedaDef: "Base Currency", metricaDef: "Main Metric", guardando: "Saving...", guardarAj: "Save Settings", puntajeBasado: "Score based on budget inefficiencies.", ingresaDatos: "Fill in the details for the campaign audit.", presupuestoObj: "Monthly Budget", placeholderPres: "E.g. 1000", gastoAct: "Current Spend", placeholderGasto: "E.g. 450", conversiones: "Conversions", cparoas: "Current CPA / ROAS", tipoCamp: "Campaign Type", contexto: "Context & Notes", placeholderConv: "E.g. 120", placeholderContexto: "Add extra context for the AI.", monitoreo: "Monitoring", tenes: "You have", registradas: "accounts registered.", todos: "All", criticos: "Critical", atencion: "Warning", optimos: "Optimal", thTendencia: "Trend", volver: "Go Back", detalleCliente: "Client Details" }
+  };
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (toastState.show && toastState.status === 'success' && toastState.timeLeft > 0) {
+      timer = setInterval(() => { setToastState(prev => ({...prev, timeLeft: prev.timeLeft - 1})); }, 1000);
+    } else if (toastState.show && toastState.status === 'success' && toastState.timeLeft <= 0) {
+      setToastState(prev => ({...prev, show: false}));
+    }
+    return () => clearInterval(timer);
+  }, [toastState.show, toastState.status, toastState.timeLeft]);
+
+  const aplicarCambios = () => { setMostrarConfirmacion(false); setToastState({show: true, status: 'success', timeLeft: 15}); };
+  const deshacerCambios = () => { setToastState(prev => ({...prev, status: 'undoing'})); setTimeout(() => { setToastState(prev => ({...prev, status: 'reverted'})); setTimeout(() => { setToastState(prev => ({...prev, show: false})); }, 3000); }, 1500); };
+
+  const obtenerPerfil = async () => {
+    const userId = session?.user?.id;
+    if (!userId) return;
+    const { data: userProfile } = await supabase.from('suscripciones').select('*').eq('user_id', userId).maybeSingle();
+    setPerfil(userProfile);
+    const { data: configAgencia } = await supabase.from('configuracion_agencia').select('*').eq('user_id', userId).maybeSingle();
+    if (configAgencia) {
+      if (configAgencia.agencia_nombre) setAgenciaNombre(configAgencia.agencia_nombre);
+      if (configAgencia.agencia_logo) setAgenciaLogo(configAgencia.agencia_logo);
+      if (configAgencia.agencia_web) setAgenciaWeb(configAgencia.agencia_web);
+      if (configAgencia.agencia_pie) setAgenciaPie(configAgencia.agencia_pie);
+      if (configAgencia.moneda_default) setMoneda(configAgencia.moneda_default);
+      if (configAgencia.metrica_default) setMetrica(configAgencia.metrica_default);
+    }
+  };
+  const cargarHistorial = async () => {
+    const userId = session?.user?.id;
+    if (!userId) return;
+    setCargandoHistorial(true);
+    const { data: registros, error } = await supabase.from('historial_auditorias').select('*').eq('user_id', userId);
+    if (!error && registros) setHistorial(registros.reverse()); 
+    setCargandoHistorial(false);
+  };
+
+  const borrarAuditoria = async (id: number) => {
+    if (!window.confirm("¿Seguro que querés eliminar esta auditoría? Esta acción no se puede deshacer.")) return;
+    const { error } = await supabase.from('historial_auditorias').delete().eq('id', id);
+    if (!error) { setHistorial(historial.filter(item => item.id !== id)); if (vista === "reporte_lectura") navegar("historial", "/reportes"); } 
+    else { alert("Error al eliminar la auditoría."); }
+  };
+
+  const toggleTarea = (index: number) => {
+    if (tareasCompletadas.includes(index)) { setTareasCompletadas(tareasCompletadas.filter(i => i !== index)); } 
+    else { setTareasCompletadas([...tareasCompletadas, index]); }
+  };
+  
+  const cargarCampanas = async () => {
+    setCargandoCampanas(true);
+    try {
+      const datos = await extraerDatosGoogle();
+      setCampanas(datos);
+    } catch (error) {
+      console.error("Error al extraer los datos de Google Ads:", error);
+    } finally {
+      setCargandoCampanas(false);
+    }
+  };
+
+  useEffect(() => {
+    if (session) {
+      obtenerPerfil();
+      cargarCampanas();
+    }
+    if (vista === "historial" || vista === "dashboard") cargarHistorial();
+  }, [vista, session]);
+
+  const cerrarSesion = async (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    await supabase.auth.signOut();
+    window.location.href = "/";
+  };
+  
+  const subirLogo = async (event: any) => {
+    try {
+      setUploading(true);
+      const file = event.target.files[0];
+      if (!file) return;
+      const fileExt = file.name.split('.').pop();
+      const userId = session?.user?.id;
+      const fileName = `${userId}-${Math.random()}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage.from('logos').upload(fileName, file);
+      if (uploadError) throw uploadError;
+      const { data } = supabase.storage.from('logos').getPublicUrl(fileName);
+      setAgenciaLogo(data.publicUrl);
+    } catch (error) { console.error("Error subiendo logo:", error); alert("Error al subir imagen."); } finally { setUploading(false); }
+  };
+
+  const guardarAjustesAgencia = async () => {
+    const userId = session?.user?.id;
+    if (!userId) return;
+    setLoading(true);
+    const { error } = await supabase.from('configuracion_agencia').upsert({ 
+        user_id: userId, agencia_nombre: agenciaNombre, agencia_logo: agenciaLogo, 
+        agencia_web: agenciaWeb, agencia_pie: agenciaPie, moneda_default: moneda, metrica_default: metrica 
+    });
+    if (!error) { alert("¡Ajustes guardados correctamente!"); obtenerPerfil(); } else { alert("Error guardando configuraciones."); }
+    setLoading(false);
+  };
+
+  const mandarFeedback = async () => {
+    if (!mensajeFeedback.trim() || !session?.user?.email) return;
+    setEnviandoFeedback(true);
+    const { error } = await supabase.from('feedback').insert([{ usuario_email: session.user.email, mensaje: mensajeFeedback }]);
+    if (!error) { alert("¡Gracias por tu sugerencia!"); setMensajeFeedback(""); navegar("dashboard", "/dashboard"); } else { alert("Error enviando feedback."); }
+    setEnviandoFeedback(false);
+  };
+
+  const abrirDetalleHallazgo = (hallazgo: any, tipo: "critico" | "mejora", reporteData: any) => {
+    const keywords_prob = reporteData?.keywords_problematicas || [];
+    const keywords_sug = reporteData?.keywords_sugeridas || [];
+    const textoRazonamiento = hallazgo.razonamiento || hallazgo.pitch_vendedor || reporteData?.pitch_vendedor || "Esta optimización corta la hemorragia de presupuesto y redirige la inversión hacia tráfico con verdadera intención de compra.";
+    setDetalleHallazgo({
+      titulo: hallazgo.titulo || "Oportunidad detectada", tipo, problema_detalle: hallazgo.problema_detalle || hallazgo.descripcion || "Se detectó una ineficiencia técnica en la configuración de la campaña.",
+      sugerencia: hallazgo.sugerencia || "Aplicar las correcciones recomendadas en Google Ads.", razonamiento: textoRazonamiento, resultado_esperado: hallazgo.resultado_esperado || "Ahorro inmediato y mejora del CTR.",
+      items: keywords_prob.length > 0 ? keywords_prob : [{ nombre: "Sin datos de keywords disponibles", gasto: "-", clics: 0, conversiones: 0 }],
+      sugerencias: keywords_sug.length > 0 ? keywords_sug.map((k: any) => ({ keyword: k.keyword, razon: `${k.razon}${k.cpc_estimado ? ' · CPC est. ' + k.cpc_estimado : ''}` })) : []
+    });
+  };
+
+  const copiarKeyword = (kw: string) => {
+    navigator.clipboard.writeText(kw).then(() => { setCopiedKw(kw); setTimeout(() => setCopiedKw(null), 2000); });
+  };
+
+  const getDashboardStatus = (score: number) => {
+    if (score < 50) return { label: "Crítico", color: "text-[#E66767]", bgTints: "bg-[#E66767]/10", hex: "#E66767", icon: AlertTriangle, msg: "Atención urgente requerida" };
+    if (score < 80) return { label: "Atención", color: "text-[#EAB308]", bgTints: "bg-[#EAB308]/10", hex: "#EAB308", icon: Zap, msg: "Métricas bajo observación" };
+    return { label: "Óptimo", color: "text-[#10B981]", bgTints: "bg-[#10B981]/10", hex: "#10B981", icon: CheckCircle2, msg: "Cuentas estables y sanas" };
+  };
+
+  const parseDate = (dateString: string) => { if (!dateString) return new Date().toLocaleDateString(); return new Date(dateString).toLocaleDateString(); };
+
+  const clientesFiltrados = historial.filter(item => {
+    const coincideFiltro = filtroEstado === "todos" || (filtroEstado === "critico" && item.score < 50) || (filtroEstado === "atencion" && item.score >= 50 && item.score < 80) || (filtroEstado === "optimo" && item.score >= 80);
+    const nombreSeguro = item.nombre_cuenta || t[idioma].cuentaSinNombre;
+    const coincideBusqueda = nombreSeguro.toLowerCase().includes(busqueda.toLowerCase());
+    return coincideFiltro && coincideBusqueda;
+  });
+
+  const totalAuditorias = historial.length;
+  
+  let totalFugas = 0; let totalOportunidades = 0;
+  let totalCriticas = 0; let totalOptimas = 0;
+  
+  const cuentasRojas: {nombre: string, cant: number, reporte: any}[] = []; 
+  const cuentasAmarillas: {nombre: string, cant: number, reporte: any}[] = [];
+
+  historial.forEach(h => {
+      const nombre = h.nombre_cuenta || t[idioma].cuentaSinNombre;
+      if (h.score < 50) totalCriticas++;
+      if (h.score >= 80) totalOptimas++;
+      if (h.reporte_json?.hallazgos?.graves_rojo) { 
+        const cantRojas = h.reporte_json.hallazgos.graves_rojo.length; 
+        if (cantRojas > 0) { totalFugas += cantRojas; cuentasRojas.push({ nombre, cant: cantRojas, reporte: h.reporte_json }); } 
+      }
+      if (h.reporte_json?.hallazgos?.debiles_amarillo) { 
+        const cantAma = h.reporte_json.hallazgos.debiles_amarillo.length; 
+        if (cantAma > 0) { totalOportunidades += cantAma; cuentasAmarillas.push({ nombre, cant: cantAma, reporte: h.reporte_json }); } 
+      }
+  });
+
+  cuentasRojas.sort((a,b) => b.cant - a.cant); cuentasAmarillas.sort((a,b) => b.cant - a.cant);
+  
+  const fugasIndividuales = ultimaAuditoria?.reporte_json?.hallazgos?.graves_rojo?.length || 0;
+  const oportunidadesIndividuales = ultimaAuditoria?.reporte_json?.hallazgos?.debiles_amarillo?.length || 0;
+
+  const scoreHistorico = historial.slice(0, 8).reverse().map((h: any) => h.score);
+  const fechasHistorico = historial.slice(0, 8).reverse().map((h: any) => h.created_at || '');
+
+  const diasDesdeUltimaAuditoria = () => {
+    if (!ultimaAuditoria?.created_at) return null;
+    const diff = Date.now() - new Date(ultimaAuditoria.created_at).getTime();
+    const dias = Math.floor(diff / (1000 * 60 * 60 * 24));
+    if (dias === 0) return "hoy";
+    if (dias === 1) return "hace 1 día";
+    return `hace ${dias} días`;
+  };
+
+  const nGramaData = ultimaAuditoria?.reporte_json?.n_gramas || null;
+  const ahorroNGramas = nGramaData?.ahorro_estimado || 0;
+  const palabrasBasura = nGramaData?.cantidad_palabras || 0;
+
+  if (status === "loading") return (
+    <div className="h-screen w-full flex justify-center items-center bg-[#FDE8D3]">
+      <div className="w-16 h-16 rounded-2xl flex items-center justify-center font-black text-[#0a0a0a] text-4xl shadow-lg bg-[#E0E7FF] animate-pulse">M</div>
+    </div>
+  );
+
+  return (
+    <>
+      <style dangerouslySetInnerHTML={{__html: `
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Inter:wght@400;500;600;700;900&display=swap');
+        
+        body { 
+          font-family: 'Inter', sans-serif; 
+          background-color: ${!session ? '#FDE8D3' : '#0a0a0a'} !important; 
+          color: #0a0a0a; 
+        }
+
+        .font-serif { font-family: 'Playfair Display', serif; }
+        .perspective-1000 { perspective: 1000px; }
+        .transform-style-3d { transform-style: preserve-3d; }
+        .translate-z-[-60px] { transform: translateZ(-60px); }
+        .translate-z-[0px] { transform: translateZ(0px); }
+        .translate-z-[40px] { transform: translateZ(40px); }
+        .translate-z-[50px] { transform: translateZ(50px); }
+        .translate-z-[60px] { transform: translateZ(60px); }
+        .translate-z-[80px] { transform: translateZ(80px); }
+        .rotate-x-[15deg] { transform: rotateX(15deg) rotateY(-25deg); }
+        .hover\\:rotate-x-[-5deg]:hover { transform: rotateX(-5deg) rotateY(5deg); }
+
+        @media print {
+          body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; background: white !important; height: auto !important; }
+          @page { margin: 15mm; }
+          .print-container { height: auto !important; overflow: visible !important; position: static !important; }
+          @keyframes shrinkBar { from { width: '100%'; } to { width: '0%'; } }
+          .animate-shrink-bar { animation: shrinkBar 9.5s linear forwards; }
+        }
+
+        @keyframes fadeInCustom { 0% { opacity: 0; transform: translateY(10px); } 100% { opacity: 1; transform: translateY(0); } }
+        .animate-fade-custom { animation: fadeInCustom 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        
+        @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        @keyframes slideOutRight { from { transform: translateX(0); } to { transform: translateX(100%); } }
+        @keyframes fadeInBg { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes fadeOutBg { from { opacity: 1; } to { opacity: 0; } }
+        
+        .animate-slide-in-right { animation: slideInRight 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+        .animate-slide-out-right { animation: slideOutRight 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+        .animate-fade-in-bg { animation: fadeInBg 0.5s ease-out forwards; }
+        .animate-fade-out-bg { animation: fadeOutBg 0.5s ease-out forwards; }
+        
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #44403C; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #A8A29E; }
+
+        @keyframes shrinkBar { from { width: '100%'; } to { width: '0%'; } }
+        .animate-shrink-bar { animation: shrinkBar 9.5s linear forwards; }
+
+        @keyframes shrinkBar { from { width: '100%'; } to { width: '0%'; } }
+        .animate-shrink-bar { animation: shrinkBar 9.5s linear forwards; }
+
+        @keyframes vaciarBarra { from { width: 100%; } to { width: 0%; } }
+        .animate-barra-tiempo { animation: vaciarBarra 9.5s linear forwards; }
+        
+        @keyframes deslizarAfuera { to { transform: translateX(150%); opacity: 0; } }
+        .animate-salida-total { animation: deslizarAfuera 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+      `}} />
+
+      <div style={{ zoom: 0.75 }} className={`flex h-[133.33vh] w-full font-sans overflow-hidden print-container relative ${!session ? "bg-[#FDE8D3] selection:bg-[#E0E7FF] selection:text-[#0a0a0a]" : "bg-[#0a0a0a] selection:bg-[#F3C3B2] selection:text-[#0a0a0a]"}`}>
+        
+        {!session && <AuditWireframeBackground />}
+
+        {!session ? (
+          <div className="w-full h-full overflow-y-auto overflow-x-hidden relative z-10 text-[#0a0a0a]">
+            <nav className="w-full max-w-[1400px] mx-auto px-6 py-6 flex justify-between items-center z-50 relative">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-[#0a0a0a] text-2xl shadow-sm bg-[#E0E7FF]">M</div>
+                <span className="font-bold text-2xl tracking-tight text-[#0a0a0a]">Mora Analytics</span>
+              </div>
+              <div className="hidden md:flex items-center gap-8 font-medium text-[#4B5563]">
+                <Link href="/como-funciona" className="hover:text-[#0a0a0a] transition-colors">Cómo funciona</Link>
+                <Link href="/precios" className="hover:text-[#0a0a0a] transition-colors">Precios</Link>
+                <Link href="/faq" className="hover:text-[#0a0a0a] transition-colors">FAQ</Link>
+              </div>
+              <div className="flex items-center gap-4">
+                <button onClick={() => setIdioma(idioma === "es" ? "en" : "es")} className="text-sm font-bold text-[#4B5563] hover:text-[#0a0a0a] transition-colors uppercase hidden sm:block">
+                  {idioma}
+                </button>
+                <button onClick={iniciarSesion} className="bg-[#0a0a0a] text-[#FDE8D3] px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-[#0a0a0a]/90 transition-colors shadow-lg border border-[#0a0a0a]">
+                  {t[idioma].login}
+                </button>
+              </div>
+            </nav>
+
+            <section className="relative pt-12 pb-20 lg:pt-24 lg:pb-28 overflow-hidden z-10 px-6 max-w-[1400px] mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-8 items-center min-h-[75vh]">
+              <FadeInOnScroll>
+                <div className="flex flex-col items-start text-left lg:pr-10">
+                  <div className="border border-[#CFD6C4]/80 bg-[#CFD6C4]/30 px-4 py-1.5 rounded-full text-[10px] font-bold tracking-widest uppercase mb-8 flex items-center gap-3 text-[#0a0a0a]">
+                    <span className="w-2 h-2 rounded-full bg-[#E0E7FF] animate-pulse"></span>
+                    Análisis con IA
+                  </div>
+                  <h1 className="text-[3.5rem] md:text-6xl lg:text-[4rem] font-serif text-[#0a0a0a] font-black leading-[1.1] mb-6 tracking-tight">
+                    Detectá <br className="hidden lg:block" />
+                    <span className="italic text-[#C4614A]">fugas de dinero</span> <br className="hidden lg:block" />
+                    en tus campañas de Google&nbsp;Ads.
+                  </h1>
+                  <p className="text-[#4B5563] text-lg md:text-xl mb-10 max-w-lg leading-relaxed font-medium">
+                    Subí tu reporte de Google Ads y dejá que nuestra IA audite el gasto con precisión quirúrgica. Resultados en segundos.
+                  </p>
+                  <button onClick={iniciarSesion} className="bg-[#C4614A] text-white px-8 py-4 rounded-2xl font-bold text-lg hover:scale-105 hover:bg-[#a84c38] transition-all shadow-[0_10px_30px_rgba(196,97,74,0.4)] flex items-center justify-center w-full sm:w-auto">
+                    Comenzar prueba gratis
+                  </button>
+
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mt-8 text-[13px] text-[#4B5563] font-semibold w-full">
+                     <span className="flex items-center gap-2"><CheckCircle2 size={16} className="text-[#10B981]" strokeWidth={3} /> Sin tarjeta de crédito</span>
+                     <span className="flex items-center gap-2"><CheckCircle2 size={16} className="text-[#10B981]" strokeWidth={3} /> Solo subís un CSV</span>
+                     <span className="flex items-center gap-2"><CheckCircle2 size={16} className="text-[#10B981]" strokeWidth={3} /> Cancelá cuando quieras</span>
+                  </div>
+                </div>
+              </FadeInOnScroll>
+
+              <FadeInOnScroll delay={200}>
+                <div className="relative w-full h-[500px] lg:h-[650px] flex justify-center items-center mt-10 lg:mt-0 perspective-1000">
+                   <div className="relative w-full max-w-md lg:max-w-lg transform-style-3d transition-transform duration-[1000ms] hover:rotate-x-[-5deg] rotate-x-[15deg]">
+                     
+                      <div className="absolute top-[-60px] left-[-80px] w-72 bg-white/60 backdrop-blur-md border border-[#CFD6C4]/60 shadow-[0_20px_40px_rgba(207,214,196,0.3)] rounded-2xl p-7 translate-z-[-60px]">
+                         <p className="text-[10px] font-bold text-[#4B5563] uppercase tracking-widest mb-4">Gasto Diario</p>
+                         <div className="flex items-end gap-2 h-24 opacity-80">
+                           {[40, 60, 30, 80, 50, 90, 70].map((h, i) => (
+                              <div key={i} className="flex-1 bg-[#10B981]/40 rounded-t-sm" style={{height: `${h}%`}}></div>
+                           ))}
+                         </div>
+                      </div>
+
+                      <div className="absolute top-[30px] left-[-110px] z-30 bg-white/95 backdrop-blur-xl border border-[#CFD6C4]/80 shadow-[0_15px_30px_rgba(38,43,39,0.1)] rounded-2xl p-5 translate-z-[50px] w-56 hidden md:block">
+                          <p className="text-[10px] font-bold text-[#4B5563] uppercase tracking-widest mb-3">Resumen de IA</p>
+                          <div className="space-y-2">
+                              <div className="flex justify-between items-center"><span className="text-xs font-bold text-[#0a0a0a]">Fugas críticas:</span> <span className="text-xs font-black text-[#E66767]">3</span></div>
+                              <div className="flex justify-between items-center"><span className="text-xs font-bold text-[#0a0a0a]">Oportunidades:</span> <span className="text-xs font-black text-[#EAB308]">5</span></div>
+                              <div className="border-t border-[#CFD6C4]/50 pt-2 mt-2 flex justify-between items-center"><span className="text-xs font-bold text-[#0a0a0a]">Ahorro est.:</span> <span className="text-sm font-black text-[#10B981]">$850/m</span></div>
+                          </div>
+                      </div>
+
+                      <div className="relative z-10 w-full bg-white/95 backdrop-blur-2xl border border-[#CFD6C4]/80 shadow-[0_30px_60px_rgba(38,43,39,0.15)] rounded-[2rem] p-8 translate-z-[0px]">
+                         <div className="flex justify-between items-center mb-6 border-b border-[#CFD6C4]/50 pb-4">
+                            <p className="font-bold text-[#0a0a0a] flex items-center gap-2 text-lg"><LayoutGrid size={20}/> Rendimiento</p>
+                            <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider bg-[#DAEBE3]/50 text-[#0a0a0a] px-3 py-1 rounded-full">
+                              <span className="w-1.5 h-1.5 rounded-full bg-[#DAEBE3] border border-[#0a0a0a]/20 animate-pulse"></span> Search
+                            </span>
+                         </div>
+                         <div className="flex justify-center items-center flex-col py-2 mb-6">
+                            <p className="text-xs font-bold text-[#4B5563] uppercase tracking-widest mb-3">Score de Salud</p>
+                            <div className="w-32 h-32 rounded-full flex items-center justify-center border-[8px] border-[#FDE8D3] text-5xl font-black text-[#0a0a0a] shadow-inner bg-[#DAEBE3]">
+                              84
+                            </div>
+                         </div>
+                         <div className="grid grid-cols-2 gap-4">
+                            <div className="bg-[#FDE8D3]/50 p-5 rounded-xl border border-[#CFD6C4]/40">
+                               <p className="text-[10px] font-bold text-[#4B5563] uppercase tracking-wider mb-1">Gasto Total</p>
+                               <p className="text-3xl font-black text-[#0a0a0a]">$8.2k</p>
+                            </div>
+                            <div className="bg-[#FDE8D3]/50 p-5 rounded-xl border border-[#CFD6C4]/40">
+                               <p className="text-[10px] font-bold text-[#4B5563] uppercase tracking-wider mb-1">Conversiones</p>
+                               <p className="text-3xl font-black text-[#0a0a0a]">142</p>
+                            </div>
+                         </div>
+                      </div>
+
+                      <div className="absolute bottom-[-50px] right-[-60px] z-20 w-80 bg-white/95 backdrop-blur-xl border border-[#E66767]/40 shadow-[0_20px_40px_rgba(230,103,103,0.15)] rounded-2xl p-6 translate-z-[80px]">
+                         <div className="flex items-start gap-4">
+                            <div className="w-12 h-12 rounded-xl bg-[#E66767]/10 flex items-center justify-center flex-shrink-0 border border-[#E66767]/30">
+                               <AlertTriangle size={24} className="text-[#E66767]" />
+                            </div>
+                            <div>
+                               <p className="text-sm font-black text-[#E66767] leading-tight mb-1">Fuga Crítica Detectada</p>
+                               <p className="text-xs text-[#4B5563] font-medium">Keywords irrelevantes</p>
+                               <span className="inline-block mt-3 text-sm font-black text-white bg-[#E66767] px-3 py-1.5 rounded-md shadow-sm">-$620 / mes</span>
+                            </div>
+                         </div>
+                      </div>
+
+                      <div className="absolute top-[-25px] right-[20px] z-30 bg-[#DAEBE3] text-[#0a0a0a] px-4 py-2 rounded-full font-bold text-[10px] uppercase shadow-lg border border-[#CFD6C4] translate-z-[40px] flex items-center gap-2">
+                        <span className="w-2 h-2 bg-[#0a0a0a] rounded-full animate-pulse"></span> Análisis listo
+                      </div>
+
+                      <div className="absolute bottom-[80px] left-[-50px] z-30 bg-[#10B981] text-[#0a0a0a] p-5 rounded-2xl shadow-[0_15px_30px_rgba(153,205,216,0.6)] translate-z-[60px] flex flex-col border border-[#CFD6C4]">
+                        <p className="text-[10px] font-bold uppercase tracking-widest opacity-80 mb-1">ROAS Proyectado</p>
+                        <p className="text-3xl font-black flex items-center gap-1"><TrendingUp size={20} strokeWidth={4}/> +12.4%</p>
+                      </div>
+
+                   </div>
+                </div>
+              </FadeInOnScroll>
+            </section>
+
+            <FadeInOnScroll delay={100}>
+              <section className="max-w-[1400px] mx-auto px-6 py-20 border-t border-[#CFD6C4]/40">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 mb-12 items-end">
+                   <div className="lg:col-span-1">
+                     <p className="inline-block px-3 py-1.5 rounded-md text-[10px] font-bold tracking-widest uppercase text-[#0a0a0a] bg-[#10B981]/40 mb-4">Cómo funciona</p>
+                     <h2 className="text-4xl md:text-5xl font-serif font-black text-[#0a0a0a] leading-tight">Optimización en<br/>3 pasos.</h2>
+                   </div>
+                   <div className="lg:col-span-2">
+                     <p className="text-lg text-[#4B5563] lg:max-w-xl font-medium">Exportás tu reporte de Google Ads, lo subís, y en menos de 2 minutos tenés el diagnóstico completo listo para actuar.</p>
+                   </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                   <div className="bg-white/60 backdrop-blur-sm border border-[#CFD6C4]/60 p-8 rounded-[2rem] hover:bg-white hover:border-[#CFD6C4] transition-all shadow-sm group">
+                      <div className="w-14 h-14 rounded-2xl bg-[#CFD6C4]/40 flex items-center justify-center text-[#0a0a0a] mb-6 group-hover:scale-110 transition-transform"><Upload size={24} /></div>
+                      <h3 className="text-xl font-bold text-[#0a0a0a] mb-3">1. Exportá</h3>
+                      <p className="text-[#4B5563] leading-relaxed font-medium">Descargá el reporte de keywords desde Google Ads en formato CSV.</p>
+                   </div>
+                   <div className="bg-white/60 backdrop-blur-sm border border-[#CFD6C4]/60 p-8 rounded-[2rem] hover:bg-white hover:border-[#10B981] transition-all shadow-sm group">
+                      <div className="w-14 h-14 rounded-2xl bg-[#10B981]/40 flex items-center justify-center text-[#0a0a0a] mb-6 group-hover:scale-110 transition-transform"><Search size={24} /></div>
+                      <h3 className="text-xl font-bold text-[#0a0a0a] mb-3">2. Diagnosticá</h3>
+                      <p className="text-[#4B5563] leading-relaxed font-medium">La IA detecta automáticamente los puntos exactos de desperdicio de dinero.</p>
+                   </div>
+                   <div className="bg-white/60 backdrop-blur-sm border border-[#CFD6C4]/60 p-8 rounded-[2rem] hover:bg-white hover:border-[#E0E7FF] transition-all shadow-sm group">
+                      <div className="w-14 h-14 rounded-2xl bg-[#E0E7FF]/40 flex items-center justify-center text-[#0a0a0a] mb-6 group-hover:scale-110 transition-transform"><FileText size={24} /></div>
+                      <h3 className="text-xl font-bold text-[#0a0a0a] mb-3">3. Ejecutá</h3>
+                      <p className="text-[#4B5563] leading-relaxed font-medium">Aplicá las recomendaciones directamente en Google Ads con guías paso a paso.</p>
+                   </div>
+                </div>
+              </section>
+            </FadeInOnScroll>
+
+            <FadeInOnScroll>
+              <section className="max-w-[1400px] mx-auto px-6 py-20 border-t border-[#CFD6C4]/40">
+                <div className="text-center mb-16">
+                  <p className="inline-block px-3 py-1.5 rounded-md text-[10px] font-bold tracking-widest uppercase text-[#0a0a0a] bg-[#DAEBE3] mb-4">Precios Simples</p>
+                  <h2 className="text-4xl md:text-5xl font-serif font-black text-[#0a0a0a] mb-4">Elegí tu camino.</h2>
+                  <p className="text-[#4B5563] font-medium">Todos los planes incluyen 14 días de prueba gratis. Cancelá cuando quieras.</p>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+                  <TiltWrapper>
+                    <div className="bg-white/60 backdrop-blur-sm border-2 border-transparent hover:border-[#DAEBE3] p-10 rounded-[2rem] flex flex-col justify-between hover:bg-white transition-colors shadow-sm hover:shadow-[0_20px_40px_rgba(218,235,227,0.4)] h-full cursor-pointer">
+                      <div>
+                        <h3 className="text-xl font-bold text-[#0a0a0a] mb-2">Starter</h3>
+                        <p className="text-[#4B5563] mb-8 text-sm font-medium">Para probar el poder de la IA en tu negocio.</p>
+                        <div className="text-5xl font-black text-[#0a0a0a] mb-8">$0<span className="text-lg text-[#4B5563] font-medium">/mes</span></div>
+                        <ul className="space-y-4 mb-10 text-sm font-medium text-[#0a0a0a]">
+                          <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#DAEBE3]" strokeWidth={3} /> 1 auditoría por mes</li>
+                          <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#DAEBE3]" strokeWidth={3} /> Diagnóstico básico IA</li>
+                          <li className="flex items-center gap-3 text-[#4B5563]/50 line-through"><CheckCircle2 size={18} className="text-[#CFD6C4]/30" strokeWidth={3} /> Historial de evolución</li>
+                        </ul>
+                      </div>
+                      <button onClick={iniciarSesion} className="w-full bg-[#C4614A] hover:bg-[#a84c38] text-white font-bold py-4 rounded-xl transition-colors shadow-md mt-auto">Empezar gratis</button>
+                    </div>
+                  </TiltWrapper>
+
+                  <TiltWrapper>
+                    <div className="bg-white/60 backdrop-blur-sm border-2 border-transparent hover:border-[#10B981] p-10 rounded-[2rem] flex flex-col justify-between hover:bg-white transition-colors shadow-sm hover:shadow-[0_20px_40px_rgba(153,205,216,0.4)] h-full cursor-pointer">
+                      <div>
+                        <h3 className="text-xl font-bold text-[#0a0a0a] mb-2">Individual</h3>
+                        <p className="text-[#4B5563] mb-8 text-sm font-medium">Para emprendedores gentionando sus anuncios.</p>
+                        <div className="text-5xl font-black text-[#0a0a0a] mb-8">$19<span className="text-lg text-[#4B5563] font-medium">/mes</span></div>
+                        <ul className="space-y-4 mb-10 text-sm font-medium text-[#0a0a0a]">
+                          <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#10B981]" strokeWidth={3} /> Auditorías ilimitadas</li>
+                          <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#10B981]" strokeWidth={3} /> Historial y evolución del score</li>
+                          <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#10B981]" strokeWidth={3} /> Exportación PDF</li>
+                        </ul>
+                      </div>
+                      <button onClick={iniciarSesion} className="w-full bg-[#C4614A] hover:bg-[#a84c38] text-white font-bold py-4 rounded-xl transition-colors shadow-md mt-auto">Prueba de 14 días</button>
+                    </div>
+                  </TiltWrapper>
+
+                  <TiltWrapper>
+                    <div className="bg-white/60 backdrop-blur-sm border-2 border-transparent hover:border-[#E0E7FF] p-10 rounded-[2rem] flex flex-col justify-between hover:bg-white transition-colors shadow-sm hover:shadow-[0_20px_40px_rgba(243,195,178,0.4)] h-full cursor-pointer">
+                      <div>
+                        <h3 className="text-xl font-bold text-[#0a0a0a] mb-2">Agency</h3>
+                        <p className="text-[#4B5563] mb-8 text-sm font-medium">El centro de comando para agencias.</p>
+                        <div className="text-5xl font-black text-[#0a0a0a] mb-8">$49<span className="text-lg text-[#4B5563] font-medium">/mes</span></div>
+                        <ul className="space-y-4 mb-10 text-sm font-medium text-[#0a0a0a]">
+                          <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#E0E7FF]" strokeWidth={3} /> Cuentas Ilimitadas</li>
+                          <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#E0E7FF]" strokeWidth={3} /> Marca Blanca Total</li>
+                          <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#E0E7FF]" strokeWidth={3} /> Dashboard Multi-Cliente</li>
+                        </ul>
+                      </div>
+                      <button onClick={iniciarSesion} className="w-full bg-[#C4614A] hover:bg-[#a84c38] text-white font-bold py-4 rounded-xl transition-colors shadow-md mt-auto">Prueba de 14 días</button>
+                    </div>
+                  </TiltWrapper>
+                </div>
+              </section>
+            </FadeInOnScroll>
+
+            <FadeInOnScroll>
+              <section className="max-w-4xl mx-auto px-6 py-20 mb-12 border-t border-[#CFD6C4]/40">
+                <div className="text-center mb-12">
+                  <h2 className="text-4xl font-serif font-black text-[#0a0a0a]">Preguntas Frecuentes</h2>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                   <div className="bg-white/60 backdrop-blur-sm border border-[#CFD6C4]/60 p-6 rounded-2xl hover:bg-white transition-colors">
+                      <h4 className="text-lg font-bold text-[#0a0a0a] mb-2">¿Mora hace cambios en mis campañas sin avisar?</h4>
+                      <p className="text-[#4B5563] text-sm leading-relaxed font-medium">No. Mora audita y sugiere. Vos tenés el control total. Nunca tocaremos tu cuenta sin permiso.</p>
+                   </div>
+                   <div className="bg-white/60 backdrop-blur-sm border border-[#CFD6C4]/60 p-6 rounded-2xl hover:bg-white transition-colors">
+                      <h4 className="text-lg font-bold text-[#0a0a0a] mb-2">¿Necesito ser un experto en Google Ads?</h4>
+                      <p className="text-[#4B5563] text-sm leading-relaxed font-medium">Para nada. Te decimos dónde estás perdiendo dinero y cómo solucionarlo en español claro.</p>
+                   </div>
+                   <div className="bg-white/60 backdrop-blur-sm border border-[#CFD6C4]/60 p-6 rounded-2xl hover:bg-white transition-colors">
+                      <h4 className="text-lg font-bold text-[#0a0a0a] mb-2">¿Qué formato usan para los reportes?</h4>
+                      <p className="text-[#4B5563] text-sm leading-relaxed font-medium">Extraemos todo vía API para tu comodidad.</p>
+                   </div>
+                   <div className="bg-white/60 backdrop-blur-sm border border-[#CFD6C4]/60 p-6 rounded-2xl hover:bg-white transition-colors">
+                      <h4 className="text-lg font-bold text-[#0a0a0a] mb-2">¿Mis datos están seguros?</h4>
+                      <p className="text-[#4B5563] text-sm leading-relaxed font-medium">100%. Tus datos se usan solo para generar el análisis y no se comparten con terceros.</p>
+                   </div>
+                </div>
+              </section>
+            </FadeInOnScroll>
+
+            <footer className="border-t border-[#CFD6C4]/50 bg-white/40 py-12 text-center text-[#4B5563] text-sm relative z-10">
+              <div className="flex items-center justify-center gap-2 mb-4">
+                <div className="w-6 h-6 rounded flex items-center justify-center font-black text-[#0a0a0a] text-xs bg-[#E0E7FF]">M</div>
+                <span className="font-bold text-[#0a0a0a]">Mora Analytics</span>
+              </div>
+              <p className="mb-4 font-medium">© {new Date().getFullYear()} Mora Analytics. All rights reserved.</p>
+              <div className="flex justify-center gap-6 text-xs font-bold uppercase tracking-wider">
+                <Link href="/privacidad" className="hover:text-[#0a0a0a] transition-colors">Privacidad</Link>
+                <Link href="/terminos" className="hover:text-[#0a0a0a] transition-colors">Términos</Link>
+              </div>
+            </footer>
+          </div>
+        ) : (
+          <>
+            {/* BARRA LATERAL OSCURA */}
+            <aside className="w-64 md:w-72 bg-[#0a0a0a] flex-shrink-0 flex flex-col py-8 relative z-20 text-[#E5E7EB] shadow-[10px_0_30px_rgba(0,0,0,0.1)]">
+              <div className="px-8 mb-8">
+                <h1 className="text-2xl font-black text-white tracking-tighter flex items-center gap-2">
+                  <span className="bg-[#F3C3B2] text-[#0a0a0a] w-8 h-8 rounded-lg flex items-center justify-center text-lg shadow-sm">M</span>
+                  Mora
+                </h1>
+              </div>
+
+              <nav className="flex-1 flex flex-col gap-2 relative px-4">
+                <button 
+                  onClick={() => navegar("dashboard", "/dashboard")}
+                  className={`w-full text-left py-3.5 pr-4 flex items-center gap-3 font-bold transition-all duration-300 rounded-lg ${
+                    vista === "dashboard" || vista === "detalle_hallazgo"
+                    ? "bg-white/10 text-white border-l-4 border-[#F3C3B2] pl-5" 
+                    : "text-[#8A968C] hover:bg-white/5 hover:text-white pl-6"
+                  }`}
+                >
+                  <LayoutDashboard size={20} className={vista === "dashboard" || vista === "detalle_hallazgo" ? "text-[#F3C3B2]" : ""} />
+                  Dashboard
+                </button>
+
+                <button 
+                  onClick={() => navegar("campañas", "/campanas")}
+                  className={`w-full text-left py-3.5 pr-4 flex items-center gap-3 font-bold transition-all duration-300 rounded-lg ${
+                    vista === "campañas"
+                    ? "bg-white/10 text-white border-l-4 border-[#F3C3B2] pl-5" 
+                    : "text-[#8A968C] hover:bg-white/5 hover:text-white pl-6"
+                  }`}
+                >
+                  <Folder size={20} className={vista === "campañas" ? "text-[#F3C3B2]" : ""} />
+                  Campañas
+                </button>
+
+                <button 
+                  onClick={() => navegar("historial", "/reportes")}
+                  className={`w-full text-left py-3.5 pr-4 flex items-center gap-3 font-bold transition-all duration-300 rounded-lg ${
+                    vista === "historial" || vista === "reporte_lectura"
+                    ? "bg-white/10 text-white border-l-4 border-[#F3C3B2] pl-5" 
+                    : "text-[#8A968C] hover:bg-white/5 hover:text-white pl-6"
+                  }`}
+                >
+                  <FileText size={20} className={vista === "historial" || vista === "reporte_lectura" ? "text-[#F3C3B2]" : ""} />
+                  Mis Reportes
+                </button>
+
+                <button 
+                  onClick={() => navegar("feedback", "/sugerencias")}
+                  className={`w-full text-left py-3.5 pr-4 flex items-center gap-3 font-bold transition-all duration-300 rounded-lg ${
+                    vista === "feedback"
+                    ? "bg-white/10 text-white border-l-4 border-[#F3C3B2] pl-5" 
+                    : "text-[#8A968C] hover:bg-white/5 hover:text-white pl-6"
+                  }`}
+                >
+                  <MessageSquare size={20} className={vista === "feedback" ? "text-[#F3C3B2]" : ""} />
+                  Sugerencias
+                </button>
+              </nav>
+            </aside>
+
+            {/* LIENZO PRINCIPAL */}
+            <main className="flex-1 bg-[#1C1917] rounded-[2.5rem] relative z-10 flex flex-col overflow-hidden text-[#F5F0EB] shadow-[inset_0_4px_20px_rgba(0,0,0,0.5)] border border-[#44403C]/50 my-4 mr-4 md:my-5 md:mr-5">
+              <header className="px-8 md:px-10 pt-8 pb-6 flex justify-between items-center shrink-0 w-full mx-auto relative z-50 border-b border-[#44403C]/30">
+                <div>
+                  <p className="text-[#A8A29E] font-black tracking-widest text-[10px] uppercase mb-1">
+                     {vista === 'dashboard' && "Vista General"}
+                     {vista === 'nueva' && "Nueva Auditoría"}
+                     {vista === 'historial' && "Historial de Análisis"}
+                     {vista === 'reporte_lectura' && "Detalle del Cliente"}
+                     {vista === 'perfil' && "Preferencias"}
+                     {vista === 'feedback' && "Buzón"}
+                     {vista === 'facturacion' && "Suscripción"}
+                  </p>
+                  <h1 className="text-3xl font-black tracking-tight text-[#F5F0EB]">
+                     {vista === 'dashboard' ? `¡Hola, ${session?.user?.name?.split(' ')[0] || 'Valeria'}!` : 
+                      vista === 'nueva' ? 'Auditor IA' :
+                      vista === 'historial' ? 'Mis Reportes' :
+                      vista === 'campañas' ? 'Gestor de Campañas' :
+                      vista === 'reporte_lectura' ? (nombreCuenta || t[idioma].cuentaSinNombre) :
+                      vista === 'perfil' ? 'Configuración' :
+                      vista === 'feedback' ? 'Ayudanos a mejorar' :
+                      vista === 'facturacion' ? 'Facturación y Planes' : 'Mora Analytics'
+                     }
+                  </h1>
+                </div>
+                
+                <div className="flex items-center gap-6">
+                  {vista === 'historial' && (
+                    <div className="hidden md:flex items-center bg-[#292524] border border-[#44403C] px-4 py-2.5 rounded-xl shadow-sm">
+                       <Search size={16} className="text-[#A8A29E] mr-2" />
+                       <input type="text" placeholder="Buscar cuenta..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} className="bg-transparent border-none outline-none text-sm text-[#F5F0EB] placeholder-[#A8A29E] w-48 font-bold" />
+                    </div>
+                  )}
+
+                  <button
+                    onClick={() => setModoSimple(!modoSimple)}
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border transition-all text-[11px] font-black uppercase tracking-widest shadow-lg ${
+                      modoSimple 
+                        ? "bg-[#F3C3B2]/10 border-[#F3C3B2] text-[#F3C3B2]" 
+                        : "bg-[#292524] border-[#44403C] text-[#A8A29E] hover:text-[#F5F0EB]"
+                    }`}
+                  >
+                    <Sparkles size={14} className={modoSimple ? "animate-pulse" : ""} />
+                    {modoSimple ? "Modo Simple" : "Modo Técnico"}
+                  </button>
+
+                  <div className="relative z-[60]">
+                    <button 
+                      onClick={() => {
+                        setMostrarCentroAlertas(!mostrarCentroAlertas);
+                        if (!mostrarCentroAlertas) setAlertasNoLeidas(false);
+                      }} 
+                      className="relative p-2.5 rounded-full bg-[#292524] border border-[#44403C] hover:border-[#E07070]/50 transition-colors shadow-lg flex items-center justify-center"
+                    >
+                      <Bell size={20} className={alertas.length > 0 ? "text-[#E07070]" : "text-[#A8A29E]"} />
+                      {alertas.length > 0 && alertasNoLeidas && (
+                        <span className="absolute -top-1 -right-1 w-5 h-5 bg-[#E07070] text-[#0a0a0a] text-[11px] font-black rounded-full flex items-center justify-center border-2 border-[#1C1917]">
+                          {alertas.length}
+                        </span>
+                      )}
+                    </button>
+
+                    <div className={`absolute top-full right-0 mt-4 w-80 md:w-96 bg-[#292524] border border-[#44403C] rounded-2xl shadow-2xl overflow-hidden transition-all duration-300 origin-top-right ${mostrarCentroAlertas ? 'opacity-100 scale-100 visible' : 'opacity-0 scale-95 invisible'}`}>
+                      <div className="p-4 border-b border-[#44403C] bg-[#1C1917] flex justify-between items-center">
+                        <span className="font-black text-[#F5F0EB] uppercase tracking-widest text-[10px]">Centro de Alertas</span>
+                        <span className="text-[9px] bg-[#E07070]/10 text-[#E07070] font-black uppercase tracking-widest px-2 py-1 rounded-md border border-[#E07070]/20">
+                          {alertas.length} Pendientes
+                        </span>
+                      </div>
+                      <div className="max-h-96 overflow-y-auto">
+                        {alertas.length === 0 ? (
+                          <div className="p-6 text-center text-[#A8A29E] text-sm font-bold">Todo en orden. No hay alertas.</div>
+                        ) : (
+                          alertas.map(alerta => (
+                            <div key={alerta.id} className="p-5 border-b border-[#44403C]/50 hover:bg-[#1C1917] transition-colors">
+                              <h4 className="text-[#F3C3B2] font-black text-xs uppercase tracking-widest flex items-center gap-2"><Zap size={14}/> {alerta.titulo}</h4>
+                              <p className="text-[11px] text-[#A8A29E] mt-2 leading-relaxed font-medium">{alerta.mensaje}</p>
+                              <button onClick={() => { 
+                                if (alerta.hallazgoData) {
+                                  abrirDetalleHallazgo(alerta.hallazgoData, "critico", ultimaAuditoria?.reporte_json);
+                                } else {
+                                  setMostrarConfirmacion(true); 
+                                }
+                                setMostrarCentroAlertas(false); 
+                              }} className="mt-4 w-full bg-[#E07070]/10 hover:bg-[#E07070] text-[#E07070] hover:text-[#0a0a0a] border border-[#E07070]/30 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-colors shadow-sm">
+                                {alerta.accion}
+                              </button>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 bg-[#292524] border border-[#44403C] p-1.5 pr-4 rounded-full shadow-lg relative group cursor-pointer hover:bg-[#44403C]/50 transition-colors">
+                    <div className="w-10 h-10 rounded-full bg-[#F3C3B2]/20 border border-[#F3C3B2]/40 text-[#F3C3B2] flex items-center justify-center text-lg font-black">
+                      {session?.user?.name?.charAt(0).toUpperCase() || 'V'}
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-[#F5F0EB] font-bold text-sm leading-tight">{session?.user?.name?.split(' ')[0] || 'Valeria'}</span>
+                      <span className="text-[#A8A29E] text-[9px] font-black uppercase tracking-widest mt-0.5">Mora Pro</span>
+                    </div>
+                    <ChevronDown size={14} className="text-[#A8A29E] ml-2 group-hover:rotate-180 transition-transform duration-300" />
+
+                    <div className="absolute top-full right-0 mt-2 w-56 bg-[#292524] border border-[#44403C] rounded-2xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 overflow-hidden flex flex-col translate-y-2 group-hover:translate-y-0">
+                       <button onClick={() => navegar("perfil", "/configuracion")} className="flex items-center gap-3 px-5 py-3.5 text-sm font-bold text-[#A8A29E] hover:text-[#F5F0EB] hover:bg-[#44403C]/50 transition-colors text-left"><Settings size={16} /> Configuración</button>
+                       <button onClick={() => navegar("facturacion", "/facturacion")} className="flex items-center gap-3 px-5 py-3.5 text-sm font-bold text-[#A8A29E] hover:text-[#F5F0EB] hover:bg-[#44403C]/50 transition-colors text-left"><CreditCard size={16} /> Facturación</button>
+                       <div className="h-px bg-[#44403C] w-full"></div>
+                       <button type="button" onClick={cerrarSesion} className="flex items-center gap-3 px-5 py-3.5 text-sm font-bold text-[#E07070] hover:bg-[#E07070]/10 transition-colors text-left"><LogOut size={16} /> Cerrar sesión</button>
+                    </div>
+                  </div>
+                </div>
+              </header>
+              
+              {/* CONTENEDOR SCROLLEABLE INTERNO */}
+              <div className="flex-1 overflow-y-auto overflow-x-hidden px-8 md:px-12 pb-32">
+
+              {/* DASHBOARD INDIVIDUAL */}
+              {vista === "dashboard" && (
+                <div className="animate-fade-custom print:hidden flex flex-col gap-6 w-full mx-auto">
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-6">
+                     
+                    {/* 1. Salud de la Cuenta */}
+                    <div className="bg-gradient-to-b from-[#292524] to-[#1C1917] border border-[#44403C] border-t-white/10 shadow-2xl rounded-3xl p-6 flex items-center justify-between min-h-[220px] relative overflow-hidden">
+                      <div className="flex flex-col h-full justify-between w-full relative z-10">
+                        <p className="text-[10px] font-black text-[#A8A29E] uppercase tracking-widest flex items-center gap-2"><Activity size={14} className="text-[#F3C3B2]"/> Salud de la Cuenta</p>
+                        
+                        <div className="flex flex-col items-center gap-4 mt-2">
+                          {ultimaAuditoria && (
+                            <ScoreRing score={ultimaAuditoria.score} size={120} />
+                          )}
+
+                          <button 
+                            onClick={ejecutarAuditoriaConIA} 
+                            disabled={loading}
+                            className="w-full text-[10px] uppercase tracking-widest font-black border border-[#44403C] bg-[#F3C3B2]/10 text-[#F3C3B2] hover:bg-[#F3C3B2] hover:text-[#0a0a0a] transition-colors px-5 py-2.5 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {loading ? "MORA ESTÁ ANALIZANDO..." : "EJECUTAR AUDITORÍA PRO"}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                     {/* 2. Fugas Críticas */}
+                     <div className="bg-gradient-to-b from-[#292524] to-[#1C1917] border border-[#44403C] border-t-white/10 shadow-2xl rounded-3xl p-6 flex flex-col justify-between min-h-[160px] relative overflow-hidden group">
+                        <div className="absolute top-5 right-5 px-3 py-1.5 rounded-lg bg-[#E07070]/10 border border-[#E07070]/20 text-[#E07070] text-[9px] font-black uppercase tracking-widest">Crítico</div>
+                        <div className="w-12 h-12 rounded-2xl bg-[#E07070]/15 flex items-center justify-center mb-3 border border-[#E07070]/30 shadow-inner">
+                          <AlertTriangle size={22} className="text-[#E07070]" />
+                        </div>
+                        <div>
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-5xl font-black text-white tracking-tighter leading-none">{fugasIndividuales}</span>
+                            <span className="text-xs font-black text-[#A8A29E] uppercase tracking-widest">Fugas</span>
+                          </div>
+                        </div>
+                     </div>
+
+                     {/* 3. DESTRIPADOR (Fugas en Palabras) */}
+                     <div 
+                        onClick={() => {
+                          if (ahorroNGramas > 0) {
+                            setDetalleHallazgo({
+                              titulo: "Destripador de Búsquedas",
+                              tipo: "critico",
+                              problema_detalle: "Detectamos palabras clave que se repiten ineficientemente y drenan presupuesto sin convertir.",
+                              sugerencia: nGramaData?.palabras?.join(", ") || "Revisar reporte",
+                              razonamiento: "Estas palabras atraen tráfico sin intención de compra. Al negativizarlas, obligamos a Google a buscar tráfico calificado.",
+                              resultado_esperado: `Ahorro estimado de aprox. $${ahorroNGramas}/mes.`,
+                              items: [],
+                              sugerencias: []
+                            });
+                          }
+                        }}
+                        className={`bg-gradient-to-b from-[#292524] to-[#1C1917] border border-[#44403C] border-t-white/10 shadow-2xl rounded-3xl p-6 flex flex-col justify-between min-h-[160px] relative overflow-hidden group transition-all ${ahorroNGramas > 0 ? 'cursor-pointer hover:border-[#F3C3B2]/50' : 'opacity-70 grayscale'}`}
+                     >
+                        <div className="absolute top-5 right-5 px-3 py-1.5 rounded-lg bg-[#F3C3B2]/10 border border-[#F3C3B2]/20 text-[#F3C3B2] text-[9px] font-black uppercase tracking-widest">N-Gramos</div>
+                        <div className="w-12 h-12 rounded-2xl bg-[#F3C3B2]/15 flex items-center justify-center mb-3 border border-[#F3C3B2]/30 shadow-inner">
+                          <Trash2 size={22} className="text-[#F3C3B2]" />
+                        </div>
+                        <div>
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-5xl font-black text-[#F3C3B2] tracking-tighter leading-none">${ahorroNGramas}</span>
+                            <span className="text-xs font-black text-[#A8A29E] uppercase tracking-widest">Ahorro</span>
+                          </div>
+                          <p className="text-[10px] text-[#A8A29E] mt-2 font-bold uppercase tracking-widest">En {palabrasBasura} palabras basura</p>
+                        </div>
+                     </div>
+
+                     {/* 4. Oportunidades */}
+                     <div className="bg-gradient-to-b from-[#292524] to-[#1C1917] border border-[#44403C] border-t-white/10 shadow-2xl rounded-3xl p-6 flex flex-col justify-between min-h-[160px] relative overflow-hidden group">
+                        <div className="absolute top-5 right-5 px-3 py-1.5 rounded-lg bg-[#D4A843]/10 border border-[#D4A843]/20 text-[#D4A843] text-[9px] font-black uppercase tracking-widest">Atención</div>
+                        <div className="w-12 h-12 rounded-2xl bg-[#D4A843]/15 flex items-center justify-center mb-3 border border-[#D4A843]/30 shadow-inner">
+                          <Zap size={22} className="text-[#D4A843]" />
+                        </div>
+                        <div>
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-5xl font-black text-white tracking-tighter leading-none">{oportunidadesIndividuales}</span>
+                            <span className="text-xs font-black text-[#A8A29E] uppercase tracking-widest">Mejoras</span>
+                          </div>
+                        </div>
+                     </div>
+                     
+                  </div>
+
+                  {/* QUICK WINS DEL DÍA */}
+                  {quickWinsDelDia.length > 0 && (
+                    <div className="bg-[#292524] border border-[#44403C] shadow-2xl rounded-3xl p-6 w-full animate-fade-custom">
+                      {quickWinsCompletados.length === quickWinsDelDia.length ? (
+                        <div className="p-8 text-center flex flex-col items-center justify-center bg-[#10B981]/10 border-2 border-dashed border-[#10B981]/30 rounded-2xl animate-fade-custom">
+                          <div className="w-16 h-16 rounded-full bg-[#10B981]/20 flex items-center justify-center text-[#10B981] mb-4 shadow-lg animate-bounce">
+                            <CheckCircle2 size={32} strokeWidth={3} />
+                          </div>
+                          <h3 className="text-2xl font-black text-white tracking-tight">¡Cuenta blindada por hoy! 🎉</h3>
+                          <p className="text-[#A8A29E] text-sm mt-2 max-w-md font-medium leading-relaxed">
+                            Completaste las 3 acciones prioritarias recomendadas por Mora para este ciclo. El capital diario de tu cliente está seguro.
+                          </p>
+                        </div>
+                      ) : (
+                        <div>
+                          <div className="flex justify-between items-center mb-6">
+                            <div>
+                              <h3 className="text-base font-black text-[#F5F0EB] flex items-center gap-2">
+                                <Zap className="text-[#F3C3B2]" size={20} /> Quick Wins del Día
+                              </h3>
+                              <p className="text-[11px] text-[#A8A29E] mt-1 font-bold uppercase tracking-widest">Las 3 acciones críticas de mayor impacto económico directo</p>
+                            </div>
+                            <span className="text-[10px] font-black bg-[#1C1917] border border-[#44403C] text-[#F3C3B2] px-3 py-1.5 rounded-lg">
+                              {quickWinsCompletados.length} de {quickWinsDelDia.length} Completados
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            {quickWinsDelDia.map((win: any, idx: number) => {
+                              const winId = win.id_rastreo || `win-${idx}-${win.titulo}`;
+                              const esCompletado = quickWinsCompletados.includes(winId);
+
+                              return (
+                                <div 
+                                  key={winId} 
+                                  className={`bg-[#1C1917] border rounded-2xl p-5 flex flex-col justify-between transition-all relative overflow-hidden ${
+                                    esCompletado ? 'border-[#10B981]/30 opacity-50 bg-[#10B981]/5' : 'border-[#44403C] hover:border-[#44403C]/80 shadow-md'
+                                  }`}
+                                >
+                                  <div>
+                                    <div className="flex justify-between items-center mb-3">
+                                      <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded border ${
+                                        esCompletado 
+                                          ? 'bg-[#10B981]/10 text-[#10B981] border-[#10B981]/20' 
+                                          : win.tipo === 'critico' 
+                                            ? 'bg-[#E07070]/10 text-[#E07070] border-[#E07070]/20' 
+                                            : 'bg-[#D4A843]/10 text-[#D4A843] border-[#D4A843]/20'
+                                      }`}>
+                                        {esCompletado ? 'Solucionado' : win.tipo === 'critico' ? 'Urgente' : 'Optimización'}
+                                      </span>
+                                    </div>
+                                    <h4 className={`text-sm font-bold text-[#F5F0EB] leading-tight ${esCompletado ? 'line-through opacity-60' : ''}`}>
+                                      {win.titulo}
+                                    </h4>
+                                    <p className="text-[11px] text-[#A8A29E] mt-2 font-medium line-clamp-2 leading-relaxed">
+                                      {modoSimple ? (win.descripcion_simple || win.descripcion) : (win.descripcion_tecnica || win.descripcion)}
+                                    </p>
+                                  </div>
+
+                                  <div className="mt-5 pt-3 border-t border-[#44403C]/30 flex items-center justify-between gap-4 shrink-0">
+                                    <button 
+                                      onClick={() => abrirDetalleHallazgo(win, win.tipo, ultimaAuditoria?.reporte_json)}
+                                      className="text-[10px] font-black uppercase tracking-widest text-[#A8A29E] hover:text-[#F5F0EB] transition-colors"
+                                    >
+                                      Ver detalle
+                                    </button>
+                                    
+                                    {!esCompletado ? (
+                                      <button 
+                                        onClick={() => {
+                                          setQuickWinsCompletados([...quickWinsCompletados, winId]);
+                                          setToastState({ show: true, status: 'success', timeLeft: 5 });
+                                        }}
+                                        className="bg-[#F3C3B2] hover:bg-[#eab3a1] text-[#0a0a0a] font-black text-[10px] uppercase tracking-widest px-4 py-2 rounded-xl transition-all shadow-sm"
+                                      >
+                                        Corregir Ahora
+                                      </button>
+                                    ) : (
+                                      <span className="text-[#10B981] flex items-center gap-1 text-[10px] font-black uppercase tracking-widest">
+                                        <Check size={14} strokeWidth={3} /> Listo
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* PACING DE PRESUPUESTO */}
+                  <div className="bg-[#292524] border border-[#44403C] shadow-lg rounded-3xl p-6 w-full">
+                    <div className="flex justify-between items-center mb-6">
+                      <div>
+                        <h3 className="text-base font-black text-[#F5F0EB] flex items-center gap-2">
+                          <Target className="text-[#F3C3B2]" size={20} /> Pacing de Presupuesto
+                        </h3>
+                        <p className="text-[11px] text-[#A8A29E] mt-1 font-bold uppercase tracking-widest">Consumo vs Proyección</p>
+                      </div>
+                    </div>
+
+                    {cargandoCampanas ? (
+                      <div className="flex justify-center items-center py-12">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#F3C3B2]"></div>
+                      </div>
+                    ) : campanas.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-10 text-center">
+                         <Folder className="w-12 h-12 text-[#44403C] mb-3" />
+                         <p className="text-[#F5F0EB] font-bold">Sin datos de presupuesto</p>
+                         <p className="text-[#A8A29E] text-sm mt-1">Conecta tus campañas para ver la proyección.</p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                        {campanas.filter(c => c.estado === 'ENABLED').map((campana) => {
+                          const gasto = campana.gasto || 0;
+                          const presupuesto = campana.presupuesto || 1;
+                          const conversiones = campana.conversiones || 0;
+                          const cpaActual = conversiones > 0 ? (gasto / conversiones) : gasto;
+
+                          const hoy = new Date();
+                          const ultimoDiaMes = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).getDate();
+                          const diaActual = hoy.getDate();
+                          const diasRestantes = Math.max(1, ultimoDiaMes - diaActual);
+                          
+                          const presupuestoRestante = presupuesto - gasto;
+                          const ajusteDiarioRecomendado = Math.max(0, presupuestoRestante / diasRestantes);
+                          const porcentajeGasto = (gasto / presupuesto) * 100;
+
+                          return (
+                            <div key={campana.id} className="bg-[#1C1917] border border-[#44403C] rounded-2xl p-6 relative overflow-hidden">
+                              <div className="absolute top-0 left-0 h-1.5 bg-[#292524] w-full">
+                                <div 
+                                  className="h-full bg-[#E07070] transition-all duration-1000 ease-out" 
+                                  style={{ width: `${Math.min(porcentajeGasto, 100)}%` }}
+                                ></div>
+                              </div>
+                              
+                              <div className="mb-6 mt-2 flex justify-between items-start">
+                                <div>
+                                  <h3 className="font-bold text-[#F5F0EB] text-lg truncate">{campana.nombre}</h3>
+                                  <span className="text-[10px] uppercase tracking-widest font-black px-2.5 py-1 rounded-md mt-2 inline-block bg-[#10B981]/10 text-[#10B981]">
+                                    Activa
+                                  </span>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-[9px] text-[#A8A29E] font-black uppercase tracking-widest">Presupuesto Restante</p>
+                                  <p className="text-lg font-black text-[#F5F0EB]">${presupuestoRestante.toLocaleString()}</p>
+                                </div>
+                              </div>
+
+                              <div className="bg-[#E07070]/10 border border-[#E07070]/30 rounded-xl p-4 mb-4 flex items-center justify-between shadow-inner">
+                                <div>
+                                  <p className="text-[10px] text-[#E07070] font-black tracking-widest uppercase">GPS de Inversión</p>
+                                  <p className="text-sm text-[#F5F0EB] font-medium">Gasto diario recomendado:</p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-2xl font-black text-[#F3C3B2]">${ajusteDiarioRecomendado.toFixed(2)}</p>
+                                  <p className="text-[9px] text-[#A8A29E] font-bold uppercase italic">por los próximos {diasRestantes} días</p>
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-3">
+                                <div className="bg-[#292524] rounded-xl p-4 border border-[#44403C]/50">
+                                  <p className="text-[10px] text-[#A8A29E] font-black tracking-widest uppercase mb-1">CPA</p>
+                                  <p className="text-xl font-black text-[#F3C3B2]">${cpaActual.toLocaleString(undefined, {maximumFractionDigits:2})}</p>
+                                </div>
+                                <div className="bg-[#292524] rounded-xl p-4 border border-[#44403C]/50">
+                                  <p className="text-[10px] text-[#A8A29E] font-black tracking-widest uppercase mb-1">Conversiones</p>
+                                  <p className="text-xl font-black text-[#F5F0EB]">{conversiones}</p>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* EVOLUCIÓN DEL SCORE */}
+                  {scoreHistorico.length >= 2 && (
+                    <div className="bg-[#292524] border border-[#44403C] shadow-lg rounded-3xl p-6 w-full">
+                      <div className="flex justify-between items-center mb-4">
+                        <div>
+                          <h3 className="text-base font-black text-[#F5F0EB]">Evolución del score</h3>
+                          <p className="text-[11px] text-[#A8A29E] mt-1 font-bold uppercase tracking-widest">Últimas {scoreHistorico.length} auditorías</p>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <div className="text-right">
+                            <p className="text-[9px] text-[#A8A29E] uppercase tracking-widest font-black">Mejor score</p>
+                            <p className="text-sm font-black text-[#F3C3B2]">{Math.max(...scoreHistorico)}/100</p>
+                          </div>
+                          {(() => {
+                            const delta = scoreHistorico[scoreHistorico.length - 1] - scoreHistorico[0];
+                            const color = delta >= 0 ? 'text-[#7EB893] bg-[#7EB893]/10 border border-[#7EB893]/30' : 'text-[#E07070] bg-[#E07070]/10 border border-[#E07070]/30';
+                            return (
+                              <span className={`text-xs font-black px-3 py-1.5 rounded-lg shadow-sm ${color}`}>
+                                {delta >= 0 ? '+' : ''}{delta} pts
+                              </span>
+                            );
+                          })()}
+                        </div>
+                      </div>
+                      <div className="mt-4 w-full">
+                        <ScoreSparkline data={scoreHistorico} fechas={fechasHistorico} />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* PROBLEMAS Y OPORTUNIDADES DETALLADOS */}
+                  {ultimaAuditoria && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
+                      {ultimaAuditoria.reporte_json?.hallazgos?.graves_rojo?.map((item: any, i: number) => (
+                        <div
+                          key={i}
+                          className="bg-[#292524] border border-[#44403C] shadow-lg rounded-3xl p-6 cursor-pointer hover:border-[#E07070]/50 hover:shadow-xl transition-all group relative overflow-hidden"
+                          onClick={() => abrirDetalleHallazgo(item, "critico", ultimaAuditoria.reporte_json)}
+                        >
+                          <div className="absolute top-0 left-0 w-1 h-full bg-[#E07070]"></div>
+                          <div className="flex justify-between items-start mb-3">
+                            <div className="flex items-center gap-2">
+                              <div className="w-6 h-6 rounded-md bg-[#E07070]/10 flex items-center justify-center"><AlertTriangle size={12} className="text-[#E07070]" /></div>
+                              <span className="text-[10px] font-black uppercase tracking-widest text-[#E07070]">Impacto Alto</span>
+                            </div>
+                            <ChevronRight size={16} className="text-[#A8A29E] group-hover:text-[#F5F0EB] transition-colors" />
+                          </div>
+                          <p className="text-lg font-black text-[#F5F0EB] mt-2">{item.titulo}</p>
+                          <p className="text-sm text-[#A8A29E] font-medium mt-2 leading-relaxed line-clamp-2">{modoSimple ? (item.descripcion_simple || item.descripcion) : (item.descripcion_tecnica || item.descripcion)}</p>
+                        </div>
+                      ))}
+                      {ultimaAuditoria.reporte_json?.hallazgos?.debiles_amarillo?.map((item: any, i: number) => (
+                        <div
+                          key={i}
+                          className="bg-[#292524] border border-[#44403C] shadow-lg rounded-3xl p-6 cursor-pointer hover:border-[#D4A843]/50 hover:shadow-xl transition-all group relative overflow-hidden"
+                          onClick={() => abrirDetalleHallazgo(item, "mejora", ultimaAuditoria.reporte_json)}
+                        >
+                          <div className="absolute top-0 left-0 w-1 h-full bg-[#D4A843]"></div>
+                          <div className="flex justify-between items-start mb-3">
+                            <div className="flex items-center gap-2">
+                              <div className="w-6 h-6 rounded-md bg-[#D4A843]/10 flex items-center justify-center"><Zap size={12} className="text-[#D4A843]" /></div>
+                              <span className="text-[10px] font-black uppercase tracking-widest text-[#D4A843]">Mejora</span>
+                            </div>
+                            <ChevronRight size={16} className="text-[#A8A29E] group-hover:text-[#F5F0EB] transition-colors" />
+                          </div>
+                          <p className="text-lg font-black text-[#F5F0EB] mt-2">{item.titulo}</p>
+                          <p className="text-sm text-[#A8A29E] font-medium mt-2 leading-relaxed line-clamp-2">{modoSimple ? (item.descripcion_simple || item.descripcion) : (item.descripcion_tecnica || item.descripcion)}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* MATRIZ DE CAMPAÑAS */}
+                  {(() => {
+                    const activas = campanas.filter(c => c.estado === 'ENABLED');
+                    
+                    if (activas.length === 0) {
+                      return (
+                        <div className="w-full mt-6">
+                          <div className="flex justify-between items-center mb-4 px-1">
+                            <div>
+                              <h3 className="text-base font-black text-[#F5F0EB] flex items-center gap-2">
+                                <LayoutGrid className="text-[#D4A843]" size={20} /> Matriz de Rendimiento
+                              </h3>
+                              <p className="text-[11px] text-[#A8A29E] mt-1 font-bold uppercase tracking-widest">Distribución de Campañas</p>
+                            </div>
+                          </div>
+                          <div className="bg-[#292524] border border-[#44403C] rounded-2xl p-8 text-center text-[#A8A29E] text-sm">
+                            No hay campañas activas suficientes para generar la matriz.
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    const gastoTotal = activas.reduce((acc, c) => acc + (c.gasto || 0), 0);
+                    const convTotales = activas.reduce((acc, c) => acc + (c.conversiones || 0), 0);
+                    const cpaPromedio = convTotales > 0 ? gastoTotal / convTotales : 50;
+
+                    const estrellas = activas.filter(c => (c.conversiones || 0) >= 3 && (c.gasto / (c.conversiones || 1)) < cpaPromedio * 0.85);
+                    
+                    const basura = activas.filter(c => 
+                      ((c.conversiones || 0) >= 3 && (c.gasto / (c.conversiones || 1)) > cpaPromedio * 1.20) || 
+                      ((c.conversiones || 0) < 3 && (c.gasto > (c.presupuesto || 0) * 0.80))
+                    );
+
+                    const dudosos = activas.filter(c => 
+                      (c.conversiones || 0) >= 3 && 
+                      (c.gasto / (c.conversiones || 1)) >= cpaPromedio * 0.85 && 
+                      (c.gasto / (c.conversiones || 1)) <= cpaPromedio * 1.20
+                    );
+
+                    const potenciales = activas.filter(c => 
+                      (c.conversiones || 0) < 3 && 
+                      (c.gasto <= (c.presupuesto || 0) * 0.80)
+                    );
+
+                    const abrirMatriz = (tipo: string, lista: any[]) => {
+                      if (lista.length === 0) return;
+                      let tit, desc, sug, raz;
+                      if (tipo === 'estrella') { tit = "Estrellas"; desc = "Rendimiento top."; sug = "Escalar presupuesto."; raz = "CPA muy por debajo del promedio."; }
+                      else if (tipo === 'basura') { tit = "Basura / Parásitos"; desc = "Drenando dinero."; sug = "Pausar o corregir."; raz = "CPA altísimo o gasto sin conversión."; }
+                      else if (tipo === 'dudosos') { tit = "Dudosos"; desc = "Rendimiento tibio."; sug = "Optimizar keywords."; raz = "CPA cerca del promedio."; }
+                      else { tit = "Potenciales"; desc = "Poca data."; sug = "Darle más tiempo."; raz = "Fase de aprendizaje del algoritmo."; }
+
+                      setDetalleHallazgo({
+                        titulo: tit, tipo: tipo === 'basura' ? 'critico' : 'mejora',
+                        problema_detalle: `${desc} Afecta a: ${lista.map(c => c.nombre).join(", ")}`,
+                        sugerencia: sug, razonamiento: raz, resultado_esperado: "Optimización del ROAS global.",
+                        items: [], sugerencias: []
+                      });
+                    };
+
+                    return (
+                      <div className="w-full mt-6">
+                        <div className="flex justify-between items-center mb-4 px-1">
+                          <div>
+                            <h3 className="text-base font-black text-[#F5F0EB] flex items-center gap-2">
+                              <LayoutGrid className="text-[#D4A843]" size={20} /> Matriz de Rendimiento
+                            </h3>
+                            <p className="text-[11px] text-[#A8A29E] mt-1 font-bold uppercase tracking-widest">Distribución de Campañas</p>
+                          </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          <div onClick={() => abrirMatriz('estrella', estrellas)} className={`bg-[#292524] border-2 border-[#10B981]/50 rounded-2xl p-5 flex flex-col justify-between shadow-sm transition-all ${estrellas.length > 0 ? 'cursor-pointer hover:border-[#10B981] hover:bg-[#10B981]/5' : 'opacity-50 cursor-not-allowed'}`}>
+                            <span className="text-[10px] font-black text-[#10B981] uppercase tracking-widest mb-4">Escalar</span>
+                            <span className="text-4xl font-black text-[#F5F0EB]">{estrellas.length}</span>
+                          </div>
+                          
+                          <div onClick={() => abrirMatriz('potencial', potenciales)} className={`bg-[#292524] border-2 border-blue-400/50 rounded-2xl p-5 flex flex-col justify-between shadow-sm transition-all ${potenciales.length > 0 ? 'cursor-pointer hover:border-blue-400 hover:bg-blue-400/5' : 'opacity-50 cursor-not-allowed'}`}>
+                            <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-4">Testear</span>
+                            <span className="text-4xl font-black text-[#F5F0EB]">{potenciales.length}</span>
+                          </div>
+                          
+                          <div onClick={() => abrirMatriz('dudoso', dudosos)} className={`bg-[#292524] border-2 border-[#EAB308]/50 rounded-2xl p-5 flex flex-col justify-between shadow-sm transition-all ${dudosos.length > 0 ? 'cursor-pointer hover:border-[#EAB308] hover:bg-[#EAB308]/5' : 'opacity-50 cursor-not-allowed'}`}>
+                            <span className="text-[10px] font-black text-[#EAB308] uppercase tracking-widest mb-4">Observar</span>
+                            <span className="text-4xl font-black text-[#F5F0EB]">{dudosos.length}</span>
+                          </div>
+                          
+                          <div onClick={() => abrirMatriz('basura', basura)} className={`bg-[#292524] border-2 border-[#E07070]/50 rounded-2xl p-5 flex flex-col justify-between shadow-sm transition-all ${basura.length > 0 ? 'cursor-pointer hover:border-[#E07070] hover:bg-[#E07070]/5' : 'opacity-50 cursor-not-allowed'}`}>
+                            <span className="text-[10px] font-black text-[#E07070] uppercase tracking-widest mb-4">Apagar</span>
+                            <span className="text-4xl font-black text-[#F5F0EB]">{basura.length}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+
+              {/* SIDE DRAWER (PANEL LATERAL) */}
+              {detalleHallazgo && (
+                <div className="fixed inset-0 z-[100] flex justify-end print:hidden">
+                  <div
+                    className={`absolute inset-0 bg-[#0a0a0a]/40 backdrop-blur-sm cursor-pointer ${isClosing ? 'animate-fade-out-bg' : 'animate-fade-in-bg'}`}
+                    onClick={cerrarDetalle}
+                  ></div>
+
+                  <div className={`relative w-full max-w-xl h-full bg-[#F4F4F5] border-l border-[#E5E7EB] shadow-[0_0_50px_rgba(0,0,0,0.3)] flex flex-col overflow-hidden ${isClosing ? 'animate-slide-out-right' : 'animate-slide-in-right'}`}>
+                    
+                    <div className="flex items-center justify-between p-6 md:p-8 border-b border-[#E5E7EB] bg-[#FFFFFF]">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-inner ${detalleHallazgo.tipo === 'critico' ? 'bg-[#E66767]/10 border border-[#E66767]/20' : 'bg-[#EAB308]/10 border border-[#EAB308]/20'}`}>
+                          {detalleHallazgo.tipo === 'critico' ? <AlertTriangle size={18} className="text-[#E66767]" /> : <Zap size={18} className="text-[#EAB308]" />}
+                        </div>
+                        <span className="text-xs font-black uppercase tracking-widest text-[#0a0a0a]">
+                          {detalleHallazgo.tipo === 'critico' ? 'Fuga Crítica' : 'Oportunidad'}
+                        </span>
+                      </div>
+                      <button onClick={cerrarDetalle} className="flex items-center gap-2 text-[10px] font-black text-[#4B5563] hover:text-[#0a0a0a] transition-colors uppercase tracking-widest bg-[#F4F4F5] border border-[#E5E7EB] shadow-sm px-4 py-2.5 rounded-xl hover:bg-[#E5E7EB]">
+                        Cerrar <ArrowRight size={16} />
+                      </button>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto p-6 md:p-8 flex flex-col gap-8 min-h-0 bg-[#F4F4F5] break-words">
+                      <h2 className="text-3xl font-black text-[#0a0a0a] leading-tight shrink-0">{detalleHallazgo.titulo}</h2>
+
+                      <div className={`p-6 rounded-3xl border shadow-sm shrink-0 ${detalleHallazgo.tipo === 'critico' ? 'bg-[#FFFFFF] border-[#E66767]/30' : 'bg-[#FFFFFF] border-[#EAB308]/30'}`}>
+                        <p className={`text-[10px] font-black uppercase tracking-widest mb-4 flex items-center gap-2 text-[#0a0a0a]`}>
+                          <Target size={16} className={detalleHallazgo.tipo === 'critico' ? 'text-[#E66767]' : 'text-[#EAB308]'} /> 1. El Problema Técnico
+                        </p>
+                        <p className="text-base text-[#4B5563] font-medium leading-relaxed">{detalleHallazgo.problema_detalle}</p>
+                      </div>
+
+                      <div className="p-6 rounded-3xl border bg-[#FFFFFF] border-[#10B981]/40 shadow-sm shrink-0">
+                        <p className="text-[10px] font-black uppercase tracking-widest mb-4 flex items-center gap-2 text-[#0a0a0a]">
+                          <CheckCircle2 size={16} className="text-[#10B981]" /> 2. Acción a Tomar
+                        </p>
+                        <p className="text-base text-[#0a0a0a] font-bold leading-relaxed mb-6">{detalleHallazgo.sugerencia}</p>
+
+                        <button
+                          onClick={() => copiarKeyword(detalleHallazgo.sugerencia)}
+                          className={`w-full flex justify-center items-center gap-2 text-sm font-black py-4 rounded-xl transition-all shadow-sm ${
+                            copiedKw === detalleHallazgo.sugerencia 
+                              ? 'bg-[#10B981] text-[#0a0a0a] border border-[#10B981]' 
+                              : 'bg-[#F4F4F5] text-[#0a0a0a] hover:bg-[#E5E7EB] border border-[#E5E7EB] hover:border-[#10B981]'
+                          }`}
+                        >
+                          {copiedKw === detalleHallazgo.sugerencia ? <Check size={18} /> : <Copy size={18} />}
+                          {copiedKw === detalleHallazgo.sugerencia ? '¡Instrucción copiada!' : 'Copiar Instrucción para Google Ads'}
+                        </button>
+                      </div>
+
+                      <div className="p-8 rounded-3xl border border-[#E5E7EB] bg-[#FFFFFF] shadow-inner relative overflow-hidden shrink-0">
+                        <div className="absolute top-0 left-0 w-1.5 h-full bg-[#8A968C]"></div>
+                        <p className="text-[10px] font-black uppercase tracking-widest mb-4 flex items-center gap-2 text-[#0a0a0a]">
+                          <BookOpen size={16} className="text-[#8A968C]" /> 3. ¿Por qué hacemos esto?
+                        </p>
+                        <p className="text-base text-[#0a0a0a] font-semibold leading-relaxed italic">
+                          "{detalleHallazgo.razonamiento || "Esta optimización corta la hemorragia de presupuesto y redirige la inversión hacia tráfico con verdadera intención de compra."}"
+                        </p>
+                      </div>
+
+                      <div className="p-6 rounded-3xl border border-[#E0E7FF]/50 bg-[#E0E7FF]/10 flex items-center gap-5 shadow-sm mt-2 mb-8 shrink-0">
+                        <div className="w-14 h-14 rounded-full bg-[#FFFFFF] border border-[#E0E7FF] flex items-center justify-center flex-shrink-0 shadow-sm">
+                          <TrendUp size={24} className="text-[#6366F1]" strokeWidth={3} />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-[10px] font-black uppercase tracking-widest mb-1 text-[#0a0a0a]">4. Resultado Proyectado</p>
+                          <p className="text-xl font-black text-[#0a0a0a] leading-tight">{detalleHallazgo.resultado_esperado}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* VISTA: MIS REPORTES */}
+              {vista === "historial" && !vistaComparacion && (
+                <div className="animate-fade-custom print:hidden relative z-10 w-full max-w-[1400px] mx-auto flex flex-col gap-6">
+                  
+                  <div className="flex justify-between items-center mb-6">
+                    <div>
+                      <h2 className="text-3xl font-black text-[#F5F0EB]">Historial de Auditorías</h2>
+                      <p className="text-[#A8A29E] text-sm mt-1 font-medium">Compará el progreso de tus cuentas en el tiempo.</p>
+                    </div>
+                    {comparacionIds.length === 2 && (
+                      <button onClick={() => setVistaComparacion(true)} className="animate-fade-custom flex items-center gap-2 px-6 py-3 rounded-xl font-black text-sm bg-[#F3C3B2] text-[#0a0a0a] hover:bg-[#eab3a1] transition-all shadow-lg hover:shadow-[#F3C3B2]/20 hover:scale-105 uppercase tracking-widest border border-[#F3C3B2]/50">
+                        <BarChart3 size={18} /> Comparar Selección
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col gap-4">
+                    {clientesFiltrados.length === 0 ? (
+                      <div className="bg-[#1C1917] border border-[#44403C] rounded-[2rem] p-16 text-center text-[#A8A29E] text-base font-medium">
+                        No se encontraron auditorías.
+                      </div>
+                    ) : (
+                      clientesFiltrados.map((item, index) => {
+                        const accountAudits = historial.filter(h => h.nombre_cuenta === item.nombre_cuenta);
+                        const currentIdxInAccount = accountAudits.findIndex(h => h.id === item.id);
+                        const previousAudit = currentIdxInAccount !== -1 && currentIdxInAccount + 1 < accountAudits.length ? accountAudits[currentIdxInAccount + 1] : null;
+                        const delta = previousAudit ? item.score - previousAudit.score : null;
+                        
+                        const st = getDashboardStatus(item.score);
+                        const gastoDesperdiciado = item.reporte_json?.resumen?.gasto_desperdiciado || 0;
+                        const fugas = item.reporte_json?.hallazgos?.graves_rojo?.length || 0;
+                        const mejoras = item.reporte_json?.hallazgos?.debiles_amarillo?.length || 0;
+                        const isSelected = comparacionIds.includes(item.id);
+
+                        return (
+                          <div key={item.id} className={`bg-[#1C1917] border hover:border-[#F3C3B2]/50 rounded-[1.5rem] p-6 flex items-center justify-between gap-6 transition-all shadow-sm hover:shadow-lg group ${isSelected ? 'border-[#F3C3B2] bg-[#F3C3B2]/5' : 'border-[#44403C]'}`}>
+                            
+                            <div className="flex items-center gap-4">
+                              <button 
+                                onClick={() => {
+                                  if (isSelected) setComparacionIds(comparacionIds.filter(id => id !== item.id));
+                                  else if (comparacionIds.length < 2) setComparacionIds([...comparacionIds, item.id]);
+                                }}
+                                className={`w-6 h-6 rounded border-2 flex items-center justify-center transition-colors ${isSelected ? 'bg-[#F3C3B2] border-[#F3C3B2] text-[#0a0a0a]' : 'border-[#44403C] hover:border-[#A8A29E]'}`}
+                              >
+                                {isSelected && <Check size={14} strokeWidth={3} />}
+                              </button>
+                            </div>
+
+                            <div className="w-1/5 min-w-[180px]">
+                              <p className="font-black text-[#F5F0EB] text-xl truncate mb-1">{item.nombre_cuenta || 'Cuenta Sin Nombre'}</p>
+                              <p className="text-xs font-bold text-[#A8A29E] uppercase tracking-widest">{parseDate(item.created_at)}</p>
+                            </div>
+
+                            <div className="w-1/5 flex items-center gap-4">
+                              <span className={`text-[52px] font-black tracking-tighter ${st.color}`}>{item.score}</span>
+                              {delta !== null && delta !== 0 && (
+                                <div className={`flex flex-col items-center justify-center px-2.5 py-1.5 rounded-lg border shadow-inner ${delta > 0 ? 'bg-[#10B981]/10 border-[#10B981]/20 text-[#10B981]' : 'bg-[#E07070]/10 border-[#E07070]/20 text-[#E07070]'}`}>
+                                  <span className="text-[10px] font-black uppercase tracking-widest leading-none">
+                                    {delta > 0 ? '+' : ''}{delta} pts
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="w-1/5">
+                              <div className="bg-[#292524] border border-[#44403C] rounded-xl p-3 inline-block">
+                                <p className="text-[9px] font-black text-[#A8A29E] uppercase tracking-widest mb-1">Gasto Desperdiciado</p>
+                                <p className="text-lg font-black text-[#E07070]">
+                                  {gastoDesperdiciado > 0 ? `-$${gastoDesperdiciado.toLocaleString()}` : '$0.00'}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="w-1/5 flex flex-col gap-2">
+                              <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg w-max border ${fugas > 0 ? 'bg-[#E07070]/10 text-[#E07070] border-[#E07070]/20' : 'bg-[#292524] text-[#A8A29E] border-[#44403C]'}`}>
+                                {fugas} {fugas === 1 ? 'Fuga' : 'Fugas'}
+                              </span>
+                              <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg w-max border ${mejoras > 0 ? 'bg-[#EAB308]/10 text-[#EAB308] border-[#EAB308]/20' : 'bg-[#292524] text-[#A8A29E] border-[#44403C]'}`}>
+                                {mejoras} {mejoras === 1 ? 'Mejora' : 'Mejoras'}
+                              </span>
+                            </div>
+
+                            <div className="flex justify-end gap-3">
+                              <button onClick={() => borrarAuditoria(item.id)} className="text-[#8A968C] hover:text-[#E66767] transition-colors p-3.5 bg-[#292524] border border-[#44403C] rounded-xl hover:border-[#E66767]/30 shadow-sm"><Trash2 size={16} /></button>
+                              
+                              <button 
+                                onClick={() => window.open(`/api/pdf?id=${item.id}`, '_self')}
+                                className="bg-[#F3C3B2] text-[#0a0a0a] hover:bg-[#eab3a1] px-5 py-3.5 rounded-xl text-xs uppercase tracking-widest font-black transition-all shadow-sm flex items-center gap-1.5"
+                              >
+                                <FileText size={14} /> PDF
+                              </button>
+
+                              <button 
+                                onClick={() => { setReporte(item.reporte_json); setNombreCuenta(item.nombre_cuenta || 'Sin nombre'); setSubVistaReporte("diagnostico"); setVista("reporte_lectura"); }} 
+                                className="bg-[#292524] border border-[#44403C] text-[#A8A29E] hover:text-[#F5F0EB] hover:border-[#F5F0EB] px-6 py-3.5 rounded-xl text-xs uppercase tracking-widest font-black transition-all shadow-sm"
+                              >
+                                Ver Solitario
+                              </button>
+                            </div>
+
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* VISTA: COMPARACIÓN */}
+              {vista === "historial" && vistaComparacion && (() => {
+                 const selected = historial.filter(h => comparacionIds.includes(h.id)).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+                 if (selected.length !== 2) return null;
+                 const auditA = selected[0]; 
+                 const auditB = selected[1]; 
+
+                 const deltaScore = auditB.score - auditA.score;
+                 const wasteA = auditA.reporte_json?.resumen?.gasto_desperdiciado || 0;
+                 const wasteB = auditB.reporte_json?.resumen?.gasto_desperdiciado || 0;
+                 const deltaWaste = wasteA - wasteB; 
+                 
+                 const fugasA = auditA.reporte_json?.hallazgos?.graves_rojo || [];
+                 const fugasB = auditB.reporte_json?.hallazgos?.graves_rojo || [];
+                 
+                 const getID = (item: any) => item.id_rastreo || item.titulo;
+                 const aplicadas = fugasA.filter((a: any) => !fugasB.some((b: any) => getID(b) === getID(a)));
+                 const persistentes = fugasA.filter((a: any) => fugasB.some((b: any) => getID(b) === getID(a)));
+                 const nuevas = fugasB.filter((b: any) => !fugasA.some((a: any) => getID(a) === getID(b)));
+
+                 return (
+                  <div className="animate-fade-custom print:hidden relative z-10 w-full max-w-[1400px] mx-auto flex flex-col gap-8">
+                    <div className="flex justify-between items-center border-b border-[#44403C]/50 pb-6">
+                      <div className="flex items-center gap-4">
+                        <button onClick={() => { setVistaComparacion(false); setComparacionIds([]); }} className="p-2.5 rounded-xl bg-[#292524] border border-[#44403C] text-[#A8A29E] hover:text-[#F5F0EB] transition-colors"><ArrowLeft size={18} /></button>
+                        <div>
+                          <h2 className="text-3xl font-black text-[#F5F0EB]">Rendición de Cuentas</h2>
+                          <p className="text-[#A8A29E] text-sm mt-1 font-medium uppercase tracking-widest text-[10px] font-black">{auditA.nombre_cuenta}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-6 items-stretch">
+                       <div className="bg-[#1C1917] border border-[#44403C] rounded-3xl p-8 opacity-60">
+                         <p className="text-[10px] font-black text-[#A8A29E] uppercase tracking-widest mb-6 bg-[#292524] w-max px-3 py-1.5 rounded-lg border border-[#44403C]">Foto Pasada ({parseDate(auditA.created_at)})</p>
+                         <div className="flex justify-between items-end">
+                           <div><p className="text-[10px] text-[#A8A29E] uppercase font-black tracking-widest">Score Antiguo</p><p className="text-5xl font-black text-[#F5F0EB]">{auditA.score}</p></div>
+                           <div className="text-right"><p className="text-[10px] text-[#A8A29E] uppercase font-black tracking-widest">Desperdicio</p><p className="text-2xl font-black text-[#E07070]">-${wasteA}</p></div>
+                         </div>
+                       </div>
+
+                       <div className="flex flex-col justify-center items-center bg-[#292524] border-2 border-[#44403C] rounded-3xl p-8 shadow-2xl relative">
+                          <p className="absolute top-[-12px] bg-[#1C1917] px-4 py-1 rounded-full text-[10px] font-black text-[#A8A29E] uppercase tracking-widest border border-[#44403C]">Impacto Generado</p>
+                          <div className="text-center mb-6 w-full">
+                            <p className="text-[10px] text-[#A8A29E] uppercase font-black tracking-widest mb-1">Evolución de Salud</p>
+                            <span className={`text-6xl font-black tracking-tighter ${deltaScore >= 0 ? 'text-[#10B981]' : 'text-[#E07070]'}`}>
+                              {deltaScore > 0 ? '+' : ''}{deltaScore} <span className="text-xl">pts</span>
+                            </span>
+                          </div>
+                          <div className="w-full h-px bg-[#44403C]/50 mb-6"></div>
+                          <div className="text-center w-full">
+                            <p className="text-[10px] text-[#A8A29E] uppercase font-black tracking-widest mb-1">Evolución de Presupuesto</p>
+                            <span className={`text-3xl font-black ${deltaWaste >= 0 ? 'text-[#10B981]' : 'text-[#E07070]'}`}>
+                              {deltaWaste > 0 ? 'Se salvaron ' : 'Se perdieron extras '}
+                              ${Math.abs(deltaWaste).toLocaleString()}
+                            </span>
+                          </div>
+                       </div>
+
+                       <div className="bg-[#1C1917] border-2 border-[#F3C3B2]/30 shadow-[0_0_30px_rgba(243,195,178,0.05)] rounded-3xl p-8">
+                         <p className="text-[10px] font-black text-[#F3C3B2] uppercase tracking-widest mb-6 bg-[#F3C3B2]/10 w-max px-3 py-1.5 rounded-lg border border-[#F3C3B2]/20">Foto Actual ({parseDate(auditB.created_at)})</p>
+                         <div className="flex justify-between items-end">
+                           <div><p className="text-[10px] text-[#A8A29E] uppercase font-black tracking-widest">Score Actual</p><p className="text-5xl font-black text-[#F5F0EB]">{auditB.score}</p></div>
+                           <div className="text-right"><p className="text-[10px] text-[#A8A29E] uppercase font-black tracking-widest">Desperdicio</p><p className="text-2xl font-black text-[#E07070]">-${wasteB}</p></div>
+                         </div>
+                       </div>
+                    </div>
+
+                    <div className="mt-4">
+                      <h3 className="text-xl font-black text-[#F5F0EB] mb-6 flex items-center gap-3"><CheckSquare className="text-[#F3C3B2]"/> Evaluación de Ejecución</h3>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+                        <div className="flex flex-col gap-4">
+                          <div className="bg-[#10B981]/10 border border-[#10B981]/20 p-4 rounded-2xl flex items-center gap-3">
+                            <div className="w-8 h-8 bg-[#10B981]/20 rounded-lg flex items-center justify-center"><CheckCircle2 size={16} className="text-[#10B981]"/></div>
+                            <div><p className="text-[#10B981] font-black text-sm">Fugas Tapadas</p><p className="text-[10px] text-[#A8A29E] uppercase tracking-widest font-black">Buen trabajo</p></div>
+                          </div>
+                          {aplicadas.length === 0 ? <p className="text-center text-[#A8A29E] text-xs font-bold py-4">No se taparon fugas pasadas.</p> : aplicadas.map((item: any, i: number) => (
+                            <div key={i} className="bg-[#292524] border border-[#10B981]/30 p-5 rounded-2xl shadow-inner border-l-4 border-l-[#10B981]">
+                              <p className="text-[#F5F0EB] text-sm font-black leading-tight line-through opacity-70">{item.titulo}</p>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="flex flex-col gap-4">
+                          <div className="bg-[#EAB308]/10 border border-[#EAB308]/20 p-4 rounded-2xl flex items-center gap-3">
+                            <div className="w-8 h-8 bg-[#EAB308]/20 rounded-lg flex items-center justify-center"><AlertTriangle size={16} className="text-[#EAB308]"/></div>
+                            <div><p className="text-[#EAB308] font-black text-sm">Fugas Ignoradas</p><p className="text-[10px] text-[#A8A29E] uppercase tracking-widest font-black">Siguen drenando plata</p></div>
+                          </div>
+                          {persistentes.length === 0 ? <p className="text-center text-[#A8A29E] text-xs font-bold py-4">Sin fugas arrastradas.</p> : persistentes.map((item: any, i: number) => (
+                            <div key={i} className="bg-[#292524] border border-[#EAB308]/30 p-5 rounded-2xl shadow-inner border-l-4 border-l-[#EAB308]">
+                              <p className="text-[#F5F0EB] text-sm font-black leading-tight">{item.titulo}</p>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="flex flex-col gap-4">
+                          <div className="bg-[#E07070]/10 border border-[#E07070]/20 p-4 rounded-2xl flex items-center gap-3">
+                            <div className="w-8 h-8 bg-[#E07070]/20 rounded-lg flex items-center justify-center"><Zap size={16} className="text-[#E07070]"/></div>
+                            <div><p className="text-[#E07070] font-black text-sm">Nuevos Fuegos</p><p className="text-[10px] text-[#A8A29E] uppercase tracking-widest font-black">Problemas nacidos hoy</p></div>
+                          </div>
+                          {nuevas.length === 0 ? <p className="text-center text-[#A8A29E] text-xs font-bold py-4">No hay problemas nuevos.</p> : nuevas.map((item: any, i: number) => (
+                            <div key={i} className="bg-[#292524] border border-[#E07070]/30 p-5 rounded-2xl shadow-inner border-l-4 border-l-[#E07070]">
+                              <p className="text-[#F5F0EB] text-sm font-black leading-tight">{item.titulo}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                 );
+              })()}
+
+              {/* VISTA: LECTURA DE REPORTE INDIVIDUAL */}
+              {vista === "reporte_lectura" && reporte && (
+                <div className="animate-fade-custom relative z-10 w-full max-w-[1400px] mx-auto flex flex-col gap-6">
+                  <div className="mb-6 flex justify-between items-center">
+                     <button onClick={() => navegar("historial", "/reportes")} className="flex items-center gap-2 p-2.5 rounded-xl bg-[#292524] border border-[#44403C] text-[#A8A29E] hover:text-[#F5F0EB] font-bold transition-colors text-sm"><ArrowLeft size={18} /></button>
+                     
+                     <button 
+                       onClick={() => {
+                         const actual = historial.find(h => h.reporte_json === reporte);
+                         if (actual) window.open(`/api/pdf?id=${actual.id}`, '_self');
+                       }}
+                       className="bg-[#F3C3B2] text-[#0a0a0a] hover:bg-[#eab3a1] px-5 py-2.5 rounded-xl text-xs uppercase tracking-widest font-black transition-all shadow-sm flex items-center gap-1.5 ml-auto mr-4"
+                     >
+                       <FileText size={14} /> Exportar PDF
+                     </button>
+
+                     <div className="px-4 py-2 bg-[#292524] border border-[#44403C] rounded-xl shadow-sm text-xs font-black uppercase tracking-widest text-[#F3C3B2]">
+                       Diagnóstico Estático
+                     </div>
+                  </div>
+
+                  <div className="bg-[#1C1917] border border-[#44403C] p-12 rounded-[2.5rem] shadow-sm">
+                    <div className="flex justify-between items-center mb-12 pb-12 border-b border-[#44403C]/50">
+                      <div>
+                        <h2 className="text-[10px] font-black text-[#A8A29E] uppercase tracking-widest mb-3">Foto del Estado de Cuenta</h2>
+                        <div className="flex items-center gap-6">
+                          <div className={`w-24 h-24 rounded-3xl flex items-center justify-center border border-[#44403C] bg-[#292524] text-4xl font-black text-[#F5F0EB] shadow-inner`}>
+                            {reporte.health_score ?? reporte.score_general ?? 0}
+                          </div>
+                          <div><h3 className="text-4xl font-black text-[#F5F0EB]">{t[idioma].score}</h3><p className="text-[#A8A29E] text-sm mt-2 font-bold">{t[idioma].puntajeBasado}</p></div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-8 animate-fade-custom grid grid-cols-1 gap-8">
+                      {reporte.hallazgos?.graves_rojo?.length > 0 && (
+                        <div className="bg-[#292524] p-10 rounded-3xl border border-[#E07070]/30 shadow-sm">
+                          <h3 className="text-base font-black text-[#E07070] uppercase tracking-widest mb-8 flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-[#E07070]/10 flex items-center justify-center"><AlertTriangle size={20}/></div> 
+                            {t[idioma].problemas}
+                          </h3>
+                          <div className="space-y-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+                            {reporte.hallazgos.graves_rojo.map((item: any, i: number) => (
+                              <div key={i} className="border-l-4 border-[#E07070]/30 pl-5">
+                                <p className="text-[#F5F0EB] font-black text-xl mb-2">{item.titulo}</p>
+                                <p className="text-[#A8A29E] text-base leading-relaxed font-medium">{modoSimple ? (item.descripcion_simple || item.descripcion) : (item.descripcion_tecnica || item.descripcion)}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {reporte.hallazgos?.debiles_amarillo?.length > 0 && (
+                        <div className="bg-[#292524] p-10 rounded-3xl border border-[#D4A843]/30 shadow-sm">
+                          <h3 className="text-base font-black text-[#D4A843] uppercase tracking-widest mb-8 flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-[#D4A843]/10 flex items-center justify-center"><Zap size={20}/></div> 
+                            {t[idioma].mejoras}
+                          </h3>
+                          <div className="space-y-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+                            {reporte.hallazgos.debiles_amarillo.map((item: any, i: number) => (
+                              <div key={i} className="border-l-4 border-[#D4A843]/30 pl-5">
+                                <p className="text-[#F5F0EB] font-black text-xl mb-2">{item.titulo}</p>
+                                <p className="text-[#A8A29E] text-base leading-relaxed font-medium">{modoSimple ? (item.descripcion_simple || item.descripcion) : (item.descripcion_tecnica || item.descripcion)}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* VISTA: CONFIGURACIÓN */}
+              {vista === "perfil" && (
+                <div className="animate-fade-custom bg-[#FFFFFF] border border-[#E5E7EB] p-10 rounded-[2rem] shadow-sm max-w-4xl mx-auto print:hidden relative z-10 w-full">
+                  <div className="flex items-center gap-4 mb-8 pb-6 border-b border-[#F4F4F5]">
+                     <div className="w-14 h-14 bg-[#F4F4F5] border border-[#E5E7EB] shadow-sm rounded-2xl flex items-center justify-center text-[#0a0a0a]"><Settings size={24} /></div>
+                     <div>
+                        <h2 className="text-3xl font-black text-[#0a0a0a]">{t[idioma].configuracion}</h2>
+                        <p className="text-[#4B5563] text-sm mt-1 font-medium">{t[idioma].persPdf}</p>
+                     </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                    <div className="space-y-6">
+                      <h3 className="text-xs font-black text-[#0a0a0a] uppercase tracking-widest mb-6 border-b border-[#F4F4F5] pb-2">Marca Blanca Visual</h3>
+                      <div><label className="block text-[10px] font-bold text-[#8A968C] mb-2 uppercase tracking-widest">{t[idioma].nomAgencia}</label><input type="text" className="w-full p-4 bg-[#F4F4F5] border border-[#E5E7EB] rounded-xl text-[#0a0a0a] font-bold shadow-inner focus:border-[#E0E7FF] focus:bg-[#FAFAF9] focus:outline-none transition-all text-sm" value={agenciaNombre} onChange={(e) => setAgenciaNombre(e.target.value)} /></div>
+                      <div><label className="block text-[10px] font-bold text-[#8A968C] mb-2 uppercase tracking-widest">{t[idioma].sitioWeb}</label><input type="text" placeholder="Ej: www.tuagencia.com" className="w-full p-4 bg-[#F4F4F5] border border-[#E5E7EB] rounded-xl text-[#0a0a0a] font-bold shadow-inner focus:border-[#E0E7FF] focus:bg-[#FAFAF9] focus:outline-none transition-all text-sm" value={agenciaWeb} onChange={(e) => setAgenciaWeb(e.target.value)} /></div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-[#8A968C] mb-2 uppercase tracking-widest">{t[idioma].logoPdf}</label>
+                        <div className="flex items-center gap-6 p-4 border border-[#E5E7EB] rounded-xl bg-[#F4F4F5] shadow-inner">
+                          {agenciaLogo ? <img src={agenciaLogo} alt="Logo" className="w-14 h-14 object-contain rounded bg-white p-1 border border-[#E5E7EB] shadow-sm" /> : <div className="w-14 h-14 bg-[#FAFAF9] rounded-lg flex items-center justify-center text-[#8A968C] text-[9px] uppercase font-black text-center border border-dashed border-[#8A968C]">Sube</div>}
+                          <div className="flex-1"><input type="file" accept="image/*" onChange={subirLogo} disabled={uploading} className="w-full text-xs text-[#4B5563] font-bold cursor-pointer file:mr-4 file:py-2.5 file:px-5 file:rounded-lg file:border-0 file:text-[10px] file:uppercase file:tracking-widest file:font-black file:bg-[#FAFAF9] file:border file:border-[#E5E7EB] file:text-[#0a0a0a] hover:file:bg-white hover:file:shadow-sm transition-all" /></div>
+                        </div>
+                      </div>
+                      <div><label className="block text-[10px] font-bold text-[#8A968C] mb-2 uppercase tracking-widest">{t[idioma].piePagina}</label><textarea className="w-full h-24 p-4 bg-[#F4F4F5] border border-[#E5E7EB] rounded-xl text-[#0a0a0a] font-bold shadow-inner text-sm focus:border-[#E0E7FF] focus:bg-[#FAFAF9] focus:outline-none transition-all resize-none" value={agenciaPie} onChange={(e) => setAgenciaPie(e.target.value)} /></div>
+                    </div>
+
+                    <div className="space-y-6">
+                      <h3 className="text-xs font-black text-[#0a0a0a] uppercase tracking-widest mb-6 border-b border-[#F4F4F5] pb-2">Preferencias de Trabajo</h3>
+                      <div>
+                        <label className="block text-[10px] font-bold text-[#8A968C] mb-2 uppercase tracking-widest">{t[idioma].monedaDef}</label>
+                        <div className="relative"><select className="w-full p-4 bg-[#F4F4F5] border border-[#E5E7EB] rounded-xl text-[#0a0a0a] font-bold shadow-inner focus:border-[#E0E7FF] focus:bg-[#FAFAF9] focus:outline-none transition-all appearance-none cursor-pointer text-sm" value={moneda} onChange={(e) => setMoneda(e.target.value)}><option value="USD ($)">Dólares USD ($)</option><option value="EUR (€)">Euros EUR (€)</option><option value="ARS ($)">Pesos Argentinos ARS ($)</option><option value="MXN ($)">Pesos Mexicanos MXN ($)</option></select><ChevronDown size={16} className="absolute right-4 top-1/2 transform -translate-y-1/2 text-[#4B5563] pointer-events-none" /></div>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-[#8A968C] mb-2 uppercase tracking-widest">{t[idioma].metricaDef}</label>
+                        <div className="relative"><select className="w-full p-4 bg-[#F4F4F5] border border-[#E5E7EB] rounded-xl text-[#0a0a0a] font-bold shadow-inner focus:border-[#E0E7FF] focus:bg-[#FAFAF9] focus:outline-none transition-all appearance-none cursor-pointer text-sm" value={metrica} onChange={(e) => setMetrica(e.target.value)}><option value="ROAS">ROAS (Retorno de Inversión)</option><option value="CPA">CPA (Costo por Adquisición)</option><option value="ROI">ROI</option></select><ChevronDown size={16} className="absolute right-4 top-1/2 transform -translate-y-1/2 text-[#4B5563] pointer-events-none" /></div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="border-t border-[#E5E7EB] mt-10 pt-8 flex justify-end max-w-5xl mx-auto">
+                    <button onClick={guardarAjustesAgencia} disabled={loading || uploading} className="w-full md:w-auto md:px-10 text-[#0a0a0a] bg-[#E0E7FF] hover:bg-[#eab3a1] px-6 py-4 rounded-xl font-black text-sm uppercase tracking-widest disabled:opacity-50 transition-colors shadow-md">{loading ? t[idioma].guardando : t[idioma].guardarAj}</button>
+                  </div>
+                </div>
+              )}
+
+              {/* VISTA: FACTURACIÓN */}
+              {vista === "facturacion" && (
+                <div className="animate-fade-custom bg-[#FFFFFF] border border-[#E5E7EB] p-10 rounded-[2rem] shadow-sm max-w-3xl mx-auto print:hidden relative z-10 w-full">
+                  <div className="flex items-center gap-4 mb-10 pb-6 border-b border-[#F4F4F5]">
+                     <div className="w-14 h-14 bg-[#F4F4F5] border border-[#E5E7EB] shadow-sm rounded-2xl flex items-center justify-center text-[#0a0a0a]"><CreditCard size={24} /></div>
+                     <div>
+                        <h2 className="text-3xl font-black text-[#0a0a0a]">{t[idioma].facturacionTitulo}</h2>
+                        <p className="text-[#4B5563] text-sm mt-1 font-medium">{t[idioma].facturacionDesc}</p>
+                     </div>
+                  </div>
+                  <div className="bg-[#F4F4F5] border border-[#E5E7EB] rounded-2xl p-8 mb-8 flex justify-between items-center shadow-inner">
+                    <div>
+                      <p className="text-[10px] font-bold text-[#8A968C] uppercase tracking-widest mb-3">{t[idioma].planActual}</p>
+                      <div className="flex items-center gap-4">
+                        <span className="text-3xl font-black text-[#0a0a0a]">{perfil?.plan === 'pro' ? 'Mora Pro' : 'Mora Free'}</span>
+                        <span className="px-3 py-1 rounded-md text-[10px] font-black bg-[#FAFAF9] border border-[#10B981] text-[#10B981] uppercase tracking-widest shadow-sm">{t[idioma].activa}</span>
+                      </div>
+                      <p className="text-sm text-[#4B5563] mt-3 font-medium">Renueva el 14 de Abril, 2026</p>
+                    </div>
+                  </div>
+                  <button className="w-full text-[#4B5563] bg-[#FAFAF9] border border-[#E5E7EB] hover:bg-white px-6 py-4 rounded-xl text-sm font-black transition-colors mt-2 flex justify-center items-center gap-2 cursor-not-allowed shadow-sm uppercase tracking-widest"><CreditCard size={18} /> {t[idioma].gestionarStripe} <span className="text-[#E0E7FF] text-[9px] uppercase tracking-widest ml-2 bg-[#E0E7FF]/10 px-2 py-0.5 rounded">{t[idioma].pronto}</span></button>
+                </div>
+              )}
+
+              {/* VISTA: SUGERENCIAS */}
+              {vista === "feedback" && (
+                <div className="animate-fade-custom bg-[#FFFFFF] border border-[#E5E7EB] p-10 md:p-14 rounded-[2rem] shadow-sm max-w-3xl mx-auto text-center print:hidden relative z-10 w-full">
+                  <div className="flex justify-center mb-8"><div className="w-20 h-20 bg-[#FDE8D3] border border-[#E0E7FF]/50 rounded-[1.5rem] flex items-center justify-center text-[#0a0a0a] shadow-sm"><MessageSquare size={32} /></div></div>
+                  <h2 className="text-3xl font-black mb-3 text-[#0a0a0a]">{t[idioma].ayudanos}</h2>
+                  <p className="text-[#4B5563] text-base mb-10 font-medium">{t[idioma].bug}</p>
+                  <textarea className="w-full h-40 p-5 bg-[#F4F4F5] border border-[#E5E7EB] shadow-inner rounded-2xl mb-8 text-[#0a0a0a] font-medium focus:border-[#E0E7FF] focus:bg-[#FAFAF9] focus:outline-none resize-none transition-all text-sm leading-relaxed" placeholder={t[idioma].escribiSug} value={mensajeFeedback} onChange={(e) => setMensajeFeedback(e.target.value)} />
+                  <button onClick={mandarFeedback} disabled={enviandoFeedback || !mensajeFeedback} className="w-full text-[#0a0a0a] bg-[#E0E7FF] hover:bg-[#eab3a1] px-6 py-4 rounded-xl font-black text-sm uppercase tracking-widest disabled:opacity-50 transition-colors shadow-md">{enviandoFeedback ? t[idioma].enviando : t[idioma].enviarSug}</button>
+                </div>
+              )}
+              {vista === "campañas" && renderGestorCampañas()}
+
+              </div>
+            </main>
+          </>
+        )}
+      </div>
+
+      {/* CONFIRMACIÓN AUTO-APPLY */}
+      {mostrarConfirmacion && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 print:hidden">
+          <div className="absolute inset-0 bg-[#0a0a0a]/40 backdrop-blur-sm cursor-pointer" onClick={() => setMostrarConfirmacion(false)}></div>
+          <div className="bg-[#FAFAF9] border border-[#E5E7EB] shadow-2xl rounded-3xl w-full max-w-md relative z-10 animate-fade-custom overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-1 bg-[#EAB308]"></div>
+            <div className="p-8">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-14 h-14 rounded-2xl bg-[#EAB308]/10 border border-[#EAB308]/30 flex items-center justify-center text-[#EAB308] flex-shrink-0 shadow-sm">
+                  <AlertTriangle size={24} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-[#0a0a0a] leading-tight">Confirmar Acción</h3>
+                  <p className="text-xs text-[#8A968C] mt-1 font-bold uppercase tracking-widest">Atención requerida</p>
+                </div>
+              </div>
+              <p className="text-[#4B5563] text-sm leading-relaxed mb-8 font-medium">
+                Estás por marcar esta tarea como lista. ¿Confirmás que ya aplicaste estos cambios en tu cuenta de Google Ads?
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button onClick={() => setMostrarConfirmacion(false)} className="px-5 py-3 rounded-xl font-bold text-xs text-[#4B5563] bg-[#F4F4F5] border border-[#E5E7EB] hover:bg-[#FFFFFF] transition-colors w-full uppercase tracking-widest shadow-sm">Cancelar</button>
+                <button onClick={aplicarCambios} className="px-5 py-3 rounded-xl font-black text-xs text-[#0a0a0a] bg-[#E0E7FF] hover:bg-[#eab3a1] transition-colors w-full flex justify-center items-center gap-2 uppercase tracking-widest shadow-md"><Sparkles size={16} /> Confirmar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TOASTS FLOTANTES */}
+      <div className="fixed bottom-10 right-10 z-[110] flex flex-col gap-4 pointer-events-none print:hidden">
+        {toastsActivos.map((toast, index) => (
+          <div 
+            key={toast.id} 
+            className={`bg-[#1C1917] border border-[#E07070]/40 p-5 rounded-2xl shadow-[0_20px_40px_rgba(0,0,0,0.5)] w-80 md:w-96 pointer-events-auto relative overflow-hidden ${
+              toast.isLeaving ? 'animate-salida-total' : 'animate-slide-in-right'
+            }`}
+            style={{ animationDelay: toast.isLeaving ? '0ms' : `${index * 150}ms` }}
+          >
+            <div className="absolute top-0 left-0 w-1 h-full bg-[#E07070] z-10"></div>
+            
+            <div className="absolute bottom-0 left-0 w-full h-1 bg-[#292524]">
+              <div className="h-full bg-[#E07070] animate-barra-tiempo"></div>
+            </div>
+
+            <div className="flex justify-between items-start relative z-10">
+              <h4 className="text-[#F5F0EB] font-black text-xs uppercase tracking-widest flex items-center gap-2">
+                <AlertTriangle size={14} className="text-[#E07070]" /> {toast.titulo}
+              </h4>
+              <div className="flex items-center gap-3">
+                <button 
+                  onClick={() => {
+                    setToastsActivos(prev => prev.map(t => t.id === toast.id ? { ...t, isLeaving: true } : t));
+                    setTimeout(() => setToastsActivos(prev => prev.filter(t => t.id !== toast.id)), 600);
+                  }} 
+                  className="text-[#A8A29E] hover:text-[#F5F0EB] transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+            <p className="text-[11px] text-[#A8A29E] mt-2 mb-3 font-medium leading-relaxed relative z-10">{toast.mensaje}</p>
+            
+            <button 
+               onClick={() => {
+                  if (toast.hallazgoData) {
+                    abrirDetalleHallazgo(toast.hallazgoData, "critico", ultimaAuditoria?.reporte_json);
+                  }
+                  setToastsActivos(prev => prev.map(t => t.id === toast.id ? { ...t, isLeaving: true } : t));
+                  setTimeout(() => setToastsActivos(prev => prev.filter(t => t.id !== toast.id)), 600);
+               }} 
+               className="relative z-10 mt-1 w-full bg-[#E07070]/10 hover:bg-[#E07070] text-[#E07070] hover:text-[#0a0a0a] border border-[#E07070]/30 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-colors"
+            >
+               {toast.accion}
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {/* TOAST DE ÉXITO */}
+      {toastState.show && (
+        <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-[120] bg-[#FAFAF9] border border-[#E5E7EB] shadow-2xl rounded-2xl overflow-hidden flex flex-col w-80 animate-fade-custom">
+           <div className="p-5 flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                 {toastState.status === 'success' && <CheckCircle2 className="text-[#10B981]" size={24} />}
+                 {toastState.status === 'undoing' && <RefreshCcw className="text-[#EAB308] animate-spin" size={24} />}
+                 {toastState.status === 'reverted' && <Undo2 className="text-[#4B5563]" size={24} />}
+                 <div>
+                    <p className="text-sm font-black text-[#0a0a0a]">
+                      {toastState.status === 'success' ? 'Tarea completada.' : 
+                       toastState.status === 'undoing' ? 'Deshaciendo...' : 'Revertido.'}
+                    </p>
+                    {toastState.status === 'success' && <p className="text-[10px] text-[#8A968C] font-bold uppercase tracking-widest mt-0.5">Se cierra en {toastState.timeLeft}s</p>}
+                 </div>
+              </div>
+              {toastState.status === 'success' && (
+                <button onClick={deshacerCambios} className="text-[#0a0a0a] font-black text-[9px] uppercase tracking-widest transition-colors px-3 py-2 bg-[#FDE8D3] hover:bg-[#E0E7FF] rounded-lg shadow-sm border border-[#E0E7FF]/50">Deshacer</button>
+              )}
+           </div>
+           {toastState.status === 'success' && (
+              <div className="w-full bg-[#F4F4F5] h-1.5 border-t border-[#E5E7EB]">
+                 <div className="bg-[#10B981] h-1.5 transition-all duration-1000 ease-linear" style={{ width: `${(toastState.timeLeft / 15) * 100}%` }}></div>
+              </div>
+           )}
+        </div>
+      )}
+    </>
+  );
+}
+
+export default function AuditorPageWrapper({ initialVista = "dashboard" }: { initialVista?: AuditorVista } = {}) {
+  return <AuditorDashboard initialVista={initialVista} />;
+}
