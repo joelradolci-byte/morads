@@ -5,6 +5,19 @@ Mora Analytics es una plataforma B2B SaaS de suscripción que audita y optimiza 
 
 ---
 
+## Sobre el Desarrollador
+
+El desarrollador **no tiene formación formal en programación**. Aprendió de forma autodidacta y trabaja solo en el proyecto.
+
+Esto significa que Cursor debe:
+- **Explicar en lenguaje simple** qué hace cada cambio antes de aplicarlo — sin asumir conocimiento técnico previo
+- **Cuando pida confirmación**, explicar brevemente en una línea qué es lo que va a hacer y por qué, como si se lo explicara a alguien que no programa. Ejemplo: en lugar de "¿aplico el patch al módulo singleton?", decir "¿quieres que cree un archivo que evita que Supabase se inicie dos veces al mismo tiempo?"
+- **Avisar claramente** cuando un cambio es de riesgo alto (toca archivos grandes, elimina código, modifica la base de datos)
+- **Nunca asumir** que el desarrollador sabe qué hace un comando de terminal antes de pedirle que lo corra
+- **Preferir soluciones simples** sobre soluciones elegantes cuando la diferencia de resultado es mínima
+
+---
+
 ## Sugerencias y Mejoras
 
 Cursor puede y debe sugerir mejoras, nuevas features, librerías adicionales, o enfoques alternativos cuando considere que hay una mejor solución. Las reglas de stack aplican al código existente — para funcionalidad nueva, las sugerencias son bienvenidas siempre que se presenten como opciones para que el desarrollador decida.
@@ -33,45 +46,63 @@ Siempre presentar las sugerencias como opciones, nunca aplicarlas sin confirmaci
 
 ---
 
-## Archivos Clave en `lib/`
-
-- **`lib/googleAds.ts`** — cliente de Google Ads API. Actualmente usa datos mock temporales mientras se completa la integración real con la API. No modificar la estructura sin confirmación explícita.
-- **`lib/motorMora.ts`** — motor de procesamiento server-side. Recibe los datos crudos de Google Ads, ejecuta toda la lógica matemática y de análisis en el servidor, y devuelve el objeto `reporte_json` limpio y estructurado para que la base de datos lo guarde y el PDF lo pueda renderizar. Es lógica real, no mock.
-
----
-
-## Estructura Objetivo del Proyecto
+## Estructura del Proyecto
 
 ```
 app/
-├── page.tsx                    ← landing page
-├── dashboard/
-│   └── page.tsx                ← vista general del dashboard
-├── campanas/
-│   └── page.tsx                ← lista de campañas con scores
-├── reportes/
-│   └── page.tsx                ← historial de auditorías + comparación + descarga PDF
+├── page.tsx                          ← landing page únicamente (con redirect a /dashboard si hay sesión)
+├── (dashboard)/
+│   ├── layout.tsx                    ← shell autenticado: sidebar, header, toasts, drawer. Auth guard: redirige a / si no hay sesión
+│   ├── dashboard/
+│   │   ├── page.tsx                  ← wrapper de la vista general
+│   │   └── DashboardClient.tsx       ← lógica y UI del dashboard (componente cliente principal)
+│   ├── campanas/
+│   │   └── page.tsx                  ← gestor de campañas
+│   ├── reportes/
+│   │   └── page.tsx                  ← historial de auditorías + comparación + lectura individual
+│   ├── configuracion/
+│   │   └── page.tsx                  ← perfil y configuración de cuenta
+│   ├── facturacion/
+│   │   └── page.tsx                  ← gestión de suscripción con Lemon Squeezy
+│   └── sugerencias/
+│       └── page.tsx                  ← feedback de usuarios
 ├── api/
-│   ├── audit/
+│   ├── audit/                        ← endpoint que llama a Gemini y procesa la auditoría
 │   └── pdf/
-│       └── route.ts
+│       └── route.ts                  ← generación de PDF server-side con @react-pdf/renderer
 ├── components/
 │   ├── pdf/
 │   │   └── ReportePDF.tsx
-│   ├── dashboard/
-│   ├── campanas/
-│   └── ui/                    ← componentes reutilizables
+│   └── reportes/                     ← componentes de las sub-vistas de reportes
 ├── como-funciona/
 ├── faq/
 ├── precios/
 ├── privacidad/
 └── terminos/
 lib/
-├── googleAds.ts               ← cliente Google Ads API (datos mock temporales)
-└── motorMora.ts               ← motor de procesamiento y análisis (lógica real)
+├── googleAds.ts                      ← cliente Google Ads API (datos mock temporales)
+├── motorMora.ts                      ← motor de procesamiento y análisis (lógica real)
+├── campanasMetrics.ts                ← lógica de clasificación y métricas de campañas
+└── supabase/
+    └── browser.ts                    ← singleton del cliente Supabase para el browser (una sola instancia global)
+hooks/
+├── useCampanas.ts                    ← fetch y estado de campañas
+└── useHistorialAuditorias.ts         ← fetch y estado del historial de auditorías
+contexts/
+├── AppShellContext.tsx               ← estado global del shell (drawer de detalle, overlays)
+└── ReportesHeaderContext.tsx         ← título dinámico del header en la sección de reportes
 ```
 
-> **Nota**: El proyecto está actualmente en proceso de reorganización. El código principal vive en `app/page.tsx` y se está migrando progresivamente a esta estructura.
+---
+
+## Regla Crítica — Cliente de Supabase
+
+**Solo puede existir una instancia del cliente de Supabase en el browser.**
+
+- El singleton vive en `lib/supabase/browser.ts` y usa `globalThis` para garantizar una sola instancia
+- Todo el código cliente importa `supabase` desde ese módulo — nunca llama a `createClient` directamente
+- El otro `createClient` que existe en `app/api/pdf/route.ts` usa `SUPABASE_SERVICE_ROLE_KEY` y es server-side — eso es correcto y debe mantenerse separado
+- **Nunca duplicar la inicialización del cliente** — causó bugs críticos (cerrar sesión no funcionaba, Health Score no cargaba, error "Lock broken by another request")
 
 ---
 
@@ -168,6 +199,7 @@ lib/
 - Cliente del servidor en Server Components (`createServerClient`)
 - Nunca bypassear RLS
 - Queries tipadas con los tipos generados de Supabase
+- Cliente browser siempre desde `lib/supabase/browser.ts`
 
 ### Tailwind
 - Clases utilitarias directamente en JSX
@@ -189,4 +221,6 @@ lib/
 - Sugerir OpenAI, Anthropic u otros proveedores de IA — el proveedor es Gemini
 - Sugerir Stripe u otros proveedores de pagos — el proveedor es Lemon Squeezy
 - Llamar APIs externas (Gemini, Google Ads) desde código cliente
-- Tocar `app/page.tsx` principal sin instrucción explícita — tiene 2000+ líneas de código en producción
+- Llamar a `createClient` de Supabase fuera de `lib/supabase/browser.ts` en código cliente
+- Tocar `app/page.tsx` sin instrucción explícita — contiene la landing page en producción
+- Usar jerga técnica al pedir confirmación sin explicar primero qué hace el cambio en términos simples
