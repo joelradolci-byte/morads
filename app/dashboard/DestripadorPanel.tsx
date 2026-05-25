@@ -522,7 +522,7 @@ export default function DestripadorPanel({
               </button>
               {copiadosAbierto && (
                 <div className="border-t border-[#F3C3B2]/15">
-                  <div className="px-4 py-3 max-h-[560px] overflow-y-auto flex flex-col gap-2">
+                  <div className="px-4 py-3 max-h-[min(800px,65vh)] overflow-y-auto flex flex-col gap-2">
                     {terminosCopiados.map(renderFilaCopiada)}
                   </div>
                 </div>
@@ -547,7 +547,7 @@ export default function DestripadorPanel({
               </button>
               {aplicadosAbierto && (
                 <div className="border-t border-[#10B981]/15">
-                  <div className="px-4 py-3 max-h-[560px] overflow-y-auto flex flex-col gap-2">
+                  <div className="px-4 py-3 max-h-[min(800px,65vh)] overflow-y-auto flex flex-col gap-2">
                     {terminosAplicados.map(renderFilaAplicada)}
                   </div>
                 </div>

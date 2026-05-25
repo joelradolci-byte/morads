@@ -39,13 +39,14 @@ export interface DatosAuditoriaInput {
   clics_totales: number;
   campanas: CampanaMora[];
   terminos?: TerminoBusqueda[];
+  horarios?: DatoHorarioCampana[];
   // Nombre/s de marca del cliente para proteger términos que la mencionan.
   // Puede ser una palabra ("acme"), varias separadas por coma, o un array.
   marca_cliente?: string | string[];
 }
 
 // ============================================================================
-// DESTRIPADOR DE BÚSQUEDAS (N-Gramos)
+// DESTRIPADOR DE BÚSQUEDAS (N-Gramas)
 // ============================================================================
 export type CategoriaIntencionId =
   | "gratuita_educativa"
@@ -100,6 +101,333 @@ export interface DestripadorReporte {
     requiere_confirmacion: boolean;
     undo_disponible: boolean;
     nivel_riesgo: "alto";
+  };
+}
+
+// ============================================================================
+// DAYPARTING — Detector de fugas por franja horaria
+// ============================================================================
+export interface DatoHorarioCampana {
+  campana_id: string;
+  campana_nombre: string;
+  /** 0 = Lunes … 6 = Domingo */
+  dia_semana: number;
+  hora: number;
+  gasto: number;
+  clics: number;
+  conversiones: number;
+}
+
+export type DaypartingEstadoHora = "fuga" | "bueno" | "sin_datos" | "neutro";
+
+export type DaypartingAccionTipo = "reducir_puja" | "pausar_trafico";
+
+export interface DaypartingHora {
+  dia_semana: number;
+  hora: number;
+  label: string;
+  gasto: number;
+  clics: number;
+  conversiones: number;
+  cpa: number | null;
+  estado: DaypartingEstadoHora;
+  gasto_desperdiciado: number;
+  muestra_suficiente: boolean;
+}
+
+export interface DaypartingPatronResumen {
+  dias: string[];
+  hora_inicio: number;
+  hora_fin: number;
+  ahorro_mensual_estimado: number;
+  mensaje: string;
+}
+
+export interface DaypartingFranja {
+  id: string;
+  dia_semana: number;
+  dia_fin: number;
+  hora_inicio: number;
+  hora_fin: number;
+  etiqueta: string;
+  gasto: number;
+  clics: number;
+  conversiones: number;
+  cpa: number | null;
+  gasto_desperdiciado: number;
+  accion_recomendada: DaypartingAccionTipo;
+  motivo: string;
+  campanas_top: { campana_id: string; campana_nombre: string; gasto: number }[];
+}
+
+export interface DaypartingReporte {
+  ahorro_estimado: number;
+  ahorro_mensual_estimado: number;
+  franjas_con_fuga: number;
+  horas_toxicas: number[];
+  horas_estrella: number[];
+  ventana_dias_historico: number;
+  heatmap: DaypartingHora[];
+  franjas_problematicas: DaypartingFranja[];
+  patron_principal: DaypartingPatronResumen | null;
+  generado_en: string;
+  safe_apply: {
+    requiere_confirmacion: boolean;
+    undo_disponible: boolean;
+    nivel_riesgo: "medio" | "alto";
+  };
+}
+
+const DIAS_LARGO = [
+  "Lunes",
+  "Martes",
+  "Miércoles",
+  "Jueves",
+  "Viernes",
+  "Sábado",
+  "Domingo",
+] as const;
+
+const VENTANA_HISTORICO_DIAS = 60;
+
+function labelHora(hora: number): string {
+  return `${String(hora).padStart(2, "0")}:00`;
+}
+
+function labelCelda(diaSemana: number, hora: number): string {
+  const d = DIAS_LARGO[diaSemana] ?? "Día";
+  return `${d} ${labelHora(hora)}`;
+}
+
+function labelFranjaDia(diaSemana: number, inicio: number, fin: number): string {
+  const d = DIAS_LARGO[diaSemana] ?? "Día";
+  return `${d} ${labelHora(inicio)} – ${labelHora(fin)}`;
+}
+
+function resolverCpaReferencia(datos: DatosAuditoriaInput, campanas: CampanaMora[]): number {
+  const objetivos = campanas
+    .map(c => c.cpa_objetivo)
+    .filter((v): v is number => v != null && v > 0);
+  if (objetivos.length > 0) {
+    return objetivos.reduce((a, b) => a + b, 0) / objetivos.length;
+  }
+  return datos.cpa_promedio_cuenta > 0 ? datos.cpa_promedio_cuenta : 20;
+}
+
+function construirDayparting(
+  datos: DatosAuditoriaInput,
+  horarios: DatoHorarioCampana[],
+  _multConfianza: number
+): DaypartingReporte {
+  const heatmapVacio: DaypartingHora[] = [];
+  for (let d = 0; d < 7; d++) {
+    for (let h = 0; h < 24; h++) {
+      heatmapVacio.push({
+        dia_semana: d,
+        hora: h,
+        label: labelCelda(d, h),
+        gasto: 0,
+        clics: 0,
+        conversiones: 0,
+        cpa: null,
+        estado: "sin_datos",
+        gasto_desperdiciado: 0,
+        muestra_suficiente: false,
+      });
+    }
+  }
+
+  const vacio: DaypartingReporte = {
+    ahorro_estimado: 0,
+    ahorro_mensual_estimado: 0,
+    franjas_con_fuga: 0,
+    horas_toxicas: [],
+    horas_estrella: [],
+    ventana_dias_historico: VENTANA_HISTORICO_DIAS,
+    heatmap: heatmapVacio,
+    franjas_problematicas: [],
+    patron_principal: null,
+    generado_en: new Date().toISOString(),
+    safe_apply: {
+      requiere_confirmacion: true,
+      undo_disponible: true,
+      nivel_riesgo: "medio",
+    },
+  };
+
+  if (!horarios.length) return vacio;
+
+  const campanas = datos.campanas || [];
+  const cpaRef = resolverCpaReferencia(datos, campanas);
+  const umbralFugaCritica = cpaRef * 2;
+
+  type Agg = { gasto: number; clics: number; conversiones: number };
+  const matriz: Agg[][] = Array.from({ length: 7 }, () =>
+    Array.from({ length: 24 }, () => ({ gasto: 0, clics: 0, conversiones: 0 }))
+  );
+
+  const gastoPorCampanaCelda = new Map<
+    string,
+    { nombre: string; celdas: Map<string, number> }
+  >();
+
+  const celdaKey = (d: number, h: number) => `${d}-${h}`;
+
+  horarios.forEach(row => {
+    const d = row.dia_semana;
+    const h = row.hora;
+    if (d < 0 || d > 6 || h < 0 || h > 23) return;
+    matriz[d][h].gasto += row.gasto;
+    matriz[d][h].clics += row.clics;
+    matriz[d][h].conversiones += row.conversiones;
+
+    if (!gastoPorCampanaCelda.has(row.campana_id)) {
+      gastoPorCampanaCelda.set(row.campana_id, {
+        nombre: row.campana_nombre,
+        celdas: new Map(),
+      });
+    }
+    const ck = celdaKey(d, h);
+    const prev = gastoPorCampanaCelda.get(row.campana_id)!.celdas.get(ck) ?? 0;
+    gastoPorCampanaCelda.get(row.campana_id)!.celdas.set(ck, prev + row.gasto);
+  });
+
+  const heatmap: DaypartingHora[] = [];
+  for (let d = 0; d < 7; d++) {
+    for (let h = 0; h < 24; h++) {
+      const agg = matriz[d][h];
+      const cpa = agg.conversiones > 0 ? agg.gasto / agg.conversiones : null;
+      const significativo = agg.gasto >= umbralFugaCritica;
+      const fugaCritica = significativo && agg.conversiones === 0;
+      const bueno =
+        significativo &&
+        agg.conversiones > 0 &&
+        cpa !== null &&
+        cpa <= cpaRef * 0.8;
+
+      let estado: DaypartingEstadoHora = "sin_datos";
+      let gastoDesperdiciado = 0;
+
+      if (fugaCritica) {
+        estado = "fuga";
+        gastoDesperdiciado = agg.gasto;
+      } else if (bueno) {
+        estado = "bueno";
+      } else if (agg.gasto > 0 || agg.clics > 0) {
+        estado = "neutro";
+      }
+
+      heatmap.push({
+        dia_semana: d,
+        hora: h,
+        label: labelCelda(d, h),
+        gasto: parseFloat(agg.gasto.toFixed(2)),
+        clics: agg.clics,
+        conversiones: agg.conversiones,
+        cpa: cpa !== null ? parseFloat(cpa.toFixed(2)) : null,
+        estado,
+        gasto_desperdiciado: parseFloat(gastoDesperdiciado.toFixed(2)),
+        muestra_suficiente: significativo,
+      });
+    }
+  }
+
+  const horasToxicas = [...new Set(heatmap.filter(c => c.estado === "fuga").map(c => c.hora))];
+  const horasEstrella = [...new Set(heatmap.filter(c => c.estado === "bueno").map(c => c.hora))];
+
+  const franjas: DaypartingFranja[] = [];
+  for (let d = 0; d < 7; d++) {
+    const fila = heatmap.filter(c => c.dia_semana === d);
+    let i = 0;
+    while (i < 24) {
+      if (fila[i].estado !== "fuga") {
+        i++;
+        continue;
+      }
+      let j = i;
+      while (j < 23 && fila[j + 1].estado === "fuga") j++;
+
+      const slice = fila.slice(i, j + 1);
+      const gasto = slice.reduce((acc, c) => acc + c.gasto, 0);
+      const clics = slice.reduce((acc, c) => acc + c.clics, 0);
+      const conversiones = slice.reduce((acc, c) => acc + c.conversiones, 0);
+      const gastoDesperdiciado = slice.reduce((acc, c) => acc + c.gasto_desperdiciado, 0);
+
+      const campanasTop: { campana_id: string; campana_nombre: string; gasto: number }[] = [];
+      gastoPorCampanaCelda.forEach((val, campanaId) => {
+        let g = 0;
+        for (let hh = i; hh <= j; hh++) {
+          g += val.celdas.get(celdaKey(d, hh)) ?? 0;
+        }
+        if (g > 0) campanasTop.push({ campana_id: campanaId, campana_nombre: val.nombre, gasto: g });
+      });
+      campanasTop.sort((a, b) => b.gasto - a.gasto);
+
+      franjas.push({
+        id: `franja-d${d}-h${i}-${j}`,
+        dia_semana: d,
+        dia_fin: d,
+        hora_inicio: i,
+        hora_fin: j,
+        etiqueta: labelFranjaDia(d, i, j),
+        gasto: parseFloat(gasto.toFixed(2)),
+        clics,
+        conversiones,
+        cpa: null,
+        gasto_desperdiciado: parseFloat(gastoDesperdiciado.toFixed(2)),
+        accion_recomendada: "pausar_trafico",
+        motivo: `Patrón histórico (${VENTANA_HISTORICO_DIAS}d): $${Math.round(gasto)} gastados sin conversiones (umbral CPA ref. ×2).`,
+        campanas_top: campanasTop.slice(0, 4),
+      });
+
+      i = j + 1;
+    }
+  }
+
+  const ahorro = franjas.reduce((acc, f) => acc + f.gasto_desperdiciado, 0);
+  const semanasHistorico = VENTANA_HISTORICO_DIAS / 7;
+  const ahorroMensual = parseFloat(((ahorro / semanasHistorico) * 4.33).toFixed(2));
+
+  let patronPrincipal: DaypartingPatronResumen | null = null;
+  if (franjas.length > 0) {
+    const top = [...franjas].sort((a, b) => b.gasto_desperdiciado - a.gasto_desperdiciado)[0];
+    const mismoRango = franjas.filter(
+      f => f.hora_inicio === top.hora_inicio && f.hora_fin === top.hora_fin
+    );
+    const diasUnicos = [...new Set(mismoRango.map(f => f.dia_semana))].sort((a, b) => a - b);
+    const diasLabels = diasUnicos.map(d => DIAS_LARGO[d]);
+    const diasTexto =
+      diasLabels.length === 1
+        ? diasLabels[0]
+        : diasLabels.length === 2
+          ? `${diasLabels[0]} y ${diasLabels[1]}`
+          : `${diasLabels.slice(0, -1).join(", ")} y ${diasLabels[diasLabels.length - 1]}`;
+
+    patronPrincipal = {
+      dias: diasLabels,
+      hora_inicio: top.hora_inicio,
+      hora_fin: top.hora_fin,
+      ahorro_mensual_estimado: ahorroMensual,
+      mensaje: `Patrón crítico detectado: Estás quemando presupuesto los ${diasTexto} de ${labelHora(top.hora_inicio)} a ${labelHora(top.hora_fin)}. Ahorro estimado: $${Math.round(ahorroMensual).toLocaleString()}/mes.`,
+    };
+  }
+
+  return {
+    ahorro_estimado: parseFloat(ahorro.toFixed(2)),
+    ahorro_mensual_estimado: ahorroMensual,
+    franjas_con_fuga: franjas.length,
+    horas_toxicas: horasToxicas,
+    horas_estrella: horasEstrella,
+    ventana_dias_historico: VENTANA_HISTORICO_DIAS,
+    heatmap,
+    franjas_problematicas: franjas,
+    patron_principal: patronPrincipal,
+    generado_en: new Date().toISOString(),
+    safe_apply: {
+      requiere_confirmacion: true,
+      undo_disponible: true,
+      nivel_riesgo: ahorro >= datos.gasto_total_cuenta * 0.08 ? "alto" : "medio",
+    },
   };
 }
 
@@ -1111,6 +1439,27 @@ export function generarEsqueletoAuditoria(datos: DatosAuditoriaInput) {
     });
   }
 
+  const dayparting = construirDayparting(
+    datos,
+    datos.horarios || [],
+    multConfianza
+  );
+
+  if (dayparting.franjas_con_fuga > 0) {
+    const tituloDayparting = `Dayparting: ${dayparting.franjas_con_fuga} franja${dayparting.franjas_con_fuga > 1 ? "s" : ""} con fuga horaria`;
+    const hallazgoDayparting: HallazgoMora = {
+      id_rastreo: "DAYPARTING_FUGAS_HORARIAS",
+      titulo: tituloDayparting,
+      descripcion_tecnica: "",
+      descripcion_simple: "",
+    };
+    if (dayparting.ahorro_estimado >= datos.gasto_total_cuenta * 0.08) {
+      hallazgosRojos.push(hallazgoDayparting);
+    } else {
+      hallazgosAmarillos.push(hallazgoDayparting);
+    }
+  }
+
   // PASO 4 — CALCULO DE HEALTH SCORE (modelo compuesto)
   const porcentajeDesperdiciado = datos.gasto_total_cuenta > 0 ? gastoDesperdiciadoTotal / datos.gasto_total_cuenta : 0;
   const healthScore = calcularHealthScoreCompuesto(
@@ -1152,7 +1501,7 @@ export function generarEsqueletoAuditoria(datos: DatosAuditoriaInput) {
       tokens_toxicos: destripador.tokens.filter(t => !t.protegido).map(t => t.token),
       tokens_estrella: [],
     },
-    dayparting: { horas_toxicas: [], horas_estrella: [] },
+    dayparting,
     canibalizacion: [],
     hallazgos: {
       graves_rojo: hallazgosRojos,

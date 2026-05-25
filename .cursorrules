@@ -11,7 +11,7 @@ El desarrollador **no tiene formación formal en programación**. Aprendió de f
 
 Esto significa que Cursor debe:
 - **Explicar en lenguaje simple** qué hace cada cambio antes de aplicarlo — sin asumir conocimiento técnico previo
-- **Cuando pida confirmación**, explicar brevemente en una línea qué es lo que va a hacer y por qué, como si se lo explicara a alguien que no programa. Ejemplo: en lugar de "¿aplico el patch al módulo singleton?", decir "¿quieres que cree un archivo que evita que Supabase se inicie dos veces al mismo tiempo?"
+- **Cuando pida confirmación**, explicar brevemente en una línea qué es lo que va a hacer y por qué, como si se lo explicara a alguien que no programa. Ejemplo: en lugar de "¿aplico el patch al módulo singleton?", decir "¿querés que cree un archivo que evita que Supabase se inicie dos veces al mismo tiempo?"
 - **Avisar claramente** cuando un cambio es de riesgo alto (toca archivos grandes, elimina código, modifica la base de datos)
 - **Nunca asumir** que el desarrollador sabe qué hace un comando de terminal antes de pedirle que lo corra
 - **Preferir soluciones simples** sobre soluciones elegantes cuando la diferencia de resultado es mínima
@@ -51,36 +51,37 @@ Siempre presentar las sugerencias como opciones, nunca aplicarlas sin confirmaci
 ```
 app/
 ├── page.tsx                          ← landing page únicamente (con redirect a /dashboard si hay sesión)
-├── (dashboard)/
-│   ├── layout.tsx                    ← shell autenticado: sidebar, header, toasts, drawer. Auth guard: redirige a / si no hay sesión
-│   ├── dashboard/
-│   │   ├── page.tsx                  ← wrapper de la vista general
-│   │   └── DashboardClient.tsx       ← lógica y UI del dashboard (componente cliente principal)
-│   ├── campanas/
-│   │   └── page.tsx                  ← gestor de campañas
-│   ├── reportes/
-│   │   └── page.tsx                  ← historial de auditorías + comparación + lectura individual
-│   ├── configuracion/
-│   │   └── page.tsx                  ← perfil y configuración de cuenta
-│   ├── facturacion/
-│   │   └── page.tsx                  ← gestión de suscripción con Lemon Squeezy
-│   └── sugerencias/
-│       └── page.tsx                  ← feedback de usuarios
+├── layout.tsx                        ← layout raíz
+├── globals.css
+├── dashboard/
+│   ├── page.tsx                      ← wrapper de la vista general
+│   └── DashboardClient.tsx           ← lógica y UI del dashboard (componente cliente principal)
+├── campanas/
+│   └── page.tsx                      ← gestor de campañas
+├── reportes/
+│   └── page.tsx                      ← historial de auditorías + comparación + lectura individual
+├── configuracion/
+│   └── page.tsx                      ← perfil y configuración de cuenta
+├── facturacion/
+│   └── page.tsx                      ← gestión de suscripción con Lemon Squeezy
+├── sugerencias/
+│   └── page.tsx                      ← feedback de usuarios
 ├── api/
-│   ├── audit/                        ← endpoint que llama a Gemini y procesa la auditoría
+│   ├── audit/
+│   │   └── route.ts                  ← endpoint que llama a Gemini con reintentos automáticos (3 intentos, 2s de espera)
 │   └── pdf/
 │       └── route.ts                  ← generación de PDF server-side con @react-pdf/renderer
 ├── components/
 │   ├── pdf/
 │   │   └── ReportePDF.tsx
-│   └── reportes/                     ← componentes de las sub-vistas de reportes
+│   └── reportes/
 ├── como-funciona/
 ├── faq/
 ├── precios/
 ├── privacidad/
 └── terminos/
 lib/
-├── googleAds.ts                      ← cliente Google Ads API (datos mock temporales)
+├── googleAds.ts                      ← cliente Google Ads API (datos mock temporales — 25 campañas, 90 términos, datos horarios)
 ├── motorMora.ts                      ← motor de procesamiento y análisis (lógica real)
 ├── campanasMetrics.ts                ← lógica de clasificación y métricas de campañas
 └── supabase/
@@ -139,33 +140,35 @@ contexts/
 - Autenticación OAuth con cuentas reales de Google Ads
 - Extracción de datos via Google Ads API (integración en desarrollo — actualmente con datos mock)
 - Write Access con botones de acción directa + red de seguridad (Deshacer/Undo)
+- Manejo de errores de Gemini con reintentos automáticos (3 intentos, 2s entre cada uno) y mensaje claro al usuario si falla
 
-### 2. Análisis y Finanzas
-- **Health Score**: Puntuación general de la cuenta
-- **Budget Pacing**: Control visual del ritmo de gasto mensual
-- **GPS del Presupuesto**: Recomendación matemática exacta de ajuste diario
-- **Matriz de Ganadores y Perdedores**: Cuadrantes visuales → Escalar / Apagar / Observar / Testear
-- **Estrategia Robin Hood**: Detecta campañas "basura" (CPA >20% sobre promedio de cuenta), calcula presupuesto diario desperdiciado, identifica campaña "estrella" (conversiones >15% más baratas que promedio), y sugiere exactamente cuánto transferir via banner salmón. El usuario confirma antes de ejecutar.
-- **Action Plan**: Plan de acción con tareas priorizadas
-- **Campaign Performance Matrix**: Análisis visual de rendimiento por campaña
-- **Advanced Analysis**: Análisis profundo con Gemini
+### 2. Dashboard
+- **Estado vacío**: cuando no hay auditorías, muestra mensaje de bienvenida con botón para ejecutar la primera auditoría
+- **Health Score**: puntuación general de la cuenta con fecha/hora de última auditoría y badge de recomendación (verde si pasaron 3-6 días, naranja si pasaron 7+ días)
+- **Quick Wins del Día**: las 3 acciones críticas de mayor impacto económico directo
+- **Evolución del Score**: gráfico de las últimas 8 auditorías
 
-### 3. Motor de IA (Gemini)
-- **Destripador de Búsquedas (N-Gramos)**: Rendimiento por palabras individuales dentro de los términos de búsqueda
-- **Detector de Fugas por Franja Horaria (Dayparting)**: Horas del día con gasto sin retorno
-- **Razonamiento Lógico-Matemático**: System prompt diseñado para atar sugerencias a umbrales estrictos y datos reales
-- **Traductor de Métricas IA**: Explica la cuenta en lenguaje de negocios
-- **Monitor de Impacto**: Gráfico evolutivo que correlaciona cambios realizados con mejora del Health Score
+### 3. Análisis y Finanzas
+- **Budget Pacing**: control visual del ritmo de gasto mensual por campaña, con GPS de inversión (gasto diario recomendado), score por campaña, y botón de acción para acelerar/frenar inversión
+- **Matriz de Rendimiento**: clasifica campañas en 4 cuadrantes (Escalar, Dar Tiempo, Revisar, Frenar) con impacto económico estimado por categoría
+- **Estrategia Robin Hood**: vive dentro de la Matriz de Rendimiento. Detecta campañas "basura" (CPA >20% sobre promedio), calcula presupuesto rescatable, identifica campaña "estrella" (conversiones >15% más baratas), y muestra exactamente cuánto transferir con preview antes/después por campaña. Incluye "Contrato de Seguridad" — verifica presupuestos antes de aplicar y habilita Undo.
+
+### 4. Motor de IA (Gemini)
+- **Destripador de Búsquedas (N-Gramos)**: panel lateral con mapa de términos categorizados por intención (gratuita/educativa, baja calidad, competencia, etc.), selección múltiple, preview de negativos antes de aplicar, y botones Copiar / Aplicar en Google Ads
+- **Detector de Fugas por Franja Horaria (Dayparting)**: panel lateral con barra de calor horizontal de 24 horas (verde=bueno, rojo=fuga, amarillo=mejorable, gris=sin datos), lista de franjas problemáticas con gasto y conversiones, botones para pausar tráfico o reducir puja con confirmación
+- **Razonamiento Lógico-Matemático**: system prompt con umbrales estrictos atados a datos reales
+- **Traductor de Métricas IA**: explica la cuenta en lenguaje de negocios
+- **Monitor de Impacto**: gráfico evolutivo que correlaciona cambios con mejora del Health Score
 
 ---
 
 ## Planes de Suscripción
 
-| Plan | Precio | Target |
-|------|--------|--------|
-| Starter | Gratis | Prueba |
-| Individual | $19/mes | Anunciantes individuales |
-| Agency | $49/mes | Agencias con múltiples cuentas |
+| Plan | Precio | Condiciones |
+|------|--------|-------------|
+| Único | $29/mes | Trial de 14 días sin tarjeta de crédito |
+
+> Plan Agency (múltiples cuentas) se agregará cuando haya suficientes usuarios pagos para validar el modelo.
 
 ---
 
@@ -222,5 +225,4 @@ contexts/
 - Sugerir Stripe u otros proveedores de pagos — el proveedor es Lemon Squeezy
 - Llamar APIs externas (Gemini, Google Ads) desde código cliente
 - Llamar a `createClient` de Supabase fuera de `lib/supabase/browser.ts` en código cliente
-- Tocar `app/page.tsx` sin instrucción explícita — contiene la landing page en producción
 - Usar jerga técnica al pedir confirmación sin explicar primero qué hace el cambio en términos simples

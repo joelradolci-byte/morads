@@ -11,7 +11,12 @@ import {
   Upload, Copy, Check, TrendingUp as TrendUp, ChevronRight, Folder, LayoutDashboard, X
 } from 'lucide-react';
 import { extraerDatosGoogle, construirDatosAuditoria } from '../../lib/googleAds'; 
-import { calcularPlanRobinHood, calcularScoreCampana, type DestripadorReporte } from '../../lib/motorMora';
+import {
+  calcularPlanRobinHood,
+  calcularScoreCampana,
+  type DestripadorReporte,
+  type DaypartingReporte,
+} from '../../lib/motorMora';
 import {
   loadDestripadorEstado,
   marcarTerminosCopiados,
@@ -29,6 +34,12 @@ import {
 } from '../../lib/safeApply';
 import { supabase } from "../../lib/supabase/browser";
 import DestripadorPanel from './DestripadorPanel';
+import DaypartingPanel from './DaypartingPanel';
+import {
+  loadDaypartingEstado,
+  marcarFranjasAplicadas,
+  type DaypartingEstadoPersistido,
+} from '../../lib/daypartingEstado';
 
 export type AuditorVista = "dashboard" | "nueva" | "historial" | "perfil" | "feedback" | "reporte_lectura" | "facturacion" | "detalle_hallazgo" | "campañas";
 
@@ -40,6 +51,59 @@ const vistaPorRuta: Record<string, AuditorVista> = {
   "/facturacion": "facturacion",
   "/sugerencias": "feedback",
 };
+
+type BadgeAuditoria = "recomendado" | "desactualizada";
+
+function diasCalendarioDesde(iso: string): number {
+  const fecha = new Date(iso);
+  const hoy = new Date();
+  const inicioFecha = new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate());
+  const inicioHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+  return Math.floor((inicioHoy.getTime() - inicioFecha.getTime()) / (1000 * 60 * 60 * 24));
+}
+
+function formatearHoraLocal(fecha: Date): string {
+  return fecha.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false });
+}
+
+function formatearUltimaAuditoria(createdAt: string | undefined | null): string | null {
+  if (!createdAt) return null;
+  const fecha = new Date(createdAt);
+  if (Number.isNaN(fecha.getTime())) return null;
+  const dias = diasCalendarioDesde(createdAt);
+  if (dias === 0) return `hoy a las ${formatearHoraLocal(fecha)}`;
+  if (dias === 1) return "hace 1 día";
+  return `hace ${dias} días`;
+}
+
+function getBadgeAuditoria(createdAt: string | undefined | null): BadgeAuditoria | null {
+  if (!createdAt) return null;
+  const dias = diasCalendarioDesde(createdAt);
+  if (dias < 3) return null;
+  if (dias <= 6) return "recomendado";
+  return "desactualizada";
+}
+
+/** Texto breve por Quick Win: solo la descripción del hallazgo, sin fallback a `descripcion`. */
+function textoQuickWin(
+  hallazgo: {
+    descripcion_simple?: string;
+    descripcion_tecnica?: string;
+  },
+  modoSimple: boolean
+): string {
+  const raw = modoSimple ? hallazgo.descripcion_simple : hallazgo.descripcion_tecnica;
+  const texto = typeof raw === "string" ? raw.trim() : "";
+  if (!texto) {
+    return modoSimple
+      ? "Acción prioritaria detectada por Mora en esta auditoría."
+      : "Hallazgo priorizado por impacto económico en la cuenta.";
+  }
+  if (texto.length > 360) {
+    return `${texto.slice(0, 357).trimEnd()}…`;
+  }
+  return texto;
+}
 
 function colorClassesPorTag(tag: string) {
   switch (tag) {
@@ -594,6 +658,7 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
   const [nombreCuenta, setNombreCuenta] = useState("");
   const [reporte, setReporte] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [errorAuditoria, setErrorAuditoria] = useState<string | null>(null);
   const [copiedKw, setCopiedKw] = useState<string | null>(null);
   const [idioma, setIdioma] = useState<"es" | "en">("es");
   const [quickWinsCompletados, setQuickWinsCompletados] = useState<string[]>([]);
@@ -638,9 +703,13 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
   }>({ show: false, status: "success", timeLeft: 10, message: "" });
   const [matrizAbierta, setMatrizAbierta] = useState<MatrizBucketId | null>(null);
   const [destripadorAbierto, setDestripadorAbierto] = useState(false);
+  const [daypartingAbierto, setDaypartingAbierto] = useState(false);
   const [destripadorEstado, setDestripadorEstado] = useState<DestripadorEstadoPersistido>({
     mitigados: {},
     copiados: {},
+  });
+  const [daypartingEstado, setDaypartingEstado] = useState<DaypartingEstadoPersistido>({
+    aplicados: {},
   });
 
   const navegar = (nextVista: AuditorVista, path: string) => {
@@ -714,13 +783,17 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
     });
   };
 
+  const MENSAJE_ERROR_AUDITORIA =
+    "El análisis no está disponible en este momento. Intentá de nuevo en unos minutos.";
+
   const ejecutarAuditoriaConIA = async () => {
     setLoading(true);
+    setErrorAuditoria(null);
     try {
-      console.log("1. Extrayendo métricas del .lib...");
+      console.log("Extrayendo métricas...");
       const datosParaAuditar = await construirDatosAuditoria();
 
-      console.log("2. Enviando datos a Gemini 3.1 Flash...");
+      console.log("Enviando datos a Mora...");
       const res = await fetch('/api/audit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -730,11 +803,21 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
         })
       });
 
-      if (!res.ok) throw new Error("Error en la respuesta del servidor de Mora");
+      const body = await res.json().catch(() => ({}));
 
-      const parsedReporte = await res.json();
+      if (!res.ok) {
+        const mensaje =
+          typeof body?.message === "string"
+            ? body.message
+            : MENSAJE_ERROR_AUDITORIA;
+        setErrorAuditoria(mensaje);
+        return;
+      }
+
+      const parsedReporte = body;
       setReporte(parsedReporte);
       setQuickWinsCompletados([]);
+      console.log("Completado!");
 
       const userId = session?.user?.id;
       if (userId) {
@@ -749,7 +832,7 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
 
     } catch (error) {
       console.error("Fallo crítico en la auditoría:", error);
-      alert("Hubo un problemita al procesar los datos con la IA. Revisá la consola.");
+      setErrorAuditoria(MENSAJE_ERROR_AUDITORIA);
     } finally {
       setLoading(false);
     }
@@ -769,9 +852,11 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
     const auditId = ultimaAuditoria?.id;
     if (auditId == null) {
       setDestripadorEstado({ mitigados: {}, copiados: {} });
+      setDaypartingEstado({ aplicados: {} });
       return;
     }
     setDestripadorEstado(loadDestripadorEstado(auditId));
+    setDaypartingEstado(loadDaypartingEstado(auditId));
   }, [ultimaAuditoria?.id]);
 
   const mitigadosKeys = useMemo(
@@ -782,17 +867,41 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
     () => new Set(Object.keys(destripadorEstado.copiados)),
     [destripadorEstado.copiados]
   );
+  const daypartingAplicadosIds = useMemo(
+    () => new Set(Object.keys(daypartingEstado.aplicados)),
+    [daypartingEstado.aplicados]
+  );
 
-  const quickWinsDelDia = (() => {
+  const quickWinsDelDia = useMemo(() => {
     if (!ultimaAuditoria?.reporte_json?.hallazgos) return [];
-    const rojos = ultimaAuditoria.reporte_json.hallazgos.graves_rojo || [];
-    const amarillos = ultimaAuditoria.reporte_json.hallazgos.debiles_amarillo || [];
+    const rojos = Array.isArray(ultimaAuditoria.reporte_json.hallazgos.graves_rojo)
+      ? ultimaAuditoria.reporte_json.hallazgos.graves_rojo
+      : [];
+    const amarillos = Array.isArray(ultimaAuditoria.reporte_json.hallazgos.debiles_amarillo)
+      ? ultimaAuditoria.reporte_json.hallazgos.debiles_amarillo
+      : [];
     const unificados = [
-      ...rojos.map((r: any) => ({ ...r, tipo: 'critico' })),
-      ...amarillos.map((a: any) => ({ ...a, tipo: 'mejora' }))
+      ...rojos
+        .filter((r: { id_rastreo?: string; titulo?: string }) => r?.id_rastreo && r?.titulo)
+        .map((r: { id_rastreo: string; titulo: string; descripcion_simple?: string; descripcion_tecnica?: string }) => ({
+          id_rastreo: r.id_rastreo,
+          titulo: r.titulo,
+          descripcion_simple: r.descripcion_simple,
+          descripcion_tecnica: r.descripcion_tecnica,
+          tipo: "critico" as const,
+        })),
+      ...amarillos
+        .filter((a: { id_rastreo?: string; titulo?: string }) => a?.id_rastreo && a?.titulo)
+        .map((a: { id_rastreo: string; titulo: string; descripcion_simple?: string; descripcion_tecnica?: string }) => ({
+          id_rastreo: a.id_rastreo,
+          titulo: a.titulo,
+          descripcion_simple: a.descripcion_simple,
+          descripcion_tecnica: a.descripcion_tecnica,
+          tipo: "mejora" as const,
+        })),
     ];
     return unificados.slice(0, 3);
-  })();
+  }, [ultimaAuditoria?.reporte_json?.hallazgos]);
 
   useEffect(() => {
     if (!ultimaAuditoria?.reporte_json?.hallazgos?.graves_rojo) return;
@@ -1127,8 +1236,12 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
     const userId = session?.user?.id;
     if (!userId) return;
     setCargandoHistorial(true);
-    const { data: registros, error } = await supabase.from('historial_auditorias').select('*').eq('user_id', userId);
-    if (!error && registros) setHistorial(registros.reverse()); 
+    const { data: registros, error } = await supabase
+      .from('historial_auditorias')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+    if (!error && registros) setHistorial(registros);
     setCargandoHistorial(false);
   };
 
@@ -1207,6 +1320,10 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
   };
 
   const abrirDetalleHallazgo = (hallazgo: any, tipo: "critico" | "mejora", reporteData: any) => {
+    if (hallazgo?.id_rastreo === "DAYPARTING_FUGAS_HORARIAS" && reporteData?.dayparting) {
+      setDaypartingAbierto(true);
+      return;
+    }
     if (hallazgo?.id_rastreo === "GENERADOR_NEGATIVOS_URGENTE" && reporteData?.destripador) {
       setDestripadorAbierto(true);
       return;
@@ -1271,17 +1388,47 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
   const scoreHistorico = historial.slice(0, 8).reverse().map((h: any) => h.score);
   const fechasHistorico = historial.slice(0, 8).reverse().map((h: any) => h.created_at || '');
 
-  const diasDesdeUltimaAuditoria = () => {
-    if (!ultimaAuditoria?.created_at) return null;
-    const diff = Date.now() - new Date(ultimaAuditoria.created_at).getTime();
-    const dias = Math.floor(diff / (1000 * 60 * 60 * 24));
-    if (dias === 0) return "hoy";
-    if (dias === 1) return "hace 1 día";
-    return `hace ${dias} días`;
-  };
+  const textoUltimaAuditoria = useMemo(
+    () => formatearUltimaAuditoria(ultimaAuditoria?.created_at),
+    [ultimaAuditoria?.created_at]
+  );
+  const badgeUltimaAuditoria = useMemo(
+    () => getBadgeAuditoria(ultimaAuditoria?.created_at),
+    [ultimaAuditoria?.created_at]
+  );
 
   const destripadorReporte: DestripadorReporte | null = ultimaAuditoria?.reporte_json?.destripador || null;
   const nGramaLegacy = ultimaAuditoria?.reporte_json?.n_gramas || null;
+
+  const daypartingReporte: DaypartingReporte | null =
+    ultimaAuditoria?.reporte_json?.dayparting?.heatmap
+      ? (ultimaAuditoria.reporte_json.dayparting as DaypartingReporte)
+      : null;
+
+  const franjasDaypartingPendientes = useMemo(() => {
+    if (!daypartingReporte) return 0;
+    return daypartingReporte.franjas_problematicas.filter(
+      f => !daypartingAplicadosIds.has(f.id)
+    ).length;
+  }, [daypartingReporte, daypartingAplicadosIds]);
+
+  const ahorroDaypartingPendiente = useMemo(() => {
+    if (!daypartingReporte) return 0;
+    return Math.round(
+      daypartingReporte.franjas_problematicas
+        .filter(f => !daypartingAplicadosIds.has(f.id))
+        .reduce((acc, f) => acc + f.gasto_desperdiciado, 0)
+    );
+  }, [daypartingReporte, daypartingAplicadosIds]);
+
+  const ahorroMensualDayparting = useMemo(() => {
+    if (!daypartingReporte) return 0;
+    return Math.round(
+      daypartingReporte.ahorro_mensual_estimado ??
+        daypartingReporte.patron_principal?.ahorro_mensual_estimado ??
+        ahorroDaypartingPendiente
+    );
+  }, [daypartingReporte, ahorroDaypartingPendiente]);
 
   const terminosPendientesDestripador = useMemo(() => {
     if (!destripadorReporte) return [];
@@ -1337,6 +1484,13 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
     const auditId = ultimaAuditoria?.id;
     if (auditId == null) return;
     setDestripadorEstado(marcarTerminosCopiados(auditId, keys));
+  };
+
+  const handleDaypartingAplicar = (franjaIds: string[], planId?: string) => {
+    const auditId = ultimaAuditoria?.id;
+    if (auditId == null) return;
+    setDaypartingEstado(marcarFranjasAplicadas(auditId, franjaIds, planId));
+    setToastState({ show: true, status: "success", timeLeft: 5 });
   };
 
   if (status === "loading") return (
@@ -1846,7 +2000,57 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
               {/* DASHBOARD INDIVIDUAL */}
               {vista === "dashboard" && (
                 <div className="animate-fade-custom print:hidden flex flex-col gap-6 w-full mx-auto">
-                  
+                  {errorAuditoria && (
+                    <div
+                      role="alert"
+                      className="mt-6 rounded-2xl border border-[#D4A843]/40 bg-[#D4A843]/10 p-5 flex flex-col sm:flex-row sm:items-center gap-4"
+                    >
+                      <div className="flex items-start gap-3 flex-1 min-w-0">
+                        <AlertTriangle size={22} className="text-[#D4A843] shrink-0 mt-0.5" />
+                        <p className="text-sm text-[#F5F0EB] font-medium leading-relaxed">
+                          {errorAuditoria}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={ejecutarAuditoriaConIA}
+                        disabled={loading}
+                        className="shrink-0 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-[#F3C3B2] text-[#0a0a0a] hover:bg-[#eab3a1] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {loading ? "Reintentando…" : "Reintentar"}
+                      </button>
+                    </div>
+                  )}
+                  {cargandoHistorial ? (
+                    <div className="flex flex-col items-center justify-center py-32 gap-4 mt-6">
+                      <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#F3C3B2]" />
+                      <p className="text-[#A8A29E] text-sm font-bold uppercase tracking-widest">
+                        Cargando historial…
+                      </p>
+                    </div>
+                  ) : !ultimaAuditoria ? (
+                    <div className="flex flex-col items-center justify-center text-center min-h-[min(70vh,640px)] px-8 py-20 mt-6 rounded-3xl border border-[#44403C] border-t-white/10 bg-gradient-to-b from-[#292524] to-[#1C1917] shadow-2xl">
+                      <div className="w-16 h-16 rounded-2xl bg-[#F3C3B2]/15 border border-[#F3C3B2]/30 flex items-center justify-center">
+                        <Activity size={28} className="text-[#F3C3B2]" />
+                      </div>
+                      <h2 className="text-2xl md:text-3xl font-black text-[#F5F0EB] mt-8 max-w-xl tracking-tight">
+                        Mora está lista para analizar tu cuenta
+                      </h2>
+                      <p className="text-[#A8A29E] text-sm md:text-base mt-4 max-w-lg font-medium leading-relaxed">
+                        Ejecutá tu primera auditoría para ver el estado real de tus campañas y las
+                        oportunidades de mejora.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={ejecutarAuditoriaConIA}
+                        disabled={loading}
+                        className="mt-10 px-8 py-4 rounded-2xl text-sm uppercase tracking-widest font-black bg-[#F3C3B2] text-[#0a0a0a] hover:bg-[#eab3a1] transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {loading ? "MORA ESTÁ ANALIZANDO…" : "EJECUTAR AUDITORÍA PRO"}
+                      </button>
+                    </div>
+                  ) : (
+                  <>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-6">
                      
                     {/* 1. Salud de la Cuenta */}
@@ -1854,12 +2058,29 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
                       <div className="flex flex-col h-full justify-between w-full relative z-10">
                         <p className="text-[10px] font-black text-[#A8A29E] uppercase tracking-widest flex items-center gap-2"><Activity size={14} className="text-[#F3C3B2]"/> Salud de la Cuenta</p>
                         
-                        <div className="flex flex-col items-center gap-4 mt-2">
-                          {ultimaAuditoria && (
-                            <ScoreRing score={ultimaAuditoria.score} size={120} />
+                        <div className="flex flex-col items-center gap-3 mt-2 w-full">
+                          <ScoreRing score={ultimaAuditoria.score} size={120} />
+
+                          {textoUltimaAuditoria && (
+                            <p className="text-[10px] text-[#A8A29E] font-bold text-center leading-relaxed px-1">
+                              Última auditoría:{" "}
+                              <span className="text-[#F5F0EB]">{textoUltimaAuditoria}</span>
+                            </p>
+                          )}
+
+                          {badgeUltimaAuditoria === "recomendado" && (
+                            <span className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border border-[#10B981]/40 bg-[#10B981]/10 text-[#10B981] text-center">
+                              Recomendado auditar
+                            </span>
+                          )}
+                          {badgeUltimaAuditoria === "desactualizada" && (
+                            <span className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border border-[#D4A843]/40 bg-[#D4A843]/10 text-[#D4A843] text-center">
+                              Auditoría desactualizada
+                            </span>
                           )}
 
                           <button 
+                            type="button"
                             onClick={ejecutarAuditoriaConIA} 
                             disabled={loading}
                             className="w-full text-[10px] uppercase tracking-widest font-black border border-[#44403C] bg-[#F3C3B2]/10 text-[#F3C3B2] hover:bg-[#F3C3B2] hover:text-[#0a0a0a] transition-colors px-5 py-2.5 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
@@ -1926,18 +2147,45 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
                        );
                      })()}
 
-                     {/* 4. Oportunidades */}
-                     <div className="bg-gradient-to-b from-[#292524] to-[#1C1917] border border-[#44403C] border-t-white/10 shadow-2xl rounded-3xl p-6 flex flex-col justify-between min-h-[160px] relative overflow-hidden group">
-                        <div className="absolute top-5 right-5 px-3 py-1.5 rounded-lg bg-[#D4A843]/10 border border-[#D4A843]/20 text-[#D4A843] text-[9px] font-black uppercase tracking-widest">Atención</div>
+                     {/* 4. Dayparting */}
+                     <div
+                        onClick={() => {
+                          if (daypartingReporte) setDaypartingAbierto(true);
+                        }}
+                        className={`bg-gradient-to-b from-[#292524] to-[#1C1917] border border-[#44403C] border-t-white/10 shadow-2xl rounded-3xl p-6 flex flex-col justify-between min-h-[160px] relative overflow-hidden group transition-all ${daypartingReporte ? "cursor-pointer hover:border-[#D4A843]/50" : "opacity-70 grayscale"}`}
+                     >
+                        <div className="absolute top-5 right-5 px-3 py-1.5 rounded-lg bg-[#D4A843]/10 border border-[#D4A843]/20 text-[#D4A843] text-[9px] font-black uppercase tracking-widest">Dayparting</div>
                         <div className="w-12 h-12 rounded-2xl bg-[#D4A843]/15 flex items-center justify-center mb-3 border border-[#D4A843]/30 shadow-inner">
-                          <Zap size={22} className="text-[#D4A843]" />
+                          <Clock size={22} className="text-[#D4A843]" />
                         </div>
-                        <div>
-                          <div className="flex items-baseline gap-2">
-                            <span className="text-5xl font-black text-white tracking-tighter leading-none">{oportunidadesIndividuales}</span>
-                            <span className="text-xs font-black text-[#A8A29E] uppercase tracking-widest">Mejoras</span>
+                        {daypartingReporte ? (
+                          <div>
+                            <div className="flex items-baseline gap-2">
+                              <span
+                                className={`text-5xl font-black tracking-tighter leading-none ${
+                                  franjasDaypartingPendientes > 0 ? "text-[#E07070]" : "text-[#D4A843]"
+                                }`}
+                              >
+                                {franjasDaypartingPendientes}
+                              </span>
+                              <span className="text-xs font-black text-[#A8A29E] uppercase tracking-widest">
+                                {franjasDaypartingPendientes === 1 ? "Patrón crítico" : "Patrones críticos"}
+                              </span>
+                            </div>
+                            <p className="text-[10px] text-[#A8A29E] mt-2 font-bold uppercase tracking-widest">
+                              ${ahorroMensualDayparting.toLocaleString()} recuperable/mes
+                            </p>
+                            {daypartingReporte.patron_principal && (
+                              <p className="text-[9px] text-[#A8A29E] mt-1.5 font-medium line-clamp-2 leading-snug opacity-90">
+                                {daypartingReporte.patron_principal.dias.join(" · ")} ·{" "}
+                                {String(daypartingReporte.patron_principal.hora_inicio).padStart(2, "0")}:00–
+                                {String(daypartingReporte.patron_principal.hora_fin).padStart(2, "0")}:00
+                              </p>
+                            )}
                           </div>
-                        </div>
+                        ) : (
+                          <p className="text-[10px] text-[#A8A29E] font-bold uppercase tracking-widest">Corré una auditoría</p>
+                        )}
                      </div>
                      
                   </div>
@@ -1997,7 +2245,7 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
                                       {win.titulo}
                                     </h4>
                                     <p className="text-[11px] text-[#A8A29E] mt-2 font-medium line-clamp-2 leading-relaxed">
-                                      {modoSimple ? (win.descripcion_simple || win.descripcion) : (win.descripcion_tecnica || win.descripcion)}
+                                      {textoQuickWin(win, modoSimple)}
                                     </p>
                                   </div>
 
@@ -2014,6 +2262,8 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
                                         onClick={() => {
                                           if (win.id_rastreo === "GENERADOR_NEGATIVOS_URGENTE" && destripadorReporte) {
                                             setDestripadorAbierto(true);
+                                          } else if (win.id_rastreo === "DAYPARTING_FUGAS_HORARIAS" && daypartingReporte) {
+                                            setDaypartingAbierto(true);
                                           } else {
                                             setQuickWinsCompletados([...quickWinsCompletados, winId]);
                                             setToastState({ show: true, status: 'success', timeLeft: 5 });
@@ -2021,7 +2271,11 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
                                         }}
                                         className="bg-[#F3C3B2] hover:bg-[#eab3a1] text-[#0a0a0a] font-black text-[10px] uppercase tracking-widest px-4 py-2 rounded-xl transition-all shadow-sm"
                                       >
-                                        {win.id_rastreo === "GENERADOR_NEGATIVOS_URGENTE" ? "Abrir Destripador" : "Corregir Ahora"}
+                                        {win.id_rastreo === "GENERADOR_NEGATIVOS_URGENTE"
+                                          ? "Abrir Destripador"
+                                          : win.id_rastreo === "DAYPARTING_FUGAS_HORARIAS"
+                                            ? "Abrir Dayparting"
+                                            : "Corregir Ahora"}
                                       </button>
                                     ) : (
                                       <span className="text-[#10B981] flex items-center gap-1 text-[10px] font-black uppercase tracking-widest">
@@ -2512,6 +2766,8 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
                       </div>
                     );
                   })()}
+                  </>
+                  )}
                 </div>
               )}
 
@@ -2525,6 +2781,15 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
                 onClose={() => setDestripadorAbierto(false)}
                 onMitigar={handleDestripadorMitigar}
                 onCopiar={handleDestripadorCopiar}
+              />
+
+              <DaypartingPanel
+                dayparting={daypartingReporte}
+                open={daypartingAbierto}
+                auditId={ultimaAuditoria?.id ?? null}
+                aplicadosIds={daypartingAplicadosIds}
+                onClose={() => setDaypartingAbierto(false)}
+                onAplicar={handleDaypartingAplicar}
               />
 
               {/* SIDE DRAWER (PANEL LATERAL) */}
