@@ -16,6 +16,7 @@ import {
   calcularScoreCampana,
   type DestripadorReporte,
   type DaypartingReporte,
+  type SimuladorPresupuestoReporte,
 } from '../../lib/motorMora';
 import {
   loadDestripadorEstado,
@@ -35,6 +36,22 @@ import {
 import { supabase } from "../../lib/supabase/browser";
 import DestripadorPanel from './DestripadorPanel';
 import DaypartingPanel from './DaypartingPanel';
+import PresupuestoSimulatorPanel from './PresupuestoSimulatorPanel';
+import AdGeneratorPanel, { type AdGeneratorContext } from './AdGeneratorPanel';
+import ResumenFacilPanel, { type ItemResumenHallazgo } from './ResumenFacilPanel';
+import {
+  getPreferenciaExplicacion,
+  setPreferenciaExplicacion,
+  isOnboardingExplicacionDone,
+  type PreferenciaExplicacion,
+} from '../../lib/preferenciasMora';
+import {
+  resolverAccionHallazgo,
+  INTRO_PANEL_DESDE_RESUMEN,
+  textoHallazgoParaUsuario,
+  type AccionResumenPanel,
+} from '../../lib/resumenFacil';
+import GlosarioTip from '../components/GlosarioTip';
 import {
   loadDaypartingEstado,
   marcarFranjasAplicadas,
@@ -90,15 +107,9 @@ function textoQuickWin(
     descripcion_simple?: string;
     descripcion_tecnica?: string;
   },
-  modoSimple: boolean
+  explicacionClara: boolean
 ): string {
-  const raw = modoSimple ? hallazgo.descripcion_simple : hallazgo.descripcion_tecnica;
-  const texto = typeof raw === "string" ? raw.trim() : "";
-  if (!texto) {
-    return modoSimple
-      ? "Acción prioritaria detectada por Mora en esta auditoría."
-      : "Hallazgo priorizado por impacto económico en la cuenta.";
-  }
+  const texto = textoHallazgoParaUsuario(hallazgo, explicacionClara);
   if (texto.length > 360) {
     return `${texto.slice(0, 357).trimEnd()}…`;
   }
@@ -670,7 +681,10 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
   const [cargandoHistorial, setCargandoHistorial] = useState(false);
   const [comparacionIds, setComparacionIds] = useState<number[]>([]);
   const [vistaComparacion, setVistaComparacion] = useState(false);
-  const [modoSimple, setModoSimple] = useState(false);
+  const [explicacionClara, setExplicacionClara] = useState(false);
+  const [resumenFacilAbierto, setResumenFacilAbierto] = useState(false);
+  const [mostrarOnboardingExplicacion, setMostrarOnboardingExplicacion] = useState(false);
+  const [panelIntroResumen, setPanelIntroResumen] = useState<AccionResumenPanel | null>(null);
   const [filtroEstado, setFiltroEstado] = useState<"todos" | "critico" | "atencion" | "optimo">("todos");
   const [busqueda, setBusqueda] = useState(""); 
   const [perfil, setPerfil] = useState<any>(null);
@@ -704,6 +718,8 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
   const [matrizAbierta, setMatrizAbierta] = useState<MatrizBucketId | null>(null);
   const [destripadorAbierto, setDestripadorAbierto] = useState(false);
   const [daypartingAbierto, setDaypartingAbierto] = useState(false);
+  const [simuladorAbierto, setSimuladorAbierto] = useState(false);
+  const [adGeneratorContext, setAdGeneratorContext] = useState<AdGeneratorContext | null>(null);
   const [destripadorEstado, setDestripadorEstado] = useState<DestripadorEstadoPersistido>({
     mitigados: {},
     copiados: {},
@@ -769,6 +785,10 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
     return () => subscription.unsubscribe();
   }, []);
 
+  useEffect(() => {
+    setExplicacionClara(getPreferenciaExplicacion() === "clara");
+  }, []);
+
   const iniciarSesion = async () => {
     await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -828,6 +848,12 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
             nombre_cuenta: nombreCuenta || "Cuenta Prueba" 
         }]);
         cargarHistorial(); 
+      }
+
+      if (!isOnboardingExplicacionDone()) {
+        setMostrarOnboardingExplicacion(true);
+      } else if (getPreferenciaExplicacion() === "clara") {
+        setResumenFacilAbierto(true);
       }
 
     } catch (error) {
@@ -1036,6 +1062,29 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
                     </div>
                     <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded ${colorClasses.bg} ${colorClasses.text}`}>{tag}</span>
                   </div>
+                  {(tag === "ESTRELLA" || tag === "POTENCIAL") && (
+                    <button
+                      type="button"
+                      onClick={e => {
+                        e.stopPropagation();
+                        const reporte = ultimaAuditoria?.reporte_json;
+                        abrirGeneradorAnuncios({
+                          tipo_negocio: reporte?.perfil_aplicado?.tipo_negocio || "ecommerce",
+                          tono: "directo",
+                          objetivo: "escalar",
+                          campana_nombre: c.nombre,
+                          hallazgo_titulo: `Escalar campaña ${tag}: ${c.nombre}`,
+                          hallazgo_descripcion: penalizacion,
+                          angulo_comercial: `CPA $${cpaActual.toFixed(2)} vs objetivo $${cpaObjetivo.toFixed(2)}.`,
+                          keywords_buenas: [],
+                          hallazgo_id: `campana_${c.id}`,
+                        });
+                      }}
+                      className="w-full mt-2 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest border border-[#F3C3B2]/30 text-[#F3C3B2] hover:bg-[#F3C3B2]/10 flex items-center justify-center gap-1"
+                    >
+                      <Sparkles size={12} /> Crear variantes
+                    </button>
+                  )}
                 </div>
               </div>
             )})}
@@ -1319,6 +1368,50 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
     setEnviandoFeedback(false);
   };
 
+  const abrirGeneradorAnuncios = (ctx: AdGeneratorContext) => {
+    setAdGeneratorContext(ctx);
+  };
+
+  const cerrarPanelesHerramientas = () => {
+    setPanelIntroResumen(null);
+  };
+
+  const confirmarPreferenciaExplicacion = (pref: PreferenciaExplicacion) => {
+    setPreferenciaExplicacion(pref);
+    setExplicacionClara(pref === "clara");
+    setMostrarOnboardingExplicacion(false);
+    if (pref === "clara") {
+      setResumenFacilAbierto(true);
+    }
+  };
+
+  const handleResolverDesdeResumen = (item: ItemResumenHallazgo) => {
+    setResumenFacilAbierto(false);
+    const accion = resolverAccionHallazgo(item.id_rastreo);
+    setPanelIntroResumen(accion);
+    const reporte = ultimaAuditoria?.reporte_json;
+
+    switch (accion) {
+      case "destripador":
+        if (destripadorReporte) setDestripadorAbierto(true);
+        else abrirDetalleHallazgo(item, item.tipo, reporte);
+        break;
+      case "dayparting":
+        if (daypartingReporte) setDaypartingAbierto(true);
+        else abrirDetalleHallazgo(item, item.tipo, reporte);
+        break;
+      case "simulador":
+        if (simuladorReporte) setSimuladorAbierto(true);
+        else abrirDetalleHallazgo(item, item.tipo, reporte);
+        break;
+      case "robin_hood":
+        document.getElementById("robin-hood-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
+        break;
+      default:
+        abrirDetalleHallazgo(item, item.tipo, reporte);
+    }
+  };
+
   const abrirDetalleHallazgo = (hallazgo: any, tipo: "critico" | "mejora", reporteData: any) => {
     if (hallazgo?.id_rastreo === "DAYPARTING_FUGAS_HORARIAS" && reporteData?.dayparting) {
       setDaypartingAbierto(true);
@@ -1328,14 +1421,20 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
       setDestripadorAbierto(true);
       return;
     }
+    if (hallazgo?.id_rastreo === "SIMULADOR_PRESUPUESTO" && reporteData?.simulador_presupuesto) {
+      setSimuladorAbierto(true);
+      return;
+    }
     const keywords_prob = reporteData?.keywords_problematicas || [];
     const keywords_sug = reporteData?.keywords_sugeridas || [];
     const textoRazonamiento = hallazgo.razonamiento || hallazgo.pitch_vendedor || reporteData?.pitch_vendedor || "Esta optimización corta la hemorragia de presupuesto y redirige la inversión hacia tráfico con verdadera intención de compra.";
     setDetalleHallazgo({
-      titulo: hallazgo.titulo || "Oportunidad detectada", tipo, problema_detalle: hallazgo.problema_detalle || hallazgo.descripcion || "Se detectó una ineficiencia técnica en la configuración de la campaña.",
+      id_rastreo: hallazgo.id_rastreo,
+      titulo: hallazgo.titulo || "Oportunidad detectada", tipo, problema_detalle: hallazgo.problema_detalle || hallazgo.descripcion || hallazgo.descripcion_simple || hallazgo.descripcion_tecnica || "Se detectó una ineficiencia técnica en la configuración de la campaña.",
       sugerencia: hallazgo.sugerencia || "Aplicar las correcciones recomendadas en Google Ads.", razonamiento: textoRazonamiento, resultado_esperado: hallazgo.resultado_esperado || "Ahorro inmediato y mejora del CTR.",
       items: keywords_prob.length > 0 ? keywords_prob : [{ nombre: "Sin datos de keywords disponibles", gasto: "-", clics: 0, conversiones: 0 }],
-      sugerencias: keywords_sug.length > 0 ? keywords_sug.map((k: any) => ({ keyword: k.keyword, razon: `${k.razon}${k.cpc_estimado ? ' · CPC est. ' + k.cpc_estimado : ''}` })) : []
+      sugerencias: keywords_sug.length > 0 ? keywords_sug.map((k: any) => ({ keyword: k.keyword, razon: `${k.razon}${k.cpc_estimado ? ' · CPC est. ' + k.cpc_estimado : ''}` })) : [],
+      reporteData,
     });
   };
 
@@ -1404,6 +1503,18 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
     ultimaAuditoria?.reporte_json?.dayparting?.heatmap
       ? (ultimaAuditoria.reporte_json.dayparting as DaypartingReporte)
       : null;
+
+  const simuladorReporte: SimuladorPresupuestoReporte | null =
+    ultimaAuditoria?.reporte_json?.simulador_presupuesto ?? null;
+
+  const escenarioSimRecomendado = useMemo(() => {
+    if (!simuladorReporte) return null;
+    return (
+      simuladorReporte.escenarios.find(
+        e => e.id === simuladorReporte.escenario_recomendado_id
+      ) ?? simuladorReporte.escenarios[1]
+    );
+  }, [simuladorReporte]);
 
   const franjasDaypartingPendientes = useMemo(() => {
     if (!daypartingReporte) return 0;
@@ -1914,17 +2025,16 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
                     </div>
                   )}
 
-                  <button
-                    onClick={() => setModoSimple(!modoSimple)}
-                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border transition-all text-[11px] font-black uppercase tracking-widest shadow-lg ${
-                      modoSimple 
-                        ? "bg-[#F3C3B2]/10 border-[#F3C3B2] text-[#F3C3B2]" 
-                        : "bg-[#292524] border-[#44403C] text-[#A8A29E] hover:text-[#F5F0EB]"
-                    }`}
-                  >
-                    <Sparkles size={14} className={modoSimple ? "animate-pulse" : ""} />
-                    {modoSimple ? "Modo Simple" : "Modo Técnico"}
-                  </button>
+                  {vista === "dashboard" && ultimaAuditoria && (
+                    <button
+                      type="button"
+                      onClick={() => setResumenFacilAbierto(true)}
+                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-[#E0E7FF]/50 bg-[#E0E7FF]/15 text-[#E0E7FF] hover:bg-[#E0E7FF]/25 transition-all text-[11px] font-black uppercase tracking-widest shadow-lg"
+                    >
+                      <BookOpen size={14} />
+                      Ver resumen fácil
+                    </button>
+                  )}
 
                   <div className="relative z-[60]">
                     <button 
@@ -2051,7 +2161,7 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
                     </div>
                   ) : (
                   <>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mt-6">
                      
                     {/* 1. Salud de la Cuenta */}
                     <div className="bg-gradient-to-b from-[#292524] to-[#1C1917] border border-[#44403C] border-t-white/10 shadow-2xl rounded-3xl p-6 flex items-center justify-between min-h-[220px] relative overflow-hidden">
@@ -2130,7 +2240,7 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
                         }}
                         className={`bg-gradient-to-b from-[#292524] to-[#1C1917] border border-[#44403C] border-t-white/10 shadow-2xl rounded-3xl p-6 flex flex-col justify-between min-h-[160px] relative overflow-hidden group transition-all ${tieneDatos ? 'cursor-pointer hover:border-[#F3C3B2]/50' : 'opacity-70 grayscale'}`}
                      >
-                        <div className="absolute top-5 right-5 px-3 py-1.5 rounded-lg bg-[#F3C3B2]/10 border border-[#F3C3B2]/20 text-[#F3C3B2] text-[9px] font-black uppercase tracking-widest">N-Gramos</div>
+                        <div className="absolute top-5 right-5 px-3 py-1.5 rounded-lg bg-[#F3C3B2]/10 border border-[#F3C3B2]/20 text-[#F3C3B2] text-[9px] font-black uppercase tracking-widest">N-gramas</div>
                         <div className="w-12 h-12 rounded-2xl bg-[#F3C3B2]/15 flex items-center justify-center mb-3 border border-[#F3C3B2]/30 shadow-inner">
                           <Trash2 size={22} className="text-[#F3C3B2]" />
                         </div>
@@ -2182,6 +2292,35 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
                                 {String(daypartingReporte.patron_principal.hora_fin).padStart(2, "0")}:00
                               </p>
                             )}
+                          </div>
+                        ) : (
+                          <p className="text-[10px] text-[#A8A29E] font-bold uppercase tracking-widest">Corré una auditoría</p>
+                        )}
+                     </div>
+
+                     {/* 5. Simulador de presupuesto */}
+                     <div
+                        onClick={() => {
+                          if (simuladorReporte) setSimuladorAbierto(true);
+                        }}
+                        className={`bg-gradient-to-b from-[#292524] to-[#1C1917] border border-[#44403C] border-t-white/10 shadow-2xl rounded-3xl p-6 flex flex-col justify-between min-h-[160px] relative overflow-hidden group transition-all ${simuladorReporte ? "cursor-pointer hover:border-[#10B981]/50" : "opacity-70 grayscale"}`}
+                     >
+                        <div className="absolute top-5 right-5 px-3 py-1.5 rounded-lg bg-[#10B981]/10 border border-[#10B981]/20 text-[#10B981] text-[9px] font-black uppercase tracking-widest">Simulador</div>
+                        <div className="w-12 h-12 rounded-2xl bg-[#10B981]/15 flex items-center justify-center mb-3 border border-[#10B981]/30 shadow-inner">
+                          <Calculator size={22} className="text-[#10B981]" />
+                        </div>
+                        {simuladorReporte && escenarioSimRecomendado ? (
+                          <div>
+                            <div className="flex items-baseline gap-2 flex-wrap">
+                              <span className="text-3xl font-black text-[#10B981] tracking-tighter leading-none">
+                                +{escenarioSimRecomendado.conversiones_extra.pesimista}–
+                                {escenarioSimRecomendado.conversiones_extra.optimista}
+                              </span>
+                              <span className="text-xs font-black text-[#A8A29E] uppercase tracking-widest">Conv./mes</span>
+                            </div>
+                            <p className="text-[10px] text-[#A8A29E] mt-2 font-bold uppercase tracking-widest line-clamp-2">
+                              Reasignando ${escenarioSimRecomendado.presupuesto_reasignable.toLocaleString()}
+                            </p>
                           </div>
                         ) : (
                           <p className="text-[10px] text-[#A8A29E] font-bold uppercase tracking-widest">Corré una auditoría</p>
@@ -2245,7 +2384,7 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
                                       {win.titulo}
                                     </h4>
                                     <p className="text-[11px] text-[#A8A29E] mt-2 font-medium line-clamp-2 leading-relaxed">
-                                      {textoQuickWin(win, modoSimple)}
+                                      {textoQuickWin(win, explicacionClara)}
                                     </p>
                                   </div>
 
@@ -2261,8 +2400,13 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
                                       <button 
                                         onClick={() => {
                                           if (win.id_rastreo === "GENERADOR_NEGATIVOS_URGENTE" && destripadorReporte) {
+                                            setPanelIntroResumen("destripador");
                                             setDestripadorAbierto(true);
+                                          } else if (win.id_rastreo === "SIMULADOR_PRESUPUESTO" && simuladorReporte) {
+                                            setPanelIntroResumen("simulador");
+                                            setSimuladorAbierto(true);
                                           } else if (win.id_rastreo === "DAYPARTING_FUGAS_HORARIAS" && daypartingReporte) {
+                                            setPanelIntroResumen("dayparting");
                                             setDaypartingAbierto(true);
                                           } else {
                                             setQuickWinsCompletados([...quickWinsCompletados, winId]);
@@ -2275,7 +2419,9 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
                                           ? "Abrir Destripador"
                                           : win.id_rastreo === "DAYPARTING_FUGAS_HORARIAS"
                                             ? "Abrir Dayparting"
-                                            : "Corregir Ahora"}
+                                            : win.id_rastreo === "SIMULADOR_PRESUPUESTO"
+                                              ? "Abrir Simulador"
+                                              : "Corregir Ahora"}
                                       </button>
                                     ) : (
                                       <span className="text-[#10B981] flex items-center gap-1 text-[10px] font-black uppercase tracking-widest">
@@ -2458,7 +2604,7 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
                             <ChevronRight size={16} className="text-[#A8A29E] group-hover:text-[#F5F0EB] transition-colors" />
                           </div>
                           <p className="text-lg font-black text-[#F5F0EB] mt-2">{item.titulo}</p>
-                          <p className="text-sm text-[#A8A29E] font-medium mt-2 leading-relaxed line-clamp-2">{modoSimple ? (item.descripcion_simple || item.descripcion) : (item.descripcion_tecnica || item.descripcion)}</p>
+                          <p className="text-sm text-[#A8A29E] font-medium mt-2 leading-relaxed line-clamp-2">{textoHallazgoParaUsuario(item, explicacionClara)}</p>
                         </div>
                       ))}
                       {ultimaAuditoria.reporte_json?.hallazgos?.debiles_amarillo?.map((item: any, i: number) => (
@@ -2476,7 +2622,7 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
                             <ChevronRight size={16} className="text-[#A8A29E] group-hover:text-[#F5F0EB] transition-colors" />
                           </div>
                           <p className="text-lg font-black text-[#F5F0EB] mt-2">{item.titulo}</p>
-                          <p className="text-sm text-[#A8A29E] font-medium mt-2 leading-relaxed line-clamp-2">{modoSimple ? (item.descripcion_simple || item.descripcion) : (item.descripcion_tecnica || item.descripcion)}</p>
+                          <p className="text-sm text-[#A8A29E] font-medium mt-2 leading-relaxed line-clamp-2">{textoHallazgoParaUsuario(item, explicacionClara)}</p>
                         </div>
                       ))}
                     </div>
@@ -2595,7 +2741,7 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
                         </div>
 
                         {robin.estado !== "sin_oportunidad" && (
-                          <div className={`mb-4 rounded-3xl border px-5 py-4 ${
+                          <div id="robin-hood-section" className={`mb-4 rounded-3xl border px-5 py-4 ${
                             robin.aplica
                               ? "border-[#D4A843]/40 bg-[#D4A843]/5"
                               : "border-[#44403C] bg-[#292524]"
@@ -2771,6 +2917,46 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
                 </div>
               )}
 
+              {mostrarOnboardingExplicacion && (
+                <div className="fixed inset-0 z-[140] flex items-center justify-center p-4 bg-[#0a0a0a]/70 backdrop-blur-sm print:hidden">
+                  <div className="bg-white rounded-3xl border border-[#E5E7EB] shadow-2xl max-w-md w-full p-8">
+                    <h3 className="text-2xl font-black text-[#0a0a0a]">¿Cómo querés que Mora te explique?</h3>
+                    <p className="text-sm text-[#4B5563] mt-2 font-medium leading-relaxed">
+                      Podés cambiarlo después en Configuración.
+                    </p>
+                    <div className="flex flex-col gap-3 mt-6">
+                      <button
+                        type="button"
+                        onClick={() => confirmarPreferenciaExplicacion("clara")}
+                        className="text-left p-4 rounded-2xl border-2 border-[#E0E7FF] bg-[#E0E7FF]/10 hover:bg-[#E0E7FF]/20 transition-colors"
+                      >
+                        <p className="font-black text-[#0a0a0a]">Explicaciones claras</p>
+                        <p className="text-xs text-[#4B5563] mt-1">Sin siglas. Ideal si no manejás Google Ads a diario.</p>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => confirmarPreferenciaExplicacion("tecnica")}
+                        className="text-left p-4 rounded-2xl border border-[#E5E7EB] hover:bg-[#F4F4F5] transition-colors"
+                      >
+                        <p className="font-black text-[#0a0a0a]">Con detalle técnico</p>
+                        <p className="text-xs text-[#4B5563] mt-1">CPA, campañas y términos de plataforma.</p>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <ResumenFacilPanel
+                open={resumenFacilAbierto}
+                onClose={() => setResumenFacilAbierto(false)}
+                score={ultimaAuditoria?.score ?? 0}
+                gastoDesperdiciado={ultimaAuditoria?.reporte_json?.resumen?.gasto_desperdiciado ?? 0}
+                porcentajeDesperdiciado={ultimaAuditoria?.reporte_json?.resumen?.porcentaje_desperdiciado ?? 0}
+                items={quickWinsDelDia}
+                lenguajeClaro={explicacionClara}
+                onResolver={handleResolverDesdeResumen}
+              />
+
               {/* DESTRIPADOR DE BÚSQUEDAS — Panel especializado */}
               <DestripadorPanel
                 destripador={destripadorReporte}
@@ -2778,7 +2964,14 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
                 auditId={ultimaAuditoria?.id ?? null}
                 mitigadosKeys={mitigadosKeys}
                 copiadosKeys={copiadosKeys}
-                onClose={() => setDestripadorAbierto(false)}
+                introDesdeResumen={
+                  panelIntroResumen === "destripador" ? INTRO_PANEL_DESDE_RESUMEN.destripador : null
+                }
+                tituloLenguajeClaro={explicacionClara}
+                onClose={() => {
+                  setDestripadorAbierto(false);
+                  cerrarPanelesHerramientas();
+                }}
                 onMitigar={handleDestripadorMitigar}
                 onCopiar={handleDestripadorCopiar}
               />
@@ -2788,8 +2981,35 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
                 open={daypartingAbierto}
                 auditId={ultimaAuditoria?.id ?? null}
                 aplicadosIds={daypartingAplicadosIds}
-                onClose={() => setDaypartingAbierto(false)}
+                introDesdeResumen={
+                  panelIntroResumen === "dayparting" ? INTRO_PANEL_DESDE_RESUMEN.dayparting : null
+                }
+                tituloLenguajeClaro={explicacionClara}
+                onClose={() => {
+                  setDaypartingAbierto(false);
+                  cerrarPanelesHerramientas();
+                }}
                 onAplicar={handleDaypartingAplicar}
+              />
+
+              <PresupuestoSimulatorPanel
+                simulador={simuladorReporte}
+                open={simuladorAbierto}
+                auditId={ultimaAuditoria?.id ?? null}
+                introDesdeResumen={
+                  panelIntroResumen === "simulador" ? INTRO_PANEL_DESDE_RESUMEN.simulador : null
+                }
+                tituloLenguajeClaro={explicacionClara}
+                onClose={() => {
+                  setSimuladorAbierto(false);
+                  cerrarPanelesHerramientas();
+                }}
+              />
+
+              <AdGeneratorPanel
+                open={!!adGeneratorContext}
+                contexto={adGeneratorContext}
+                onClose={() => setAdGeneratorContext(null)}
               />
 
               {/* SIDE DRAWER (PANEL LATERAL) */}
@@ -2842,6 +3062,40 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
                         >
                           {copiedKw === detalleHallazgo.sugerencia ? <Check size={18} /> : <Copy size={18} />}
                           {copiedKw === detalleHallazgo.sugerencia ? '¡Instrucción copiada!' : 'Copiar Instrucción para Google Ads'}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const reporte = detalleHallazgo.reporteData || ultimaAuditoria?.reporte_json;
+                            const tokensBuenos =
+                              reporte?.destripador?.tokens
+                                ?.filter((t: { protegido?: boolean }) => !t.protegido)
+                                .slice(0, 6)
+                                .map((t: { token: string }) => t.token) ?? [];
+                            abrirGeneradorAnuncios({
+                              tipo_negocio: reporte?.perfil_aplicado?.tipo_negocio || "ecommerce",
+                              tono: "directo",
+                              objetivo:
+                                detalleHallazgo.id_rastreo?.startsWith("QS_") ||
+                                detalleHallazgo.tipo === "critico"
+                                  ? "recuperar_relevancia"
+                                  : "escalar",
+                              hallazgo_titulo: detalleHallazgo.titulo,
+                              hallazgo_descripcion: detalleHallazgo.problema_detalle,
+                              angulo_comercial: detalleHallazgo.razonamiento,
+                              keywords_buenas: tokensBuenos,
+                              terminos_evitar:
+                                reporte?.destripador?.tokens
+                                  ?.filter((t: { protegido?: boolean }) => !t.protegido)
+                                  .slice(0, 8)
+                                  .map((t: { token: string }) => t.token) ?? [],
+                              hallazgo_id: detalleHallazgo.id_rastreo,
+                            });
+                          }}
+                          className="w-full mt-3 flex justify-center items-center gap-2 text-sm font-black py-4 rounded-xl transition-all shadow-sm bg-[#F3C3B2]/20 text-[#0a0a0a] hover:bg-[#F3C3B2] border border-[#F3C3B2]/40"
+                        >
+                          <Sparkles size={18} /> Generar anuncios para esta oportunidad
                         </button>
                       </div>
 
@@ -3136,7 +3390,7 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
                             {reporte.hallazgos.graves_rojo.map((item: any, i: number) => (
                               <div key={i} className="border-l-4 border-[#E07070]/30 pl-5">
                                 <p className="text-[#F5F0EB] font-black text-xl mb-2">{item.titulo}</p>
-                                <p className="text-[#A8A29E] text-base leading-relaxed font-medium">{modoSimple ? (item.descripcion_simple || item.descripcion) : (item.descripcion_tecnica || item.descripcion)}</p>
+                                <p className="text-[#A8A29E] text-base leading-relaxed font-medium">{textoHallazgoParaUsuario(item, explicacionClara)}</p>
                               </div>
                             ))}
                           </div>
@@ -3152,7 +3406,7 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
                             {reporte.hallazgos.debiles_amarillo.map((item: any, i: number) => (
                               <div key={i} className="border-l-4 border-[#D4A843]/30 pl-5">
                                 <p className="text-[#F5F0EB] font-black text-xl mb-2">{item.titulo}</p>
-                                <p className="text-[#A8A29E] text-base leading-relaxed font-medium">{modoSimple ? (item.descripcion_simple || item.descripcion) : (item.descripcion_tecnica || item.descripcion)}</p>
+                                <p className="text-[#A8A29E] text-base leading-relaxed font-medium">{textoHallazgoParaUsuario(item, explicacionClara)}</p>
                               </div>
                             ))}
                           </div>
@@ -3196,8 +3450,51 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
                         <div className="relative"><select className="w-full p-4 bg-[#F4F4F5] border border-[#E5E7EB] rounded-xl text-[#0a0a0a] font-bold shadow-inner focus:border-[#E0E7FF] focus:bg-[#FAFAF9] focus:outline-none transition-all appearance-none cursor-pointer text-sm" value={moneda} onChange={(e) => setMoneda(e.target.value)}><option value="USD ($)">Dólares USD ($)</option><option value="EUR (€)">Euros EUR (€)</option><option value="ARS ($)">Pesos Argentinos ARS ($)</option><option value="MXN ($)">Pesos Mexicanos MXN ($)</option></select><ChevronDown size={16} className="absolute right-4 top-1/2 transform -translate-y-1/2 text-[#4B5563] pointer-events-none" /></div>
                       </div>
                       <div>
-                        <label className="block text-[10px] font-bold text-[#8A968C] mb-2 uppercase tracking-widest">{t[idioma].metricaDef}</label>
+                        <label className="block text-[10px] font-bold text-[#8A968C] mb-2 uppercase tracking-widest flex items-center gap-1">
+                          {t[idioma].metricaDef}
+                          {metrica === "CPA" && <GlosarioTip termino="CPA" />}
+                          {metrica === "ROAS" && <GlosarioTip termino="ROAS" />}
+                        </label>
                         <div className="relative"><select className="w-full p-4 bg-[#F4F4F5] border border-[#E5E7EB] rounded-xl text-[#0a0a0a] font-bold shadow-inner focus:border-[#E0E7FF] focus:bg-[#FAFAF9] focus:outline-none transition-all appearance-none cursor-pointer text-sm" value={metrica} onChange={(e) => setMetrica(e.target.value)}><option value="ROAS">ROAS (Retorno de Inversión)</option><option value="CPA">CPA (Costo por Adquisición)</option><option value="ROI">ROI</option></select><ChevronDown size={16} className="absolute right-4 top-1/2 transform -translate-y-1/2 text-[#4B5563] pointer-events-none" /></div>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-[#8A968C] mb-2 uppercase tracking-widest">
+                          Cómo te explica Mora
+                        </label>
+                        <div className="flex flex-col gap-2">
+                          <label className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-colors ${explicacionClara ? "border-[#E0E7FF] bg-[#E0E7FF]/15" : "border-[#E5E7EB] bg-[#F4F4F5]"}`}>
+                            <input
+                              type="radio"
+                              name="mora-explicacion"
+                              className="mt-1"
+                              checked={explicacionClara}
+                              onChange={() => {
+                                setPreferenciaExplicacion("clara");
+                                setExplicacionClara(true);
+                              }}
+                            />
+                            <span>
+                              <span className="block text-sm font-black text-[#0a0a0a]">Explicaciones claras</span>
+                              <span className="block text-xs text-[#4B5563] mt-0.5">Sin siglas. Usá &quot;Ver resumen fácil&quot; en el dashboard.</span>
+                            </span>
+                          </label>
+                          <label className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-colors ${!explicacionClara ? "border-[#E0E7FF] bg-[#E0E7FF]/15" : "border-[#E5E7EB] bg-[#F4F4F5]"}`}>
+                            <input
+                              type="radio"
+                              name="mora-explicacion"
+                              className="mt-1"
+                              checked={!explicacionClara}
+                              onChange={() => {
+                                setPreferenciaExplicacion("tecnica");
+                                setExplicacionClara(false);
+                              }}
+                            />
+                            <span>
+                              <span className="block text-sm font-black text-[#0a0a0a]">Con detalle técnico</span>
+                              <span className="block text-xs text-[#4B5563] mt-0.5">CPA, ROAS y términos de Google Ads.</span>
+                            </span>
+                          </label>
+                        </div>
                       </div>
                     </div>
                   </div>

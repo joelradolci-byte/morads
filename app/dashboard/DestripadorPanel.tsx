@@ -35,6 +35,8 @@ interface DestripadorPanelProps {
   auditId?: string | number | null;
   mitigadosKeys: Set<string>;
   copiadosKeys: Set<string>;
+  introDesdeResumen?: string | null;
+  tituloLenguajeClaro?: boolean;
   onClose: () => void;
   onMitigar?: (keys: string[], planId?: string) => void;
   onCopiar?: (keys: string[]) => void;
@@ -84,6 +86,8 @@ export default function DestripadorPanel({
   mitigadosKeys,
   copiadosKeys,
   onClose,
+  introDesdeResumen,
+  tituloLenguajeClaro = false,
   onMitigar,
   onCopiar,
   onApplied,
@@ -395,8 +399,10 @@ export default function DestripadorPanel({
                 <Trash2 size={20} className="text-[#F3C3B2]" />
               </div>
               <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-[#F3C3B2]">N-Gramos · Destripador</p>
-                <h2 className="text-xl font-black text-[#F5F0EB]">Destripador de Búsquedas</h2>
+                <p className="text-[10px] font-black uppercase tracking-widest text-[#F3C3B2]">N-gramas · Destripador</p>
+                <h2 className="text-xl font-black text-[#F5F0EB]">
+                  {tituloLenguajeClaro ? "Palabras que conviene bloquear" : "Destripador de Búsquedas"}
+                </h2>
                 {auditId != null && (
                   <p className="text-[9px] text-[#A8A29E] font-bold mt-0.5">Seguimiento guardado para esta auditoría</p>
                 )}
@@ -410,6 +416,12 @@ export default function DestripadorPanel({
               <X size={18} />
             </button>
           </div>
+
+          {introDesdeResumen && (
+            <div className="rounded-xl border border-[#F3C3B2]/30 bg-[#F3C3B2]/10 px-4 py-3 text-[11px] text-[#F5F0EB] font-medium leading-snug">
+              {introDesdeResumen}
+            </div>
+          )}
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="rounded-2xl bg-[#1C1917] border border-[#44403C] p-3">

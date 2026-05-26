@@ -1302,6 +1302,313 @@ function construirDestripador(
 }
 
 // ============================================================================
+// SIMULADOR DE PRESUPUESTO — Proyección matemática con escenarios
+// ============================================================================
+export type SimuladorRolCampana = "origen" | "destino" | "mantener" | "observar" | "bloqueada";
+export type SimuladorConfianza = "alta" | "media" | "baja";
+export type SimuladorSaludPresupuesto = "eficiente" | "mejorable" | "ineficiente";
+export type SimuladorEscenarioId = "conservador" | "esperado" | "agresivo";
+
+export interface SimuladorCampana {
+  campana_id: string;
+  nombre: string;
+  rol: SimuladorRolCampana;
+  presupuesto_actual: number;
+  presupuesto_propuesto: number | null;
+  gasto_mensual: number;
+  conversiones: number;
+  cpa_actual: number;
+  cpa_objetivo: number;
+  score: number;
+  tag: ScoreCampanaResult["tag"];
+  margen_escalabilidad: number;
+  confianza: SimuladorConfianza;
+  monto_movimiento: number;
+  motivo: string;
+}
+
+export interface SimuladorEscenario {
+  id: SimuladorEscenarioId;
+  label: string;
+  presupuesto_reasignable: number;
+  inversion_total_estimada: number;
+  conversiones_actuales: number;
+  conversiones_extra: { pesimista: number; esperado: number; optimista: number };
+  cpa_estimado: number;
+  confianza: SimuladorConfianza;
+  supuestos: string[];
+  riesgos: string[];
+}
+
+export interface SimuladorPresupuestoReporte {
+  version_modelo: string;
+  generado_en: string;
+  inversion_actual: number;
+  conversiones_actuales: number;
+  cpa_actual: number;
+  salud_presupuesto: SimuladorSaludPresupuesto;
+  escenario_recomendado_id: SimuladorEscenarioId;
+  escenarios: SimuladorEscenario[];
+  campanas: SimuladorCampana[];
+  diagnostico: {
+    presupuesto_mal_asignado: number;
+    presupuesto_escalable: number;
+    principal_cuello_botella: string;
+  };
+  tiene_senal_suficiente: boolean;
+  mensaje_resumen: string;
+}
+
+const SIMULADOR_VERSION = "1.0.0";
+
+function confianzaCampanaSim(camp: CampanaMora): SimuladorConfianza {
+  if (camp.conversiones >= 20 && camp.clics >= 400) return "alta";
+  if (camp.conversiones >= 5 && camp.clics >= 100) return "media";
+  return "baja";
+}
+
+function proyeccionConversionesExtra(
+  monto: number,
+  cpaDestino: number,
+  factorCpa: number
+): number {
+  if (monto <= 0 || cpaDestino <= 0) return 0;
+  const cpaAjustado = cpaDestino * factorCpa;
+  return parseFloat((monto / Math.max(cpaAjustado, 0.01)).toFixed(1));
+}
+
+export function construirSimuladorPresupuesto(
+  datos: DatosAuditoriaInput,
+  campanas: CampanaMora[],
+  planRobin: RobinHoodPlan
+): SimuladorPresupuestoReporte {
+  const gastoTotal = datos.gasto_total_cuenta;
+  const convTotales = datos.conversiones_totales;
+  const cpaActual =
+    convTotales > 0 ? gastoTotal / convTotales : datos.cpa_promedio_cuenta;
+
+  const activas = campanasActivasConGasto(campanas);
+  const confianzaCuenta = calcularConfianzaRobin(activas);
+  const tieneSenal =
+    convTotales >= 10 && datos.clics_totales >= 300 && activas.length >= 2;
+
+  const origenIds = new Set(planRobin.origenes.map(o => o.campana_id));
+  const destinoId = planRobin.destino?.campana_id ?? null;
+
+  let gastoBasura = 0;
+  let gastoEstrella = 0;
+  activas.forEach(c => {
+    const ev = calcularScoreCampana(c, datos.cpa_promedio_cuenta);
+    if (ev.tag === "BASURA") gastoBasura += c.gasto_mensual;
+    if (ev.tag === "ESTRELLA") gastoEstrella += c.gasto_mensual;
+  });
+
+  let salud: SimuladorSaludPresupuesto = "mejorable";
+  if (gastoTotal > 0) {
+    const ratioBasura = gastoBasura / gastoTotal;
+    const ratioEstrella = gastoEstrella / gastoTotal;
+    if (ratioBasura >= 0.3) salud = "ineficiente";
+    else if (ratioEstrella >= 0.35) salud = "eficiente";
+  }
+
+  const presupuestoMalAsignado = planRobin.presupuesto_rescatable;
+  const presupuestoEscalable = planRobin.destino
+    ? Math.round(
+        planRobin.destino.presupuesto_actual *
+          (planRobin.destino.margen_escalabilidad / 100) *
+          0.25
+      )
+    : 0;
+
+  const campanasSim: SimuladorCampana[] = activas.map(camp => {
+    const ev = calcularScoreCampana(camp, datos.cpa_promedio_cuenta);
+    const margen = margenEscalabilidad(camp);
+    const conf = confianzaCampanaSim(camp);
+    const cpaObj = cpaObjetivoCampana(camp, datos.cpa_promedio_cuenta);
+
+    let rol: SimuladorRolCampana = "mantener";
+    let montoMov = 0;
+    let propuesto: number | null = null;
+    let motivo = "Rendimiento dentro del rango esperado.";
+
+    if (origenIds.has(camp.id)) {
+      const orig = planRobin.origenes.find(o => o.campana_id === camp.id);
+      rol = "origen";
+      montoMov = -(orig?.monto_recortado ?? 0);
+      propuesto = orig?.presupuesto_propuesto ?? camp.presupuesto_mensual;
+      motivo = orig?.motivo ?? "Presupuesto recortable por baja eficiencia.";
+    } else if (camp.id === destinoId && planRobin.destino) {
+      rol = "destino";
+      montoMov = planRobin.destino.monto_incrementado;
+      propuesto = planRobin.destino.presupuesto_propuesto;
+      motivo = planRobin.destino.motivo;
+    } else if (ev.tag === "BASURA" && conf !== "baja") {
+      rol = "observar";
+      motivo = "CPA elevado; conviene monitorear antes de mover presupuesto.";
+    } else if (ev.tag === "ESTRELLA" && margen >= 0.15) {
+      rol = "observar";
+      motivo = "Campaña eficiente con margen de escala detectado.";
+    } else if (ev.conversiones < 3 && camp.gasto_mensual > 0) {
+      rol = "bloqueada";
+      motivo = "Poca data estadística; Mora no proyecta cambios fuertes.";
+    }
+
+    return {
+      campana_id: camp.id,
+      nombre: camp.nombre,
+      rol,
+      presupuesto_actual: Math.round(camp.presupuesto_mensual),
+      presupuesto_propuesto: propuesto,
+      gasto_mensual: Math.round(camp.gasto_mensual),
+      conversiones: camp.conversiones,
+      cpa_actual: parseFloat(ev.cpaActual.toFixed(2)),
+      cpa_objetivo: parseFloat(cpaObj.toFixed(2)),
+      score: ev.score,
+      tag: ev.tag,
+      margen_escalabilidad: parseFloat((margen * 100).toFixed(1)),
+      confianza: conf,
+      monto_movimiento: montoMov,
+      motivo,
+    };
+  });
+
+  const cpaDestino = planRobin.destino?.cpa_actual ?? cpaActual;
+  const baseReasignar = planRobin.total_reasignado;
+
+  const factoresEscenario: Record<
+    SimuladorEscenarioId,
+    { mult: number; label: string; factorCpaPes: number; factorCpaEsp: number; factorCpaOpt: number }
+  > = {
+    conservador: {
+      mult: 0.5,
+      label: "Conservador",
+      factorCpaPes: 1.25,
+      factorCpaEsp: 1.1,
+      factorCpaOpt: 1.02,
+    },
+    esperado: {
+      mult: 1,
+      label: "Esperado",
+      factorCpaPes: 1.15,
+      factorCpaEsp: 1,
+      factorCpaOpt: 0.95,
+    },
+    agresivo: {
+      mult: 1.2,
+      label: "Agresivo",
+      factorCpaPes: 1.2,
+      factorCpaEsp: 1.05,
+      factorCpaOpt: 0.9,
+    },
+  };
+
+  const escenarios: SimuladorEscenario[] = (
+    Object.keys(factoresEscenario) as SimuladorEscenarioId[]
+  ).map(id => {
+    const cfg = factoresEscenario[id];
+    const reasignar = Math.round(
+      Math.min(baseReasignar * cfg.mult, planRobin.presupuesto_rescatable)
+    );
+    const extraPes = proyeccionConversionesExtra(
+      reasignar,
+      cpaDestino,
+      cfg.factorCpaPes
+    );
+    const extraEsp = proyeccionConversionesExtra(
+      reasignar,
+      cpaDestino,
+      cfg.factorCpaEsp
+    );
+    const extraOpt = proyeccionConversionesExtra(
+      reasignar,
+      cpaDestino,
+      cfg.factorCpaOpt
+    );
+    const convEst = convTotales + extraEsp;
+    const cpaEst = convEst > 0 ? gastoTotal / convEst : cpaActual;
+
+    const supuestos: string[] = [
+      `Proyección basada en CPA histórico de campaña destino (${cpaDestino.toFixed(2)}).`,
+      `Reasignación de $${reasignar}/mes desde campañas con baja eficiencia.`,
+      `Confianza de cuenta: ${confianzaCuenta}.`,
+    ];
+    if (!tieneSenal) {
+      supuestos.push("Volumen de conversiones/clics limitado; rangos más amplios.");
+    }
+
+    const riesgos: string[] = [];
+    if (confianzaCuenta === "baja") {
+      riesgos.push("Poca data: el CPA real puede variar más de lo estimado.");
+    }
+    if (reasignar < planRobin.presupuesto_rescatable * 0.5) {
+      riesgos.push("Por seguridad, Mora no aplica todo el presupuesto rescatable detectado.");
+    }
+    if (!planRobin.destino) {
+      riesgos.push("No hay campaña destino clara con margen de absorción.");
+    }
+
+    return {
+      id,
+      label: cfg.label,
+      presupuesto_reasignable: reasignar,
+      inversion_total_estimada: Math.round(gastoTotal),
+      conversiones_actuales: convTotales,
+      conversiones_extra: {
+        pesimista: extraPes,
+        esperado: extraEsp,
+        optimista: extraOpt,
+      },
+      cpa_estimado: parseFloat(cpaEst.toFixed(2)),
+      confianza: confianzaCuenta,
+      supuestos,
+      riesgos,
+    };
+  });
+
+  let escenarioRecomendado: SimuladorEscenarioId = "esperado";
+  if (confianzaCuenta === "baja" || !planRobin.aplica) escenarioRecomendado = "conservador";
+  else if (salud === "eficiente" && planRobin.aplica) escenarioRecomendado = "agresivo";
+
+  const escRec = escenarios.find(e => e.id === escenarioRecomendado) ?? escenarios[1];
+  const extra = escRec.conversiones_extra;
+
+  let cuello = "Distribución de presupuesto entre campañas.";
+  if (presupuestoMalAsignado > gastoTotal * 0.15) {
+    cuello = "Demasiado gasto en campañas ineficientes.";
+  } else if (presupuestoEscalable > 0 && planRobin.destino) {
+    cuello = `Capacidad de escala limitada en ${planRobin.destino.nombre}.`;
+  } else if (!tieneSenal) {
+    cuello = "Falta volumen de conversiones para proyecciones firmes.";
+  }
+
+  const mensaje =
+    planRobin.aplica && tieneSenal
+      ? `Mora estima entre +${extra.pesimista} y +${extra.optimista} conversiones/mes reasignando $${escRec.presupuesto_reasignable}.`
+      : tieneSenal
+        ? "Hay señal suficiente, pero no se detectó reasignación segura en este ciclo."
+        : "Corré más conversiones o ampliá la ventana antes de confiar en proyecciones fuertes.";
+
+  return {
+    version_modelo: SIMULADOR_VERSION,
+    generado_en: new Date().toISOString(),
+    inversion_actual: Math.round(gastoTotal),
+    conversiones_actuales: convTotales,
+    cpa_actual: parseFloat(cpaActual.toFixed(2)),
+    salud_presupuesto: salud,
+    escenario_recomendado_id: escenarioRecomendado,
+    escenarios,
+    campanas: campanasSim,
+    diagnostico: {
+      presupuesto_mal_asignado: Math.round(presupuestoMalAsignado),
+      presupuesto_escalable: presupuestoEscalable,
+      principal_cuello_botella: cuello,
+    },
+    tiene_senal_suficiente: tieneSenal,
+    mensaje_resumen: mensaje,
+  };
+}
+
+// ============================================================================
 // FASE 2: EL CEREBRO MATEMÁTICO DETERMINISTA
 // ============================================================================
 export function generarEsqueletoAuditoria(datos: DatosAuditoriaInput) {
@@ -1439,6 +1746,25 @@ export function generarEsqueletoAuditoria(datos: DatosAuditoriaInput) {
     });
   }
 
+  const simuladorPresupuesto = construirSimuladorPresupuesto(
+    datos,
+    campanasLimpias,
+    planRobinHood
+  );
+
+  if (
+    simuladorPresupuesto.tiene_senal_suficiente &&
+    (simuladorPresupuesto.diagnostico.presupuesto_mal_asignado > 0 ||
+      simuladorPresupuesto.escenarios.some(e => e.conversiones_extra.esperado > 0))
+  ) {
+    hallazgosAmarillos.push({
+      id_rastreo: "SIMULADOR_PRESUPUESTO",
+      titulo: "Simulador de presupuesto: proyección de reasignación",
+      descripcion_tecnica: "",
+      descripcion_simple: "",
+    });
+  }
+
   const dayparting = construirDayparting(
     datos,
     datos.horarios || [],
@@ -1488,6 +1814,7 @@ export function generarEsqueletoAuditoria(datos: DatosAuditoriaInput) {
     fugas_criticas: fugasCriticas,
     fugas_parciales: fugasParciales,
     robin_hood: planRobinHood,
+    simulador_presupuesto: simuladorPresupuesto,
     destripador,
     n_gramas: {
       ahorro_estimado: destripador.ahorro_estimado,

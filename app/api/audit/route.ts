@@ -573,7 +573,7 @@ REGLAS ESTRICTAS:
 1. No agregues, quites ni reordenes items.
 2. No alteres "id_rastreo" ni "titulo".
 3. "descripcion_tecnica": Redactada para un Media Buyer, 1-2 oraciones, jerga analítica precisa.
-4. "descripcion_simple": Redactada para el dueño del negocio, 1-2 oraciones en criollo, sin siglas.
+4. "descripcion_simple": Para alguien que NO maneja Google Ads. Máximo 2 oraciones cortas (máx. 20 palabras cada una). Voseo argentino, tono directo y cercano. PROHIBIDO: CPA, ROAS, CTR, CPC, QS, "optimización", "performance", "métrica", "campaña" si hay alternativa más simple. OBLIGATORIO: consecuencia en plata o ventas ("Estás perdiendo $X", "Podés recuperar contactos"). Sin tono de informe corporativo.
 
 Devuelve un JSON con exactamente la misma forma {"hallazgos": {...}}.]`,
         generationConfig: {

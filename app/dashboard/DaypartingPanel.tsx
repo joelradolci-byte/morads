@@ -26,6 +26,8 @@ interface DaypartingPanelProps {
   open: boolean;
   auditId?: string | number | null;
   aplicadosIds: Set<string>;
+  introDesdeResumen?: string | null;
+  tituloLenguajeClaro?: boolean;
   onClose: () => void;
   onAplicar?: (franjaIds: string[], planId?: string) => void;
 }
@@ -39,6 +41,8 @@ export default function DaypartingPanel({
   open,
   auditId,
   aplicadosIds,
+  introDesdeResumen,
+  tituloLenguajeClaro = false,
   onClose,
   onAplicar,
 }: DaypartingPanelProps) {
@@ -160,7 +164,9 @@ export default function DaypartingPanel({
               </div>
               <div>
                 <p className="text-[10px] font-black uppercase tracking-widest text-[#D4A843]">Dayparting</p>
-                <h2 className="text-xl font-black text-[#F5F0EB]">Patrones históricos 7×24</h2>
+                <h2 className="text-xl font-black text-[#F5F0EB]">
+                  {tituloLenguajeClaro ? "Horarios donde perdés plata" : "Patrones históricos 7×24"}
+                </h2>
                 {auditId != null && (
                   <p className="text-[9px] text-[#A8A29E] font-bold mt-0.5">Auditoría #{auditId}</p>
                 )}
@@ -174,6 +180,12 @@ export default function DaypartingPanel({
               <X size={18} />
             </button>
           </div>
+
+          {introDesdeResumen && (
+            <div className="rounded-xl border border-[#D4A843]/30 bg-[#D4A843]/10 px-4 py-3 text-[11px] text-[#F5F0EB] font-medium leading-snug">
+              {introDesdeResumen}
+            </div>
+          )}
 
           <div className="grid grid-cols-3 gap-3">
             <div className="rounded-2xl bg-[#1C1917] border border-[#44403C] p-3">

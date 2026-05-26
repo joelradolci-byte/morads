@@ -154,7 +154,7 @@ contexts/
 - **Estrategia Robin Hood**: vive dentro de la Matriz de Rendimiento. Detecta campañas "basura" (CPA >20% sobre promedio), calcula presupuesto rescatable, identifica campaña "estrella" (conversiones >15% más baratas), y muestra exactamente cuánto transferir con preview antes/después por campaña. Incluye "Contrato de Seguridad" — verifica presupuestos antes de aplicar y habilita Undo.
 
 ### 4. Motor de IA (Gemini)
-- **Destripador de Búsquedas (N-Gramos)**: panel lateral con mapa de términos categorizados por intención (gratuita/educativa, baja calidad, competencia, etc.), selección múltiple, preview de negativos antes de aplicar, y botones Copiar / Aplicar en Google Ads
+- **Destripador de Búsquedas (N-gramas)**: panel lateral con mapa de términos categorizados por intención (gratuita/educativa, baja calidad, competencia, etc.), selección múltiple, preview de negativos antes de aplicar, y botones Copiar / Aplicar en Google Ads
 - **Detector de Fugas por Franja Horaria (Dayparting)**: panel lateral con barra de calor horizontal de 24 horas (verde=bueno, rojo=fuga, amarillo=mejorable, gris=sin datos), lista de franjas problemáticas con gasto y conversiones, botones para pausar tráfico o reducir puja con confirmación
 - **Razonamiento Lógico-Matemático**: system prompt con umbrales estrictos atados a datos reales
 - **Traductor de Métricas IA**: explica la cuenta en lenguaje de negocios
