@@ -39,6 +39,8 @@ import DaypartingPanel from './DaypartingPanel';
 import PresupuestoSimulatorPanel from './PresupuestoSimulatorPanel';
 import AdGeneratorPanel, { type AdGeneratorContext } from './AdGeneratorPanel';
 import ResumenFacilPanel, { type ItemResumenHallazgo } from './ResumenFacilPanel';
+import HallazgoDetallePanel from './HallazgoDetallePanel';
+import type { DetalleHallazgo } from '../../lib/types/hallazgoDetalle';
 import {
   getPreferenciaExplicacion,
   setPreferenciaExplicacion,
@@ -670,12 +672,11 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
   const [reporte, setReporte] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [errorAuditoria, setErrorAuditoria] = useState<string | null>(null);
-  const [copiedKw, setCopiedKw] = useState<string | null>(null);
   const [idioma, setIdioma] = useState<"es" | "en">("es");
   const [quickWinsCompletados, setQuickWinsCompletados] = useState<string[]>([]);
   const [vista, setVista] = useState<AuditorVista>(initialVista);
   const [subVistaReporte, setSubVistaReporte] = useState<"diagnostico" | "checklist" | "avanzado">("diagnostico");
-  const [detalleHallazgo, setDetalleHallazgo] = useState<any | null>(null);
+  const [detalleHallazgo, setDetalleHallazgo] = useState<DetalleHallazgo | null>(null);
   const [isClosing, setIsClosing] = useState(false);
   const [historial, setHistorial] = useState<any[]>([]);
   const [cargandoHistorial, setCargandoHistorial] = useState(false);
@@ -909,20 +910,28 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
     const unificados = [
       ...rojos
         .filter((r: { id_rastreo?: string; titulo?: string }) => r?.id_rastreo && r?.titulo)
-        .map((r: { id_rastreo: string; titulo: string; descripcion_simple?: string; descripcion_tecnica?: string }) => ({
+        .map((r: any) => ({
           id_rastreo: r.id_rastreo,
           titulo: r.titulo,
           descripcion_simple: r.descripcion_simple,
           descripcion_tecnica: r.descripcion_tecnica,
+          problema_detalle: r.problema_detalle ?? r.descripcion ?? r.descripcion_tecnica ?? r.descripcion_simple,
+          sugerencia: r.sugerencia,
+          razonamiento: r.razonamiento ?? r.pitch_vendedor,
+          resultado_esperado: r.resultado_esperado,
           tipo: "critico" as const,
         })),
       ...amarillos
         .filter((a: { id_rastreo?: string; titulo?: string }) => a?.id_rastreo && a?.titulo)
-        .map((a: { id_rastreo: string; titulo: string; descripcion_simple?: string; descripcion_tecnica?: string }) => ({
+        .map((a: any) => ({
           id_rastreo: a.id_rastreo,
           titulo: a.titulo,
           descripcion_simple: a.descripcion_simple,
           descripcion_tecnica: a.descripcion_tecnica,
+          problema_detalle: a.problema_detalle ?? a.descripcion ?? a.descripcion_tecnica ?? a.descripcion_simple,
+          sugerencia: a.sugerencia,
+          razonamiento: a.razonamiento ?? a.pitch_vendedor,
+          resultado_esperado: a.resultado_esperado,
           tipo: "mejora" as const,
         })),
     ];
@@ -1385,6 +1394,24 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
     }
   };
 
+  const abrirHerramientaDesdeDetalle = (idRastreo: string) => {
+    const accion = resolverAccionHallazgo(idRastreo);
+    setPanelIntroResumen(accion);
+    switch (accion) {
+      case "destripador":
+        if (destripadorReporte) setDestripadorAbierto(true);
+        break;
+      case "dayparting":
+        if (daypartingReporte) setDaypartingAbierto(true);
+        break;
+      case "simulador":
+        if (simuladorReporte) setSimuladorAbierto(true);
+        break;
+      default:
+        break;
+    }
+  };
+
   const handleResolverDesdeResumen = (item: ItemResumenHallazgo) => {
     setResumenFacilAbierto(false);
     const accion = resolverAccionHallazgo(item.id_rastreo);
@@ -1430,16 +1457,33 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
     const textoRazonamiento = hallazgo.razonamiento || hallazgo.pitch_vendedor || reporteData?.pitch_vendedor || "Esta optimización corta la hemorragia de presupuesto y redirige la inversión hacia tráfico con verdadera intención de compra.";
     setDetalleHallazgo({
       id_rastreo: hallazgo.id_rastreo,
-      titulo: hallazgo.titulo || "Oportunidad detectada", tipo, problema_detalle: hallazgo.problema_detalle || hallazgo.descripcion || hallazgo.descripcion_simple || hallazgo.descripcion_tecnica || "Se detectó una ineficiencia técnica en la configuración de la campaña.",
-      sugerencia: hallazgo.sugerencia || "Aplicar las correcciones recomendadas en Google Ads.", razonamiento: textoRazonamiento, resultado_esperado: hallazgo.resultado_esperado || "Ahorro inmediato y mejora del CTR.",
-      items: keywords_prob.length > 0 ? keywords_prob : [{ nombre: "Sin datos de keywords disponibles", gasto: "-", clics: 0, conversiones: 0 }],
-      sugerencias: keywords_sug.length > 0 ? keywords_sug.map((k: any) => ({ keyword: k.keyword, razon: `${k.razon}${k.cpc_estimado ? ' · CPC est. ' + k.cpc_estimado : ''}` })) : [],
+      titulo: hallazgo.titulo || "Oportunidad detectada",
+      tipo,
+      problema_detalle:
+        hallazgo.problema_detalle ||
+        hallazgo.descripcion ||
+        hallazgo.descripcion_simple ||
+        hallazgo.descripcion_tecnica ||
+        "Se detectó una ineficiencia técnica en la configuración de la campaña.",
+      descripcion_simple: hallazgo.descripcion_simple,
+      descripcion_tecnica: hallazgo.descripcion_tecnica,
+      sugerencia: hallazgo.sugerencia || "Aplicar las correcciones recomendadas en Google Ads.",
+      razonamiento: textoRazonamiento,
+      resultado_esperado: hallazgo.resultado_esperado || "Ahorro inmediato y mejora del CTR.",
+      items:
+        keywords_prob.length > 0
+          ? keywords_prob
+          : [{ nombre: "Sin datos de keywords disponibles", gasto: "-", clics: 0, conversiones: 0 }],
+      sugerencias:
+        keywords_sug.length > 0
+          ? keywords_sug.map((k: { keyword: string; razon: string; cpc_estimado?: string }) => ({
+              keyword: k.keyword,
+              razon: `${k.razon}${k.cpc_estimado ? " · CPC est. " + k.cpc_estimado : ""}`,
+            }))
+          : [],
       reporteData,
     });
-  };
-
-  const copiarKeyword = (kw: string) => {
-    navigator.clipboard.writeText(kw).then(() => { setCopiedKw(kw); setTimeout(() => setCopiedKw(null), 2000); });
+    setIsClosing(false);
   };
 
   const getDashboardStatus = (score: number) => {
@@ -1678,7 +1722,7 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
 
         {!session ? (
           <div className="w-full h-full overflow-y-auto overflow-x-hidden relative z-10 text-[#0a0a0a]">
-            <nav className="w-full max-w-[1400px] mx-auto px-6 py-6 flex justify-between items-center z-50 relative">
+            <nav className="w-full max-w-[1600px] mx-auto px-8 md:px-10 py-8 flex justify-between items-center z-50 relative">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-[#0a0a0a] text-2xl shadow-sm bg-[#E0E7FF]">M</div>
                 <span className="font-bold text-2xl tracking-tight text-[#0a0a0a]">Mora Analytics</span>
@@ -1698,7 +1742,7 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
               </div>
             </nav>
 
-            <section className="relative pt-12 pb-20 lg:pt-24 lg:pb-28 overflow-hidden z-10 px-6 max-w-[1400px] mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-8 items-center min-h-[75vh]">
+            <section className="relative pt-16 pb-24 lg:pt-28 lg:pb-32 overflow-hidden z-10 px-8 md:px-10 max-w-[1600px] mx-auto grid grid-cols-1 lg:grid-cols-2 gap-14 lg:gap-10 items-center min-h-[75vh]">
               <FadeInOnScroll>
                 <div className="flex flex-col items-start text-left lg:pr-10">
                   <div className="border border-[#CFD6C4]/80 bg-[#CFD6C4]/30 px-4 py-1.5 rounded-full text-[10px] font-bold tracking-widest uppercase mb-8 flex items-center gap-3 text-[#0a0a0a]">
@@ -1800,7 +1844,7 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
             </section>
 
             <FadeInOnScroll delay={100}>
-              <section className="max-w-[1400px] mx-auto px-6 py-20 border-t border-[#CFD6C4]/40">
+              <section className="max-w-[1600px] mx-auto px-8 md:px-10 py-24 border-t border-[#CFD6C4]/40">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 mb-12 items-end">
                    <div className="lg:col-span-1">
                      <p className="inline-block px-3 py-1.5 rounded-md text-[10px] font-bold tracking-widest uppercase text-[#0a0a0a] bg-[#10B981]/40 mb-4">Cómo funciona</p>
@@ -1832,7 +1876,7 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
             </FadeInOnScroll>
 
             <FadeInOnScroll>
-              <section className="max-w-[1400px] mx-auto px-6 py-20 border-t border-[#CFD6C4]/40">
+              <section className="max-w-[1600px] mx-auto px-8 md:px-10 py-24 border-t border-[#CFD6C4]/40">
                 <div className="text-center mb-16">
                   <p className="inline-block px-3 py-1.5 rounded-md text-[10px] font-bold tracking-widest uppercase text-[#0a0a0a] bg-[#DAEBE3] mb-4">Precios Simples</p>
                   <h2 className="text-4xl md:text-5xl font-serif font-black text-[#0a0a0a] mb-4">Elegí tu camino.</h2>
@@ -3012,116 +3056,25 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
                 onClose={() => setAdGeneratorContext(null)}
               />
 
-              {/* SIDE DRAWER (PANEL LATERAL) */}
-              {detalleHallazgo && (
-                <div className="fixed inset-0 z-[100] flex justify-end print:hidden">
-                  <div
-                    className={`absolute inset-0 bg-[#0a0a0a]/40 backdrop-blur-sm cursor-pointer ${isClosing ? 'animate-fade-out-bg' : 'animate-fade-in-bg'}`}
-                    onClick={cerrarDetalle}
-                  ></div>
-
-                  <div className={`relative w-full max-w-xl h-full bg-[#F4F4F5] border-l border-[#E5E7EB] shadow-[0_0_50px_rgba(0,0,0,0.3)] flex flex-col overflow-hidden ${isClosing ? 'animate-slide-out-right' : 'animate-slide-in-right'}`}>
-                    
-                    <div className="flex items-center justify-between p-6 md:p-8 border-b border-[#E5E7EB] bg-[#FFFFFF]">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-inner ${detalleHallazgo.tipo === 'critico' ? 'bg-[#E66767]/10 border border-[#E66767]/20' : 'bg-[#EAB308]/10 border border-[#EAB308]/20'}`}>
-                          {detalleHallazgo.tipo === 'critico' ? <AlertTriangle size={18} className="text-[#E66767]" /> : <Zap size={18} className="text-[#EAB308]" />}
-                        </div>
-                        <span className="text-xs font-black uppercase tracking-widest text-[#0a0a0a]">
-                          {detalleHallazgo.tipo === 'critico' ? 'Fuga Crítica' : 'Oportunidad'}
-                        </span>
-                      </div>
-                      <button onClick={cerrarDetalle} className="flex items-center gap-2 text-[10px] font-black text-[#4B5563] hover:text-[#0a0a0a] transition-colors uppercase tracking-widest bg-[#F4F4F5] border border-[#E5E7EB] shadow-sm px-4 py-2.5 rounded-xl hover:bg-[#E5E7EB]">
-                        Cerrar <ArrowRight size={16} />
-                      </button>
-                    </div>
-
-                    <div className="flex-1 overflow-y-auto p-6 md:p-8 flex flex-col gap-8 min-h-0 bg-[#F4F4F5] break-words">
-                      <h2 className="text-3xl font-black text-[#0a0a0a] leading-tight shrink-0">{detalleHallazgo.titulo}</h2>
-
-                      <div className={`p-6 rounded-3xl border shadow-sm shrink-0 ${detalleHallazgo.tipo === 'critico' ? 'bg-[#FFFFFF] border-[#E66767]/30' : 'bg-[#FFFFFF] border-[#EAB308]/30'}`}>
-                        <p className={`text-[10px] font-black uppercase tracking-widest mb-4 flex items-center gap-2 text-[#0a0a0a]`}>
-                          <Target size={16} className={detalleHallazgo.tipo === 'critico' ? 'text-[#E66767]' : 'text-[#EAB308]'} /> 1. El Problema Técnico
-                        </p>
-                        <p className="text-base text-[#4B5563] font-medium leading-relaxed">{detalleHallazgo.problema_detalle}</p>
-                      </div>
-
-                      <div className="p-6 rounded-3xl border bg-[#FFFFFF] border-[#10B981]/40 shadow-sm shrink-0">
-                        <p className="text-[10px] font-black uppercase tracking-widest mb-4 flex items-center gap-2 text-[#0a0a0a]">
-                          <CheckCircle2 size={16} className="text-[#10B981]" /> 2. Acción a Tomar
-                        </p>
-                        <p className="text-base text-[#0a0a0a] font-bold leading-relaxed mb-6">{detalleHallazgo.sugerencia}</p>
-
-                        <button
-                          onClick={() => copiarKeyword(detalleHallazgo.sugerencia)}
-                          className={`w-full flex justify-center items-center gap-2 text-sm font-black py-4 rounded-xl transition-all shadow-sm ${
-                            copiedKw === detalleHallazgo.sugerencia 
-                              ? 'bg-[#10B981] text-[#0a0a0a] border border-[#10B981]' 
-                              : 'bg-[#F4F4F5] text-[#0a0a0a] hover:bg-[#E5E7EB] border border-[#E5E7EB] hover:border-[#10B981]'
-                          }`}
-                        >
-                          {copiedKw === detalleHallazgo.sugerencia ? <Check size={18} /> : <Copy size={18} />}
-                          {copiedKw === detalleHallazgo.sugerencia ? '¡Instrucción copiada!' : 'Copiar Instrucción para Google Ads'}
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const reporte = detalleHallazgo.reporteData || ultimaAuditoria?.reporte_json;
-                            const tokensBuenos =
-                              reporte?.destripador?.tokens
-                                ?.filter((t: { protegido?: boolean }) => !t.protegido)
-                                .slice(0, 6)
-                                .map((t: { token: string }) => t.token) ?? [];
-                            abrirGeneradorAnuncios({
-                              tipo_negocio: reporte?.perfil_aplicado?.tipo_negocio || "ecommerce",
-                              tono: "directo",
-                              objetivo:
-                                detalleHallazgo.id_rastreo?.startsWith("QS_") ||
-                                detalleHallazgo.tipo === "critico"
-                                  ? "recuperar_relevancia"
-                                  : "escalar",
-                              hallazgo_titulo: detalleHallazgo.titulo,
-                              hallazgo_descripcion: detalleHallazgo.problema_detalle,
-                              angulo_comercial: detalleHallazgo.razonamiento,
-                              keywords_buenas: tokensBuenos,
-                              terminos_evitar:
-                                reporte?.destripador?.tokens
-                                  ?.filter((t: { protegido?: boolean }) => !t.protegido)
-                                  .slice(0, 8)
-                                  .map((t: { token: string }) => t.token) ?? [],
-                              hallazgo_id: detalleHallazgo.id_rastreo,
-                            });
-                          }}
-                          className="w-full mt-3 flex justify-center items-center gap-2 text-sm font-black py-4 rounded-xl transition-all shadow-sm bg-[#F3C3B2]/20 text-[#0a0a0a] hover:bg-[#F3C3B2] border border-[#F3C3B2]/40"
-                        >
-                          <Sparkles size={18} /> Generar anuncios para esta oportunidad
-                        </button>
-                      </div>
-
-                      <div className="p-8 rounded-3xl border border-[#E5E7EB] bg-[#FFFFFF] shadow-inner relative overflow-hidden shrink-0">
-                        <div className="absolute top-0 left-0 w-1.5 h-full bg-[#8A968C]"></div>
-                        <p className="text-[10px] font-black uppercase tracking-widest mb-4 flex items-center gap-2 text-[#0a0a0a]">
-                          <BookOpen size={16} className="text-[#8A968C]" /> 3. ¿Por qué hacemos esto?
-                        </p>
-                        <p className="text-base text-[#0a0a0a] font-semibold leading-relaxed italic">
-                          "{detalleHallazgo.razonamiento || "Esta optimización corta la hemorragia de presupuesto y redirige la inversión hacia tráfico con verdadera intención de compra."}"
-                        </p>
-                      </div>
-
-                      <div className="p-6 rounded-3xl border border-[#E0E7FF]/50 bg-[#E0E7FF]/10 flex items-center gap-5 shadow-sm mt-2 mb-8 shrink-0">
-                        <div className="w-14 h-14 rounded-full bg-[#FFFFFF] border border-[#E0E7FF] flex items-center justify-center flex-shrink-0 shadow-sm">
-                          <TrendUp size={24} className="text-[#6366F1]" strokeWidth={3} />
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-[10px] font-black uppercase tracking-widest mb-1 text-[#0a0a0a]">4. Resultado Proyectado</p>
-                          <p className="text-xl font-black text-[#0a0a0a] leading-tight">{detalleHallazgo.resultado_esperado}</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
+              <HallazgoDetallePanel
+                detalle={detalleHallazgo}
+                open={!!detalleHallazgo && !isClosing}
+                isClosing={isClosing}
+                lenguajeClaro={explicacionClara}
+                onClose={cerrarDetalle}
+                onAbrirResumen={() => {
+                  cerrarDetalle();
+                  setTimeout(() => setResumenFacilAbierto(true), 400);
+                }}
+                onAbrirHerramienta={(idRastreo) => {
+                  cerrarDetalle();
+                  setTimeout(() => abrirHerramientaDesdeDetalle(idRastreo), 400);
+                }}
+                onGenerarAnuncios={(ctx) => {
+                  cerrarDetalle();
+                  setTimeout(() => abrirGeneradorAnuncios(ctx), 400);
+                }}
+              />
 
               {/* VISTA: MIS REPORTES */}
               {vista === "historial" && !vistaComparacion && (

@@ -378,7 +378,7 @@ export default function LandingPage() {
 
         {!session ? (
           <div className="w-full h-full overflow-y-auto overflow-x-hidden relative z-10 text-[#0a0a0a]">
-            <nav className="w-full max-w-[1400px] mx-auto px-6 py-6 flex justify-between items-center z-50 relative">
+            <nav className="w-full max-w-[1600px] mx-auto px-8 md:px-10 py-8 flex justify-between items-center z-50 relative">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-[#0a0a0a] text-2xl shadow-sm bg-[#E0E7FF]">M</div>
                 <span className="font-bold text-2xl tracking-tight text-[#0a0a0a]">Mora Analytics</span>
@@ -398,7 +398,7 @@ export default function LandingPage() {
               </div>
             </nav>
 
-            <section className="relative pt-12 pb-20 lg:pt-24 lg:pb-28 overflow-hidden z-10 px-6 max-w-[1400px] mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-8 items-center min-h-[75vh]">
+            <section className="relative pt-16 pb-24 lg:pt-28 lg:pb-32 overflow-hidden z-10 px-8 md:px-10 max-w-[1600px] mx-auto grid grid-cols-1 lg:grid-cols-2 gap-14 lg:gap-10 items-center min-h-[75vh]">
               <FadeInOnScroll>
                 <div className="flex flex-col items-start text-left lg:pr-10">
                   <div className="border border-[#CFD6C4]/80 bg-[#CFD6C4]/30 px-4 py-1.5 rounded-full text-[10px] font-bold tracking-widest uppercase mb-8 flex items-center gap-3 text-[#0a0a0a]">
@@ -500,7 +500,7 @@ export default function LandingPage() {
             </section>
 
             <FadeInOnScroll delay={100}>
-              <section className="max-w-[1400px] mx-auto px-6 py-20 border-t border-[#CFD6C4]/40">
+              <section className="max-w-[1600px] mx-auto px-8 md:px-10 py-24 border-t border-[#CFD6C4]/40">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 mb-12 items-end">
                    <div className="lg:col-span-1">
                      <p className="inline-block px-3 py-1.5 rounded-md text-[10px] font-bold tracking-widest uppercase text-[#0a0a0a] bg-[#10B981]/40 mb-4">Cómo funciona</p>
@@ -532,7 +532,7 @@ export default function LandingPage() {
             </FadeInOnScroll>
 
             <FadeInOnScroll>
-              <section className="max-w-[1400px] mx-auto px-6 py-20 border-t border-[#CFD6C4]/40">
+              <section className="max-w-[1600px] mx-auto px-8 md:px-10 py-24 border-t border-[#CFD6C4]/40">
                 <div className="text-center mb-16">
                   <p className="inline-block px-3 py-1.5 rounded-md text-[10px] font-bold tracking-widest uppercase text-[#0a0a0a] bg-[#DAEBE3] mb-4">Precios Simples</p>
                   <h2 className="text-4xl md:text-5xl font-serif font-black text-[#0a0a0a] mb-4">Elegí tu camino.</h2>
@@ -592,7 +592,7 @@ export default function LandingPage() {
             </FadeInOnScroll>
 
             <FadeInOnScroll>
-              <section className="max-w-4xl mx-auto px-6 py-20 mb-12 border-t border-[#CFD6C4]/40">
+              <section className="max-w-5xl mx-auto px-8 md:px-10 py-24 mb-12 border-t border-[#CFD6C4]/40">
                 <div className="text-center mb-12">
                   <h2 className="text-4xl font-serif font-black text-[#0a0a0a]">Preguntas Frecuentes</h2>
                 </div>
