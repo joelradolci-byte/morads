@@ -31,7 +31,7 @@ export default function FaqPage() {
 
           <div className="bg-white/60 backdrop-blur-xl border border-[#CFD6C4]/60 rounded-2xl p-8 shadow-sm">
             <h3 className="text-xl font-bold text-[#262B27] mb-3">¿Entrenan a la IA con los datos de mis clientes?</h3>
-            <p className="text-[#657166] font-medium leading-relaxed">De ninguna manera. El rendimiento de tus campañas pasa por la API de Google Gemini estrictamente para generar tu reporte en ese instante. Los datos no son utilizados para entrenar modelos fundacionales públicos.</p>
+            <p className="text-[#657166] font-medium leading-relaxed">De ninguna manera. El rendimiento de tus campañas pasa por APIs de IA (OpenAI y Anthropic) estrictamente para generar tu reporte en ese instante. Los datos no son utilizados para entrenar modelos fundacionales públicos según los términos de cada proveedor.</p>
           </div>
 
           <div className="bg-white/60 backdrop-blur-xl border border-[#CFD6C4]/60 rounded-2xl p-8 shadow-sm">

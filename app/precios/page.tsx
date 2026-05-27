@@ -54,7 +54,7 @@ export default function PreciosPage() {
                 <td className="p-6 text-center font-bold text-[#262B27]">Ilimitado</td>
               </tr>
               <tr className="border-b border-[#CFD6C4]/30 hover:bg-[#FDE8D3]/30 transition-colors">
-                <td className="p-6 text-[#262B27] font-bold">Auditorías con IA (Gemini Pro)</td>
+                <td className="p-6 text-[#262B27] font-bold">Auditorías con IA</td>
                 <td className="p-6 text-center flex justify-center"><CheckCircle2 className="text-[#DAEBE3]" /></td>
                 <td className="p-6 text-center bg-[#99CDD8]/5"><CheckCircle2 className="text-[#99CDD8] mx-auto" /></td>
                 <td className="p-6 text-center"><CheckCircle2 className="text-[#F3C3B2] mx-auto" /></td>

@@ -1713,7 +1713,7 @@ export function generarEsqueletoAuditoria(datos: DatosAuditoriaInput) {
     if (camp.quality_score !== undefined && camp.quality_score > 0 && camp.quality_score < 5) {
       const idRastreo = `QS_PENALIZADO_CAMPANA_${camp.id}`;
       
-      // Identificamos dinámicamente cuál es el talón de Aquiles para guiar a Gemini
+      // Identificamos dinámicamente cuál es el talón de Aquiles para la redacción IA
       let factorFalla = "Rendimiento general";
       if (camp.quality_landing === "BELOW_AVERAGE") factorFalla = "Experiencia de la Página de Destino (Landing Page)";
       else if (camp.quality_relevance === "BELOW_AVERAGE") factorFalla = "Relevancia del Anuncio";

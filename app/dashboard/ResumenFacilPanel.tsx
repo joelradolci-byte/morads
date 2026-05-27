@@ -45,6 +45,8 @@ interface ResumenFacilPanelProps {
   score: number;
   gastoDesperdiciado: number;
   porcentajeDesperdiciado: number;
+  /** Narrativa Sonnet (resumen.ejecutivo) si existe */
+  resumenEjecutivo?: string;
   items: ItemResumenHallazgo[];
   lenguajeClaro: boolean;
   onResolver: (item: ItemResumenHallazgo) => void;
@@ -81,6 +83,7 @@ export default function ResumenFacilPanel({
   score,
   gastoDesperdiciado,
   porcentajeDesperdiciado,
+  resumenEjecutivo,
   items,
   lenguajeClaro,
   onResolver,
@@ -90,10 +93,11 @@ export default function ResumenFacilPanel({
   const [aplicandoId, setAplicandoId] = useState<string | null>(null);
   const [resultById, setResultById] = useState<Record<string, HallazgoApplyResult | null>>({});
 
-  const fraseSalud = useMemo(
-    () => fraseSaludCuenta(score, gastoDesperdiciado, porcentajeDesperdiciado),
-    [score, gastoDesperdiciado, porcentajeDesperdiciado]
-  );
+  const fraseSalud = useMemo(() => {
+    const ejecutivo = (resumenEjecutivo || "").trim();
+    if (ejecutivo) return ejecutivo;
+    return fraseSaludCuenta(score, gastoDesperdiciado, porcentajeDesperdiciado);
+  }, [resumenEjecutivo, score, gastoDesperdiciado, porcentajeDesperdiciado]);
 
   const visual = useMemo(() => scoreVisual(score), [score]);
   const ScoreIcon = visual.icon;

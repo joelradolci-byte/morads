@@ -1,6 +1,5 @@
 "use client";
 import { useState, useEffect, useRef, useMemo } from "react";
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import Link from "next/link";
 import { 
   Target, Users, Building2, MessageSquare, LogOut, ChevronDown, 
@@ -2996,6 +2995,11 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
                 score={ultimaAuditoria?.score ?? 0}
                 gastoDesperdiciado={ultimaAuditoria?.reporte_json?.resumen?.gasto_desperdiciado ?? 0}
                 porcentajeDesperdiciado={ultimaAuditoria?.reporte_json?.resumen?.porcentaje_desperdiciado ?? 0}
+                resumenEjecutivo={
+                  typeof ultimaAuditoria?.reporte_json?.resumen?.ejecutivo === "string"
+                    ? ultimaAuditoria.reporte_json.resumen.ejecutivo
+                    : undefined
+                }
                 items={quickWinsDelDia}
                 lenguajeClaro={explicacionClara}
                 onResolver={handleResolverDesdeResumen}

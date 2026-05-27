@@ -40,7 +40,7 @@ Siempre presentar las sugerencias como opciones, nunca aplicarlas sin confirmaci
 - **Iconos**: Lucide React — nunca importar de otras librerías de iconos
 - **Base de datos & Auth**: Supabase (PostgreSQL) con Row Level Security (RLS) habilitado en todas las tablas
 - **Pagos**: Lemon Squeezy — no usar Stripe ni ningún otro proveedor de pagos
-- **IA**: Google Gemini API — motor de inteligencia artificial de toda la plataforma. No usar OpenAI, Anthropic ni otros proveedores
+- **IA**: OpenAI (`gpt-5.4-mini` redacción) + Anthropic (`claude-sonnet-4-6` estrategia y RSA) vía `lib/ai/provider.ts` — solo server-side. Motor determinístico en `motorMora.ts`
 - **Reportes PDF**: `@react-pdf/renderer` server-side — generación vectorial, nunca html-to-pdf ni puppeteer
 - **Deploy**: Vercel
 
@@ -68,7 +68,7 @@ app/
 │   └── page.tsx                      ← feedback de usuarios
 ├── api/
 │   ├── audit/
-│   │   └── route.ts                  ← endpoint que llama a Gemini con reintentos automáticos (3 intentos, 2s de espera)
+│   │   └── route.ts                  ← auditoría: motorMora + GPT redactor + Sonnet estratega (paralelo)
 │   └── pdf/
 │       └── route.ts                  ← generación de PDF server-side con @react-pdf/renderer
 ├── components/
@@ -109,10 +109,10 @@ contexts/
 
 ## Seguridad — Reglas Críticas
 
-- **API keys y secrets nunca en el frontend** — Gemini, Google Ads y Supabase Service Role solo se llaman desde Server Components o API routes
-- **Gemini API**: nunca llamarla desde código cliente — siempre via API route del servidor
+- **API keys y secrets nunca en el frontend** — OpenAI, Anthropic, Google Ads y Supabase Service Role solo se llaman desde Server Components o API routes
+- **IA (OpenAI/Anthropic)**: nunca llamarla desde código cliente — siempre via `lib/ai` y API routes del servidor
 - **Google Ads API**: nunca llamarla desde código cliente — siempre server-side
-- Las variables `GEMINI_API_KEY`, `GOOGLE_CLIENT_SECRET`, `SUPABASE_SERVICE_ROLE_KEY` nunca deben aparecer en código con `"use client"` ni ser expuestas al browser bajo ninguna circunstancia
+- Las variables `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY` nunca deben aparecer en código con `"use client"` ni ser expuestas al browser bajo ninguna circunstancia
 - Solo las variables con prefijo `NEXT_PUBLIC_` pueden usarse en el cliente
 - **`SUPABASE_SERVICE_ROLE_KEY`** es especialmente crítica — bypasea RLS completamente, solo en API routes
 - Auth con OAuth 2.0 (Google) via Supabase Auth
@@ -140,7 +140,7 @@ contexts/
 - Autenticación OAuth con cuentas reales de Google Ads
 - Extracción de datos via Google Ads API (integración en desarrollo — actualmente con datos mock)
 - Write Access con botones de acción directa + red de seguridad (Deshacer/Undo)
-- Manejo de errores de Gemini con reintentos automáticos (3 intentos, 2s entre cada uno) y mensaje claro al usuario si falla
+- Manejo de errores de IA (`lib/ai/provider.ts`) con reintentos (3 intentos, 2s) y degradación graceful en auditoría
 
 ### 2. Dashboard
 - **Estado vacío**: cuando no hay auditorías, muestra mensaje de bienvenida con botón para ejecutar la primera auditoría
@@ -153,7 +153,7 @@ contexts/
 - **Matriz de Rendimiento**: clasifica campañas en 4 cuadrantes (Escalar, Dar Tiempo, Revisar, Frenar) con impacto económico estimado por categoría
 - **Estrategia Robin Hood**: vive dentro de la Matriz de Rendimiento. Detecta campañas "basura" (CPA >20% sobre promedio), calcula presupuesto rescatable, identifica campaña "estrella" (conversiones >15% más baratas), y muestra exactamente cuánto transferir con preview antes/después por campaña. Incluye "Contrato de Seguridad" — verifica presupuestos antes de aplicar y habilita Undo.
 
-### 4. Motor de IA (Gemini)
+### 4. Motor de IA (OpenAI + Anthropic + motorMora)
 - **Destripador de Búsquedas (N-gramas)**: panel lateral con mapa de términos categorizados por intención (gratuita/educativa, baja calidad, competencia, etc.), selección múltiple, preview de negativos antes de aplicar, y botones Copiar / Aplicar en Google Ads
 - **Detector de Fugas por Franja Horaria (Dayparting)**: panel lateral con barra de calor horizontal de 24 horas (verde=bueno, rojo=fuga, amarillo=mejorable, gris=sin datos), lista de franjas problemáticas con gasto y conversiones, botones para pausar tráfico o reducir puja con confirmación
 - **Razonamiento Lógico-Matemático**: system prompt con umbrales estrictos atados a datos reales
@@ -221,8 +221,8 @@ contexts/
 - Reemplazar Tailwind con otra solución de estilos
 - Usar `localStorage` para tokens o datos sensibles
 - Generar PDFs con puppeteer o html-to-pdf
-- Sugerir OpenAI, Anthropic u otros proveedores de IA — el proveedor es Gemini
+- Llamar OpenAI/Anthropic directamente desde componentes cliente (usar `lib/ai` en servidor)
 - Sugerir Stripe u otros proveedores de pagos — el proveedor es Lemon Squeezy
-- Llamar APIs externas (Gemini, Google Ads) desde código cliente
+- Llamar APIs externas (IA, Google Ads) desde código cliente
 - Llamar a `createClient` de Supabase fuera de `lib/supabase/browser.ts` en código cliente
 - Usar jerga técnica al pedir confirmación sin explicar primero qué hace el cambio en términos simples

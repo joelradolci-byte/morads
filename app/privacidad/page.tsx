@@ -24,7 +24,7 @@ export default function PrivacidadPage() {
             <h2 className="text-2xl font-bold text-[#262B27] mb-4" style={{ fontFamily: "'Playfair Display', serif" }}>2. Uso de Datos y Cumplimiento de "Limited Use"</h2>
             <p>
               Cumplimos estrictamente con la <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener noreferrer" className="underline hover:text-[#262B27]">Política de Datos de Usuario de los Servicios de API de Google</a>. 
-              Los datos de tus campañas se envían temporalmente a modelos de IA de Google (Gemini) mediante API de nivel empresarial. 
+              Los datos de tus campañas se envían temporalmente a proveedores de IA (OpenAI y Anthropic) mediante API de nivel empresarial, solo para generar tu reporte en ese instante. 
               <strong> Tus datos no son utilizados por Google ni por Mora para entrenar modelos fundacionales públicos de IA.</strong> 
             </p>
             <p className="mt-4 p-4 bg-[#CFD6C4]/20 rounded-xl border-l-4 border-[#99CDD8]">

@@ -26,7 +26,7 @@ export default function ComoFuncionaPage() {
             <div className="absolute -right-10 -top-10 w-32 h-32 bg-[#99CDD8]/30 rounded-full blur-3xl"></div>
             <div className="w-16 h-16 rounded-2xl bg-[#99CDD8]/40 flex items-center justify-center text-[#262B27] mb-6 relative z-10"><Search size={32} /></div>
             <h2 className="text-2xl font-bold font-serif mb-4 relative z-10">2. El Escáner de IA</h2>
-            <p className="text-[#657166] leading-relaxed font-medium relative z-10">Nuestro motor impulsado por Gemini analiza el historial de rendimiento buscando patrones ocultos: keywords irrelevantes, horarios de gasto ineficiente y problemas de segmentación.</p>
+            <p className="text-[#657166] leading-relaxed font-medium relative z-10">Nuestro motor analiza el historial de rendimiento buscando patrones ocultos: keywords irrelevantes, horarios de gasto ineficiente y problemas de segmentación, con redacción asistida por IA.</p>
           </div>
           <div className="bg-white/60 backdrop-blur-xl border border-[#F3C3B2]/60 rounded-[2rem] p-10 shadow-lg relative overflow-hidden">
             <div className="absolute -right-10 -top-10 w-32 h-32 bg-[#F3C3B2]/30 rounded-full blur-3xl"></div>
@@ -76,7 +76,7 @@ export default function ComoFuncionaPage() {
 
             {/* Grupo 4 */}
             <div className="bg-white/80 backdrop-blur-md border border-[#CFD6C4]/80 p-8 rounded-3xl shadow-sm hover:border-[#262B27] transition-colors">
-              <h3 className="text-xl font-bold text-[#262B27] mb-6 flex items-center gap-3 border-b border-[#CFD6C4]/50 pb-4"><BrainCircuit size={24} className="text-[#262B27]"/> El Motor Gemini 3.1</h3>
+              <h3 className="text-xl font-bold text-[#262B27] mb-6 flex items-center gap-3 border-b border-[#CFD6C4]/50 pb-4"><BrainCircuit size={24} className="text-[#262B27]"/> El motor Mora + IA</h3>
               <ul className="space-y-4 text-[#657166] font-medium text-sm">
                 <li><strong className="text-[#262B27]">Razonamiento Basado en Hechos:</strong> Cada sugerencia de la IA vendrá con una explicación técnica detallada del "porqué".</li>
                 <li><strong className="text-[#262B27]">Salud Competitiva (Auction Insights):</strong> Alertas tempranas visuales de quién te está robando cuota de mercado.</li>
