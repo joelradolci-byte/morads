@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import Link from "next/link";
 import { 
-  Target, Users, Building2, MessageSquare, LogOut, ChevronDown, 
+  Target, Users, Building2, LogOut, ChevronDown, 
   Zap, AlertTriangle, CheckCircle2, CreditCard, Settings, 
   Search, ArrowRight, ArrowLeft, TrendingUp, TrendingDown, LayoutPanelLeft,
   FileText, BarChart3, ShieldCheck, Plus, Clock, Activity, Trash2, Lock, 
@@ -56,6 +56,7 @@ import ResumenFacilPanel, { type ItemResumenHallazgo } from './ResumenFacilPanel
 import HallazgoDetallePanel from './HallazgoDetallePanel';
 import HistorialAuditoriasSection from './reportes/HistorialAuditoriasSection';
 import LecturaAuditoriaView from './reportes/LecturaAuditoriaView';
+import FeedbackFab from './feedback/FeedbackFab';
 import ComparacionHallazgosBloque from './reportes/ComparacionHallazgosBloque';
 import { buildQuickWinsFromReporte } from './reportes/buildQuickWinsFromReporte';
 import {
@@ -83,7 +84,7 @@ import {
   type DaypartingEstadoPersistido,
 } from '../../lib/daypartingEstado';
 
-export type AuditorVista = "dashboard" | "nueva" | "historial" | "perfil" | "feedback" | "reporte_lectura" | "facturacion" | "detalle_hallazgo" | "campañas";
+export type AuditorVista = "dashboard" | "nueva" | "historial" | "perfil" | "reporte_lectura" | "facturacion" | "detalle_hallazgo" | "campañas";
 
 const vistaPorRuta: Record<string, AuditorVista> = {
   "/dashboard": "dashboard",
@@ -91,7 +92,6 @@ const vistaPorRuta: Record<string, AuditorVista> = {
   "/reportes": "historial",
   "/configuracion": "perfil",
   "/facturacion": "facturacion",
-  "/sugerencias": "feedback",
 };
 
 type BadgeAuditoria = "recomendado" | "desactualizada";
@@ -545,8 +545,6 @@ export function AuditorDashboard({
   const [moneda, setMoneda] = useState("USD ($)");
   const [metrica, setMetrica] = useState("ROAS");
   const [uploading, setUploading] = useState(false);
-  const [mensajeFeedback, setMensajeFeedback] = useState("");
-  const [enviandoFeedback, setEnviandoFeedback] = useState(false);
   const [tareasCompletadas, setTareasCompletadas] = useState<number[]>([]);
   const [mostrarConfirmacion, setMostrarConfirmacion] = useState(false);
   const [toastState, setToastState] = useState<{show: boolean, status: 'success' | 'undoing' | 'reverted', timeLeft: number}>({show: false, status: 'success', timeLeft: 15});
@@ -930,8 +928,8 @@ export function AuditorDashboard({
   );
 
   const t: any = {
-    es: { dashboard: "Dashboard", panelPrin: "Panel Principal", panelDesc: "Resumen del rendimiento global de tus cuentas.", saludG: "Salud Promedio", totAud: "Total Cuentas", fugasDet: "Fugas Críticas", oporMej: "Oportunidades", ultAud: "Últimas Auditorías", actRec: "Actividad Reciente", verTodas: "Ver todas →", generada: "Se auditó la cuenta", hace: "Hace", afectaA: "Afecta principalmente a", buscarGlobal: "Buscar cuenta por nombre...", nueva: "Auditor IA", clientes: "Panel de Clientes", reportes: "Reportes", feedback: "Sugerencias", configuracion: "Configuración", facturacion: "Facturación", salir: "Cerrar Sesión", placeholderNombre: "Nombre del Cliente o Cuenta", btnAnalizar: "Ejecutar Auditoría", btnAnalizando: "Analizando métricas...", exportar: "Exportar a PDF", score: "Score", problemas: "Problemas Graves", mejoras: "Áreas Débiles", aciertos: "Puntos Fuertes", login: "Iniciar sesión", tabDiag: "Diagnóstico IA", tabCheck: "Plan de Acción", tabAvanzado: "Análisis Avanzado", autoApply: "Corregir Ahora", msgAutoApply: "Disponible próximamente", pacingTit: "Pacing de Presupuesto", pacingDesc: "Ritmo de gasto proyectado", matrizTit: "Campaign Matrix", matrizDesc: "Distribución del gasto vs rendimiento", escalar: "ESTRELLAS (Escalar)", apagar: "BASURA (Apagar)", observar: "DUDOSOS (Observar)", potenciales: "POTENCIALES (Testear)", abrirAud: "Ver reporte", thCliente: "Cliente / Cuenta", thFecha: "Fecha", thEstado: "Estado", thAccion: "Acción", cuentaSinNombre: "Cuenta sin nombre", ingresos: "Ingresa los datos", buzonSug: "Buzón de sugerencias", facturacionTitulo: "Facturación y Planes", facturacionDesc: "Administrá tu suscripción", planActual: "Plan Actual", activa: "Active", gestionarStripe: "Gestionar en Stripe", pronto: "Pronto", ayudanos: "Ayudanos a mejorar", bug: "¿Encontraste un error?", escribiSug: "Escribí tu sugerencia aquí...", enviando: "Enviando...", enviarSug: "Enviar Sugerencia", persPdf: "Personalización de Marca Blanca", nomAgencia: "Nombre de Agencia", sitioWeb: "Sitio Web", logoPdf: "PDF Logo", subeLogo: "Subir", piePagina: "Pie de página legal", preferencias: "Preferencias Regionales", monedaDef: "Moneda Base", metricaDef: "Métrica Principal", guardando: "Guardando...", guardarAj: "Guardar Ajustes", puntajeBasado: "Puntaje en base a ineficiencias del presupuesto.", ingresaDatos: "Completá los datos de la campaña a auditar.", presupuestoObj: "Presupuesto Mensual", placeholderPres: "Ej: 1000", gastoAct: "Gasto actual", placeholderGasto: "Ej: 450", conversiones: "Conversiones", cparoas: "CPA / ROAS Actual", tipoCamp: "Campaign Type", contexto: "Context y Notas", placeholderConv: "Ej: 120", placeholderContexto: "Añadí contexto extra para la IA.", monitoreo: "Monitoreo", tenes: "Tenés", registradas: "cuentas registradas.", todos: "Todos", criticos: "Críticos", atencion: "Atención", optimos: "Óptimos", thTendencia: "Tendencia", volver: "Volver atrás", detalleCliente: "Detalle del Cliente" },
-    en: { dashboard: "Dashboard", panelPrin: "Main Dashboard", panelDesc: "Global overview of your accounts performance.", saludG: "Avg Health Score", totAud: "Total Accounts", fugasDet: "Critical Leaks", oporMej: "Opportunities", ultAud: "Recent Audits", actRec: "Recent Activity", verTodas: "View all →", generada: "Audit generated for", hace: "Ago", afectaA: "Mainly affecting", buscarGlobal: "Search account by name...", nueva: "AI Auditor", clientes: "Client Dashboard", reportes: "Reports", feedback: "Feedback", configuracion: "Settings", facturacion: "Billing", salir: "Sign Out", placeholderNombre: "Client or Account Name", btnAnalizar: "Run Audit", btnAnalizando: "Analyzing metrics...", exportar: "Export to PDF", score: "Score", problemas: "Critical Issues", mejoras: "Weak Areas", aciertos: "Strengths", login: "Log In", tabDiag: "AI Diagnosis", tabCheck: "Action Plan", tabAvanzado: "Advanced Analysis", autoApply: "Auto-Apply", msgAutoApply: "Coming soon", pacingTit: "Budget Pacing", pacingDesc: "Projected spend rhythm", matrizTit: "Campaign Matrix", matrizDesc: "Spend distribution vs performance", escalar: "STARS (Scale)", apagar: "TRASH (Pause)", observar: "DOUBTFUL (Observe)", potenciales: "POTENCIALES (Test)", abrirAud: "View report", thCliente: "Client / Account", thFecha: "Date", thEstado: "Status", thAccion: "Action", cuentaSinNombre: "Unnamed Account", ingresos: "Enter details", buzonSug: "Suggestion Box", facturacionTitulo: "Billing and Plans", facturacionDesc: "Manage your subscription", planActual: "Current Plan", activa: "Active", gestionarStripe: "Manage on Stripe", pronto: "Soon", ayudanos: "Help us improve", bug: "Found a bug?", escribiSug: "Write your suggestion here...", enviando: "Sending...", enviarSug: "Send Suggestion", persPdf: "White Label Customization", nomAgencia: "Agency Name", sitioWeb: "Website", logoPdf: "PDF Logo", subeLogo: "Upload", piePagina: "Legal Footer", preferences: "Regional Preferences", monedaDef: "Base Currency", metricaDef: "Main Metric", guardando: "Saving...", guardarAj: "Save Settings", puntajeBasado: "Score based on budget inefficiencies.", ingresaDatos: "Fill in the details for the campaign audit.", presupuestoObj: "Monthly Budget", placeholderPres: "E.g. 1000", gastoAct: "Current Spend", placeholderGasto: "E.g. 450", conversiones: "Conversions", cparoas: "Current CPA / ROAS", tipoCamp: "Campaign Type", contexto: "Context & Notes", placeholderConv: "E.g. 120", placeholderContexto: "Add extra context for the AI.", monitoreo: "Monitoring", tenes: "You have", registradas: "accounts registered.", todos: "All", criticos: "Critical", atencion: "Warning", optimos: "Optimal", thTendencia: "Trend", volver: "Go Back", detalleCliente: "Client Details" }
+    es: { dashboard: "Dashboard", panelPrin: "Panel Principal", panelDesc: "Resumen del rendimiento global de tus cuentas.", saludG: "Salud Promedio", totAud: "Total Cuentas", fugasDet: "Fugas Críticas", oporMej: "Oportunidades", ultAud: "Últimas Auditorías", actRec: "Actividad Reciente", verTodas: "Ver todas →", generada: "Se auditó la cuenta", hace: "Hace", afectaA: "Afecta principalmente a", buscarGlobal: "Buscar cuenta por nombre...", nueva: "Auditor IA", clientes: "Panel de Clientes", reportes: "Reportes", feedback: "Sugerencias", configuracion: "Configuración", facturacion: "Facturación", salir: "Cerrar Sesión", placeholderNombre: "Nombre del Cliente o Cuenta", btnAnalizar: "Ejecutar Auditoría", btnAnalizando: "Analizando métricas...", exportar: "Exportar a PDF", score: "Score", problemas: "Problemas Graves", mejoras: "Áreas Débiles", aciertos: "Puntos Fuertes", login: "Iniciar sesión", tabDiag: "Diagnóstico IA", tabCheck: "Plan de Acción", tabAvanzado: "Análisis Avanzado", autoApply: "Corregir Ahora", msgAutoApply: "Disponible próximamente", pacingTit: "Pacing de Presupuesto", pacingDesc: "Ritmo de gasto proyectado", matrizTit: "Campaign Matrix", matrizDesc: "Distribución del gasto vs rendimiento", escalar: "ESTRELLAS (Escalar)", apagar: "BASURA (Apagar)", observar: "DUDOSOS (Observar)", potenciales: "POTENCIALES (Testear)", abrirAud: "Ver reporte", thCliente: "Cliente / Cuenta", thFecha: "Fecha", thEstado: "Estado", thAccion: "Acción", cuentaSinNombre: "Cuenta sin nombre", ingresos: "Ingresa los datos", buzonSug: "Buzón de sugerencias", facturacionTitulo: "Facturación y Planes", facturacionDesc: "Administrá tu suscripción", planActual: "Plan Actual", activa: "Active", gestionarSuscripcion: "Gestionar suscripción", pronto: "Pronto", ayudanos: "Ayudanos a mejorar", bug: "¿Encontraste un error?", escribiSug: "Escribí tu sugerencia aquí...", enviando: "Enviando...", enviarSug: "Enviar Sugerencia", persPdf: "Personalización de Marca Blanca", nomAgencia: "Nombre de Agencia", sitioWeb: "Sitio Web", logoPdf: "PDF Logo", subeLogo: "Subir", piePagina: "Pie de página legal", preferencias: "Preferencias Regionales", monedaDef: "Moneda Base", metricaDef: "Métrica Principal", guardando: "Guardando...", guardarAj: "Guardar Ajustes", puntajeBasado: "Puntaje en base a ineficiencias del presupuesto.", ingresaDatos: "Completá los datos de la campaña a auditar.", presupuestoObj: "Presupuesto Mensual", placeholderPres: "Ej: 1000", gastoAct: "Gasto actual", placeholderGasto: "Ej: 450", conversiones: "Conversiones", cparoas: "CPA / ROAS Actual", tipoCamp: "Campaign Type", contexto: "Context y Notas", placeholderConv: "Ej: 120", placeholderContexto: "Añadí contexto extra para la IA.", monitoreo: "Monitoreo", tenes: "Tenés", registradas: "cuentas registradas.", todos: "Todos", criticos: "Críticos", atencion: "Atención", optimos: "Óptimos", thTendencia: "Tendencia", volver: "Volver atrás", detalleCliente: "Detalle del Cliente" },
+    en: { dashboard: "Dashboard", panelPrin: "Main Dashboard", panelDesc: "Global overview of your accounts performance.", saludG: "Avg Health Score", totAud: "Total Accounts", fugasDet: "Critical Leaks", oporMej: "Opportunities", ultAud: "Recent Audits", actRec: "Recent Activity", verTodas: "View all →", generada: "Audit generated for", hace: "Ago", afectaA: "Mainly affecting", buscarGlobal: "Search account by name...", nueva: "AI Auditor", clientes: "Client Dashboard", reportes: "Reports", feedback: "Feedback", configuracion: "Settings", facturacion: "Billing", salir: "Sign Out", placeholderNombre: "Client or Account Name", btnAnalizar: "Run Audit", btnAnalizando: "Analyzing metrics...", exportar: "Export to PDF", score: "Score", problemas: "Critical Issues", mejoras: "Weak Areas", aciertos: "Strengths", login: "Log In", tabDiag: "AI Diagnosis", tabCheck: "Action Plan", tabAvanzado: "Advanced Analysis", autoApply: "Auto-Apply", msgAutoApply: "Coming soon", pacingTit: "Budget Pacing", pacingDesc: "Projected spend rhythm", matrizTit: "Campaign Matrix", matrizDesc: "Spend distribution vs performance", escalar: "STARS (Scale)", apagar: "TRASH (Pause)", observar: "DOUBTFUL (Observe)", potenciales: "POTENCIALES (Test)", abrirAud: "View report", thCliente: "Client / Account", thFecha: "Date", thEstado: "Status", thAccion: "Action", cuentaSinNombre: "Unnamed Account", ingresos: "Enter details", buzonSug: "Suggestion Box", facturacionTitulo: "Billing and Plans", facturacionDesc: "Manage your subscription", planActual: "Current Plan", activa: "Active", gestionarSuscripcion: "Manage subscription", pronto: "Soon", ayudanos: "Help us improve", bug: "Found a bug?", escribiSug: "Write your suggestion here...", enviando: "Sending...", enviarSug: "Send Suggestion", persPdf: "White Label Customization", nomAgencia: "Agency Name", sitioWeb: "Website", logoPdf: "PDF Logo", subeLogo: "Upload", piePagina: "Legal Footer", preferences: "Regional Preferences", monedaDef: "Base Currency", metricaDef: "Main Metric", guardando: "Saving...", guardarAj: "Save Settings", puntajeBasado: "Score based on budget inefficiencies.", ingresaDatos: "Fill in the details for the campaign audit.", presupuestoObj: "Monthly Budget", placeholderPres: "E.g. 1000", gastoAct: "Current Spend", placeholderGasto: "E.g. 450", conversiones: "Conversions", cparoas: "Current CPA / ROAS", tipoCamp: "Campaign Type", contexto: "Context & Notes", placeholderConv: "E.g. 120", placeholderContexto: "Add extra context for the AI.", monitoreo: "Monitoring", tenes: "You have", registradas: "accounts registered.", todos: "All", criticos: "Critical", atencion: "Warning", optimos: "Optimal", thTendencia: "Trend", volver: "Go Back", detalleCliente: "Client Details" }
   };
 
   useEffect(() => {
@@ -1163,14 +1161,6 @@ export function AuditorDashboard({
     });
     if (!error) { alert("¡Ajustes guardados correctamente!"); obtenerPerfil(); } else { alert("Error guardando configuraciones."); }
     setLoading(false);
-  };
-
-  const mandarFeedback = async () => {
-    if (!mensajeFeedback.trim() || !session?.user?.email) return;
-    setEnviandoFeedback(true);
-    const { error } = await supabase.from('feedback').insert([{ usuario_email: session.user.email, mensaje: mensajeFeedback }]);
-    if (!error) { alert("¡Gracias por tu sugerencia!"); setMensajeFeedback(""); navegar("dashboard", "/dashboard"); } else { alert("Error enviando feedback."); }
-    setEnviandoFeedback(false);
   };
 
   const abrirGeneradorAnuncios = (ctx: AdGeneratorContext) => {
@@ -1955,17 +1945,6 @@ export function AuditorDashboard({
                   Mis Reportes
                 </button>
 
-                <button 
-                  onClick={() => navegar("feedback", "/sugerencias")}
-                  className={`w-full text-left py-3.5 pr-4 flex items-center gap-3 font-bold transition-all duration-300 rounded-lg ${
-                    vista === "feedback"
-                    ? "bg-white/10 text-white border-l-4 border-[#F3C3B2] pl-5" 
-                    : "text-[#8A968C] hover:bg-white/5 hover:text-white pl-6"
-                  }`}
-                >
-                  <MessageSquare size={20} className={vista === "feedback" ? "text-[#F3C3B2]" : ""} />
-                  Sugerencias
-                </button>
               </nav>
             </aside>
 
@@ -1979,7 +1958,6 @@ export function AuditorDashboard({
                      {vista === 'historial' && "Historial de Análisis"}
                      {vista === 'reporte_lectura' && "Detalle del Cliente"}
                      {vista === 'perfil' && "Preferencias"}
-                     {vista === 'feedback' && "Buzón"}
                      {vista === 'facturacion' && "Suscripción"}
                   </p>
                   <h1 className="text-3xl font-black tracking-tight text-[#F5F0EB]">
@@ -1989,7 +1967,6 @@ export function AuditorDashboard({
                       vista === 'campañas' ? 'Gestor de Campañas' :
                       vista === 'reporte_lectura' ? (nombreCuenta || t[idioma].cuentaSinNombre) :
                       vista === 'perfil' ? 'Configuración' :
-                      vista === 'feedback' ? 'Ayudanos a mejorar' :
                       vista === 'facturacion' ? 'Facturación y Planes' : 'Mora Analytics'
                      }
                   </h1>
@@ -3188,20 +3165,10 @@ export function AuditorDashboard({
                       <p className="text-sm text-[#4B5563] mt-3 font-medium">Renueva el 14 de Abril, 2026</p>
                     </div>
                   </div>
-                  <button className="w-full text-[#4B5563] bg-[#FAFAF9] border border-[#E5E7EB] hover:bg-white px-6 py-4 rounded-xl text-sm font-black transition-colors mt-2 flex justify-center items-center gap-2 cursor-not-allowed shadow-sm uppercase tracking-widest"><CreditCard size={18} /> {t[idioma].gestionarStripe} <span className="text-[#E0E7FF] text-[9px] uppercase tracking-widest ml-2 bg-[#E0E7FF]/10 px-2 py-0.5 rounded">{t[idioma].pronto}</span></button>
+                  <button className="w-full text-[#4B5563] bg-[#FAFAF9] border border-[#E5E7EB] hover:bg-white px-6 py-4 rounded-xl text-sm font-black transition-colors mt-2 flex justify-center items-center gap-2 cursor-not-allowed shadow-sm uppercase tracking-widest"><CreditCard size={18} /> {t[idioma].gestionarSuscripcion} <span className="text-[#E0E7FF] text-[9px] uppercase tracking-widest ml-2 bg-[#E0E7FF]/10 px-2 py-0.5 rounded">{t[idioma].pronto}</span></button>
                 </div>
               )}
 
-              {/* VISTA: SUGERENCIAS */}
-              {vista === "feedback" && (
-                <div className="animate-fade-custom bg-[#FFFFFF] border border-[#E5E7EB] p-10 md:p-14 rounded-[2rem] shadow-sm max-w-3xl mx-auto text-center print:hidden relative z-10 w-full">
-                  <div className="flex justify-center mb-8"><div className="w-20 h-20 bg-[#FDE8D3] border border-[#E0E7FF]/50 rounded-[1.5rem] flex items-center justify-center text-[#0a0a0a] shadow-sm"><MessageSquare size={32} /></div></div>
-                  <h2 className="text-3xl font-black mb-3 text-[#0a0a0a]">{t[idioma].ayudanos}</h2>
-                  <p className="text-[#4B5563] text-base mb-10 font-medium">{t[idioma].bug}</p>
-                  <textarea className="w-full h-40 p-5 bg-[#F4F4F5] border border-[#E5E7EB] shadow-inner rounded-2xl mb-8 text-[#0a0a0a] font-medium focus:border-[#E0E7FF] focus:bg-[#FAFAF9] focus:outline-none resize-none transition-all text-sm leading-relaxed" placeholder={t[idioma].escribiSug} value={mensajeFeedback} onChange={(e) => setMensajeFeedback(e.target.value)} />
-                  <button onClick={mandarFeedback} disabled={enviandoFeedback || !mensajeFeedback} className="w-full text-[#0a0a0a] bg-[#E0E7FF] hover:bg-[#eab3a1] px-6 py-4 rounded-xl font-black text-sm uppercase tracking-widest disabled:opacity-50 transition-colors shadow-md">{enviandoFeedback ? t[idioma].enviando : t[idioma].enviarSug}</button>
-                </div>
-              )}
               {vista === "campañas" && renderGestorCampañas()}
 
               </div>
@@ -3477,6 +3444,8 @@ export function AuditorDashboard({
            )}
         </div>
       )}
+
+      <FeedbackFab active={status === "authenticated"} />
     </>
   );
 }
@@ -3485,8 +3454,15 @@ export default function AuditorPageWrapper({
   initialVista = "dashboard",
   initialCampanasQuery,
 }: {
-  initialVista?: AuditorVista;
+  initialVista?: AuditorVista | "feedback";
   initialCampanasQuery?: CampanasQueryInicial;
 } = {}) {
-  return <AuditorDashboard initialVista={initialVista} initialCampanasQuery={initialCampanasQuery} />;
+  const vistaInicial =
+    initialVista === "feedback" ? "dashboard" : initialVista;
+  return (
+    <AuditorDashboard
+      initialVista={vistaInicial}
+      initialCampanasQuery={initialCampanasQuery}
+    />
+  );
 }

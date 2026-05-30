@@ -1,5 +1,5 @@
-import AuditorPageWrapper from "../dashboard/DashboardClient";
+import { redirect } from "next/navigation";
 
 export default function SugerenciasPage() {
-  return <AuditorPageWrapper initialVista="feedback" />;
+  redirect("/dashboard");
 }
