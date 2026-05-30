@@ -1,5 +1,5 @@
-import AuditorPageWrapper from "../dashboard/DashboardClient";
+import CampanasRoute from "./CampanasRoute";
 
 export default function CampanasPage() {
-  return <AuditorPageWrapper initialVista="campañas" />;
+  return <CampanasRoute />;
 }

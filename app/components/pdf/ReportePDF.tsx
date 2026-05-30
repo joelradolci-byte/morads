@@ -399,9 +399,18 @@ export interface ReporteData {
     cantidad_palabras: number;
     palabras: string[];
   };
+  cuenta_sin_cambios_urgentes?: boolean;
+  diagnostico_salud?: {
+    cuenta?: {
+      nivel?: string;
+      cuenta_sin_cambios_urgentes?: boolean;
+      razones?: string[];
+    };
+  };
   hallazgos: {
     graves_rojo: Hallazgo[];
     debiles_amarillo: Hallazgo[];
+    bien_verde?: Hallazgo[];
   };
   campanas: Campana[];
 }
@@ -500,13 +509,32 @@ function Page1({
         </View>
       </View>
 
+      {reporte.cuenta_sin_cambios_urgentes && (
+        <View
+          style={[
+            styles.findingCard,
+            { borderColor: "#a7f3d0", backgroundColor: "#ecfdf5", marginBottom: 14 },
+          ]}
+        >
+          <Text style={[styles.findingBadge, { color: C.green }]}>Estado de la cuenta</Text>
+          <Text style={styles.findingTitle}>
+            No se detectaron cambios urgentes obligatorios en esta auditoría
+          </Text>
+          {(reporte.diagnostico_salud?.cuenta?.razones ?? []).slice(0, 4).map((r, i) => (
+            <Text key={i} style={[styles.findingBlockText, { marginTop: 4 }]}>
+              · {r}
+            </Text>
+          ))}
+        </View>
+      )}
+
       {/* Conclusión ejecutiva */}
       <View style={styles.conclusionBox}>
         <Text style={[styles.sectionTag, { color: "#d6d3d1", marginBottom: 6 }]}>Conclusión Ejecutiva</Text>
         <Text style={styles.conclusionText}>
-          "La cuenta se encuentra retenida en un estado de bajo rendimiento debido a causas raíz estructurales.
-          El dinero no está fallando en la conversión final, sino desangrándose en las fases previas de
-          atracción y penalizaciones de tarifa de Google."
+          {reporte.cuenta_sin_cambios_urgentes
+            ? "La cuenta muestra un rendimiento estable según los umbrales de Mora. No hay correcciones urgentes; el foco puede estar en monitoreo y crecimiento opcional."
+            : '"La cuenta se encuentra retenida en un estado de bajo rendimiento debido a causas raíz estructurales. El dinero no está fallando en la conversión final, sino desangrándose en las fases previas de atracción y penalizaciones de tarifa de Google."'}
         </Text>
       </View>
 
@@ -548,6 +576,7 @@ function Page2({ reporte, meta }: { reporte: ReporteData; meta: AuditMeta }) {
   const agencyName = meta.agencia_nombre || "Mora Analytics";
   const graves = reporte.hallazgos?.graves_rojo ?? [];
   const debiles = reporte.hallazgos?.debiles_amarillo ?? [];
+  const verdes = reporte.hallazgos?.bien_verde ?? [];
 
   return (
     <Page size="A4" style={styles.page}>
@@ -610,6 +639,23 @@ function Page2({ reporte, meta }: { reporte: ReporteData; meta: AuditMeta }) {
               <Text style={styles.findingBlockText}>{h.descripcion_simple || h.descripcion}</Text>
             </View>
           </View>
+        </View>
+      ))}
+
+      {verdes.map((h, i) => (
+        <View
+          key={`v-${i}`}
+          style={[styles.findingCard, { borderColor: "#a7f3d0", backgroundColor: "#ecfdf5", marginBottom: 14 }]}
+        >
+          <Text style={[styles.findingBadge, { color: C.green }]}>
+            {h.titulo?.toLowerCase().includes("excelente")
+              ? "En excelente estado"
+              : "En buen estado"}
+          </Text>
+          <Text style={styles.findingTitle}>{h.titulo}</Text>
+          <Text style={styles.findingBlockText}>
+            {h.descripcion_simple || h.descripcion_tecnica || h.descripcion}
+          </Text>
         </View>
       ))}
 

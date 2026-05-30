@@ -25,6 +25,11 @@ import {
   accionTieneHerramienta,
 } from "../../lib/types/hallazgoDetalle";
 import { resolverAccionHallazgo } from "../../lib/resumenFacil";
+import {
+  etiquetaBadgeSalud,
+  tituloSeccionSaludable,
+  type NivelSalud,
+} from "../../lib/saludMora";
 import type { AdGeneratorContext } from "./AdGeneratorPanel";
 import {
   construirPlanHallazgo,
@@ -145,7 +150,8 @@ export default function HallazgoDetallePanel({
 
   const mostrarGenerador = useMemo(() => {
     if (!detalle) return false;
-    if (detalle.id_rastreo.startsWith("QS_")) return true;
+    if (detalle.sin_accion_requerida || detalle.tipo === "saludable") return false;
+    if (detalle.id_rastreo?.startsWith("QS_")) return true;
     if (accion === "destripador") return true;
     if (detalle.sugerencias.length > 0) return true;
     const rep = detalle.reporteData as Record<string, unknown> | undefined;
@@ -176,6 +182,10 @@ export default function HallazgoDetallePanel({
 
   if (!detalle || (!open && !isClosing)) return null;
 
+  const esSaludable = detalle.tipo === "saludable" || detalle.sin_accion_requerida === true;
+  const nivelSalud: NivelSalud =
+    detalle.nivel_salud ?? (esSaludable ? "estable" : "mejorable");
+  const etiquetaSalud = esSaludable ? etiquetaBadgeSalud(nivelSalud) : null;
   const esCritico = detalle.tipo === "critico";
   const tieneItemsReales =
     detalle.items.length > 0 &&
@@ -260,7 +270,7 @@ export default function HallazgoDetallePanel({
       tipo_negocio: tipoNegocioValido,
       tono: "directo",
       objetivo:
-        detalle.id_rastreo.startsWith("QS_") || detalle.tipo === "critico"
+        detalle.id_rastreo?.startsWith("QS_") || detalle.tipo === "critico"
           ? "recuperar_relevancia"
           : "escalar",
       hallazgo_titulo: detalle.titulo,
@@ -280,12 +290,16 @@ export default function HallazgoDetallePanel({
             <div className="flex items-center gap-3 min-w-0">
               <div
                 className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${
-                  esCritico
-                    ? "bg-[#FEE2E2] border border-[#FECACA]"
-                    : "bg-[#FEF3C7] border border-[#FDE68A]"
+                  esSaludable
+                    ? "bg-[#D1FAE5] border border-[#A7F3D0]"
+                    : esCritico
+                      ? "bg-[#FEE2E2] border border-[#FECACA]"
+                      : "bg-[#FEF3C7] border border-[#FDE68A]"
                 }`}
               >
-                {esCritico ? (
+                {esSaludable ? (
+                  <CheckCircle2 size={20} className="text-[#047857]" />
+                ) : esCritico ? (
                   <AlertTriangle size={20} className="text-[#B91C1C]" />
                 ) : (
                   <Zap size={20} className="text-[#B45309]" />
@@ -295,12 +309,14 @@ export default function HallazgoDetallePanel({
                 <div className="flex flex-wrap items-center gap-2">
                   <span
                     className={`text-[11px] font-black uppercase tracking-widest px-2 py-0.5 rounded border ${
-                      esCritico
-                        ? "bg-[#FEE2E2] text-[#B91C1C] border-[#FECACA]"
-                        : "bg-[#FEF3C7] text-[#B45309] border-[#FDE68A]"
+                      esSaludable
+                        ? "bg-[#D1FAE5] text-[#047857] border-[#A7F3D0]"
+                        : esCritico
+                          ? "bg-[#FEE2E2] text-[#B91C1C] border-[#FECACA]"
+                          : "bg-[#FEF3C7] text-[#B45309] border-[#FDE68A]"
                     }`}
                   >
-                    {esCritico ? "Fuga crítica" : "Oportunidad"}
+                    {etiquetaSalud ?? (esCritico ? "Fuga crítica" : "Oportunidad")}
                   </span>
                   <span className="text-[11px] font-mono text-[#8A968C] truncate max-w-[220px]">
                     {detalle.id_rastreo}
@@ -355,9 +371,22 @@ export default function HallazgoDetallePanel({
 
             <StepCard
               step={1}
-              icon={<Target size={16} className={esCritico ? "text-[#E66767]" : "text-[#EAB308]"} />}
-              title="Qué encontró Mora"
-              accent={esCritico ? "border-[#E66767]/30" : "border-[#EAB308]/30"}
+              icon={
+                <Target
+                  size={16}
+                  className={
+                    esSaludable ? "text-[#047857]" : esCritico ? "text-[#E66767]" : "text-[#EAB308]"
+                  }
+                />
+              }
+              title={esSaludable ? tituloSeccionSaludable(nivelSalud) : "Qué encontró Mora"}
+              accent={
+                esSaludable
+                  ? "border-[#A7F3D0]/50"
+                  : esCritico
+                    ? "border-[#E66767]/30"
+                    : "border-[#EAB308]/30"
+              }
             >
               <p className="text-sm md:text-base text-[#4B5563] font-medium leading-relaxed">
                 {problemaTexto}
@@ -369,9 +398,13 @@ export default function HallazgoDetallePanel({
                 <div className="mt-2 flex flex-col gap-2">
                   <p className="text-xs text-[#4B5563] font-medium leading-relaxed">
                     <span className="font-black text-[#0a0a0a]">Señal detectada:</span>{" "}
-                    {tieneItemsReales && topDrivers.length > 0
-                      ? `los mayores drivers por gasto aparecen en la evidencia (ej: “${topDrivers[0]?.nombre}”).`
-                      : "una ineficiencia con impacto en performance o presupuesto."}
+                    {esSaludable
+                      ? nivelSalud === "optima"
+                        ? "rendimiento muy sólido: CPA en objetivo, score alto y sin señales de fuga."
+                        : "rendimiento alineado con el objetivo de CPA y score de salud de la campaña."
+                      : tieneItemsReales && topDrivers.length > 0
+                        ? `los mayores drivers por gasto aparecen en la evidencia (ej: “${topDrivers[0]?.nombre}”).`
+                        : "una ineficiencia con impacto en performance o presupuesto."}
                   </p>
                   {rutaGoogleAds && (
                     <p className="text-xs text-[#4B5563] font-medium leading-relaxed">
@@ -389,34 +422,48 @@ export default function HallazgoDetallePanel({
             <StepCard
               step={2}
               icon={<CheckCircle2 size={16} className="text-[#10B981]" />}
-              title="Qué hacer en Google Ads"
+              title={esSaludable ? "Recomendación de Mora" : "Qué hacer en Google Ads"}
               accent="border-[#10B981]/30"
             >
               <p className="text-sm md:text-base text-[#0a0a0a] font-bold leading-relaxed">
                 {detalle.sugerencia}
               </p>
-              <ul className="mt-3 space-y-2">
-                {pasos.slice(0, 6).map((p, idx) => (
-                  <li key={idx} className="flex gap-2 text-xs md:text-sm text-[#4B5563] font-medium">
-                    <span className="mt-0.5 w-5 h-5 rounded-lg bg-[#10B981]/10 text-[#10B981] flex items-center justify-center text-[10px] font-black shrink-0">
-                      {idx + 1}
-                    </span>
-                    <span>{p}</span>
-                  </li>
-                ))}
-              </ul>
-              <button
-                type="button"
-                onClick={() => copiar(pasos.join("\n"))}
-                className={`mt-4 w-full flex justify-center items-center gap-2 text-[11px] font-black uppercase tracking-widest py-3 rounded-xl transition-all ${
-                  copiedKw === pasos.join("\n")
-                    ? "bg-[#10B981] text-[#0a0a0a]"
-                    : "bg-white border border-[#E5E7EB] text-[#4B5563] hover:bg-[#F4F4F5]"
-                }`}
-              >
-                {copiedKw === pasos.join("\n") ? <Check size={16} /> : <Copy size={16} />}
-                {copiedKw === pasos.join("\n") ? "Paso a paso copiado" : "Copiar paso a paso"}
-              </button>
+              {esSaludable && detalle.nota_escala_opcional && (
+                <div className="mt-4 rounded-xl border border-[#D1FAE5] bg-[#ECFDF5] px-4 py-3">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-[#047857] mb-2">
+                    Opcional — no es necesario
+                  </p>
+                  <p className="text-sm text-[#4B5563] font-medium leading-relaxed">
+                    {detalle.nota_escala_opcional}
+                  </p>
+                </div>
+              )}
+              {!esSaludable && (
+                <>
+                  <ul className="mt-3 space-y-2">
+                    {pasos.slice(0, 6).map((p, idx) => (
+                      <li key={idx} className="flex gap-2 text-xs md:text-sm text-[#4B5563] font-medium">
+                        <span className="mt-0.5 w-5 h-5 rounded-lg bg-[#10B981]/10 text-[#10B981] flex items-center justify-center text-[10px] font-black shrink-0">
+                          {idx + 1}
+                        </span>
+                        <span>{p}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <button
+                    type="button"
+                    onClick={() => copiar(pasos.join("\n"))}
+                    className={`mt-4 w-full flex justify-center items-center gap-2 text-[11px] font-black uppercase tracking-widest py-3 rounded-xl transition-all ${
+                      copiedKw === pasos.join("\n")
+                        ? "bg-[#10B981] text-[#0a0a0a]"
+                        : "bg-white border border-[#E5E7EB] text-[#4B5563] hover:bg-[#F4F4F5]"
+                    }`}
+                  >
+                    {copiedKw === pasos.join("\n") ? <Check size={16} /> : <Copy size={16} />}
+                    {copiedKw === pasos.join("\n") ? "Paso a paso copiado" : "Copiar paso a paso"}
+                  </button>
+                </>
+              )}
             </StepCard>
 
             <StepCard
@@ -447,11 +494,13 @@ export default function HallazgoDetallePanel({
             <div className="rounded-xl border border-[#E0E7FF]/60 bg-[#E0E7FF]/15 px-4 py-3 flex gap-3">
               <ShieldCheck size={18} className="text-[#6366F1] shrink-0 mt-0.5" />
               <p className="text-xs md:text-sm text-[#4B5563] font-medium leading-relaxed">
-                Mora no modifica tu cuenta sola. Copiá o aplicá los cambios cuando vos lo confirmes en
-                Google Ads.
+                {esSaludable
+                  ? "No hay cambios urgentes que aplicar. Seguí monitoreando; Mora solo sugiere actuar cuando detecta impacto real."
+                  : "Mora no modifica tu cuenta sola. Copiá o aplicá los cambios cuando vos lo confirmes en Google Ads."}
               </p>
             </div>
 
+            {!esSaludable && (
             <section className="rounded-2xl border border-[#E5E7EB] bg-[#FAFAFA] p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -526,6 +575,7 @@ export default function HallazgoDetallePanel({
                 </div>
               )}
             </section>
+            )}
 
             {tieneItemsReales && (
               <section>

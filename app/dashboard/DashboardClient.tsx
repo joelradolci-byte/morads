@@ -12,11 +12,22 @@ import {
 import { extraerDatosGoogle, construirDatosAuditoria } from '../../lib/googleAds'; 
 import {
   calcularPlanRobinHood,
-  calcularScoreCampana,
   type DestripadorReporte,
   type DaypartingReporte,
   type SimuladorPresupuestoReporte,
 } from '../../lib/motorMora';
+import {
+  type CampanasQueryInicial,
+  type CampanasSubVista,
+  type FiltroCampanaTag,
+} from '../../lib/campanasEvaluacion';
+import { useCampanasEvaluadas } from '../../lib/useCampanasEvaluadas';
+import PacingResumenCuenta from './campanas/PacingResumenCuenta';
+import MatrizResumenCuenta from './campanas/MatrizResumenCuenta';
+import GestorCampanasView from './campanas/GestorCampanasView';
+import type { PacingAccionPendiente } from './campanas/PacingCampanasVista';
+import { etiquetaBadgeSalud, type NivelSalud } from '../../lib/saludMora';
+import type { TipoHallazgo } from '../../lib/types/hallazgoDetalle';
 import {
   loadDestripadorEstado,
   marcarTerminosCopiados,
@@ -118,197 +129,6 @@ function textoQuickWin(
     return `${texto.slice(0, 357).trimEnd()}…`;
   }
   return texto;
-}
-
-function colorClassesPorTag(tag: string) {
-  switch (tag) {
-    case "ESTRELLA":
-      return { border: "hover:border-[#10B981]", text: "text-[#10B981]", bg: "bg-[#10B981]/10", bar: "bg-[#10B981]" };
-    case "BASURA":
-      return { border: "hover:border-[#E07070]", text: "text-[#E07070]", bg: "bg-[#E07070]/10", bar: "bg-[#E07070]" };
-    case "POTENCIAL":
-      return { border: "hover:border-blue-400", text: "text-blue-400", bg: "bg-blue-400/10", bar: "bg-blue-400" };
-    case "DUDOSO":
-      return { border: "hover:border-[#EAB308]", text: "text-[#EAB308]", bg: "bg-[#EAB308]/10", bar: "bg-[#EAB308]" };
-    default:
-      return { border: "border-[#44403C]", text: "text-[#A8A29E]", bg: "bg-[#A8A29E]/10", bar: "bg-[#A8A29E]" };
-  }
-}
-
-function calcularPacingCampana(campana: any) {
-  const gasto = campana.gasto_mensual || 0;
-  const presupuesto = campana.presupuesto_mensual || 0;
-  const hoy = new Date();
-  const diasMes = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).getDate();
-  const diaActual = hoy.getDate();
-  const diasRestantes = Math.max(1, diasMes - diaActual);
-  const porcentajeMes = (diaActual / diasMes) * 100;
-  const porcentajeGasto = presupuesto > 0 ? (gasto / presupuesto) * 100 : 0;
-  const desvio = porcentajeGasto - porcentajeMes;
-  const presupuestoRestante = presupuesto - gasto;
-  const ajusteDiarioRecomendado = Math.max(0, presupuestoRestante / diasRestantes);
-
-  if (presupuesto <= 0) {
-    return {
-      gasto,
-      presupuesto,
-      porcentajeGasto,
-      presupuestoRestante,
-      ajusteDiarioRecomendado,
-      estado: "Sin presupuesto",
-      descripcion: "Definí un presupuesto mensual para calcular ritmo.",
-      color: "text-[#A8A29E]",
-      bg: "bg-[#A8A29E]/10",
-      border: "border-[#44403C]",
-      bar: "bg-[#A8A29E]",
-    };
-  }
-
-  if (desvio > 10) {
-    return {
-      gasto,
-      presupuesto,
-      porcentajeGasto,
-      presupuestoRestante,
-      ajusteDiarioRecomendado,
-      estado: "Sobreinvirtiendo",
-      descripcion: "El gasto avanza más rápido que el mes.",
-      color: "text-[#E07070]",
-      bg: "bg-[#E07070]/10",
-      border: "border-[#E07070]/30",
-      bar: "bg-[#E07070]",
-    };
-  }
-
-  if (desvio < -10) {
-    return {
-      gasto,
-      presupuesto,
-      porcentajeGasto,
-      presupuestoRestante,
-      ajusteDiarioRecomendado,
-      estado: "Subinvirtiendo",
-      descripcion: "El gasto está por debajo del ritmo esperado.",
-      color: "text-[#EAB308]",
-      bg: "bg-[#EAB308]/10",
-      border: "border-[#EAB308]/30",
-      bar: "bg-[#EAB308]",
-    };
-  }
-
-  return {
-    gasto,
-    presupuesto,
-    porcentajeGasto,
-    presupuestoRestante,
-    ajusteDiarioRecomendado,
-    estado: "En ritmo",
-    descripcion: "Consumo alineado con el avance del mes.",
-    color: "text-[#10B981]",
-    bg: "bg-[#10B981]/10",
-    border: "border-[#10B981]/30",
-    bar: "bg-[#10B981]",
-  };
-}
-
-type PacingAccionPendiente = {
-  campanaId: string;
-  campanaNombre: string;
-  action: "REDUCE_BUDGET" | "INCREASE_BUDGET" | "SET_BUDGET";
-  valorAnterior: number;
-  valorPropuesto: number;
-  motivo: string;
-  impacto: string;
-  labelBoton: string;
-};
-
-function obtenerAccionPacing(
-  campana: any,
-  pacing: ReturnType<typeof calcularPacingCampana>,
-  evaluacion: ReturnType<typeof calcularScoreCampana>,
-  cpaObjetivo: number
-): Omit<PacingAccionPendiente, "campanaId" | "campanaNombre"> | null {
-  const presupuesto = campana.presupuesto_mensual || 0;
-  const gasto = campana.gasto_mensual || 0;
-
-  if (pacing.estado === "Sin presupuesto" && gasto > 0) {
-    const hoy = new Date();
-    const diasMes = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).getDate();
-    const propuesto = Math.round((gasto / Math.max(hoy.getDate(), 1)) * diasMes);
-    return {
-      action: "SET_BUDGET",
-      valorAnterior: 0,
-      valorPropuesto: propuesto,
-      motivo: "La campaña no tiene presupuesto mensual definido para medir ritmo.",
-      impacto: "Permite calcular pacing y evitar sobre o subinversión.",
-      labelBoton: "Definir presupuesto",
-    };
-  }
-
-  if (presupuesto <= 0) return null;
-
-  if (
-    pacing.estado === "Sobreinvirtiendo" &&
-    (evaluacion.cpaActual > cpaObjetivo * 1.2 || evaluacion.tag === "BASURA")
-  ) {
-    const propuesto = Math.max(Math.round(presupuesto * 0.85), Math.round(gasto));
-    return {
-      action: "REDUCE_BUDGET",
-      valorAnterior: presupuesto,
-      valorPropuesto: propuesto,
-      motivo: "La campaña gasta más rápido de lo esperado y su CPA supera el objetivo.",
-      impacto: "Frena el ritmo de inversión para no agotar presupuesto antes de fin de mes.",
-      labelBoton: "Reducir presupuesto",
-    };
-  }
-
-  if (pacing.estado === "Subinvirtiendo" && evaluacion.tag === "ESTRELLA") {
-    return {
-      action: "INCREASE_BUDGET",
-      valorAnterior: presupuesto,
-      valorPropuesto: Math.round(presupuesto * 1.1),
-      motivo: "La campaña está por debajo del ritmo esperado y tiene CPA eficiente.",
-      impacto: "Acelera la inversión para capturar demanda disponible.",
-      labelBoton: "Acelerar inversión",
-    };
-  }
-
-  return null;
-}
-
-type MatrizBucketId = "escalar" | "testear" | "observar" | "apagar";
-
-type MatrizItemEval = {
-  campana: any;
-  evaluacion: ReturnType<typeof calcularScoreCampana>;
-  cpaObjetivo: number;
-};
-
-function agruparMatriz(evaluaciones: MatrizItemEval[]) {
-  return {
-    escalar: evaluaciones.filter(e => e.evaluacion.tag === "ESTRELLA"),
-    testear: evaluaciones.filter(e => e.evaluacion.tag === "POTENCIAL"),
-    observar: evaluaciones.filter(e => e.evaluacion.tag === "DUDOSO"),
-    apagar: evaluaciones.filter(e => e.evaluacion.tag === "BASURA"),
-  };
-}
-
-function impactoFinancieroApagar(items: MatrizItemEval[]): number {
-  return items.reduce((acc, { campana, cpaObjetivo }) => {
-    const gasto = campana.gasto_mensual || 0;
-    const conv = campana.conversiones || 0;
-    if (conv === 0) return acc + gasto * 0.5;
-    const limite = conv * cpaObjetivo * 1.2;
-    return acc + Math.max(gasto * 0.3, Math.max(0, gasto - limite));
-  }, 0);
-}
-
-function impactoFinancieroEscalar(items: MatrizItemEval[]): number {
-  return items.reduce((acc, { campana }) => acc + (campana.gasto_mensual || 0) * 0.15, 0);
-}
-
-function gastoEnBucket(items: MatrizItemEval[]): number {
-  return items.reduce((acc, { campana }) => acc + (campana.gasto_mensual || 0), 0);
 }
 
 function FadeInOnScroll({ children, delay = 0 }: { children: React.ReactNode, delay?: number }) {
@@ -665,7 +485,13 @@ function ScoreSparkline({ data, fechas }: { data: number[], fechas: string[] }) 
   );
 }
 
-export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?: AuditorVista } = {}) {
+export function AuditorDashboard({
+  initialVista = "dashboard",
+  initialCampanasQuery,
+}: {
+  initialVista?: AuditorVista;
+  initialCampanasQuery?: CampanasQueryInicial;
+} = {}) {
   const [campanas, setCampanas] = useState<any[]>([]);
   const [cargandoCampanas, setCargandoCampanas] = useState(false);
   const [session, setSession] = useState<any>(null);
@@ -708,7 +534,6 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
   const [toastsActivos, setToastsActivos] = useState<any[]>([]);
   const [mostrarCentroAlertas, setMostrarCentroAlertas] = useState(false);
   const [alertasNoLeidas, setAlertasNoLeidas] = useState(false);    
-  const [modoVista, setModoVista] = useState('grid');
   const [pacingAccionPendiente, setPacingAccionPendiente] = useState<PacingAccionPendiente | null>(null);
   const [pacingUndo, setPacingUndo] = useState<SafeApplyPlan | null>(null);
   const [robinAccionPendiente, setRobinAccionPendiente] = useState<SafeApplyPlan | null>(null);
@@ -719,7 +544,6 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
     timeLeft: number;
     message: string;
   }>({ show: false, status: "success", timeLeft: 10, message: "" });
-  const [matrizAbierta, setMatrizAbierta] = useState<MatrizBucketId | null>(null);
   const [destripadorAbierto, setDestripadorAbierto] = useState(false);
   const [daypartingAbierto, setDaypartingAbierto] = useState(false);
   const [simuladorAbierto, setSimuladorAbierto] = useState(false);
@@ -970,6 +794,47 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
     return unificados.slice(0, 3);
   }, [ultimaAuditoria?.reporte_json?.hallazgos]);
 
+  const diagnosticoSalud = ultimaAuditoria?.reporte_json?.diagnostico_salud ?? null;
+  const { cpaPromedio: cpaPromedioCampanas, evaluadas: campanasEvaluadas, activas: campanasActivas, buckets: matrizBuckets } =
+    useCampanasEvaluadas(campanas, diagnosticoSalud);
+
+  const pacingUndoIds = useMemo(
+    () => pacingUndo?.changes.map(c => String(c.targetId)) ?? [],
+    [pacingUndo]
+  );
+
+  const cuentaSinCambiosUrgentes =
+    ultimaAuditoria?.reporte_json?.cuenta_sin_cambios_urgentes === true ||
+    ultimaAuditoria?.reporte_json?.diagnostico_salud?.cuenta?.cuenta_sin_cambios_urgentes === true;
+
+  const razonesCuentaSana: string[] =
+    ultimaAuditoria?.reporte_json?.diagnostico_salud?.cuenta?.razones ?? [];
+
+  const planRobin = useMemo(() => {
+    if (campanasActivas.length === 0) return null;
+    const gastoTotal = campanasActivas.reduce((acc, e) => acc + (e.campana.gasto_mensual || 0), 0);
+    const convTotales = campanasActivas.reduce((acc, e) => acc + (e.campana.conversiones || 0), 0);
+    return calcularPlanRobinHood(
+      campanasActivas.map(e => e.campana),
+      cpaPromedioCampanas,
+      "ecommerce",
+      gastoTotal,
+      convTotales
+    );
+  }, [campanasActivas, cpaPromedioCampanas]);
+
+  const actualizarUrlCampanas = (params: { vista?: CampanasSubVista; q?: string; tag?: FiltroCampanaTag }) => {
+    const sp = new URLSearchParams();
+    const vista = params.vista ?? initialCampanasQuery?.subVista ?? "lista";
+    if (vista !== "lista") sp.set("vista", vista);
+    const q = params.q ?? "";
+    if (q) sp.set("q", q);
+    const tag = params.tag;
+    if (tag && tag !== "todos") sp.set("tag", tag);
+    const qs = sp.toString();
+    window.history.pushState(null, "", qs ? `/campanas?${qs}` : "/campanas");
+  };
+
   useEffect(() => {
     if (!ultimaAuditoria?.reporte_json?.hallazgos?.graves_rojo) return;
 
@@ -1012,179 +877,24 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
     return () => clearInterval(intervalo);
   }, []);
 
-  const renderGestorCampañas = () => {
-    const activas = campanas.filter(c => c.estado === 'ENABLED');
-    const gastoTotal = activas.reduce((acc, c) => acc + (c.gasto_mensual || 0), 0);
-    const convTotales = activas.reduce((acc, c) => acc + (c.conversiones || 0), 0);
-    const cpaPromedio = convTotales > 0 ? gastoTotal / convTotales : 50;
-
-    return (
-      <div className="flex-1 p-8 overflow-y-auto animate-fade-in">
-        <div className="flex justify-between items-end mb-8">
-          <div>
-            <h2 className="text-[#F5F0EB] text-3xl font-black uppercase tracking-tight">Gestor de Campañas</h2>
-            <p className="text-[#A8A29E] text-sm mt-1 font-medium">Análisis quirúrgico de rendimiento individual.</p>
-          </div>
-          <div className="flex gap-4 items-center">
-            <div className="bg-[#1C1917] p-1 rounded-lg border border-[#44403C] flex gap-1">
-              <button onClick={() => setModoVista('grid')} className={`p-2 rounded md transition-all ${modoVista === 'grid' ? 'bg-[#292524] text-[#E07070] shadow' : 'text-[#A8A29E] hover:text-[#F5F0EB]'}`}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-              </button>
-              <button onClick={() => setModoVista('list')} className={`p-2 rounded md transition-all ${modoVista === 'list' ? 'bg-[#292524] text-[#E07070] shadow' : 'text-[#A8A29E] hover:text-[#F5F0EB]'}`}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {cargandoCampanas && (
-          <div className="flex justify-center items-center py-24">
-             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#F3C3B2]"></div>
-          </div>
-        )}
-
-        {!cargandoCampanas && campanas.length === 0 && (
-          <div className="bg-[#1C1917] border border-[#44403C] rounded-2xl p-12 flex flex-col items-center justify-center text-center shadow-inner">
-             <Folder size={48} className="text-[#44403C] mb-4" />
-             <h3 className="text-xl font-bold text-[#F5F0EB]">Sin datos de campañas</h3>
-             <p className="text-[#A8A29E] mt-2 max-w-sm">Aún no hay campañas para mostrar. Conecta tu cuenta o inyecta datos de prueba desde el simulador.</p>
-          </div>
-        )}
-
-        {!cargandoCampanas && campanas.length > 0 && modoVista === 'grid' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {campanas.map(c => {
-              const evaluacion = calcularScoreCampana(c, cpaPromedio);
-              const { score, tag, penalizacion, cpaActual, gasto } = evaluacion;
-              const presupuesto = Math.max(evaluacion.presupuesto, 1);
-              const colorClasses = colorClassesPorTag(tag);
-              const cpaObjetivo = c.cpa_objetivo ?? cpaPromedio;
-
-              const handleClick = () => {
-                abrirDetalleHallazgo({
-                  titulo: `Campaña ${tag}: ${c.nombre}`,
-                  descripcion: penalizacion,
-                  sugerencia: tag === "BASURA" ? "Pausar campaña temporalmente o reducir gasto en un 50%" : tag === "ESTRELLA" ? "Aumentar presupuesto un 15%" : "Revisar términos de búsqueda",
-                  razonamiento: `El CPA de esta campaña es de $${cpaActual.toFixed(2)}, mientras que el objetivo es $${cpaObjetivo.toFixed(2)}.`
-                }, tag === "BASURA" ? "critico" : "mejora", {});
-              };
-
-              return (
-              <div key={c.id} onClick={handleClick} className={`bg-[#292524] border border-[#44403C] rounded-xl p-5 transition-colors relative group cursor-pointer ${colorClasses.border}`}>
-                <div className="absolute -top-10 right-0 bg-[#1C1917] border border-[#44403C] text-[#F5F0EB] text-[10px] px-3 py-2 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 whitespace-nowrap shadow-xl">
-                  {penalizacion}
-                </div>
-                
-                <div className="flex justify-between items-start mb-4">
-                  <div className="flex flex-col gap-1.5 max-w-[75%]">
-                    <h3 className="text-[#F5F0EB] font-bold text-sm truncate" title={c.nombre}>{c.nombre}</h3>
-                    <span className={`text-[9px] uppercase tracking-widest font-black px-2 py-0.5 rounded w-max border ${c.estado === 'ENABLED' ? 'bg-[#10B981]/10 text-[#10B981] border-[#10B981]/20' : 'bg-[#78716c]/10 text-[#A8A29E] border-[#78716c]/30'}`}>
-                      {c.estado === 'ENABLED' ? 'Activa' : 'Pausada'}
-                    </span>
-                  </div>
-                  <div className="relative w-10 h-10 flex items-center justify-center">
-                    <svg className="w-full h-full transform -rotate-90">
-                      <circle cx="20" cy="20" r="16" stroke="currentColor" strokeWidth="4" fill="transparent" className="text-[#1C1917]" />
-                      <circle cx="20" cy="20" r="16" stroke="currentColor" strokeWidth="4" fill="transparent" strokeDasharray="100.5" strokeDashoffset={100.5 - (100.5 * score) / 100} className={colorClasses.text} />
-                    </svg>
-                    <span className="absolute text-[10px] font-black text-[#F5F0EB]">{score}</span>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <div className="flex justify-between text-xs mb-1"><span className="text-[#A8A29E]">Gasto</span><span className="text-[#F5F0EB] font-mono">${gasto.toLocaleString()} / ${presupuesto.toLocaleString()}</span></div>
-                    <div className="w-full h-1 bg-[#1C1917] rounded-full overflow-hidden"><div className="h-full bg-[#A8A29E]" style={{ width: `${Math.min((gasto/presupuesto)*100, 100)}%` }}></div></div>
-                  </div>
-                  <div className="flex justify-between items-end border-t border-[#44403C] pt-4">
-                    <div>
-                      <p className="text-[#A8A29E] text-[10px] uppercase tracking-wider mb-1">CPA Actual</p>
-                      <p className={`font-mono text-lg font-black ${cpaActual > cpaObjetivo * 1.2 ? 'text-[#E07070]' : 'text-[#22c55e]'}`}>${cpaActual.toLocaleString(undefined, {maximumFractionDigits:2})}</p>
-                    </div>
-                    <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded ${colorClasses.bg} ${colorClasses.text}`}>{tag}</span>
-                  </div>
-                  {(tag === "ESTRELLA" || tag === "POTENCIAL") && (
-                    <button
-                      type="button"
-                      onClick={e => {
-                        e.stopPropagation();
-                        const reporte = ultimaAuditoria?.reporte_json;
-                        abrirGeneradorAnuncios({
-                          tipo_negocio: reporte?.perfil_aplicado?.tipo_negocio || "ecommerce",
-                          tono: "directo",
-                          objetivo: "escalar",
-                          campana_nombre: c.nombre,
-                          hallazgo_titulo: `Escalar campaña ${tag}: ${c.nombre}`,
-                          hallazgo_descripcion: penalizacion,
-                          angulo_comercial: `CPA $${cpaActual.toFixed(2)} vs objetivo $${cpaObjetivo.toFixed(2)}.`,
-                          keywords_buenas: [],
-                          hallazgo_id: `campana_${c.id}`,
-                        });
-                      }}
-                      className="w-full mt-2 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest border border-[#F3C3B2]/30 text-[#F3C3B2] hover:bg-[#F3C3B2]/10 flex items-center justify-center gap-1"
-                    >
-                      <Sparkles size={12} /> Crear variantes
-                    </button>
-                  )}
-                </div>
-              </div>
-            )})}
-          </div>
-        )}
-
-        {!cargandoCampanas && campanas.length > 0 && modoVista === 'list' && (
-          <div className="bg-[#292524] border border-[#44403C] rounded-xl overflow-hidden">
-            <table className="w-full text-left">
-              <thead className="bg-[#1C1917] border-b border-[#44403C] text-[#A8A29E] text-[10px] uppercase tracking-widest">
-                <tr>
-                  <th className="p-4 font-black">Campaña & Salud</th>
-                  <th className="p-4 font-black">Gasto Mensual</th>
-                  <th className="p-4 font-black">CPA Actual</th>
-                  <th className="p-4 font-black">Promedio Cta.</th>
-                  <th className="p-4 font-black text-right">Veredicto</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#44403C]">
-                {campanas.map(c => {
-                  const evaluacion = calcularScoreCampana(c, cpaPromedio);
-                  const { score, tag, cpaActual, gasto } = evaluacion;
-                  const colorClasses = colorClassesPorTag(tag);
-
-                  return (
-                  <tr key={c.id} className="hover:bg-[#1C1917]/50 transition-colors group relative cursor-pointer" onClick={() => {
-                    abrirDetalleHallazgo({ titulo: `Campaña ${tag}: ${c.nombre}`, descripcion: "Análisis individual", sugerencia: "Revisar configuración de la campaña en Google Ads", razonamiento: `El CPA de esta campaña es de $${cpaActual.toFixed(2)}.` }, tag === "BASURA" ? "critico" : "mejora", {});
-                  }}>
-                    <td className="p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <p className="text-[#F5F0EB] font-bold text-sm">{c.nombre}</p>
-                            <span className={`text-[8px] uppercase tracking-widest font-black px-1.5 py-0.5 rounded border ${c.estado === 'ENABLED' ? 'bg-[#10B981]/10 text-[#10B981] border-[#10B981]/20' : 'bg-[#78716c]/10 text-[#A8A29E] border-[#78716c]/30'}`}>
-                              {c.estado === 'ENABLED' ? 'Activa' : 'Pausada'}
-                            </span>
-                          </div>
-                          <div className="w-48 h-1 bg-[#1C1917] mt-1.5 rounded-full overflow-hidden relative">
-                            <div className={`h-full ${colorClasses.bar}`} style={{ width: `${score}%` }}></div>
-                          </div>
-                        </div>
-                        <span className="text-xs font-black text-[#A8A29E] w-6">{score}</span>
-                      </div>
-                    </td>
-                    <td className="p-4 text-[#A8A29E] font-mono text-sm">${gasto.toLocaleString()}</td>
-                    <td className="p-4 font-mono font-bold text-sm"><span className={colorClasses.text}>${cpaActual.toLocaleString(undefined, {maximumFractionDigits:2})}</span></td>
-                    <td className="p-4 text-[#A8A29E] font-mono text-sm">${cpaPromedio.toLocaleString(undefined, {maximumFractionDigits:2})}</td>
-                    <td className="p-4 text-right">
-                      <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded inline-block ${colorClasses.bg} ${colorClasses.text}`}>{tag}</span>
-                    </td>
-                  </tr>
-                )})}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-    );
-  };
+  const renderGestorCampañas = () => (
+    <GestorCampanasView
+      campanas={campanas}
+      cargando={cargandoCampanas}
+      diagnosticoSalud={diagnosticoSalud}
+      reporteJson={ultimaAuditoria?.reporte_json ?? null}
+      initialSubVista={initialCampanasQuery?.subVista ?? "lista"}
+      initialBusqueda={initialCampanasQuery?.q ?? ""}
+      initialTag={(initialCampanasQuery?.tag as FiltroCampanaTag | undefined) ?? "todos"}
+      initialCampanaId={initialCampanasQuery?.campanaId ?? ""}
+      onRefresh={() => cargarCampanas()}
+      onSubVistaChange={v => actualizarUrlCampanas({ vista: v })}
+      onAbrirDetalle={(h, tipo, reporte) => abrirDetalleHallazgo(h, tipo, reporte)}
+      onAbrirGenerador={abrirGeneradorAnuncios}
+      onPacingAccion={setPacingAccionPendiente}
+      pacingUndoIds={pacingUndoIds}
+    />
+  );
 
   const t: any = {
     es: { dashboard: "Dashboard", panelPrin: "Panel Principal", panelDesc: "Resumen del rendimiento global de tus cuentas.", saludG: "Salud Promedio", totAud: "Total Cuentas", fugasDet: "Fugas Críticas", oporMej: "Oportunidades", ultAud: "Últimas Auditorías", actRec: "Actividad Reciente", verTodas: "Ver todas →", generada: "Se auditó la cuenta", hace: "Hace", afectaA: "Afecta principalmente a", buscarGlobal: "Buscar cuenta por nombre...", nueva: "Auditor IA", clientes: "Panel de Clientes", reportes: "Reportes", feedback: "Sugerencias", configuracion: "Configuración", facturacion: "Facturación", salir: "Cerrar Sesión", placeholderNombre: "Nombre del Cliente o Cuenta", btnAnalizar: "Ejecutar Auditoría", btnAnalizando: "Analizando métricas...", exportar: "Exportar a PDF", score: "Score", problemas: "Problemas Graves", mejoras: "Áreas Débiles", aciertos: "Puntos Fuertes", login: "Iniciar sesión", tabDiag: "Diagnóstico IA", tabCheck: "Plan de Acción", tabAvanzado: "Análisis Avanzado", autoApply: "Corregir Ahora", msgAutoApply: "Disponible próximamente", pacingTit: "Pacing de Presupuesto", pacingDesc: "Ritmo de gasto proyectado", matrizTit: "Campaign Matrix", matrizDesc: "Distribución del gasto vs rendimiento", escalar: "ESTRELLAS (Escalar)", apagar: "BASURA (Apagar)", observar: "DUDOSOS (Observar)", potenciales: "POTENCIALES (Testear)", abrirAud: "Ver reporte", thCliente: "Cliente / Cuenta", thFecha: "Fecha", thEstado: "Estado", thAccion: "Acción", cuentaSinNombre: "Cuenta sin nombre", ingresos: "Ingresa los datos", buzonSug: "Buzón de sugerencias", facturacionTitulo: "Facturación y Planes", facturacionDesc: "Administrá tu suscripción", planActual: "Plan Actual", activa: "Active", gestionarStripe: "Gestionar en Stripe", pronto: "Pronto", ayudanos: "Ayudanos a mejorar", bug: "¿Encontraste un error?", escribiSug: "Escribí tu sugerencia aquí...", enviando: "Enviando...", enviarSug: "Enviar Sugerencia", persPdf: "Personalización de Marca Blanca", nomAgencia: "Nombre de Agencia", sitioWeb: "Sitio Web", logoPdf: "PDF Logo", subeLogo: "Subir", piePagina: "Pie de página legal", preferencias: "Preferencias Regionales", monedaDef: "Moneda Base", metricaDef: "Métrica Principal", guardando: "Guardando...", guardarAj: "Guardar Ajustes", puntajeBasado: "Puntaje en base a ineficiencias del presupuesto.", ingresaDatos: "Completá los datos de la campaña a auditar.", presupuestoObj: "Presupuesto Mensual", placeholderPres: "Ej: 1000", gastoAct: "Gasto actual", placeholderGasto: "Ej: 450", conversiones: "Conversiones", cparoas: "CPA / ROAS Actual", tipoCamp: "Campaign Type", contexto: "Context y Notas", placeholderConv: "Ej: 120", placeholderContexto: "Añadí contexto extra para la IA.", monitoreo: "Monitoreo", tenes: "Tenés", registradas: "cuentas registradas.", todos: "Todos", criticos: "Críticos", atencion: "Atención", optimos: "Óptimos", thTendencia: "Tendencia", volver: "Volver atrás", detalleCliente: "Detalle del Cliente" },
@@ -1471,7 +1181,7 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
     }
   };
 
-  const abrirDetalleHallazgo = (hallazgo: any, tipo: "critico" | "mejora", reporteData: any) => {
+  const abrirDetalleHallazgo = (hallazgo: any, tipo: TipoHallazgo, reporteData: any) => {
     if (hallazgo?.id_rastreo === "DAYPARTING_FUGAS_HORARIAS" && reporteData?.dayparting) {
       setDaypartingAbierto(true);
       return;
@@ -1486,22 +1196,42 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
     }
     const keywords_prob = reporteData?.keywords_problematicas || [];
     const keywords_sug = reporteData?.keywords_sugeridas || [];
-    const textoRazonamiento = hallazgo.razonamiento || hallazgo.pitch_vendedor || reporteData?.pitch_vendedor || "Esta optimización corta la hemorragia de presupuesto y redirige la inversión hacia tráfico con verdadera intención de compra.";
+    const esSaludable = tipo === "saludable" || hallazgo.sin_accion_requerida === true;
+    const textoRazonamiento =
+      hallazgo.razonamiento ||
+      hallazgo.pitch_vendedor ||
+      (esSaludable
+        ? undefined
+        : reporteData?.pitch_vendedor) ||
+      (esSaludable
+        ? "La campaña rinde dentro del objetivo configurado."
+        : "Esta optimización corta la hemorragia de presupuesto y redirige la inversión hacia tráfico con verdadera intención de compra.");
     setDetalleHallazgo({
       id_rastreo: hallazgo.id_rastreo,
-      titulo: hallazgo.titulo || "Oportunidad detectada",
+      titulo: hallazgo.titulo || (esSaludable ? "Campaña en buen estado" : "Oportunidad detectada"),
+      nivel_salud: hallazgo.nivel_salud as NivelSalud | undefined,
       tipo,
       problema_detalle:
         hallazgo.problema_detalle ||
         hallazgo.descripcion ||
         hallazgo.descripcion_simple ||
         hallazgo.descripcion_tecnica ||
-        "Se detectó una ineficiencia técnica en la configuración de la campaña.",
+        (esSaludable
+          ? "No se detectaron cambios urgentes en esta campaña."
+          : "Se detectó una ineficiencia técnica en la configuración de la campaña."),
       descripcion_simple: hallazgo.descripcion_simple,
       descripcion_tecnica: hallazgo.descripcion_tecnica,
-      sugerencia: hallazgo.sugerencia || "Aplicar las correcciones recomendadas en Google Ads.",
+      sugerencia:
+        hallazgo.sugerencia ||
+        (esSaludable ? "No hace falta cambiar nada por ahora." : "Aplicar las correcciones recomendadas en Google Ads."),
       razonamiento: textoRazonamiento,
-      resultado_esperado: hallazgo.resultado_esperado || "Ahorro inmediato y mejora del CTR.",
+      resultado_esperado:
+        hallazgo.resultado_esperado ||
+        (esSaludable
+          ? "Mantener el rendimiento actual sin cambios obligatorios."
+          : "Ahorro inmediato y mejora del CTR."),
+      nota_escala_opcional: hallazgo.nota_escala_opcional ?? null,
+      sin_accion_requerida: esSaludable,
       items:
         keywords_prob.length > 0
           ? keywords_prob
@@ -2269,6 +1999,14 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
                             </span>
                           )}
 
+                          {(ultimaAuditoria.reporte_json?.cuenta_sin_cambios_urgentes === true ||
+                            ultimaAuditoria.reporte_json?.diagnostico_salud?.cuenta
+                              ?.cuenta_sin_cambios_urgentes === true) && (
+                            <span className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border border-[#10B981]/40 bg-[#10B981]/10 text-[#10B981] text-center leading-snug">
+                              Sin cambios urgentes
+                            </span>
+                          )}
+
                           {usageSnapshot && (
                             <p className="text-[9px] text-[#A8A29E] font-bold text-center leading-snug">
                               Auditorías este mes: {usageSnapshot.usage.audit}/
@@ -2422,9 +2160,26 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
                   </div>
 
                   {/* QUICK WINS DEL DÍA */}
-                  {quickWinsDelDia.length > 0 && (
+                  {(quickWinsDelDia.length > 0 || cuentaSinCambiosUrgentes) && (
                     <div className="bg-[#292524] border border-[#44403C] shadow-2xl rounded-3xl p-6 w-full animate-fade-custom">
-                      {quickWinsCompletados.length === quickWinsDelDia.length ? (
+                      {quickWinsDelDia.length === 0 && cuentaSinCambiosUrgentes ? (
+                        <div className="p-8 text-center flex flex-col items-center justify-center bg-[#10B981]/10 border-2 border-dashed border-[#10B981]/30 rounded-2xl">
+                          <CheckCircle2 size={40} className="text-[#10B981] mb-4" />
+                          <h3 className="text-xl font-black text-[#F5F0EB] tracking-tight">No hay acciones urgentes hoy</h3>
+                          <p className="text-[#A8A29E] text-sm mt-2 max-w-md font-medium leading-relaxed">
+                            {razonesCuentaSana.length > 0
+                              ? razonesCuentaSana.join(" ")
+                              : "Tu cuenta está en buen estado. Si tenés tiempo, revisá el detalle por campaña."}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => navegar("campañas", "/campanas")}
+                            className="mt-4 text-[10px] font-black uppercase tracking-widest text-[#F3C3B2] hover:underline"
+                          >
+                            Ver detalle por campaña →
+                          </button>
+                        </div>
+                      ) : quickWinsCompletados.length === quickWinsDelDia.length ? (
                         <div className="p-8 text-center flex flex-col items-center justify-center bg-[#10B981]/10 border-2 border-dashed border-[#10B981]/30 rounded-2xl animate-fade-custom">
                           <div className="w-16 h-16 rounded-full bg-[#10B981]/20 flex items-center justify-center text-[#10B981] mb-4 shadow-lg animate-bounce">
                             <CheckCircle2 size={32} strokeWidth={3} />
@@ -2441,7 +2196,7 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
                               <h3 className="text-base font-black text-[#F5F0EB] flex items-center gap-2">
                                 <Zap className="text-[#F3C3B2]" size={20} /> Quick Wins del Día
                               </h3>
-                              <p className="text-[11px] text-[#A8A29E] mt-1 font-bold uppercase tracking-widest">Las 3 acciones críticas de mayor impacto económico directo</p>
+                              <p className="text-[11px] text-[#A8A29E] mt-1 font-bold uppercase tracking-widest">Si tenés 10 minutos, empezá acá</p>
                             </div>
                             <span className="text-[10px] font-black bg-[#1C1917] border border-[#44403C] text-[#F3C3B2] px-3 py-1.5 rounded-lg">
                               {quickWinsCompletados.length} de {quickWinsDelDia.length} Completados
@@ -2530,123 +2285,11 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
                     </div>
                   )}
 
-                  {/* PACING DE PRESUPUESTO */}
-                  <div className="bg-[#292524] border border-[#44403C] shadow-lg rounded-3xl p-6 w-full">
-                    <div className="flex justify-between items-center mb-6">
-                      <div>
-                        <h3 className="text-base font-black text-[#F5F0EB] flex items-center gap-2">
-                          <Target className="text-[#F3C3B2]" size={20} /> Pacing de Presupuesto
-                        </h3>
-                        <p className="text-[11px] text-[#A8A29E] mt-1 font-bold uppercase tracking-widest">Consumo vs Proyección</p>
-                      </div>
-                    </div>
-
-                    {cargandoCampanas ? (
-                      <div className="flex justify-center items-center py-12">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#F3C3B2]"></div>
-                      </div>
-                    ) : campanas.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center py-10 text-center">
-                         <Folder className="w-12 h-12 text-[#44403C] mb-3" />
-                         <p className="text-[#F5F0EB] font-bold">Sin datos de presupuesto</p>
-                         <p className="text-[#A8A29E] text-sm mt-1">Conecta tus campañas para ver la proyección.</p>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                        {(() => {
-                          const cpaPromedioVista = campanas.length > 0
-                            ? campanas.reduce((acc, c) => acc + (c.gasto_mensual || 0), 0) /
-                              Math.max(campanas.reduce((acc, c) => acc + (c.conversiones || 0), 0), 1)
-                            : 20;
-
-                          return campanas.filter(c => c.estado === 'ENABLED').map((campana) => {
-                          const pacing = calcularPacingCampana(campana);
-                          const evaluacion = calcularScoreCampana(campana, cpaPromedioVista);
-                          const cpaObjetivo = campana.cpa_objetivo ?? cpaPromedioVista;
-                          const cpaCritico = evaluacion.cpaActual > cpaObjetivo * 1.2 || evaluacion.tag === "BASURA";
-                          const accionPacing = obtenerAccionPacing(campana, pacing, evaluacion, cpaObjetivo);
-                          const fueAplicada = pacingUndo?.changes.some(change => change.targetId === campana.id);
-                          const alerta = cpaCritico && pacing.estado === "Sobreinvirtiendo"
-                            ? "Crítico: acelera gasto con CPA caro."
-                            : cpaCritico
-                              ? "Ritmo correcto. CPA alto — revisar en auditoría."
-                              : pacing.estado === "Subinvirtiendo" && evaluacion.tag === "ESTRELLA"
-                              ? "Buen CPA: oportunidad para acelerar."
-                              : pacing.descripcion;
-
-                          return (
-                            <div key={campana.id} className={`bg-[#1C1917] border ${pacing.border} rounded-2xl p-4 shadow-inner`}>
-                              <div className="flex items-start justify-between gap-3 mb-3">
-                                <div className="min-w-0">
-                                  <h3 className="font-bold text-[#F5F0EB] text-sm truncate" title={campana.nombre}>{campana.nombre}</h3>
-                                  <p className="text-[10px] text-[#A8A29E] font-bold uppercase tracking-widest mt-1">
-                                    Gastado: ${pacing.gasto.toLocaleString()} de ${pacing.presupuesto.toLocaleString()}
-                                  </p>
-                                </div>
-                                <div className="flex flex-col items-end gap-1 shrink-0">
-                                  <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md ${pacing.bg} ${pacing.color}`}>
-                                    {pacing.estado}
-                                  </span>
-                                  {fueAplicada && (
-                                    <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-[#10B981]/10 text-[#10B981]">
-                                      Aplicado
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-
-                              <div className="mb-4">
-                                <div className="h-2 bg-[#292524] rounded-full overflow-hidden">
-                                  <div
-                                    className={`h-full ${pacing.bar} transition-all duration-1000 ease-out`}
-                                    style={{ width: `${Math.min(pacing.porcentajeGasto, 100)}%` }}
-                                  ></div>
-                                </div>
-                                <div className="flex justify-between text-[10px] text-[#A8A29E] font-bold mt-1.5">
-                                  <span>{Math.round(pacing.porcentajeGasto)}% consumido</span>
-                                  <span>Restan ${pacing.presupuestoRestante.toLocaleString()}</span>
-                                </div>
-                              </div>
-
-                              <div className="grid grid-cols-3 gap-2 mb-3">
-                                <div>
-                                  <p className="text-[9px] text-[#A8A29E] uppercase font-black tracking-widest">Diario</p>
-                                  <p className="text-sm font-black text-[#F3C3B2]">${pacing.ajusteDiarioRecomendado.toFixed(0)}</p>
-                                </div>
-                                <div>
-                                  <p className="text-[9px] text-[#A8A29E] uppercase font-black tracking-widest">CPA</p>
-                                  <p className={`text-sm font-black ${cpaCritico ? 'text-[#E07070]' : 'text-[#10B981]'}`}>${evaluacion.cpaActual.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
-                                </div>
-                                <div>
-                                  <p className="text-[9px] text-[#A8A29E] uppercase font-black tracking-widest">Score</p>
-                                  <p className="text-sm font-black text-[#F5F0EB]">{evaluacion.score}</p>
-                                </div>
-                              </div>
-
-                              <div className={`rounded-xl px-3 py-2 border text-[11px] font-bold leading-snug mb-3 ${cpaCritico ? 'bg-[#E07070]/10 border-[#E07070]/30 text-[#F3C3B2]' : 'bg-[#292524] border-[#44403C] text-[#A8A29E]'}`}>
-                                {alerta}
-                              </div>
-
-                              {accionPacing && (
-                                <button
-                                  type="button"
-                                  onClick={() => setPacingAccionPendiente({
-                                    campanaId: campana.id,
-                                    campanaNombre: campana.nombre,
-                                    ...accionPacing,
-                                  })}
-                                  className="w-full text-[10px] font-black uppercase tracking-widest px-3 py-2 rounded-xl border border-[#F3C3B2]/30 bg-[#F3C3B2]/10 text-[#F3C3B2] hover:bg-[#F3C3B2] hover:text-[#0a0a0a] transition-colors"
-                                >
-                                  {accionPacing.labelBoton}
-                                </button>
-                              )}
-                            </div>
-                          );
-                        });
-                        })()}
-                      </div>
-                    )}
-                  </div>
+                  <PacingResumenCuenta
+                    evaluadas={campanasEvaluadas}
+                    cargando={cargandoCampanas}
+                    onVerTodas={() => navegar("campañas", "/campanas?vista=pacing")}
+                  />
 
                   {/* EVOLUCIÓN DEL SCORE */}
                   {scoreHistorico.length >= 2 && (
@@ -2717,293 +2360,131 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
                           <p className="text-sm text-[#A8A29E] font-medium mt-2 leading-relaxed line-clamp-2">{textoHallazgoParaUsuario(item, explicacionClara)}</p>
                         </div>
                       ))}
+                      {ultimaAuditoria.reporte_json?.hallazgos?.bien_verde?.map((item: any, i: number) => {
+                        const diagSalud = ultimaAuditoria.reporte_json?.diagnostico_salud;
+                        let nivelVerde: NivelSalud = "estable";
+                        if (item.id_rastreo === "CUENTA_SALUDABLE") {
+                          nivelVerde = diagSalud?.cuenta?.nivel ?? "estable";
+                        } else if (String(item.id_rastreo).startsWith("CAMPANA_SALUDABLE_")) {
+                          const campId = String(item.id_rastreo).replace("CAMPANA_SALUDABLE_", "");
+                          nivelVerde = diagSalud?.campanas?.[campId]?.nivel ?? "estable";
+                        }
+                        return (
+                        <div
+                          key={`verde-${i}`}
+                          className="bg-[#292524] border border-[#44403C] shadow-lg rounded-3xl p-6 relative overflow-hidden md:col-span-2"
+                        >
+                          <div className="absolute top-0 left-0 w-1 h-full bg-[#10B981]"></div>
+                          <div className="flex items-center gap-2 mb-3">
+                            <div className="w-6 h-6 rounded-md bg-[#10B981]/10 flex items-center justify-center">
+                              <CheckCircle2 size={12} className="text-[#10B981]" />
+                            </div>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-[#10B981]">
+                              {etiquetaBadgeSalud(nivelVerde)}
+                            </span>
+                          </div>
+                          <p className="text-lg font-black text-[#F5F0EB]">{item.titulo}</p>
+                          <p className="text-sm text-[#A8A29E] font-medium mt-2 leading-relaxed">
+                            {textoHallazgoParaUsuario(item, explicacionClara)}
+                          </p>
+                        </div>
+                        );
+                      })}
                     </div>
                   )}
 
-                  {/* MATRIZ DE CAMPAÑAS */}
-                  {(() => {
-                    const activas = campanas.filter(c => c.estado === 'ENABLED');
-                    
-                    if (activas.length === 0) {
-                      return (
-                        <div className="w-full mt-6">
-                          <div className="flex justify-between items-center mb-4 px-1">
-                            <div>
-                              <h3 className="text-base font-black text-[#F5F0EB] flex items-center gap-2">
-                                <LayoutGrid className="text-[#D4A843]" size={20} /> Matriz de Rendimiento
-                              </h3>
-                              <p className="text-[11px] text-[#A8A29E] mt-1 font-bold uppercase tracking-widest">Distribución de Campañas</p>
-                            </div>
+                  {/* ROBIN HOOD + MATRIZ RESUMEN */}
+                  <div className="w-full mt-6">
+                    {planRobin && planRobin.estado !== "sin_oportunidad" && (
+                      <div
+                        id="robin-hood-section"
+                        className={`mb-4 rounded-3xl border px-5 py-4 ${
+                          planRobin.aplica
+                            ? "border-[#D4A843]/40 bg-[#D4A843]/5"
+                            : "border-[#44403C] bg-[#292524]"
+                        }`}
+                      >
+                        <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-4">
+                          <div className="min-w-0">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-[#D4A843] mb-1">Robin Hood seguro</p>
+                            <h4 className="text-lg font-black text-[#F5F0EB] leading-tight">
+                              {planRobin.aplica ? "Reasignación lista para aplicar" : "Reasignación bloqueada por seguridad"}
+                            </h4>
+                            <p className="text-sm text-[#A8A29E] font-medium leading-relaxed mt-1">{planRobin.justificacion}</p>
                           </div>
-                          <div className="bg-[#292524] border border-[#44403C] rounded-2xl p-8 text-center text-[#A8A29E] text-sm">
-                            No hay campañas activas suficientes para generar la matriz.
+                          <div className="flex flex-wrap gap-2 shrink-0">
+                            <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border border-[#44403C] text-[#F5F0EB] bg-[#1C1917]">
+                              Confianza {planRobin.confianza}
+                            </span>
+                            <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border border-[#10B981]/20 text-[#10B981] bg-[#10B981]/10">
+                              Safe Apply
+                            </span>
                           </div>
                         </div>
-                      );
-                    }
-
-                    const gastoTotal = activas.reduce((acc, c) => acc + (c.gasto_mensual || 0), 0);
-                    const convTotales = activas.reduce((acc, c) => acc + (c.conversiones || 0), 0);
-                    const cpaPromedio = convTotales > 0 ? gastoTotal / convTotales : 50;
-
-                    const evaluaciones: MatrizItemEval[] = activas.map(c => ({
-                      campana: c,
-                      evaluacion: calcularScoreCampana(c, cpaPromedio),
-                      cpaObjetivo: c.cpa_objetivo ?? cpaPromedio,
-                    }));
-                    const buckets = agruparMatriz(evaluaciones);
-                    const robin = calcularPlanRobinHood(activas, cpaPromedio, "ecommerce", gastoTotal, convTotales);
-
-                    const bloques: {
-                      id: MatrizBucketId;
-                      label: string;
-                      subtitulo: string;
-                      accionSugerida: string;
-                      color: string;
-                      border: string;
-                      hover: string;
-                      items: MatrizItemEval[];
-                      impactoLabel: string;
-                      impactoValor: number;
-                    }[] = [
-                      {
-                        id: "escalar",
-                        label: "Escalar",
-                        subtitulo: "CPA bajo objetivo",
-                        accionSugerida: "Subí presupuesto o priorizá estas campañas para capturar más demanda.",
-                        color: "text-[#10B981]",
-                        border: "border-[#10B981]/50",
-                        hover: "hover:border-[#10B981] hover:bg-[#10B981]/5",
-                        items: buckets.escalar,
-                        impactoLabel: "potencial conservador",
-                        impactoValor: Math.round(impactoFinancieroEscalar(buckets.escalar)),
-                      },
-                      {
-                        id: "testear",
-                        label: "Dar tiempo",
-                        subtitulo: "Pocas conversiones aún",
-                        accionSugerida: "Dejá que acumulen data antes de escalar o frenar.",
-                        color: "text-blue-400",
-                        border: "border-blue-400/50",
-                        hover: "hover:border-blue-400 hover:bg-blue-400/5",
-                        items: buckets.testear,
-                        impactoLabel: "en evaluación",
-                        impactoValor: Math.round(gastoEnBucket(buckets.testear)),
-                      },
-                      {
-                        id: "observar",
-                        label: "Revisar",
-                        subtitulo: "CPA mejorable",
-                        accionSugerida: "Optimizá pujas y términos antes de mover presupuesto.",
-                        color: "text-[#EAB308]",
-                        border: "border-[#EAB308]/50",
-                        hover: "hover:border-[#EAB308] hover:bg-[#EAB308]/5",
-                        items: buckets.observar,
-                        impactoLabel: "gasto monitoreado",
-                        impactoValor: Math.round(gastoEnBucket(buckets.observar)),
-                      },
-                      {
-                        id: "apagar",
-                        label: "Frenar",
-                        subtitulo: "CPA insostenible",
-                        accionSugerida: "Recortá o pausá; el presupuesto puede ir a campañas Escalar.",
-                        color: "text-[#E07070]",
-                        border: "border-[#E07070]/50",
-                        hover: "hover:border-[#E07070] hover:bg-[#E07070]/5",
-                        items: buckets.apagar,
-                        impactoLabel: "desperdiciados est.",
-                        impactoValor: Math.round(impactoFinancieroApagar(buckets.apagar)),
-                      },
-                    ];
-
-                    const toggleMatriz = (id: MatrizBucketId, count: number) => {
-                      if (count === 0) return;
-                      setMatrizAbierta(prev => (prev === id ? null : id));
-                    };
-
-                    return (
-                      <div className="w-full mt-6">
-                        <div className="mb-4 px-1">
-                          <h3 className="text-base font-black text-[#F5F0EB] flex items-center gap-2">
-                            <LayoutGrid className="text-[#D4A843]" size={20} /> Matriz de Rendimiento
-                          </h3>
-                          <p className="text-[11px] text-[#A8A29E] mt-1 font-bold uppercase tracking-widest">
-                            Clasificación por score, CPA vs objetivo y gasto · CPA cuenta ${cpaPromedio.toFixed(2)}
-                          </p>
-                        </div>
-
-                        {robin.estado !== "sin_oportunidad" && (
-                          <div id="robin-hood-section" className={`mb-4 rounded-3xl border px-5 py-4 ${
-                            robin.aplica
-                              ? "border-[#D4A843]/40 bg-[#D4A843]/5"
-                              : "border-[#44403C] bg-[#292524]"
-                          }`}>
-                            <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-4">
-                              <div className="min-w-0">
-                                <p className="text-[10px] font-black uppercase tracking-widest text-[#D4A843] mb-1">Robin Hood seguro</p>
-                                <h4 className="text-lg font-black text-[#F5F0EB] leading-tight">
-                                  {robin.aplica ? "Reasignación lista para aplicar" : "Reasignación bloqueada por seguridad"}
-                                </h4>
-                                <p className="text-sm text-[#A8A29E] font-medium leading-relaxed mt-1">{robin.justificacion}</p>
-                              </div>
-                              <div className="flex flex-wrap gap-2 shrink-0">
-                                <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border border-[#44403C] text-[#F5F0EB] bg-[#1C1917]">
-                                  Confianza {robin.confianza}
-                                </span>
-                                <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border border-[#10B981]/20 text-[#10B981] bg-[#10B981]/10">
-                                  Safe Apply
-                                </span>
-                              </div>
-                            </div>
-
-                            {robin.aplica && robin.destino && (
-                              <>
-                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mt-4">
-                                  <div className="rounded-2xl border border-[#E07070]/20 bg-[#E07070]/5 p-3">
-                                    <p className="text-[9px] font-black uppercase tracking-widest text-[#E07070] mb-2">Total a donar ahora</p>
-                                    <p className="text-2xl font-black text-[#F5F0EB]">${robin.total_reasignado.toLocaleString()}/mes</p>
-                                    {robin.presupuesto_rescatable > robin.total_reasignado && (
-                                      <p className="text-[9px] text-[#A8A29E] font-bold mt-1 leading-snug">
-                                        Potencial hasta ${robin.presupuesto_rescatable.toLocaleString()} · Mora aplica ${robin.total_reasignado.toLocaleString()} por seguridad.
-                                      </p>
-                                    )}
-                                    <div className="mt-2 space-y-1">
-                                      {robin.origenes.map(origen => (
-                                        <div key={origen.campana_id} className="flex justify-between gap-2 text-[10px] font-bold text-[#A8A29E]">
-                                          <span className="truncate" title={origen.nombre}>{origen.nombre}</span>
-                                          <span className="text-[#E07070] shrink-0">recorte -${origen.monto_recortado.toLocaleString()}</span>
-                                        </div>
-                                      ))}
-                                    </div>
-                                    {robin.origenes.length > 0 && (
-                                      <p className="text-[9px] text-[#E07070] font-black uppercase tracking-widest mt-2 pt-2 border-t border-[#E07070]/20">
-                                        Suma donantes: ${robin.origenes.reduce((acc, o) => acc + o.monto_recortado, 0).toLocaleString()}
-                                      </p>
-                                    )}
-                                  </div>
-                                  <div className="rounded-2xl border border-[#10B981]/20 bg-[#10B981]/5 p-3">
-                                    <p className="text-[9px] font-black uppercase tracking-widest text-[#10B981] mb-2">Recibe la donación</p>
-                                    <p className="text-sm font-black text-[#F5F0EB] truncate">{robin.destino.nombre}</p>
-                                    <p className="text-2xl font-black text-[#10B981] mt-1">+${robin.destino.monto_incrementado.toLocaleString()}/mes</p>
-                                    <p className="text-[10px] text-[#A8A29E] font-bold mt-1">
-                                      Margen escalable {robin.destino.margen_escalabilidad}% · Score {robin.destino.score_escalabilidad}
-                                    </p>
-                                  </div>
-                                  <div className="rounded-2xl border border-[#D4A843]/20 bg-[#D4A843]/5 p-3">
-                                    <p className="text-[9px] font-black uppercase tracking-widest text-[#D4A843] mb-2">Victoria estimada</p>
-                                    <p className="text-2xl font-black text-[#F5F0EB] leading-tight">
-                                      +{robin.proyeccion.conversiones_extra_mensuales}
-                                      <span className="text-sm font-black text-[#A8A29E] ml-1">conversiones/mes</span>
-                                    </p>
-                                    <p className="text-[10px] text-[#A8A29E] font-bold mt-1">
-                                      CPA global estimado -{robin.proyeccion.reduccion_cpa_global_pct}%
-                                    </p>
-                                    <p className="text-[9px] text-[#A8A29E] mt-2 leading-snug">{robin.proyeccion.supuesto}</p>
-                                  </div>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const plan = crearPlanSeguroRobin(robin);
-                                    if (plan) setRobinAccionPendiente(plan);
-                                  }}
-                                  className="mt-4 w-full sm:w-auto text-[10px] font-black uppercase tracking-widest px-4 py-3 rounded-xl border border-[#D4A843]/30 bg-[#D4A843]/10 text-[#D4A843] hover:bg-[#D4A843] hover:text-[#0a0a0a] transition-colors"
-                                >
-                                  Aplicar reasignación Robin Hood
-                                </button>
-                              </>
-                            )}
-
-                            {!robin.aplica && robin.bloqueos.length > 0 && (
-                              <p className="text-[10px] text-[#A8A29E] font-bold leading-relaxed mt-3">
-                                {robin.bloqueos[0]}
-                              </p>
-                            )}
-                          </div>
-                        )}
-                        
-                        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-                          {bloques.map(bloque => {
-                            const abierto = matrizAbierta === bloque.id;
-                            const tieneItems = bloque.items.length > 0;
-                            const listaVisible = bloque.items.slice(0, 5);
-                            const restantes = bloque.items.length - listaVisible.length;
-
-                            return (
-                              <div
-                                key={bloque.id}
-                                className={`bg-[#292524] border-2 ${bloque.border} rounded-2xl overflow-hidden shadow-sm transition-all ${tieneItems ? `cursor-pointer ${bloque.hover}` : "opacity-50"}`}
-                              >
-                                <button
-                                  type="button"
-                                  disabled={!tieneItems}
-                                  onClick={() => toggleMatriz(bloque.id, bloque.items.length)}
-                                  className="w-full p-4 text-left"
-                                >
-                                  <div className="flex items-start justify-between gap-2">
-                                    <div className="min-w-0">
-                                      <span className={`text-[10px] font-black ${bloque.color} uppercase tracking-widest`}>{bloque.label}</span>
-                                      <p className="text-[9px] text-[#A8A29E] font-bold mt-0.5 normal-case tracking-normal">{bloque.subtitulo}</p>
-                                    </div>
-                                    {tieneItems && (
-                                      <ChevronDown
-                                        size={14}
-                                        className={`text-[#A8A29E] shrink-0 transition-transform ${abierto ? "rotate-180" : ""}`}
-                                      />
-                                    )}
-                                  </div>
-                                  <div className="flex items-baseline gap-2 mt-2">
-                                    <span className="text-3xl font-black text-[#F5F0EB]">{bloque.items.length}</span>
-                                    <span className="text-[10px] text-[#A8A29E] font-bold">campañas</span>
-                                  </div>
-                                  {tieneItems && (
-                                    <p className={`text-xs font-bold mt-2 ${bloque.color}`}>
-                                      ${bloque.impactoValor.toLocaleString()}/mes {bloque.impactoLabel}
-                                    </p>
-                                  )}
-                                  <p className="text-[10px] text-[#A8A29E] mt-3 leading-snug border-t border-[#44403C]/40 pt-2">
-                                    <span className="font-black uppercase tracking-widest text-[9px] block mb-1">Acción sugerida</span>
-                                    {bloque.accionSugerida}
+                        {planRobin.aplica && planRobin.destino && (
+                          <>
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mt-4">
+                              <div className="rounded-2xl border border-[#E07070]/20 bg-[#E07070]/5 p-3">
+                                <p className="text-[9px] font-black uppercase tracking-widest text-[#E07070] mb-2">Total a donar ahora</p>
+                                <p className="text-2xl font-black text-[#F5F0EB]">${planRobin.total_reasignado.toLocaleString()}/mes</p>
+                                {planRobin.presupuesto_rescatable > planRobin.total_reasignado && (
+                                  <p className="text-[9px] text-[#A8A29E] font-bold mt-1 leading-snug">
+                                    Potencial hasta ${planRobin.presupuesto_rescatable.toLocaleString()} · Mora aplica ${planRobin.total_reasignado.toLocaleString()} por seguridad.
                                   </p>
-                                </button>
-
-                                {abierto && tieneItems && (
-                                  <div className="border-t border-[#44403C]/60 px-3 pb-3 space-y-1.5 animate-fade-in">
-                                    {listaVisible.map(({ campana, evaluacion, cpaObjetivo }) => (
-                                      <div
-                                        key={campana.id}
-                                        className="flex items-center justify-between gap-2 rounded-lg bg-[#1C1917] px-2.5 py-2 border border-[#44403C]/40"
-                                      >
-                                        <p className="text-[11px] font-bold text-[#F5F0EB] truncate flex-1" title={campana.nombre}>
-                                          {campana.nombre}
-                                        </p>
-                                        <div className="flex items-center gap-2 shrink-0 text-[10px] font-black">
-                                          <span className="text-[#A8A29E]">${evaluacion.cpaActual.toFixed(0)}</span>
-                                          <span className="text-[#44403C]">/</span>
-                                          <span className="text-[#A8A29E]">${cpaObjetivo.toFixed(0)}</span>
-                                          <span className={`px-1.5 py-0.5 rounded ${evaluacion.score >= 70 ? "bg-[#10B981]/10 text-[#10B981]" : evaluacion.score < 40 ? "bg-[#E07070]/10 text-[#E07070]" : "bg-[#EAB308]/10 text-[#EAB308]"}`}>
-                                            {evaluacion.score}
-                                          </span>
-                                        </div>
-                                      </div>
-                                    ))}
-                                    {restantes > 0 && (
-                                      <p className="text-[10px] text-[#A8A29E] font-bold text-center pt-1">+{restantes} más</p>
-                                    )}
-                                    {bloque.id === "apagar" && robin.destino && (
-                                      <p className="text-[10px] text-[#D4A843] font-bold leading-snug pt-1 px-1">
-                                        Señal Robin Hood: reasignar hacia {robin.destino.nombre}
-                                      </p>
-                                    )}
-                                  </div>
                                 )}
+                                <div className="mt-2 space-y-1">
+                                  {planRobin.origenes.map(origen => (
+                                    <div key={origen.campana_id} className="flex justify-between gap-2 text-[10px] font-bold text-[#A8A29E]">
+                                      <span className="truncate" title={origen.nombre}>{origen.nombre}</span>
+                                      <span className="text-[#E07070] shrink-0">recorte -${origen.monto_recortado.toLocaleString()}</span>
+                                    </div>
+                                  ))}
+                                </div>
                               </div>
-                            );
-                          })}
-                        </div>
+                              <div className="rounded-2xl border border-[#10B981]/20 bg-[#10B981]/5 p-3">
+                                <p className="text-[9px] font-black uppercase tracking-widest text-[#10B981] mb-2">Recibe la donación</p>
+                                <p className="text-sm font-black text-[#F5F0EB] truncate">{planRobin.destino.nombre}</p>
+                                <p className="text-2xl font-black text-[#10B981] mt-1">+${planRobin.destino.monto_incrementado.toLocaleString()}/mes</p>
+                                <p className="text-[10px] text-[#A8A29E] font-bold mt-1">
+                                  Margen escalable {planRobin.destino.margen_escalabilidad}% · Score {planRobin.destino.score_escalabilidad}
+                                </p>
+                              </div>
+                              <div className="rounded-2xl border border-[#D4A843]/20 bg-[#D4A843]/5 p-3">
+                                <p className="text-[9px] font-black uppercase tracking-widest text-[#D4A843] mb-2">Victoria estimada</p>
+                                <p className="text-2xl font-black text-[#F5F0EB] leading-tight">
+                                  +{planRobin.proyeccion.conversiones_extra_mensuales}
+                                  <span className="text-sm font-black text-[#A8A29E] ml-1">conversiones/mes</span>
+                                </p>
+                                <p className="text-[10px] text-[#A8A29E] font-bold mt-1">
+                                  CPA global estimado -{planRobin.proyeccion.reduccion_cpa_global_pct}%
+                                </p>
+                                <p className="text-[9px] text-[#A8A29E] mt-2 leading-snug">{planRobin.proyeccion.supuesto}</p>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const plan = crearPlanSeguroRobin(planRobin);
+                                if (plan) setRobinAccionPendiente(plan);
+                              }}
+                              className="mt-4 w-full sm:w-auto text-[10px] font-black uppercase tracking-widest px-4 py-3 rounded-xl border border-[#D4A843]/30 bg-[#D4A843]/10 text-[#D4A843] hover:bg-[#D4A843] hover:text-[#0a0a0a] transition-colors"
+                            >
+                              Aplicar reasignación Robin Hood
+                            </button>
+                          </>
+                        )}
+                        {!planRobin.aplica && planRobin.bloqueos.length > 0 && (
+                          <p className="text-[10px] text-[#A8A29E] font-bold leading-relaxed mt-3">{planRobin.bloqueos[0]}</p>
+                        )}
                       </div>
-                    );
-                  })()}
+                    )}
+                    <MatrizResumenCuenta
+                      buckets={matrizBuckets}
+                      cpaPromedio={cpaPromedioCampanas}
+                      activasCount={campanasActivas.length}
+                      onAbrirMatriz={() => navegar("campañas", "/campanas?vista=matriz")}
+                    />
+                  </div>
                   </>
                   )}
                 </div>
@@ -3048,6 +2529,16 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
                   typeof ultimaAuditoria?.reporte_json?.resumen?.ejecutivo === "string"
                     ? ultimaAuditoria.reporte_json.resumen.ejecutivo
                     : undefined
+                }
+                cuentaSinCambiosUrgentes={
+                  ultimaAuditoria?.reporte_json?.cuenta_sin_cambios_urgentes === true ||
+                  ultimaAuditoria?.reporte_json?.diagnostico_salud?.cuenta?.cuenta_sin_cambios_urgentes === true
+                }
+                nivelCuenta={ultimaAuditoria?.reporte_json?.diagnostico_salud?.cuenta?.nivel}
+                razonesCuenta={
+                  Array.isArray(ultimaAuditoria?.reporte_json?.diagnostico_salud?.cuenta?.razones)
+                    ? ultimaAuditoria.reporte_json.diagnostico_salud.cuenta.razones
+                    : []
                 }
                 items={quickWinsDelDia}
                 lenguajeClaro={explicacionClara}
@@ -3831,6 +3322,12 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
   );
 }
 
-export default function AuditorPageWrapper({ initialVista = "dashboard" }: { initialVista?: AuditorVista } = {}) {
-  return <AuditorDashboard initialVista={initialVista} />;
+export default function AuditorPageWrapper({
+  initialVista = "dashboard",
+  initialCampanasQuery,
+}: {
+  initialVista?: AuditorVista;
+  initialCampanasQuery?: CampanasQueryInicial;
+} = {}) {
+  return <AuditorDashboard initialVista={initialVista} initialCampanasQuery={initialCampanasQuery} />;
 }

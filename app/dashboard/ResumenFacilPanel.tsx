@@ -21,6 +21,7 @@ import {
   tituloHumanoHallazgo,
   textoHallazgoParaUsuario,
 } from "../../lib/resumenFacil";
+import { etiquetaChipCuenta, type NivelSalud } from "../../lib/saludMora";
 import {
   construirPlanHallazgo,
   type HallazgoApplyResult,
@@ -47,15 +48,20 @@ interface ResumenFacilPanelProps {
   porcentajeDesperdiciado: number;
   /** Narrativa Sonnet (resumen.ejecutivo) si existe */
   resumenEjecutivo?: string;
+  cuentaSinCambiosUrgentes?: boolean;
+  nivelCuenta?: string;
+  razonesCuenta?: string[];
   items: ItemResumenHallazgo[];
   lenguajeClaro: boolean;
   onResolver: (item: ItemResumenHallazgo) => void;
 }
 
-function scoreVisual(score: number) {
+function scoreVisual(score: number, nivelCuenta?: string) {
+  const nivel = nivelCuenta as NivelSalud | undefined;
+  const label = etiquetaChipCuenta(score, nivel);
   if (score < 50) {
     return {
-      label: "Crítico",
+      label,
       ring: "border-[#FECACA] bg-[#FEE2E2] text-[#B91C1C]",
       chip: "bg-[#FEE2E2] text-[#B91C1C] border-[#FECACA]",
       icon: AlertTriangle,
@@ -63,14 +69,14 @@ function scoreVisual(score: number) {
   }
   if (score < 80) {
     return {
-      label: "Atención",
+      label,
       ring: "border-[#FDE68A] bg-[#FEF3C7] text-[#B45309]",
       chip: "bg-[#FEF3C7] text-[#B45309] border-[#FDE68A]",
       icon: Zap,
     };
   }
   return {
-    label: "Saludable",
+    label,
     ring: "border-[#A7F3D0] bg-[#D1FAE5] text-[#047857]",
     chip: "bg-[#D1FAE5] text-[#047857] border-[#A7F3D0]",
     icon: ListChecks,
@@ -84,6 +90,9 @@ export default function ResumenFacilPanel({
   gastoDesperdiciado,
   porcentajeDesperdiciado,
   resumenEjecutivo,
+  cuentaSinCambiosUrgentes = false,
+  nivelCuenta,
+  razonesCuenta = [],
   items,
   lenguajeClaro,
   onResolver,
@@ -96,10 +105,20 @@ export default function ResumenFacilPanel({
   const fraseSalud = useMemo(() => {
     const ejecutivo = (resumenEjecutivo || "").trim();
     if (ejecutivo) return ejecutivo;
-    return fraseSaludCuenta(score, gastoDesperdiciado, porcentajeDesperdiciado);
-  }, [resumenEjecutivo, score, gastoDesperdiciado, porcentajeDesperdiciado]);
+    return fraseSaludCuenta(score, gastoDesperdiciado, porcentajeDesperdiciado, {
+      cuenta_sin_cambios_urgentes: cuentaSinCambiosUrgentes,
+      nivel: nivelCuenta,
+    });
+  }, [
+    resumenEjecutivo,
+    score,
+    gastoDesperdiciado,
+    porcentajeDesperdiciado,
+    cuentaSinCambiosUrgentes,
+    nivelCuenta,
+  ]);
 
-  const visual = useMemo(() => scoreVisual(score), [score]);
+  const visual = useMemo(() => scoreVisual(score, nivelCuenta), [score, nivelCuenta]);
   const ScoreIcon = visual.icon;
 
   const urgentes = items.filter((i) => i.tipo === "critico").length;
@@ -320,9 +339,31 @@ export default function ResumenFacilPanel({
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 md:px-8 py-6 bg-[#FAFAFA]">
           <div className="space-y-4">
           {items.length === 0 ? (
-            <p className="text-sm text-[#4B5563] text-center py-12">
-              Corré una auditoría para ver tu resumen en lenguaje claro.
-            </p>
+            cuentaSinCambiosUrgentes ? (
+              <div className="rounded-2xl border border-[#A7F3D0] bg-[#ECFDF5] p-6 md:p-8">
+                <p className="text-[11px] font-black uppercase tracking-widest text-[#047857] flex items-center gap-2">
+                  <ShieldCheck size={14} /> Sin cambios urgentes
+                </p>
+                <p className="text-base font-bold text-[#0a0a0a] mt-3 leading-relaxed">{fraseSalud}</p>
+                {razonesCuenta.length > 0 && (
+                  <ul className="mt-4 space-y-2">
+                    {razonesCuenta.map((r) => (
+                      <li
+                        key={r}
+                        className="text-sm text-[#4B5563] font-medium flex gap-2 leading-relaxed"
+                      >
+                        <span className="text-[#047857] font-black shrink-0">✓</span>
+                        {r}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-[#4B5563] text-center py-12">
+                Corré una auditoría para ver tu resumen en lenguaje claro.
+              </p>
+            )
           ) : (
             <>
               <p className="text-[11px] font-black uppercase tracking-widest text-[#4B5563] flex items-center gap-2">

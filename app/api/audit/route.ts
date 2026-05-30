@@ -153,13 +153,10 @@ export async function POST(req: Request) {
       bien_verde: (esqueletoJSON.hallazgos?.bien_verde || []) as HallazgoConCamposExtra[],
     };
 
-    const hayHallazgos =
-      originales.graves_rojo.length +
-        originales.debiles_amarillo.length +
-        originales.bien_verde.length >
-      0;
+    const hayHallazgosAccionables =
+      originales.graves_rojo.length + originales.debiles_amarillo.length > 0;
 
-    if (hayHallazgos && !isAiConfigured("redactor_hallazgos")) {
+    if (hayHallazgosAccionables && !isAiConfigured("redactor_hallazgos")) {
       return NextResponse.json(
         { error: "ai_not_configured", message: "API de IA no configurada (OpenAI)." },
         { status: 503 }
@@ -171,7 +168,7 @@ export async function POST(req: Request) {
     let hallazgosRedactados = originales;
     let estratega: Awaited<ReturnType<typeof ejecutarEstrategaAuditoria>> = null;
 
-    if (hayHallazgos) {
+    if (hayHallazgosAccionables) {
       const [redactorResult, estrategaResult] = await Promise.all([
         ejecutarRedactorHallazgos(esqueletoJSON, idioma).catch(err => {
           console.error("[audit] redactor_hallazgos falló (degradación):", err);

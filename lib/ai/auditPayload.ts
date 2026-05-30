@@ -16,6 +16,8 @@ export function construirPayloadEstratega(esqueleto: Record<string, unknown>): R
 
   return {
     health_score: esqueleto.health_score,
+    cuenta_sin_cambios_urgentes: esqueleto.cuenta_sin_cambios_urgentes,
+    diagnostico_salud: esqueleto.diagnostico_salud,
     perfil_aplicado: esqueleto.perfil_aplicado,
     resumen: esqueleto.resumen,
     hallazgos: {

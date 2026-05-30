@@ -1,6 +1,7 @@
 import type { AccionResumenPanel } from "../resumenFacil";
+import type { NivelSalud } from "../saludMora";
 
-export type TipoHallazgo = "critico" | "mejora";
+export type TipoHallazgo = "critico" | "mejora" | "saludable";
 
 export type KeywordProblematicaItem = {
   nombre: string;
@@ -24,6 +25,10 @@ export type DetalleHallazgo = {
   sugerencia: string;
   razonamiento: string;
   resultado_esperado: string;
+  /** Cuando la campaña/cuenta está bien: nota opcional de escalar (no urgente) */
+  nota_escala_opcional?: string | null;
+  sin_accion_requerida?: boolean;
+  nivel_salud?: NivelSalud;
   items: KeywordProblematicaItem[];
   sugerencias: KeywordSugeridaItem[];
   reporteData?: Record<string, unknown>;

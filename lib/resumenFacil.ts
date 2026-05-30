@@ -49,10 +49,20 @@ export const INTRO_PANEL_DESDE_RESUMEN: Record<AccionResumenPanel, string> = {
 export function fraseSaludCuenta(
   score: number,
   gastoDesperdiciado: number,
-  porcentajeDesperdiciado: number
+  porcentajeDesperdiciado: number,
+  opciones?: { cuenta_sin_cambios_urgentes?: boolean; nivel?: string }
 ): string {
+  if (opciones?.cuenta_sin_cambios_urgentes) {
+    if (opciones.nivel === "optima" || score >= 92) {
+      return "Tu cuenta no necesita cambios urgentes: está en muy buen estado. Mora no detectó fugas materiales ni correcciones obligatorias.";
+    }
+    return "Tu cuenta está estable y no requiere cambios urgentes ahora. Podés seguir monitoreando con tranquilidad.";
+  }
+  if (score >= 75 && gastoDesperdiciado <= 0) {
+    return "Tu cuenta está en buen estado. No hay fugas urgentes detectadas en esta auditoría.";
+  }
   if (score >= 75) {
-    return "Tu cuenta está en buen estado. Igual hay margen para recuperar plata si corregís los puntos que Mora marcó.";
+    return "Tu cuenta está en buen estado. Revisá los puntos que Mora marcó solo si querés afinar aún más el rendimiento.";
   }
   if (score >= 50) {
     return `Tu cuenta tiene cosas para mejorar. Mora estima que podrías estar perdiendo alrededor de $${Math.round(gastoDesperdiciado).toLocaleString()} en inversión poco eficiente.`;

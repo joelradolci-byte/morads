@@ -1,5 +1,13 @@
 // /lib/motorMora.ts
 
+import {
+  construirHallazgosVerdes,
+  evaluarSaludCampana,
+  evaluarSaludCuenta,
+  impactoHallazgoEsMaterial,
+  type DiagnosticoSaludReporte,
+} from "./saludMora";
+
 // ============================================================================
 // INTERFACES (Estructura de Datos de Entrada Estricta)
 // ============================================================================
@@ -1737,7 +1745,10 @@ export function generarEsqueletoAuditoria(datos: DatosAuditoriaInput) {
     datos.conversiones_totales
   );
 
-  if (planRobinHood.estado === "aplicable") {
+  if (
+    planRobinHood.estado === "aplicable" &&
+    impactoHallazgoEsMaterial(planRobinHood.total_reasignado, datos.gasto_total_cuenta)
+  ) {
     hallazgosAmarillos.push({
       id_rastreo: "OPORTUNIDAD_ROBIN_HOOD",
       titulo: "Estrategia Robin Hood: Optimización Presupuestaria",
@@ -1752,10 +1763,12 @@ export function generarEsqueletoAuditoria(datos: DatosAuditoriaInput) {
     planRobinHood
   );
 
+  const impactoSimulador = simuladorPresupuesto.diagnostico.presupuesto_mal_asignado;
   if (
     simuladorPresupuesto.tiene_senal_suficiente &&
     (simuladorPresupuesto.diagnostico.presupuesto_mal_asignado > 0 ||
-      simuladorPresupuesto.escenarios.some(e => e.conversiones_extra.esperado > 0))
+      simuladorPresupuesto.escenarios.some(e => e.conversiones_extra.esperado > 0)) &&
+    impactoHallazgoEsMaterial(impactoSimulador, datos.gasto_total_cuenta)
   ) {
     hallazgosAmarillos.push({
       id_rastreo: "SIMULADOR_PRESUPUESTO",
@@ -1771,7 +1784,10 @@ export function generarEsqueletoAuditoria(datos: DatosAuditoriaInput) {
     multConfianza
   );
 
-  if (dayparting.franjas_con_fuga > 0) {
+  if (
+    dayparting.franjas_con_fuga > 0 &&
+    impactoHallazgoEsMaterial(dayparting.ahorro_estimado, datos.gasto_total_cuenta)
+  ) {
     const tituloDayparting = `Dayparting: ${dayparting.franjas_con_fuga} franja${dayparting.franjas_con_fuga > 1 ? "s" : ""} con fuga horaria`;
     const hallazgoDayparting: HallazgoMora = {
       id_rastreo: "DAYPARTING_FUGAS_HORARIAS",
@@ -1796,8 +1812,33 @@ export function generarEsqueletoAuditoria(datos: DatosAuditoriaInput) {
     multFugaParcial
   );
 
+  const diagnosticoCuenta = evaluarSaludCuenta({
+    health_score: healthScore,
+    gasto_desperdiciado: gastoDesperdiciadoTotal,
+    gasto_total_cuenta: datos.gasto_total_cuenta,
+    porcentaje_desperdiciado: porcentajeDesperdiciado * 100,
+    graves_rojo: hallazgosRojos,
+    debiles_amarillo: hallazgosAmarillos,
+  });
+
+  const campanasSalud: DiagnosticoSaludReporte["campanas"] = {};
+  campanasLimpias.forEach(c => {
+    campanasSalud[c.id] = evaluarSaludCampana(c, datos.cpa_promedio_cuenta);
+  });
+
+  const hallazgosVerdes = construirHallazgosVerdes(
+    campanasLimpias,
+    datos.cpa_promedio_cuenta,
+    diagnosticoCuenta
+  );
+
   return {
     health_score: healthScore,
+    cuenta_sin_cambios_urgentes: diagnosticoCuenta.cuenta_sin_cambios_urgentes,
+    diagnostico_salud: {
+      cuenta: diagnosticoCuenta,
+      campanas: campanasSalud,
+    } satisfies DiagnosticoSaludReporte,
     perfil_aplicado: {
       nivel_confianza: nivelConfianza,
       tipo_negocio: datos.tipo_negocio,
@@ -1833,7 +1874,7 @@ export function generarEsqueletoAuditoria(datos: DatosAuditoriaInput) {
     hallazgos: {
       graves_rojo: hallazgosRojos,
       debiles_amarillo: hallazgosAmarillos,
-      bien_verde: []
+      bien_verde: hallazgosVerdes,
     },
     checklist: [],
     advertencias: []

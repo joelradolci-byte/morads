@@ -10,7 +10,7 @@ export type HallazgoApplyPayload = {
   accion?: string;
   id_rastreo: string;
   sugerencia: string;
-  tipo?: "critico" | "mejora";
+  tipo?: "critico" | "mejora" | "saludable";
 };
 
 export interface HallazgoApplyPlan {
