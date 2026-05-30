@@ -1,7 +1,14 @@
 import { NextResponse } from "next/server";
 import { validarAnuncioGenerado, type AnuncioGeneradoValidado } from "@/lib/anunciosValidator";
+import { getUserFromRequest } from "@/lib/auth/api-user";
 import { isAiConfigured } from "@/lib/ai/provider";
 import { ejecutarAnunciosRsa } from "@/lib/ai/tasks";
+import {
+  assertUsageAllowed,
+  recordUsageSuccess,
+  UsageLimitError,
+  usageLimitResponse,
+} from "@/lib/usage/enforce";
 
 export type AnunciosGenerarContexto = {
   tipo_negocio: "ecommerce" | "lead_gen" | "high_ticket";
@@ -18,6 +25,21 @@ export type AnunciosGenerarContexto = {
 
 export async function POST(req: Request) {
   try {
+    const user = await getUserFromRequest(req);
+    if (!user) {
+      return NextResponse.json(
+        { error: "unauthorized", message: "Iniciá sesión para generar anuncios." },
+        { status: 401 }
+      );
+    }
+
+    try {
+      await assertUsageAllowed(user.id, "anuncios");
+    } catch (err) {
+      if (err instanceof UsageLimitError) return usageLimitResponse(err);
+      throw err;
+    }
+
     if (!isAiConfigured("anuncios_rsa")) {
       return NextResponse.json(
         { error: "ai_not_configured", message: "API de IA no configurada." },
@@ -92,11 +114,14 @@ Evitar términos: ${terminos_evitar.slice(0, 15).join(", ") || "N/A"}`;
       );
     }
 
+    await recordUsageSuccess(user.id, "anuncios");
+
     return NextResponse.json({
       variantes,
       generado_en: new Date().toISOString(),
     });
   } catch (error) {
+    if (error instanceof UsageLimitError) return usageLimitResponse(error);
     console.error("[anuncios/generar]", error);
     return NextResponse.json(
       {

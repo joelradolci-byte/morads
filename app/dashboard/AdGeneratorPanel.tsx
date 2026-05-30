@@ -9,6 +9,7 @@ import {
   MAX_DESCRIPTION,
 } from "../../lib/anunciosValidator";
 import type { AnunciosGenerarContexto } from "../api/anuncios/generar/route";
+import { moraAuthHeaders } from "@/lib/auth/client-headers";
 
 export type AdGeneratorContext = AnunciosGenerarContexto & {
   hallazgo_id?: string;
@@ -44,7 +45,7 @@ export default function AdGeneratorPanel({ open, contexto, onClose }: AdGenerato
     try {
       const res = await fetch("/api/anuncios/generar", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: await moraAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           ...contexto,
           tono,

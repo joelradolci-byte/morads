@@ -1,5 +1,12 @@
 import { NextResponse } from "next/server";
+import { getUserFromRequest } from "@/lib/auth/api-user";
 import { generarEsqueletoAuditoria, DatosAuditoriaInput } from "@/lib/motorMora";
+import {
+  assertUsageAllowed,
+  recordUsageSuccess,
+  UsageLimitError,
+  usageLimitResponse,
+} from "@/lib/usage/enforce";
 import { extraerTerminosGoogle, extraerDatosHorariosGoogle } from "@/lib/googleAds";
 import { construirPayloadEstratega } from "@/lib/ai/auditPayload";
 import {
@@ -58,6 +65,21 @@ function aplicarEstratega(
 
 export async function POST(req: Request) {
   try {
+    const user = await getUserFromRequest(req);
+    if (!user) {
+      return NextResponse.json(
+        { error: "unauthorized", message: "Tenés que iniciar sesión para auditar." },
+        { status: 401 }
+      );
+    }
+
+    try {
+      await assertUsageAllowed(user.id, "audit");
+    } catch (err) {
+      if (err instanceof UsageLimitError) return usageLimitResponse(err);
+      throw err;
+    }
+
     const { datos, idioma_ui, marca_cliente } = await req.json();
     const idioma = typeof idioma_ui === "string" ? idioma_ui : "es";
 
@@ -169,6 +191,8 @@ export async function POST(req: Request) {
     }
 
     const reporteFinal = aplicarEstratega(esqueletoJSON, hallazgosRedactados, estratega);
+
+    await recordUsageSuccess(user.id, "audit");
 
     return NextResponse.json(reporteFinal);
   } catch (error: unknown) {

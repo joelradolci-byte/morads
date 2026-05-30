@@ -1,17 +1,33 @@
-// app/api/pdf/route.ts
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { createElement } from "react";
 import { ReportePDF } from "../../components/pdf/ReportePDF";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { getUserFromRequest } from "@/lib/auth/api-user";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import {
+  assertUsageAllowed,
+  recordUsageSuccess,
+  UsageLimitError,
+  usageLimitResponse,
+} from "@/lib/usage/enforce";
 
 export async function GET(req: Request) {
   try {
+    const user = await getUserFromRequest(req);
+    if (!user) {
+      return NextResponse.json(
+        { error: "unauthorized", message: "Iniciá sesión para exportar el PDF." },
+        { status: 401 }
+      );
+    }
+
+    try {
+      await assertUsageAllowed(user.id, "pdf");
+    } catch (err) {
+      if (err instanceof UsageLimitError) return usageLimitResponse(err);
+      throw err;
+    }
+
     const { searchParams } = new URL(req.url);
     const auditId = searchParams.get("id");
 
@@ -19,7 +35,8 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Falta el ID de la auditoría" }, { status: 400 });
     }
 
-    // 1. Traer la auditoría
+    const supabase = getSupabaseAdmin();
+
     const { data: audit, error: auditError } = await supabase
       .from("historial_auditorias")
       .select("*")
@@ -30,14 +47,19 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Auditoría no encontrada" }, { status: 404 });
     }
 
-    // 2. Traer config de agencia (opcional)
+    if (audit.user_id !== user.id) {
+      return NextResponse.json(
+        { error: "forbidden", message: "No tenés permiso para exportar esta auditoría." },
+        { status: 403 }
+      );
+    }
+
     const { data: agencia } = await supabase
       .from("configuracion_agencia")
       .select("agencia_nombre, agencia_logo")
       .eq("user_id", audit.user_id)
       .maybeSingle();
 
-    // 3. Armar el meta del reporte
     const meta = {
       nombre_cuenta: audit.nombre_cuenta || "Cliente",
       created_at: audit.created_at,
@@ -45,26 +67,23 @@ export async function GET(req: Request) {
       agencia_logo: agencia?.agencia_logo || undefined,
     };
 
-    // 4. Generar el PDF en memoria — sin dependencias externas
-    // renderToBuffer expects a React-PDF Document element type; cast to any to satisfy TS
     const pdfBuffer = await renderToBuffer(
-      createElement(ReportePDF as any, { reporte: audit.reporte_json, meta } as any) as any
+      createElement(ReportePDF as never, { reporte: audit.reporte_json, meta } as never) as never
     );
 
-    const pdfBody = new Uint8Array(pdfBuffer);
+    await recordUsageSuccess(user.id, "pdf");
 
-    // 5. Devolver el archivo
+    const pdfBody = new Uint8Array(pdfBuffer);
     const filename = `Auditoria_Mora_${meta.nombre_cuenta.replace(/\s+/g, "_")}.pdf`;
 
     return new Response(pdfBody, {
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": `attachment; filename="${filename}"`,
-        "Cache-Control": "no-store",
       },
     });
-  } catch (error: any) {
-    console.error("[pdf/route] Error generando reporte:", error);
-    return NextResponse.json({ error: "Error generando el PDF" }, { status: 500 });
+  } catch (error) {
+    console.error("Error generando PDF:", error);
+    return NextResponse.json({ error: "Error interno generando el PDF" }, { status: 500 });
   }
 }

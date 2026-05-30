@@ -33,6 +33,9 @@ import {
   type SafeApplyPlan,
 } from '../../lib/safeApply';
 import { supabase } from "../../lib/supabase/browser";
+import { moraAuthHeaders } from "../../lib/auth/client-headers";
+import { downloadAuditPdf } from "../../lib/pdf/downloadAuditPdf";
+import type { UsageSnapshot } from "../../lib/usage/config";
 import DestripadorPanel from './DestripadorPanel';
 import DaypartingPanel from './DaypartingPanel';
 import PresupuestoSimulatorPanel from './PresupuestoSimulatorPanel';
@@ -688,6 +691,7 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
   const [filtroEstado, setFiltroEstado] = useState<"todos" | "critico" | "atencion" | "optimo">("todos");
   const [busqueda, setBusqueda] = useState(""); 
   const [perfil, setPerfil] = useState<any>(null);
+  const [usageSnapshot, setUsageSnapshot] = useState<UsageSnapshot | null>(null);
   const [agenciaNombre, setAgenciaNombre] = useState("");
   const [agenciaLogo, setAgenciaLogo] = useState("");
   const [agenciaWeb, setAgenciaWeb] = useState("");
@@ -789,6 +793,33 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
     setExplicacionClara(getPreferenciaExplicacion() === "clara");
   }, []);
 
+  const cargarUsoMensual = async () => {
+    try {
+      const headers = await moraAuthHeaders();
+      const res = await fetch("/api/usage", { headers });
+      if (res.ok) {
+        const data = (await res.json()) as UsageSnapshot;
+        setUsageSnapshot(data);
+      }
+    } catch {
+      /* ignore */
+    }
+  };
+
+  useEffect(() => {
+    if (session?.user?.id) void cargarUsoMensual();
+  }, [session?.user?.id]);
+
+  const auditoriasRestantes = useMemo(() => {
+    if (!usageSnapshot) return null;
+    return Math.max(
+      0,
+      usageSnapshot.limits.audit.monthly - usageSnapshot.usage.audit
+    );
+  }, [usageSnapshot]);
+
+  const auditoriaBloqueadaPorCuota = auditoriasRestantes === 0;
+
   const iniciarSesion = async () => {
     await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -814,13 +845,13 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
       const datosParaAuditar = await construirDatosAuditoria();
 
       console.log("Enviando datos a Mora...");
-      const res = await fetch('/api/audit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/audit", {
+        method: "POST",
+        headers: await moraAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           datos: datosParaAuditar,
-          idioma_ui: "es"
-        })
+          idioma_ui: "es",
+        }),
       });
 
       const body = await res.json().catch(() => ({}));
@@ -847,8 +878,10 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
             reporte_json: parsedReporte, 
             nombre_cuenta: nombreCuenta || "Cuenta Prueba" 
         }]);
-        cargarHistorial(); 
+        cargarHistorial();
       }
+
+      void cargarUsoMensual();
 
       if (!isOnboardingExplicacionDone()) {
         setMostrarOnboardingExplicacion(true);
@@ -2196,10 +2229,14 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
                       <button
                         type="button"
                         onClick={ejecutarAuditoriaConIA}
-                        disabled={loading}
+                        disabled={loading || auditoriaBloqueadaPorCuota}
                         className="mt-10 px-8 py-4 rounded-2xl text-sm uppercase tracking-widest font-black bg-[#F3C3B2] text-[#0a0a0a] hover:bg-[#eab3a1] transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        {loading ? "MORA ESTÁ ANALIZANDO…" : "EJECUTAR AUDITORÍA PRO"}
+                        {loading
+                          ? "MORA ESTÁ ANALIZANDO…"
+                          : auditoriaBloqueadaPorCuota
+                            ? "LÍMITE MENSUAL ALCANZADO"
+                            : "EJECUTAR AUDITORÍA PRO"}
                       </button>
                     </div>
                   ) : (
@@ -2232,13 +2269,25 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
                             </span>
                           )}
 
+                          {usageSnapshot && (
+                            <p className="text-[9px] text-[#A8A29E] font-bold text-center leading-snug">
+                              Auditorías este mes: {usageSnapshot.usage.audit}/
+                              {usageSnapshot.limits.audit.monthly}
+                              {usageSnapshot.tier === "trial" ? " (trial)" : ""}
+                            </p>
+                          )}
+
                           <button 
                             type="button"
                             onClick={ejecutarAuditoriaConIA} 
-                            disabled={loading}
+                            disabled={loading || auditoriaBloqueadaPorCuota}
                             className="w-full text-[10px] uppercase tracking-widest font-black border border-[#44403C] bg-[#F3C3B2]/10 text-[#F3C3B2] hover:bg-[#F3C3B2] hover:text-[#0a0a0a] transition-colors px-5 py-2.5 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
                           >
-                            {loading ? "MORA ESTÁ ANALIZANDO..." : "EJECUTAR AUDITORÍA PRO"}
+                            {loading
+                              ? "MORA ESTÁ ANALIZANDO..."
+                              : auditoriaBloqueadaPorCuota
+                                ? "LÍMITE MENSUAL"
+                                : "EJECUTAR AUDITORÍA PRO"}
                           </button>
                         </div>
                       </div>
@@ -3167,7 +3216,11 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
                               <button onClick={() => borrarAuditoria(item.id)} className="text-[#8A968C] hover:text-[#E66767] transition-colors p-3.5 bg-[#292524] border border-[#44403C] rounded-xl hover:border-[#E66767]/30 shadow-sm"><Trash2 size={16} /></button>
                               
                               <button 
-                                onClick={() => window.open(`/api/pdf?id=${item.id}`, '_self')}
+                                onClick={() => {
+                                  void downloadAuditPdf(item.id).catch((e: Error) =>
+                                    alert(e.message)
+                                  );
+                                }}
                                 className="bg-[#F3C3B2] text-[#0a0a0a] hover:bg-[#eab3a1] px-5 py-3.5 rounded-xl text-xs uppercase tracking-widest font-black transition-all shadow-sm flex items-center gap-1.5"
                               >
                                 <FileText size={14} /> PDF
@@ -3311,7 +3364,11 @@ export function AuditorDashboard({ initialVista = "dashboard" }: { initialVista?
                      <button 
                        onClick={() => {
                          const actual = historial.find(h => h.reporte_json === reporte);
-                         if (actual) window.open(`/api/pdf?id=${actual.id}`, '_self');
+                         if (actual) {
+                           void downloadAuditPdf(actual.id).catch((e: Error) =>
+                             alert(e.message)
+                           );
+                         }
                        }}
                        className="bg-[#F3C3B2] text-[#0a0a0a] hover:bg-[#eab3a1] px-5 py-2.5 rounded-xl text-xs uppercase tracking-widest font-black transition-all shadow-sm flex items-center gap-1.5 ml-auto mr-4"
                      >
