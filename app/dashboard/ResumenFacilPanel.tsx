@@ -16,6 +16,10 @@ import {
 } from "lucide-react";
 import MoraOverlay from "./MoraOverlay";
 import {
+  adaptarTextoHistorico,
+  prefijarNarrativaHistorica,
+} from "../../lib/copyHistorico";
+import {
   fraseSaludCuenta,
   resolverAccionHallazgo,
   tituloHumanoHallazgo,
@@ -54,6 +58,11 @@ interface ResumenFacilPanelProps {
   items: ItemResumenHallazgo[];
   lenguajeClaro: boolean;
   onResolver: (item: ItemResumenHallazgo) => void;
+  /** Auditoría pasada: solo narrativa, sin corregir ni abrir herramientas */
+  soloLectura?: boolean;
+  /** No es la auditoría más reciente: copy en pasado */
+  modoHistorico?: boolean;
+  fechaAuditoria?: string;
 }
 
 function scoreVisual(score: number, nivelCuenta?: string) {
@@ -96,6 +105,9 @@ export default function ResumenFacilPanel({
   items,
   lenguajeClaro,
   onResolver,
+  soloLectura = false,
+  modoHistorico = false,
+  fechaAuditoria,
 }: ResumenFacilPanelProps) {
   const [copiadoIdx, setCopiadoIdx] = useState<number | null>(null);
   const [confirmOpen, setConfirmOpen] = useState<Record<string, boolean>>({});
@@ -104,10 +116,15 @@ export default function ResumenFacilPanel({
 
   const fraseSalud = useMemo(() => {
     const ejecutivo = (resumenEjecutivo || "").trim();
-    if (ejecutivo) return ejecutivo;
+    if (ejecutivo) {
+      if (!modoHistorico) return ejecutivo;
+      return prefijarNarrativaHistorica(ejecutivo, fechaAuditoria);
+    }
     return fraseSaludCuenta(score, gastoDesperdiciado, porcentajeDesperdiciado, {
       cuenta_sin_cambios_urgentes: cuentaSinCambiosUrgentes,
       nivel: nivelCuenta,
+      modoHistorico,
+      fechaAuditoria,
     });
   }, [
     resumenEjecutivo,
@@ -116,6 +133,8 @@ export default function ResumenFacilPanel({
     porcentajeDesperdiciado,
     cuentaSinCambiosUrgentes,
     nivelCuenta,
+    modoHistorico,
+    fechaAuditoria,
   ]);
 
   const visual = useMemo(() => scoreVisual(score, nivelCuenta), [score, nivelCuenta]);
@@ -272,7 +291,7 @@ export default function ResumenFacilPanel({
                     <BookOpen size={18} className="text-[#0a0a0a]" />
                   </div>
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#6366F1]">
-                    Resumen fácil
+                    {soloLectura ? "Resumen histórico" : "Resumen fácil"}
                   </span>
                   <span
                     className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded border ${visual.chip}`}
@@ -281,7 +300,7 @@ export default function ResumenFacilPanel({
                   </span>
                 </div>
                 <h2 className="text-xl md:text-2xl font-black text-[#0a0a0a] mt-2 leading-tight">
-                  Tu cuenta en criollo
+                  {modoHistorico ? "Tu cuenta en esa auditoría" : "Tu cuenta en criollo"}
                 </h2>
                 <p className="text-sm md:text-base text-[#4B5563] mt-2 leading-relaxed font-medium max-w-xl">
                   {fraseSalud}
@@ -327,16 +346,24 @@ export default function ResumenFacilPanel({
                 </span>
               </div>
             )}
-            <div className="inline-flex items-center gap-1.5 rounded-xl border border-[#E5E7EB] bg-white/70 px-3 py-2">
-              <ScoreIcon size={14} className="text-[#4B5563]" />
-              <span className="text-[10px] font-bold text-[#8A968C]">
-                Los números del dashboard no cambian — acá te explicamos qué hacer.
-              </span>
-            </div>
+            {!soloLectura && (
+              <div className="inline-flex items-center gap-1.5 rounded-xl border border-[#E5E7EB] bg-white/70 px-3 py-2">
+                <ScoreIcon size={14} className="text-[#4B5563]" />
+                <span className="text-[10px] font-bold text-[#8A968C]">
+                  Los números del dashboard no cambian — acá te explicamos qué hacer.
+                </span>
+              </div>
+            )}
           </div>
         </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 md:px-8 py-6 bg-[#FAFAFA]">
+          {soloLectura && (
+            <div className="mb-5 rounded-2xl border border-[#E5E7EB] bg-[#F4F4F5] px-4 py-3 text-sm text-[#4B5563] font-medium leading-relaxed">
+              Vista de archivo: refleja lo que Mora detectó en esa fecha. Para actuar sobre la
+              cuenta actual, volvé al panel principal o ejecutá una auditoría nueva.
+            </div>
+          )}
           <div className="space-y-4">
           {items.length === 0 ? (
             cuentaSinCambiosUrgentes ? (
@@ -353,7 +380,7 @@ export default function ResumenFacilPanel({
                         className="text-sm text-[#4B5563] font-medium flex gap-2 leading-relaxed"
                       >
                         <span className="text-[#047857] font-black shrink-0">✓</span>
-                        {r}
+                        {modoHistorico ? adaptarTextoHistorico(r) : r}
                       </li>
                     ))}
                   </ul>
@@ -368,13 +395,20 @@ export default function ResumenFacilPanel({
             <>
               <p className="text-[11px] font-black uppercase tracking-widest text-[#4B5563] flex items-center gap-2">
                 <ListChecks size={14} />
-                Lo más urgente — tocá para ver el detalle completo
+                {modoHistorico
+                  ? "Lo que Mora había marcado en esa auditoría"
+                  : "Lo más urgente — tocá para ver el detalle completo"}
               </p>
               {items.map((item, idx) => {
-                const titulo = lenguajeClaro
-                  ? tituloHumanoHallazgo(item.id_rastreo, item.titulo)
-                  : item.titulo;
-                const cuerpo = textoHallazgoParaUsuario(item, lenguajeClaro);
+                const titulo =
+                  lenguajeClaro || modoHistorico
+                    ? tituloHumanoHallazgo(item.id_rastreo, item.titulo, {
+                        modoHistorico,
+                      })
+                    : item.titulo;
+                const cuerpo = textoHallazgoParaUsuario(item, lenguajeClaro, {
+                  modoHistorico,
+                });
                 const esCritico = item.tipo === "critico";
                 const accion = resolverAccionHallazgo(item.id_rastreo);
                 const esTool =
@@ -430,6 +464,7 @@ export default function ResumenFacilPanel({
                           </p>
                         </div>
                       </div>
+                      {!soloLectura && (
                       <div className="flex flex-wrap gap-2 mt-6">
                         <button
                           type="button"
@@ -465,8 +500,9 @@ export default function ResumenFacilPanel({
                           </button>
                         )}
                       </div>
+                      )}
 
-                      {!esTool && (
+                      {!soloLectura && !esTool && (
                         <div className="mt-5 grid grid-cols-1 lg:grid-cols-[1fr_0.95fr] gap-3">
                           <div className="rounded-2xl border border-[#E5E7EB] bg-[#FAFAFA] p-4">
                             <p className="text-[10px] font-black uppercase tracking-widest text-[#4B5563]">

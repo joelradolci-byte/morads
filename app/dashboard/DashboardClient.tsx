@@ -7,7 +7,7 @@ import {
   Search, ArrowRight, ArrowLeft, TrendingUp, TrendingDown, LayoutPanelLeft,
   FileText, BarChart3, ShieldCheck, Plus, Clock, Activity, Trash2, Lock, 
   Bell, ListChecks, LayoutGrid, CheckSquare, Sparkles, Undo2, RefreshCcw, Type, Calculator, BookOpen,
-  Upload, Copy, Check, TrendingUp as TrendUp, ChevronRight, Folder, LayoutDashboard, X
+  Upload, Copy, Check, TrendingUp as TrendUp, ChevronRight, Folder, LayoutDashboard, X, Loader2
 } from 'lucide-react';
 import { extraerDatosGoogle, construirDatosAuditoria } from '../../lib/googleAds'; 
 import {
@@ -46,6 +46,7 @@ import {
 import { supabase } from "../../lib/supabase/browser";
 import { moraAuthHeaders } from "../../lib/auth/client-headers";
 import { downloadAuditPdf } from "../../lib/pdf/downloadAuditPdf";
+import { downloadComparacionPdf } from "../../lib/pdf/downloadComparacionPdf";
 import type { UsageSnapshot } from "../../lib/usage/config";
 import DestripadorPanel from './DestripadorPanel';
 import DaypartingPanel from './DaypartingPanel';
@@ -53,6 +54,14 @@ import PresupuestoSimulatorPanel from './PresupuestoSimulatorPanel';
 import AdGeneratorPanel, { type AdGeneratorContext } from './AdGeneratorPanel';
 import ResumenFacilPanel, { type ItemResumenHallazgo } from './ResumenFacilPanel';
 import HallazgoDetallePanel from './HallazgoDetallePanel';
+import HistorialAuditoriasSection from './reportes/HistorialAuditoriasSection';
+import LecturaAuditoriaView from './reportes/LecturaAuditoriaView';
+import ComparacionHallazgosBloque from './reportes/ComparacionHallazgosBloque';
+import { buildQuickWinsFromReporte } from './reportes/buildQuickWinsFromReporte';
+import {
+  buildPdfFilename,
+  comparacionEsMismaCuenta,
+} from './reportes/historialReportesUtils';
 import type { DetalleHallazgo } from '../../lib/types/hallazgoDetalle';
 import {
   getPreferenciaExplicacion,
@@ -60,6 +69,7 @@ import {
   isOnboardingExplicacionDone,
   type PreferenciaExplicacion,
 } from '../../lib/preferenciasMora';
+import { esAuditoriaHistorica } from '../../lib/copyHistorico';
 import {
   resolverAccionHallazgo,
   INTRO_PANEL_DESDE_RESUMEN,
@@ -106,6 +116,11 @@ function formatearUltimaAuditoria(createdAt: string | undefined | null): string 
   if (dias === 0) return `hoy a las ${formatearHoraLocal(fecha)}`;
   if (dias === 1) return "hace 1 día";
   return `hace ${dias} días`;
+}
+
+function parseDate(dateString: string): string {
+  if (!dateString) return new Date().toLocaleDateString();
+  return new Date(dateString).toLocaleDateString();
 }
 
 function getBadgeAuditoria(createdAt: string | undefined | null): BadgeAuditoria | null {
@@ -508,8 +523,13 @@ export function AuditorDashboard({
   const [isClosing, setIsClosing] = useState(false);
   const [historial, setHistorial] = useState<any[]>([]);
   const [cargandoHistorial, setCargandoHistorial] = useState(false);
-  const [comparacionIds, setComparacionIds] = useState<number[]>([]);
+  const [comparacionIds, setComparacionIds] = useState<(number | string)[]>([]);
   const [vistaComparacion, setVistaComparacion] = useState(false);
+  const [auditoriaActivaId, setAuditoriaActivaId] = useState<number | string | null>(null);
+  const [pdfDescargandoId, setPdfDescargandoId] = useState<number | string | null>(null);
+  const [pdfComparacionCargando, setPdfComparacionCargando] = useState(false);
+  const [hintComparacionMax, setHintComparacionMax] = useState(false);
+  const deepLinkAuditoriaHandled = useRef(false);
   const [explicacionClara, setExplicacionClara] = useState(false);
   const [resumenFacilAbierto, setResumenFacilAbierto] = useState(false);
   const [mostrarOnboardingExplicacion, setMostrarOnboardingExplicacion] = useState(false);
@@ -568,7 +588,14 @@ export function AuditorDashboard({
   useEffect(() => {
     const sincronizarVistaConRuta = () => {
       const nextVista = vistaPorRuta[window.location.pathname];
-      if (nextVista) setVista(nextVista);
+      if (nextVista) {
+        setVista(nextVista);
+        if (nextVista === "historial" && !new URLSearchParams(window.location.search).get("id")) {
+          setAuditoriaActivaId(null);
+          setReporte(null);
+          setVistaComparacion(false);
+        }
+      }
     };
 
     window.addEventListener("popstate", sincronizarVistaConRuta);
@@ -641,6 +668,19 @@ export function AuditorDashboard({
       usageSnapshot.limits.audit.monthly - usageSnapshot.usage.audit
     );
   }, [usageSnapshot]);
+
+  const pdfRestantes = useMemo(() => {
+    if (!usageSnapshot) return null;
+    return Math.max(0, usageSnapshot.limits.pdf.monthly - usageSnapshot.usage.pdf);
+  }, [usageSnapshot]);
+
+  const pdfExportDisabled = pdfRestantes === 0;
+
+  const pdfQuotaLabel = usageSnapshot
+    ? `PDFs este mes: ${usageSnapshot.usage.pdf}/${usageSnapshot.limits.pdf.monthly}${
+        usageSnapshot.tier === "trial" ? " (trial)" : ""
+      }`
+    : null;
 
   const auditoriaBloqueadaPorCuota = auditoriasRestantes === 0;
 
@@ -731,8 +771,30 @@ export function AuditorDashboard({
   
   const ultimaAuditoria = historial.length > 0 ? historial[0] : null;
 
+  const auditoriaContextual = useMemo(() => {
+    if (vista === "reporte_lectura" && auditoriaActivaId != null) {
+      return historial.find((h) => h.id === auditoriaActivaId) ?? ultimaAuditoria;
+    }
+    return ultimaAuditoria;
+  }, [vista, auditoriaActivaId, historial, ultimaAuditoria]);
+
+  const auditoriaResumen = auditoriaContextual;
+
+  const modoHistoricoAuditoria = useMemo(
+    () => esAuditoriaHistorica(auditoriaResumen?.id, ultimaAuditoria?.id),
+    [auditoriaResumen?.id, ultimaAuditoria?.id]
+  );
+
+  const fechaAuditoriaResumen = useMemo(
+    () =>
+      auditoriaResumen?.created_at
+        ? parseDate(auditoriaResumen.created_at)
+        : undefined,
+    [auditoriaResumen?.created_at]
+  );
+
   useEffect(() => {
-    const auditId = ultimaAuditoria?.id;
+    const auditId = auditoriaContextual?.id;
     if (auditId == null) {
       setDestripadorEstado({ mitigados: {}, copiados: {} });
       setDaypartingEstado({ aplicados: {} });
@@ -740,7 +802,7 @@ export function AuditorDashboard({
     }
     setDestripadorEstado(loadDestripadorEstado(auditId));
     setDaypartingEstado(loadDaypartingEstado(auditId));
-  }, [ultimaAuditoria?.id]);
+  }, [auditoriaContextual?.id]);
 
   const mitigadosKeys = useMemo(
     () => new Set(Object.keys(destripadorEstado.mitigados)),
@@ -755,44 +817,15 @@ export function AuditorDashboard({
     [daypartingEstado.aplicados]
   );
 
-  const quickWinsDelDia = useMemo(() => {
-    if (!ultimaAuditoria?.reporte_json?.hallazgos) return [];
-    const rojos = Array.isArray(ultimaAuditoria.reporte_json.hallazgos.graves_rojo)
-      ? ultimaAuditoria.reporte_json.hallazgos.graves_rojo
-      : [];
-    const amarillos = Array.isArray(ultimaAuditoria.reporte_json.hallazgos.debiles_amarillo)
-      ? ultimaAuditoria.reporte_json.hallazgos.debiles_amarillo
-      : [];
-    const unificados = [
-      ...rojos
-        .filter((r: { id_rastreo?: string; titulo?: string }) => r?.id_rastreo && r?.titulo)
-        .map((r: any) => ({
-          id_rastreo: r.id_rastreo,
-          titulo: r.titulo,
-          descripcion_simple: r.descripcion_simple,
-          descripcion_tecnica: r.descripcion_tecnica,
-          problema_detalle: r.problema_detalle ?? r.descripcion ?? r.descripcion_tecnica ?? r.descripcion_simple,
-          sugerencia: r.sugerencia,
-          razonamiento: r.razonamiento ?? r.pitch_vendedor,
-          resultado_esperado: r.resultado_esperado,
-          tipo: "critico" as const,
-        })),
-      ...amarillos
-        .filter((a: { id_rastreo?: string; titulo?: string }) => a?.id_rastreo && a?.titulo)
-        .map((a: any) => ({
-          id_rastreo: a.id_rastreo,
-          titulo: a.titulo,
-          descripcion_simple: a.descripcion_simple,
-          descripcion_tecnica: a.descripcion_tecnica,
-          problema_detalle: a.problema_detalle ?? a.descripcion ?? a.descripcion_tecnica ?? a.descripcion_simple,
-          sugerencia: a.sugerencia,
-          razonamiento: a.razonamiento ?? a.pitch_vendedor,
-          resultado_esperado: a.resultado_esperado,
-          tipo: "mejora" as const,
-        })),
-    ];
-    return unificados.slice(0, 3);
-  }, [ultimaAuditoria?.reporte_json?.hallazgos]);
+  const quickWinsDelDia = useMemo(
+    () => buildQuickWinsFromReporte(ultimaAuditoria?.reporte_json),
+    [ultimaAuditoria?.reporte_json]
+  );
+
+  const quickWinsResumen = useMemo(
+    () => buildQuickWinsFromReporte(auditoriaResumen?.reporte_json),
+    [auditoriaResumen?.reporte_json]
+  );
 
   const diagnosticoSalud = ultimaAuditoria?.reporte_json?.diagnostico_salud ?? null;
   const { cpaPromedio: cpaPromedioCampanas, evaluadas: campanasEvaluadas, activas: campanasActivas, buckets: matrizBuckets } =
@@ -1045,11 +1078,17 @@ export function AuditorDashboard({
     setCargandoHistorial(false);
   };
 
-  const borrarAuditoria = async (id: number) => {
+  const borrarAuditoria = async (id: number | string) => {
     if (!window.confirm("¿Seguro que querés eliminar esta auditoría? Esta acción no se puede deshacer.")) return;
     const { error } = await supabase.from('historial_auditorias').delete().eq('id', id);
-    if (!error) { setHistorial(historial.filter(item => item.id !== id)); if (vista === "reporte_lectura") navegar("historial", "/reportes"); } 
-    else { alert("Error al eliminar la auditoría."); }
+    if (!error) {
+      setHistorial(historial.filter((item) => item.id !== id));
+      setComparacionIds((prev) => prev.filter((cid) => cid !== id));
+      if (auditoriaActivaId === id) setAuditoriaActivaId(null);
+      if (vista === "reporte_lectura") navegar("historial", "/reportes");
+    } else {
+      alert("Error al eliminar la auditoría.");
+    }
   };
 
   const toggleTarea = (index: number) => {
@@ -1074,8 +1113,23 @@ export function AuditorDashboard({
       obtenerPerfil();
       cargarCampanas();
     }
-    if (vista === "historial" || vista === "dashboard") cargarHistorial();
+    if (vista === "historial" || vista === "dashboard" || vista === "reporte_lectura")
+      cargarHistorial();
+    if ((vista === "historial" || vista === "reporte_lectura") && session)
+      void cargarUsoMensual();
   }, [vista, session]);
+
+  useEffect(() => {
+    if (deepLinkAuditoriaHandled.current || cargandoHistorial || historial.length === 0)
+      return;
+    const id = new URLSearchParams(window.location.search).get("id");
+    if (!id) return;
+    const item = historial.find((h) => String(h.id) === id);
+    if (item) {
+      deepLinkAuditoriaHandled.current = true;
+      abrirAuditoriaHistorial(item, { updateUrl: false });
+    }
+  }, [cargandoHistorial, historial]);
 
   const cerrarSesion = async (event: React.MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
@@ -1137,6 +1191,8 @@ export function AuditorDashboard({
   };
 
   const abrirHerramientaDesdeDetalle = (idRastreo: string) => {
+    if (vista === "reporte_lectura") return;
+
     const accion = resolverAccionHallazgo(idRastreo);
     setPanelIntroResumen(accion);
     switch (accion) {
@@ -1155,10 +1211,12 @@ export function AuditorDashboard({
   };
 
   const handleResolverDesdeResumen = (item: ItemResumenHallazgo) => {
+    if (vista === "reporte_lectura") return;
+
     setResumenFacilAbierto(false);
     const accion = resolverAccionHallazgo(item.id_rastreo);
     setPanelIntroResumen(accion);
-    const reporte = ultimaAuditoria?.reporte_json;
+    const reporte = auditoriaResumen?.reporte_json;
 
     switch (accion) {
       case "destripador":
@@ -1182,6 +1240,8 @@ export function AuditorDashboard({
   };
 
   const abrirDetalleHallazgo = (hallazgo: any, tipo: TipoHallazgo, reporteData: any) => {
+    if (vista === "reporte_lectura") return;
+
     if (hallazgo?.id_rastreo === "DAYPARTING_FUGAS_HORARIAS" && reporteData?.dayparting) {
       setDaypartingAbierto(true);
       return;
@@ -1254,14 +1314,125 @@ export function AuditorDashboard({
     return { label: "Óptimo", color: "text-[#10B981]", bgTints: "bg-[#10B981]/10", hex: "#10B981", icon: CheckCircle2, msg: "Cuentas estables y sanas" };
   };
 
-  const parseDate = (dateString: string) => { if (!dateString) return new Date().toLocaleDateString(); return new Date(dateString).toLocaleDateString(); };
-
   const clientesFiltrados = historial.filter(item => {
     const coincideFiltro = filtroEstado === "todos" || (filtroEstado === "critico" && item.score < 50) || (filtroEstado === "atencion" && item.score >= 50 && item.score < 80) || (filtroEstado === "optimo" && item.score >= 80);
     const nombreSeguro = item.nombre_cuenta || t[idioma].cuentaSinNombre;
     const coincideBusqueda = nombreSeguro.toLowerCase().includes(busqueda.toLowerCase());
     return coincideFiltro && coincideBusqueda;
   });
+
+  const comparacionSeleccionadas = useMemo(
+    () => historial.filter((h) => comparacionIds.includes(h.id)),
+    [historial, comparacionIds]
+  );
+
+  const comparacionMismaCuenta = useMemo(
+    () => comparacionEsMismaCuenta(comparacionSeleccionadas),
+    [comparacionSeleccionadas]
+  );
+
+  const auditoriaActiva = useMemo(
+    () =>
+      auditoriaActivaId != null
+        ? historial.find((h) => h.id === auditoriaActivaId) ?? null
+        : null,
+    [historial, auditoriaActivaId]
+  );
+
+  const handleDescargarPdfHistorial = async (item: {
+    id: number | string;
+    nombre_cuenta?: string | null;
+    created_at?: string;
+  }) => {
+    if (pdfDescargandoId !== null) return;
+    setPdfDescargandoId(item.id);
+    try {
+      await downloadAuditPdf(
+        String(item.id),
+        buildPdfFilename(item.nombre_cuenta || "Cuenta", item.created_at)
+      );
+      void cargarUsoMensual();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "No se pudo exportar el PDF.");
+    } finally {
+      setPdfDescargandoId(null);
+    }
+  };
+
+  const handleDescargarComparacionPdf = async (idA: number | string, idB: number | string) => {
+    if (pdfExportDisabled || pdfComparacionCargando) return;
+    setPdfComparacionCargando(true);
+    try {
+      await downloadComparacionPdf(idA, idB);
+      void cargarUsoMensual();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "No se pudo exportar el PDF de comparación.");
+    } finally {
+      setPdfComparacionCargando(false);
+    }
+  };
+
+  const toggleComparacionHistorial = (id: number | string) => {
+    if (comparacionIds.includes(id)) {
+      setComparacionIds(comparacionIds.filter((cid) => cid !== id));
+      setHintComparacionMax(false);
+      return;
+    }
+    if (comparacionIds.length >= 2) {
+      setHintComparacionMax(true);
+      return;
+    }
+    setComparacionIds([...comparacionIds, id]);
+    setHintComparacionMax(false);
+  };
+
+  const abrirAuditoriaHistorial = (
+    item: (typeof historial)[number],
+    options?: { updateUrl?: boolean }
+  ) => {
+    setDetalleHallazgo(null);
+    setDestripadorAbierto(false);
+    setDaypartingAbierto(false);
+    setSimuladorAbierto(false);
+    setResumenFacilAbierto(false);
+    cerrarPanelesHerramientas();
+    setAuditoriaActivaId(item.id);
+    setReporte(item.reporte_json);
+    setNombreCuenta(item.nombre_cuenta || "Sin nombre");
+    setSubVistaReporte("diagnostico");
+    setVista("reporte_lectura");
+    if (options?.updateUrl !== false) {
+      window.history.pushState(
+        null,
+        "",
+        `/reportes?id=${encodeURIComponent(String(item.id))}`
+      );
+    }
+  };
+
+  const volverAlHistorialReportes = () => {
+    setAuditoriaActivaId(null);
+    setReporte(null);
+    deepLinkAuditoriaHandled.current = false;
+    navegar("historial", "/reportes");
+  };
+
+  const compararConAnteriorHistorial = (item: (typeof historial)[number]) => {
+    const accountAudits = historial.filter(
+      (h) => h.nombre_cuenta === item.nombre_cuenta
+    );
+    const idx = accountAudits.findIndex((h) => h.id === item.id);
+    if (idx === -1 || idx + 1 >= accountAudits.length) return;
+    const anterior = accountAudits[idx + 1];
+    setComparacionIds([anterior.id, item.id]);
+    setHintComparacionMax(false);
+    setVistaComparacion(true);
+  };
+
+  const iniciarComparacionHistorial = () => {
+    if (comparacionIds.length !== 2 || !comparacionMismaCuenta) return;
+    setVistaComparacion(true);
+  };
 
   const totalAuditorias = historial.length;
   
@@ -1302,16 +1473,17 @@ export function AuditorDashboard({
     [ultimaAuditoria?.created_at]
   );
 
-  const destripadorReporte: DestripadorReporte | null = ultimaAuditoria?.reporte_json?.destripador || null;
-  const nGramaLegacy = ultimaAuditoria?.reporte_json?.n_gramas || null;
+  const destripadorReporte: DestripadorReporte | null =
+    auditoriaContextual?.reporte_json?.destripador || null;
+  const nGramaLegacy = auditoriaContextual?.reporte_json?.n_gramas || null;
 
   const daypartingReporte: DaypartingReporte | null =
-    ultimaAuditoria?.reporte_json?.dayparting?.heatmap
-      ? (ultimaAuditoria.reporte_json.dayparting as DaypartingReporte)
+    auditoriaContextual?.reporte_json?.dayparting?.heatmap
+      ? (auditoriaContextual.reporte_json.dayparting as DaypartingReporte)
       : null;
 
   const simuladorReporte: SimuladorPresupuestoReporte | null =
-    ultimaAuditoria?.reporte_json?.simulador_presupuesto ?? null;
+    auditoriaContextual?.reporte_json?.simulador_presupuesto ?? null;
 
   const escenarioSimRecomendado = useMemo(() => {
     if (!simuladorReporte) return null;
@@ -1391,20 +1563,20 @@ export function AuditorDashboard({
   const cantidadAplicadosDestripador = terminosAplicadosDestripador.length;
 
   const handleDestripadorMitigar = (keys: string[], planId?: string) => {
-    const auditId = ultimaAuditoria?.id;
+    const auditId = auditoriaContextual?.id;
     if (auditId == null) return;
     setDestripadorEstado(marcarTerminosMitigados(auditId, keys, planId));
     setToastState({ show: true, status: 'success', timeLeft: 5 });
   };
 
   const handleDestripadorCopiar = (keys: string[]) => {
-    const auditId = ultimaAuditoria?.id;
+    const auditId = auditoriaContextual?.id;
     if (auditId == null) return;
     setDestripadorEstado(marcarTerminosCopiados(auditId, keys));
   };
 
   const handleDaypartingAplicar = (franjaIds: string[], planId?: string) => {
-    const auditId = ultimaAuditoria?.id;
+    const auditId = auditoriaContextual?.id;
     if (auditId == null) return;
     setDaypartingEstado(marcarFranjasAplicadas(auditId, franjaIds, planId));
     setToastState({ show: true, status: "success", timeLeft: 5 });
@@ -1831,14 +2003,15 @@ export function AuditorDashboard({
                     </div>
                   )}
 
-                  {vista === "dashboard" && ultimaAuditoria && (
+                  {((vista === "dashboard" && ultimaAuditoria) ||
+                    (vista === "reporte_lectura" && auditoriaActiva)) && (
                     <button
                       type="button"
                       onClick={() => setResumenFacilAbierto(true)}
                       className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-[#E0E7FF]/50 bg-[#E0E7FF]/15 text-[#E0E7FF] hover:bg-[#E0E7FF]/25 transition-all text-[11px] font-black uppercase tracking-widest shadow-lg"
                     >
                       <BookOpen size={14} />
-                      Ver resumen fácil
+                      {vista === "reporte_lectura" ? "Leer resumen" : "Ver resumen fácil"}
                     </button>
                   )}
 
@@ -2522,34 +2695,46 @@ export function AuditorDashboard({
               <ResumenFacilPanel
                 open={resumenFacilAbierto}
                 onClose={() => setResumenFacilAbierto(false)}
-                score={ultimaAuditoria?.score ?? 0}
-                gastoDesperdiciado={ultimaAuditoria?.reporte_json?.resumen?.gasto_desperdiciado ?? 0}
-                porcentajeDesperdiciado={ultimaAuditoria?.reporte_json?.resumen?.porcentaje_desperdiciado ?? 0}
+                score={auditoriaResumen?.score ?? 0}
+                gastoDesperdiciado={
+                  auditoriaResumen?.reporte_json?.resumen?.gasto_desperdiciado ?? 0
+                }
+                porcentajeDesperdiciado={
+                  auditoriaResumen?.reporte_json?.resumen?.porcentaje_desperdiciado ?? 0
+                }
                 resumenEjecutivo={
-                  typeof ultimaAuditoria?.reporte_json?.resumen?.ejecutivo === "string"
-                    ? ultimaAuditoria.reporte_json.resumen.ejecutivo
+                  typeof auditoriaResumen?.reporte_json?.resumen?.ejecutivo === "string"
+                    ? auditoriaResumen.reporte_json.resumen.ejecutivo
                     : undefined
                 }
                 cuentaSinCambiosUrgentes={
-                  ultimaAuditoria?.reporte_json?.cuenta_sin_cambios_urgentes === true ||
-                  ultimaAuditoria?.reporte_json?.diagnostico_salud?.cuenta?.cuenta_sin_cambios_urgentes === true
+                  auditoriaResumen?.reporte_json?.cuenta_sin_cambios_urgentes === true ||
+                  auditoriaResumen?.reporte_json?.diagnostico_salud?.cuenta
+                    ?.cuenta_sin_cambios_urgentes === true
                 }
-                nivelCuenta={ultimaAuditoria?.reporte_json?.diagnostico_salud?.cuenta?.nivel}
+                nivelCuenta={
+                  auditoriaResumen?.reporte_json?.diagnostico_salud?.cuenta?.nivel
+                }
                 razonesCuenta={
-                  Array.isArray(ultimaAuditoria?.reporte_json?.diagnostico_salud?.cuenta?.razones)
-                    ? ultimaAuditoria.reporte_json.diagnostico_salud.cuenta.razones
+                  Array.isArray(
+                    auditoriaResumen?.reporte_json?.diagnostico_salud?.cuenta?.razones
+                  )
+                    ? auditoriaResumen.reporte_json.diagnostico_salud.cuenta.razones
                     : []
                 }
-                items={quickWinsDelDia}
+                items={quickWinsResumen}
                 lenguajeClaro={explicacionClara}
                 onResolver={handleResolverDesdeResumen}
+                soloLectura={vista === "reporte_lectura"}
+                modoHistorico={modoHistoricoAuditoria}
+                fechaAuditoria={fechaAuditoriaResumen}
               />
 
               {/* DESTRIPADOR DE BÚSQUEDAS — Panel especializado */}
               <DestripadorPanel
                 destripador={destripadorReporte}
                 open={destripadorAbierto}
-                auditId={ultimaAuditoria?.id ?? null}
+                auditId={auditoriaContextual?.id ?? null}
                 mitigadosKeys={mitigadosKeys}
                 copiadosKeys={copiadosKeys}
                 introDesdeResumen={
@@ -2567,7 +2752,7 @@ export function AuditorDashboard({
               <DaypartingPanel
                 dayparting={daypartingReporte}
                 open={daypartingAbierto}
-                auditId={ultimaAuditoria?.id ?? null}
+                auditId={auditoriaContextual?.id ?? null}
                 aplicadosIds={daypartingAplicadosIds}
                 introDesdeResumen={
                   panelIntroResumen === "dayparting" ? INTRO_PANEL_DESDE_RESUMEN.dayparting : null
@@ -2583,7 +2768,7 @@ export function AuditorDashboard({
               <PresupuestoSimulatorPanel
                 simulador={simuladorReporte}
                 open={simuladorAbierto}
-                auditId={ultimaAuditoria?.id ?? null}
+                auditId={auditoriaContextual?.id ?? null}
                 introDesdeResumen={
                   panelIntroResumen === "simulador" ? INTRO_PANEL_DESDE_RESUMEN.simulador : null
                 }
@@ -2622,121 +2807,51 @@ export function AuditorDashboard({
 
               {/* VISTA: MIS REPORTES */}
               {vista === "historial" && !vistaComparacion && (
-                <div className="animate-fade-custom print:hidden relative z-10 w-full max-w-[1400px] mx-auto flex flex-col gap-6">
-                  
-                  <div className="flex justify-between items-center mb-6">
-                    <div>
-                      <h2 className="text-3xl font-black text-[#F5F0EB]">Historial de Auditorías</h2>
-                      <p className="text-[#A8A29E] text-sm mt-1 font-medium">Compará el progreso de tus cuentas en el tiempo.</p>
-                    </div>
-                    {comparacionIds.length === 2 && (
-                      <button onClick={() => setVistaComparacion(true)} className="animate-fade-custom flex items-center gap-2 px-6 py-3 rounded-xl font-black text-sm bg-[#F3C3B2] text-[#0a0a0a] hover:bg-[#eab3a1] transition-all shadow-lg hover:shadow-[#F3C3B2]/20 hover:scale-105 uppercase tracking-widest border border-[#F3C3B2]/50">
-                        <BarChart3 size={18} /> Comparar Selección
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="flex flex-col gap-4">
-                    {clientesFiltrados.length === 0 ? (
-                      <div className="bg-[#1C1917] border border-[#44403C] rounded-[2rem] p-16 text-center text-[#A8A29E] text-base font-medium">
-                        No se encontraron auditorías.
-                      </div>
-                    ) : (
-                      clientesFiltrados.map((item, index) => {
-                        const accountAudits = historial.filter(h => h.nombre_cuenta === item.nombre_cuenta);
-                        const currentIdxInAccount = accountAudits.findIndex(h => h.id === item.id);
-                        const previousAudit = currentIdxInAccount !== -1 && currentIdxInAccount + 1 < accountAudits.length ? accountAudits[currentIdxInAccount + 1] : null;
-                        const delta = previousAudit ? item.score - previousAudit.score : null;
-                        
-                        const st = getDashboardStatus(item.score);
-                        const gastoDesperdiciado = item.reporte_json?.resumen?.gasto_desperdiciado || 0;
-                        const fugas = item.reporte_json?.hallazgos?.graves_rojo?.length || 0;
-                        const mejoras = item.reporte_json?.hallazgos?.debiles_amarillo?.length || 0;
-                        const isSelected = comparacionIds.includes(item.id);
-
-                        return (
-                          <div key={item.id} className={`bg-[#1C1917] border hover:border-[#F3C3B2]/50 rounded-[1.5rem] p-6 flex items-center justify-between gap-6 transition-all shadow-sm hover:shadow-lg group ${isSelected ? 'border-[#F3C3B2] bg-[#F3C3B2]/5' : 'border-[#44403C]'}`}>
-                            
-                            <div className="flex items-center gap-4">
-                              <button 
-                                onClick={() => {
-                                  if (isSelected) setComparacionIds(comparacionIds.filter(id => id !== item.id));
-                                  else if (comparacionIds.length < 2) setComparacionIds([...comparacionIds, item.id]);
-                                }}
-                                className={`w-6 h-6 rounded border-2 flex items-center justify-center transition-colors ${isSelected ? 'bg-[#F3C3B2] border-[#F3C3B2] text-[#0a0a0a]' : 'border-[#44403C] hover:border-[#A8A29E]'}`}
-                              >
-                                {isSelected && <Check size={14} strokeWidth={3} />}
-                              </button>
-                            </div>
-
-                            <div className="w-1/5 min-w-[180px]">
-                              <p className="font-black text-[#F5F0EB] text-xl truncate mb-1">{item.nombre_cuenta || 'Cuenta Sin Nombre'}</p>
-                              <p className="text-xs font-bold text-[#A8A29E] uppercase tracking-widest">{parseDate(item.created_at)}</p>
-                            </div>
-
-                            <div className="w-1/5 flex items-center gap-4">
-                              <span className={`text-[52px] font-black tracking-tighter ${st.color}`}>{item.score}</span>
-                              {delta !== null && delta !== 0 && (
-                                <div className={`flex flex-col items-center justify-center px-2.5 py-1.5 rounded-lg border shadow-inner ${delta > 0 ? 'bg-[#10B981]/10 border-[#10B981]/20 text-[#10B981]' : 'bg-[#E07070]/10 border-[#E07070]/20 text-[#E07070]'}`}>
-                                  <span className="text-[10px] font-black uppercase tracking-widest leading-none">
-                                    {delta > 0 ? '+' : ''}{delta} pts
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-
-                            <div className="w-1/5">
-                              <div className="bg-[#292524] border border-[#44403C] rounded-xl p-3 inline-block">
-                                <p className="text-[9px] font-black text-[#A8A29E] uppercase tracking-widest mb-1">Gasto Desperdiciado</p>
-                                <p className="text-lg font-black text-[#E07070]">
-                                  {gastoDesperdiciado > 0 ? `-$${gastoDesperdiciado.toLocaleString()}` : '$0.00'}
-                                </p>
-                              </div>
-                            </div>
-
-                            <div className="w-1/5 flex flex-col gap-2">
-                              <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg w-max border ${fugas > 0 ? 'bg-[#E07070]/10 text-[#E07070] border-[#E07070]/20' : 'bg-[#292524] text-[#A8A29E] border-[#44403C]'}`}>
-                                {fugas} {fugas === 1 ? 'Fuga' : 'Fugas'}
-                              </span>
-                              <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg w-max border ${mejoras > 0 ? 'bg-[#EAB308]/10 text-[#EAB308] border-[#EAB308]/20' : 'bg-[#292524] text-[#A8A29E] border-[#44403C]'}`}>
-                                {mejoras} {mejoras === 1 ? 'Mejora' : 'Mejoras'}
-                              </span>
-                            </div>
-
-                            <div className="flex justify-end gap-3">
-                              <button onClick={() => borrarAuditoria(item.id)} className="text-[#8A968C] hover:text-[#E66767] transition-colors p-3.5 bg-[#292524] border border-[#44403C] rounded-xl hover:border-[#E66767]/30 shadow-sm"><Trash2 size={16} /></button>
-                              
-                              <button 
-                                onClick={() => {
-                                  void downloadAuditPdf(item.id).catch((e: Error) =>
-                                    alert(e.message)
-                                  );
-                                }}
-                                className="bg-[#F3C3B2] text-[#0a0a0a] hover:bg-[#eab3a1] px-5 py-3.5 rounded-xl text-xs uppercase tracking-widest font-black transition-all shadow-sm flex items-center gap-1.5"
-                              >
-                                <FileText size={14} /> PDF
-                              </button>
-
-                              <button 
-                                onClick={() => { setReporte(item.reporte_json); setNombreCuenta(item.nombre_cuenta || 'Sin nombre'); setSubVistaReporte("diagnostico"); setVista("reporte_lectura"); }} 
-                                className="bg-[#292524] border border-[#44403C] text-[#A8A29E] hover:text-[#F5F0EB] hover:border-[#F5F0EB] px-6 py-3.5 rounded-xl text-xs uppercase tracking-widest font-black transition-all shadow-sm"
-                              >
-                                Ver Solitario
-                              </button>
-                            </div>
-
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                </div>
+                <HistorialAuditoriasSection
+                  cargando={cargandoHistorial}
+                  totalHistorial={historial.length}
+                  items={clientesFiltrados}
+                  historialCompleto={historial}
+                  filtroEstado={filtroEstado}
+                  onFiltroEstado={setFiltroEstado}
+                  busqueda={busqueda}
+                  onBusqueda={setBusqueda}
+                  comparacionIds={comparacionIds}
+                  comparacionMismaCuenta={comparacionMismaCuenta}
+                  hintComparacionMax={hintComparacionMax}
+                  onToggleComparacion={toggleComparacionHistorial}
+                  onCompararSeleccion={iniciarComparacionHistorial}
+                  onCompararConAnterior={compararConAnteriorHistorial}
+                  pdfDescargandoId={pdfDescargandoId}
+                  pdfExportDisabled={pdfExportDisabled}
+                  pdfQuotaLabel={pdfQuotaLabel}
+                  onDescargarPdf={handleDescargarPdfHistorial}
+                  onBorrar={borrarAuditoria}
+                  onAbrirAuditoria={abrirAuditoriaHistorial}
+                  onIrAEjecutarAuditoria={() => navegar("dashboard", "/dashboard")}
+                  getDashboardStatus={getDashboardStatus}
+                  parseDate={parseDate}
+                />
               )}
 
               {/* VISTA: COMPARACIÓN */}
               {vista === "historial" && vistaComparacion && (() => {
                  const selected = historial.filter(h => comparacionIds.includes(h.id)).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
                  if (selected.length !== 2) return null;
+                 if (!comparacionEsMismaCuenta(selected)) {
+                   return (
+                     <div className="animate-fade-custom max-w-[1400px] mx-auto p-8 text-center">
+                       <p className="text-[#E07070] font-bold mb-4">Las auditorías seleccionadas no son de la misma cuenta.</p>
+                       <button
+                         type="button"
+                         onClick={() => { setVistaComparacion(false); setComparacionIds([]); }}
+                         className="px-6 py-3 rounded-xl bg-[#292524] border border-[#44403C] text-[#F5F0EB] font-black text-sm"
+                       >
+                         Volver al historial
+                       </button>
+                     </div>
+                   );
+                 }
                  const auditA = selected[0]; 
                  const auditB = selected[1]; 
 
@@ -2747,22 +2862,36 @@ export function AuditorDashboard({
                  
                  const fugasA = auditA.reporte_json?.hallazgos?.graves_rojo || [];
                  const fugasB = auditB.reporte_json?.hallazgos?.graves_rojo || [];
-                 
-                 const getID = (item: any) => item.id_rastreo || item.titulo;
-                 const aplicadas = fugasA.filter((a: any) => !fugasB.some((b: any) => getID(b) === getID(a)));
-                 const persistentes = fugasA.filter((a: any) => fugasB.some((b: any) => getID(b) === getID(a)));
-                 const nuevas = fugasB.filter((b: any) => !fugasA.some((a: any) => getID(a) === getID(b)));
+                 const mejorasA = auditA.reporte_json?.hallazgos?.debiles_amarillo || [];
+                 const mejorasB = auditB.reporte_json?.hallazgos?.debiles_amarillo || [];
 
                  return (
                   <div className="animate-fade-custom print:hidden relative z-10 w-full max-w-[1400px] mx-auto flex flex-col gap-8">
-                    <div className="flex justify-between items-center border-b border-[#44403C]/50 pb-6">
+                    <div className="flex flex-wrap justify-between items-center gap-4 border-b border-[#44403C]/50 pb-6">
                       <div className="flex items-center gap-4">
-                        <button onClick={() => { setVistaComparacion(false); setComparacionIds([]); }} className="p-2.5 rounded-xl bg-[#292524] border border-[#44403C] text-[#A8A29E] hover:text-[#F5F0EB] transition-colors"><ArrowLeft size={18} /></button>
+                        <button type="button" onClick={() => { setVistaComparacion(false); setComparacionIds([]); setHintComparacionMax(false); }} className="p-2.5 rounded-xl bg-[#292524] border border-[#44403C] text-[#A8A29E] hover:text-[#F5F0EB] transition-colors"><ArrowLeft size={18} /></button>
                         <div>
                           <h2 className="text-3xl font-black text-[#F5F0EB]">Rendición de Cuentas</h2>
                           <p className="text-[#A8A29E] text-sm mt-1 font-medium uppercase tracking-widest text-[10px] font-black">{auditA.nombre_cuenta}</p>
+                          {pdfQuotaLabel && (
+                            <p className="text-[10px] font-bold text-[#A8A29E] mt-2 uppercase tracking-widest">{pdfQuotaLabel}</p>
+                          )}
                         </div>
                       </div>
+                      <button
+                        type="button"
+                        disabled={pdfExportDisabled || pdfComparacionCargando || pdfDescargandoId !== null}
+                        title={pdfExportDisabled ? "Límite mensual de PDFs alcanzado" : undefined}
+                        onClick={() => void handleDescargarComparacionPdf(auditA.id, auditB.id)}
+                        className="flex items-center gap-2 px-5 py-3 rounded-xl font-black text-xs uppercase tracking-widest bg-[#F3C3B2] text-[#0a0a0a] hover:bg-[#eab3a1] disabled:opacity-50 transition-all"
+                      >
+                        {pdfComparacionCargando ? (
+                          <Loader2 size={14} className="animate-spin" />
+                        ) : (
+                          <FileText size={14} />
+                        )}
+                        Exportar comparación PDF
+                      </button>
                     </div>
 
                     <div className="grid grid-cols-3 gap-6 items-stretch">
@@ -2802,123 +2931,153 @@ export function AuditorDashboard({
                     </div>
 
                     <div className="mt-4">
-                      <h3 className="text-xl font-black text-[#F5F0EB] mb-6 flex items-center gap-3"><CheckSquare className="text-[#F3C3B2]"/> Evaluación de Ejecución</h3>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
-                        <div className="flex flex-col gap-4">
-                          <div className="bg-[#10B981]/10 border border-[#10B981]/20 p-4 rounded-2xl flex items-center gap-3">
-                            <div className="w-8 h-8 bg-[#10B981]/20 rounded-lg flex items-center justify-center"><CheckCircle2 size={16} className="text-[#10B981]"/></div>
-                            <div><p className="text-[#10B981] font-black text-sm">Fugas Tapadas</p><p className="text-[10px] text-[#A8A29E] uppercase tracking-widest font-black">Buen trabajo</p></div>
-                          </div>
-                          {aplicadas.length === 0 ? <p className="text-center text-[#A8A29E] text-xs font-bold py-4">No se taparon fugas pasadas.</p> : aplicadas.map((item: any, i: number) => (
-                            <div key={i} className="bg-[#292524] border border-[#10B981]/30 p-5 rounded-2xl shadow-inner border-l-4 border-l-[#10B981]">
-                              <p className="text-[#F5F0EB] text-sm font-black leading-tight line-through opacity-70">{item.titulo}</p>
-                            </div>
-                          ))}
-                        </div>
-
-                        <div className="flex flex-col gap-4">
-                          <div className="bg-[#EAB308]/10 border border-[#EAB308]/20 p-4 rounded-2xl flex items-center gap-3">
-                            <div className="w-8 h-8 bg-[#EAB308]/20 rounded-lg flex items-center justify-center"><AlertTriangle size={16} className="text-[#EAB308]"/></div>
-                            <div><p className="text-[#EAB308] font-black text-sm">Fugas Ignoradas</p><p className="text-[10px] text-[#A8A29E] uppercase tracking-widest font-black">Siguen drenando plata</p></div>
-                          </div>
-                          {persistentes.length === 0 ? <p className="text-center text-[#A8A29E] text-xs font-bold py-4">Sin fugas arrastradas.</p> : persistentes.map((item: any, i: number) => (
-                            <div key={i} className="bg-[#292524] border border-[#EAB308]/30 p-5 rounded-2xl shadow-inner border-l-4 border-l-[#EAB308]">
-                              <p className="text-[#F5F0EB] text-sm font-black leading-tight">{item.titulo}</p>
-                            </div>
-                          ))}
-                        </div>
-
-                        <div className="flex flex-col gap-4">
-                          <div className="bg-[#E07070]/10 border border-[#E07070]/20 p-4 rounded-2xl flex items-center gap-3">
-                            <div className="w-8 h-8 bg-[#E07070]/20 rounded-lg flex items-center justify-center"><Zap size={16} className="text-[#E07070]"/></div>
-                            <div><p className="text-[#E07070] font-black text-sm">Nuevos Fuegos</p><p className="text-[10px] text-[#A8A29E] uppercase tracking-widest font-black">Problemas nacidos hoy</p></div>
-                          </div>
-                          {nuevas.length === 0 ? <p className="text-center text-[#A8A29E] text-xs font-bold py-4">No hay problemas nuevos.</p> : nuevas.map((item: any, i: number) => (
-                            <div key={i} className="bg-[#292524] border border-[#E07070]/30 p-5 rounded-2xl shadow-inner border-l-4 border-l-[#E07070]">
-                              <p className="text-[#F5F0EB] text-sm font-black leading-tight">{item.titulo}</p>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
+                      <h3 className="text-xl font-black text-[#F5F0EB] mb-2 flex items-center gap-3">
+                        <CheckSquare className="text-[#F3C3B2]" /> Evaluación de ejecución
+                      </h3>
+                      <ComparacionHallazgosBloque
+                        tituloSeccion="Fugas críticas"
+                        listaA={fugasA}
+                        listaB={fugasB}
+                        columnas={{
+                          aplicadas: {
+                            titulo: "Fugas tapadas",
+                            subtitulo: "Buen trabajo",
+                            Icon: CheckCircle2,
+                            headerBg: "bg-[#10B981]/10",
+                            headerBorder: "border-[#10B981]/20",
+                            iconWrap: "bg-[#10B981]/20",
+                            iconColor: "text-[#10B981]",
+                            titleColor: "text-[#10B981]",
+                            cardBorder: "border-[#10B981]/30",
+                            cardBorderLeft: "border-l-[#10B981]",
+                            lineThrough: true,
+                            emptyText: "No se taparon fugas pasadas.",
+                          },
+                          persistentes: {
+                            titulo: "Fugas ignoradas",
+                            subtitulo: "Siguen drenando plata",
+                            Icon: AlertTriangle,
+                            headerBg: "bg-[#EAB308]/10",
+                            headerBorder: "border-[#EAB308]/20",
+                            iconWrap: "bg-[#EAB308]/20",
+                            iconColor: "text-[#EAB308]",
+                            titleColor: "text-[#EAB308]",
+                            cardBorder: "border-[#EAB308]/30",
+                            cardBorderLeft: "border-l-[#EAB308]",
+                            emptyText: "Sin fugas arrastradas.",
+                          },
+                          nuevas: {
+                            titulo: "Nuevos fuegos",
+                            subtitulo: "Problemas nuevos",
+                            Icon: Zap,
+                            headerBg: "bg-[#E07070]/10",
+                            headerBorder: "border-[#E07070]/20",
+                            iconWrap: "bg-[#E07070]/20",
+                            iconColor: "text-[#E07070]",
+                            titleColor: "text-[#E07070]",
+                            cardBorder: "border-[#E07070]/30",
+                            cardBorderLeft: "border-l-[#E07070]",
+                            emptyText: "No hay problemas nuevos.",
+                          },
+                        }}
+                      />
+                      <ComparacionHallazgosBloque
+                        tituloSeccion="Oportunidades de mejora"
+                        listaA={mejorasA}
+                        listaB={mejorasB}
+                        columnas={{
+                          aplicadas: {
+                            titulo: "Mejoras aplicadas",
+                            subtitulo: "Avance real",
+                            Icon: CheckCircle2,
+                            headerBg: "bg-[#10B981]/10",
+                            headerBorder: "border-[#10B981]/20",
+                            iconWrap: "bg-[#10B981]/20",
+                            iconColor: "text-[#10B981]",
+                            titleColor: "text-[#10B981]",
+                            cardBorder: "border-[#10B981]/30",
+                            cardBorderLeft: "border-l-[#10B981]",
+                            lineThrough: true,
+                            emptyText: "No se cerraron mejoras pendientes.",
+                          },
+                          persistentes: {
+                            titulo: "Mejoras pendientes",
+                            subtitulo: "Siguen en la lista",
+                            Icon: AlertTriangle,
+                            headerBg: "bg-[#EAB308]/10",
+                            headerBorder: "border-[#EAB308]/20",
+                            iconWrap: "bg-[#EAB308]/20",
+                            iconColor: "text-[#EAB308]",
+                            titleColor: "text-[#EAB308]",
+                            cardBorder: "border-[#EAB308]/30",
+                            cardBorderLeft: "border-l-[#EAB308]",
+                            emptyText: "Sin mejoras arrastradas.",
+                          },
+                          nuevas: {
+                            titulo: "Nuevas oportunidades",
+                            subtitulo: "Aparecieron después",
+                            Icon: Zap,
+                            headerBg: "bg-[#D4A843]/10",
+                            headerBorder: "border-[#D4A843]/20",
+                            iconWrap: "bg-[#D4A843]/10",
+                            iconColor: "text-[#D4A843]",
+                            titleColor: "text-[#D4A843]",
+                            cardBorder: "border-[#D4A843]/30",
+                            cardBorderLeft: "border-l-[#D4A843]",
+                            emptyText: "No hay mejoras nuevas.",
+                          },
+                        }}
+                      />
                     </div>
                   </div>
                  );
               })()}
 
               {/* VISTA: LECTURA DE REPORTE INDIVIDUAL */}
-              {vista === "reporte_lectura" && reporte && (
+              {vista === "reporte_lectura" && reporte && auditoriaActiva && (
                 <div className="animate-fade-custom relative z-10 w-full max-w-[1400px] mx-auto flex flex-col gap-6">
-                  <div className="mb-6 flex justify-between items-center">
-                     <button onClick={() => navegar("historial", "/reportes")} className="flex items-center gap-2 p-2.5 rounded-xl bg-[#292524] border border-[#44403C] text-[#A8A29E] hover:text-[#F5F0EB] font-bold transition-colors text-sm"><ArrowLeft size={18} /></button>
-                     
-                     <button 
-                       onClick={() => {
-                         const actual = historial.find(h => h.reporte_json === reporte);
-                         if (actual) {
-                           void downloadAuditPdf(actual.id).catch((e: Error) =>
-                             alert(e.message)
-                           );
-                         }
-                       }}
-                       className="bg-[#F3C3B2] text-[#0a0a0a] hover:bg-[#eab3a1] px-5 py-2.5 rounded-xl text-xs uppercase tracking-widest font-black transition-all shadow-sm flex items-center gap-1.5 ml-auto mr-4"
+                  <div className="mb-2 flex flex-wrap justify-between items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={volverAlHistorialReportes}
+                      className="flex items-center gap-2 p-2.5 rounded-xl bg-[#292524] border border-[#44403C] text-[#A8A29E] hover:text-[#F5F0EB] font-bold transition-colors text-sm"
+                    >
+                      <ArrowLeft size={18} />
+                    </button>
+
+                     <button
+                       type="button"
+                       disabled={pdfExportDisabled || pdfDescargandoId !== null}
+                       title={pdfExportDisabled ? "Límite mensual de PDFs alcanzado" : undefined}
+                       onClick={() => void handleDescargarPdfHistorial(auditoriaActiva)}
+                       className="bg-[#F3C3B2] text-[#0a0a0a] hover:bg-[#eab3a1] disabled:opacity-50 px-5 py-2.5 rounded-xl text-xs uppercase tracking-widest font-black transition-all shadow-sm flex items-center gap-1.5 ml-auto"
                      >
-                       <FileText size={14} /> Exportar PDF
-                     </button>
-
-                     <div className="px-4 py-2 bg-[#292524] border border-[#44403C] rounded-xl shadow-sm text-xs font-black uppercase tracking-widest text-[#F3C3B2]">
-                       Diagnóstico Estático
-                     </div>
+                      {pdfDescargandoId === auditoriaActivaId ? (
+                        <Loader2 size={14} className="animate-spin" />
+                      ) : (
+                        <FileText size={14} />
+                      )}
+                      Exportar PDF
+                    </button>
                   </div>
 
-                  <div className="bg-[#1C1917] border border-[#44403C] p-12 rounded-[2.5rem] shadow-sm">
-                    <div className="flex justify-between items-center mb-12 pb-12 border-b border-[#44403C]/50">
-                      <div>
-                        <h2 className="text-[10px] font-black text-[#A8A29E] uppercase tracking-widest mb-3">Foto del Estado de Cuenta</h2>
-                        <div className="flex items-center gap-6">
-                          <div className={`w-24 h-24 rounded-3xl flex items-center justify-center border border-[#44403C] bg-[#292524] text-4xl font-black text-[#F5F0EB] shadow-inner`}>
-                            {reporte.health_score ?? reporte.score_general ?? 0}
-                          </div>
-                          <div><h3 className="text-4xl font-black text-[#F5F0EB]">{t[idioma].score}</h3><p className="text-[#A8A29E] text-sm mt-2 font-bold">{t[idioma].puntajeBasado}</p></div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-8 animate-fade-custom grid grid-cols-1 gap-8">
-                      {reporte.hallazgos?.graves_rojo?.length > 0 && (
-                        <div className="bg-[#292524] p-10 rounded-3xl border border-[#E07070]/30 shadow-sm">
-                          <h3 className="text-base font-black text-[#E07070] uppercase tracking-widest mb-8 flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-[#E07070]/10 flex items-center justify-center"><AlertTriangle size={20}/></div> 
-                            {t[idioma].problemas}
-                          </h3>
-                          <div className="space-y-8 grid grid-cols-1 md:grid-cols-2 gap-8">
-                            {reporte.hallazgos.graves_rojo.map((item: any, i: number) => (
-                              <div key={i} className="border-l-4 border-[#E07070]/30 pl-5">
-                                <p className="text-[#F5F0EB] font-black text-xl mb-2">{item.titulo}</p>
-                                <p className="text-[#A8A29E] text-base leading-relaxed font-medium">{textoHallazgoParaUsuario(item, explicacionClara)}</p>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      {reporte.hallazgos?.debiles_amarillo?.length > 0 && (
-                        <div className="bg-[#292524] p-10 rounded-3xl border border-[#D4A843]/30 shadow-sm">
-                          <h3 className="text-base font-black text-[#D4A843] uppercase tracking-widest mb-8 flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-[#D4A843]/10 flex items-center justify-center"><Zap size={20}/></div> 
-                            {t[idioma].mejoras}
-                          </h3>
-                          <div className="space-y-8 grid grid-cols-1 md:grid-cols-2 gap-8">
-                            {reporte.hallazgos.debiles_amarillo.map((item: any, i: number) => (
-                              <div key={i} className="border-l-4 border-[#D4A843]/30 pl-5">
-                                <p className="text-[#F5F0EB] font-black text-xl mb-2">{item.titulo}</p>
-                                <p className="text-[#A8A29E] text-base leading-relaxed font-medium">{textoHallazgoParaUsuario(item, explicacionClara)}</p>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                  <LecturaAuditoriaView
+                    reporte={reporte}
+                    score={auditoriaActiva.score}
+                    fechaLabel={parseDate(auditoriaActiva.created_at ?? "")}
+                    labels={{
+                      score: t[idioma].score,
+                      puntajeBasado: t[idioma].puntajeBasado,
+                      problemas: t[idioma].problemas,
+                      mejoras: t[idioma].mejoras,
+                    }}
+                    explicacionClara={explicacionClara}
+                    modoHistorico={esAuditoriaHistorica(
+                      auditoriaActiva?.id,
+                      ultimaAuditoria?.id
+                    )}
+                    onAbrirResumenFacil={() => setResumenFacilAbierto(true)}
+                  />
                 </div>
               )}
 

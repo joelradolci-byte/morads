@@ -1,3 +1,10 @@
+import {
+  adaptarTextoHistorico,
+  prefijarNarrativaHistorica,
+  tituloHallazgoHistorico,
+  type OpcionesCopyHistorico,
+} from "./copyHistorico";
+
 /** Mapeo hallazgos → acciones y copy en lenguaje claro. */
 
 export type AccionResumenPanel =
@@ -29,7 +36,14 @@ const TITULOS_HUMANOS: Record<string, string> = {
   OPORTUNIDAD_ROBIN_HOOD: "Hay plata mal puesta en campañas que no rinden",
 };
 
-export function tituloHumanoHallazgo(idRastreo: string, tituloOriginal: string): string {
+export function tituloHumanoHallazgo(
+  idRastreo: string,
+  tituloOriginal: string,
+  opciones?: Pick<OpcionesCopyHistorico, "modoHistorico">
+): string {
+  if (opciones?.modoHistorico) {
+    return tituloHallazgoHistorico(idRastreo, tituloOriginal);
+  }
   return TITULOS_HUMANOS[idRastreo] ?? tituloOriginal;
 }
 
@@ -50,24 +64,61 @@ export function fraseSaludCuenta(
   score: number,
   gastoDesperdiciado: number,
   porcentajeDesperdiciado: number,
-  opciones?: { cuenta_sin_cambios_urgentes?: boolean; nivel?: string }
+  opciones?: {
+    cuenta_sin_cambios_urgentes?: boolean;
+    nivel?: string;
+    modoHistorico?: boolean;
+    fechaAuditoria?: string;
+  }
 ): string {
+  const historico = opciones?.modoHistorico === true;
+
   if (opciones?.cuenta_sin_cambios_urgentes) {
-    if (opciones.nivel === "optima" || score >= 92) {
-      return "Tu cuenta no necesita cambios urgentes: está en muy buen estado. Mora no detectó fugas materiales ni correcciones obligatorias.";
-    }
-    return "Tu cuenta está estable y no requiere cambios urgentes ahora. Podés seguir monitoreando con tranquilidad.";
+    const presente =
+      opciones.nivel === "optima" || score >= 92
+        ? "Tu cuenta no necesita cambios urgentes: está en muy buen estado. Mora no detectó fugas materiales ni correcciones obligatorias."
+        : "Tu cuenta está estable y no requiere cambios urgentes ahora. Podés seguir monitoreando con tranquilidad.";
+    const pasado =
+      opciones.nivel === "optima" || score >= 92
+        ? "En esa auditoría, tu cuenta no necesitaba cambios urgentes: estaba en muy buen estado. Mora no había detectado fugas materiales ni correcciones obligatorias."
+        : "En esa auditoría, tu cuenta estaba estable y no requería cambios urgentes en ese momento. Podías seguir monitoreando con tranquilidad.";
+    const base = historico ? pasado : presente;
+    return historico && opciones.fechaAuditoria
+      ? prefijarNarrativaHistorica(base, opciones.fechaAuditoria)
+      : historico
+        ? adaptarTextoHistorico(base)
+        : base;
   }
   if (score >= 75 && gastoDesperdiciado <= 0) {
-    return "Tu cuenta está en buen estado. No hay fugas urgentes detectadas en esta auditoría.";
+    const base = historico
+      ? "En esa auditoría, tu cuenta estaba en buen estado. No había fugas urgentes detectadas."
+      : "Tu cuenta está en buen estado. No hay fugas urgentes detectadas en esta auditoría.";
+    return historico && opciones?.fechaAuditoria
+      ? prefijarNarrativaHistorica(base, opciones.fechaAuditoria)
+      : base;
   }
   if (score >= 75) {
-    return "Tu cuenta está en buen estado. Revisá los puntos que Mora marcó solo si querés afinar aún más el rendimiento.";
+    const base = historico
+      ? "En esa auditoría, tu cuenta estaba en buen estado. Los puntos marcados por Mora servían para afinar aún más el rendimiento de ese momento."
+      : "Tu cuenta está en buen estado. Revisá los puntos que Mora marcó solo si querés afinar aún más el rendimiento.";
+    return historico && opciones?.fechaAuditoria
+      ? prefijarNarrativaHistorica(base, opciones.fechaAuditoria)
+      : base;
   }
   if (score >= 50) {
-    return `Tu cuenta tiene cosas para mejorar. Mora estima que podrías estar perdiendo alrededor de $${Math.round(gastoDesperdiciado).toLocaleString()} en inversión poco eficiente.`;
+    const base = historico
+      ? `En esa auditoría, tu cuenta tenía cosas para mejorar. Mora estimó que podías estar perdiendo alrededor de $${Math.round(gastoDesperdiciado).toLocaleString()} en inversión poco eficiente.`
+      : `Tu cuenta tiene cosas para mejorar. Mora estima que podrías estar perdiendo alrededor de $${Math.round(gastoDesperdiciado).toLocaleString()} en inversión poco eficiente.`;
+    return historico && opciones?.fechaAuditoria
+      ? prefijarNarrativaHistorica(base, opciones.fechaAuditoria)
+      : base;
   }
-  return `Tu cuenta necesita atención. Hay fugas importantes: cerca del ${Math.round(porcentajeDesperdiciado)}% del gasto podría estar mal usado.`;
+  const base = historico
+    ? `En esa auditoría, tu cuenta necesitaba atención. Había fugas importantes: cerca del ${Math.round(porcentajeDesperdiciado)}% del gasto podía estar mal usado.`
+    : `Tu cuenta necesita atención. Hay fugas importantes: cerca del ${Math.round(porcentajeDesperdiciado)}% del gasto podría estar mal usado.`;
+  return historico && opciones?.fechaAuditoria
+    ? prefijarNarrativaHistorica(base, opciones.fechaAuditoria)
+    : base;
 }
 
 export function textoHallazgoParaUsuario(
@@ -76,12 +127,29 @@ export function textoHallazgoParaUsuario(
     descripcion_tecnica?: string;
     descripcion?: string;
   },
-  lenguajeClaro: boolean
+  lenguajeClaro: boolean,
+  opciones?: Pick<OpcionesCopyHistorico, "modoHistorico">
 ): string {
   const simple = (hallazgo.descripcion_simple || "").trim();
   const tecnica = (hallazgo.descripcion_tecnica || hallazgo.descripcion || "").trim();
+  const historico = opciones?.modoHistorico === true;
+
+  let texto: string;
   if (lenguajeClaro) {
-    return simple || tecnica || "Mora detectó algo que conviene corregir en tu cuenta.";
+    texto =
+      simple ||
+      tecnica ||
+      (historico
+        ? "Mora había detectado algo que convenía corregir en tu cuenta en esa fecha."
+        : "Mora detectó algo que conviene corregir en tu cuenta.");
+  } else {
+    texto =
+      tecnica ||
+      simple ||
+      (historico
+        ? "Hallazgo priorizado por impacto en la cuenta en esa auditoría."
+        : "Hallazgo priorizado por impacto en la cuenta.");
   }
-  return tecnica || simple || "Hallazgo priorizado por impacto en la cuenta.";
+
+  return historico ? adaptarTextoHistorico(texto) : texto;
 }
