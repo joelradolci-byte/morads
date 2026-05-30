@@ -6,7 +6,7 @@ import { ArrowLeft, Loader2, BarChart3 } from "lucide-react";
 import { moraAuthHeaders } from "@/lib/auth/client-headers";
 import {
   FEATURE_BLOCKS,
-  INTERES_OPTIONS,
+  INTERES_ADMIN_OPTIONS,
   USAGE_LABELS,
   type FeatureBlockKey,
   type FeatureUsage,
@@ -158,8 +158,8 @@ export default function EncuestasAdminClient() {
         </div>
 
         <h2 className="text-lg font-black mb-4">Intereses marcados</h2>
-        <div className="flex flex-wrap gap-2 mb-10">
-          {INTERES_OPTIONS.map((opt) => (
+        <div className="flex flex-wrap gap-2 mb-4">
+          {INTERES_ADMIN_OPTIONS.filter((o) => !o.legacy).map((opt) => (
             <span
               key={opt.key}
               className="px-3 py-2 rounded-xl bg-[#FDE8D3] border border-[#F3C3B2]/40 text-xs font-bold"
@@ -168,6 +168,32 @@ export default function EncuestasAdminClient() {
             </span>
           ))}
         </div>
+        {INTERES_ADMIN_OPTIONS.some(
+          (o) => o.legacy && (data.interesCounts[o.key] ?? 0) > 0
+        ) && (
+          <>
+            <p className="text-[10px] font-black uppercase tracking-widest text-[#8A968C] mb-2">
+              Opciones anteriores (histórico)
+            </p>
+            <div className="flex flex-wrap gap-2 mb-10">
+              {INTERES_ADMIN_OPTIONS.filter((o) => o.legacy).map((opt) => {
+                const count = data.interesCounts[opt.key] ?? 0;
+                if (count === 0) return null;
+                return (
+                  <span
+                    key={opt.key}
+                    className="px-3 py-2 rounded-xl bg-[#F4F4F5] border border-[#E5E7EB] text-xs font-bold text-[#4B5563]"
+                  >
+                    {opt.label}: {count}
+                  </span>
+                );
+              })}
+            </div>
+          </>
+        )}
+        {!INTERES_ADMIN_OPTIONS.some(
+          (o) => o.legacy && (data.interesCounts[o.key] ?? 0) > 0
+        ) && <div className="mb-10" />}
 
         <h2 className="text-lg font-black mb-4">Últimos comentarios</h2>
         <div className="space-y-3">

@@ -55,16 +55,17 @@ export default function FeedbackFab({ active }: Props) {
         type="button"
         onClick={() => setModalOpen(true)}
         title="Ayudanos a mejorar Mora"
-        className="fixed z-[90] bottom-6 right-6 md:bottom-8 md:right-8 w-14 h-14 rounded-2xl bg-[#F3C3B2] text-[#0a0a0a] shadow-lg border border-[#eab3a1]/80 flex items-center justify-center hover:scale-105 hover:bg-[#eab3a1] transition-all print:hidden"
+        className="fixed z-[90] bottom-6 right-6 md:bottom-8 md:right-8 h-12 px-4 rounded-2xl bg-[#F3C3B2] text-[#0a0a0a] shadow-lg border border-[#eab3a1]/80 flex items-center justify-center gap-2 hover:scale-105 hover:bg-[#eab3a1] transition-all print:hidden"
         style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}
-        aria-label="Abrir encuesta de feedback"
+        aria-label="Abrir encuesta de sugerencias"
       >
-        <MessageSquare size={22} strokeWidth={2.5} />
+        <MessageSquare size={20} strokeWidth={2.5} className="shrink-0" />
+        <span className="text-sm font-black whitespace-nowrap">Sugerencias</span>
       </button>
 
       {thanksFlash && (
         <div
-          className="fixed z-[91] bottom-24 right-6 md:right-8 max-w-[220px] bg-[#0a0a0a] text-white text-xs font-bold px-4 py-3 rounded-xl shadow-xl border border-[#44403C] print:hidden"
+          className="fixed z-[91] bottom-[4.5rem] right-6 md:right-8 max-w-[220px] bg-[#0a0a0a] text-white text-xs font-bold px-4 py-3 rounded-xl shadow-xl border border-[#44403C] print:hidden"
           role="status"
         >
           ¡Gracias! Tu opinión nos ayuda un montón.

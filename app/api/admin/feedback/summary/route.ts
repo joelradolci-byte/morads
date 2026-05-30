@@ -4,7 +4,7 @@ import { calcNpsScore, isAdminEmail } from "@/lib/feedback/admin";
 import {
   FEATURE_BLOCK_KEYS,
   FEATURE_BLOCKS,
-  INTERES_OPTIONS,
+  INTERES_ADMIN_OPTIONS,
   type FeatureBlockKey,
   type FeatureUsage,
 } from "@/lib/feedback/features";
@@ -65,7 +65,7 @@ export async function GET(req: Request) {
     }
 
     const interesCounts: Record<string, number> = {};
-    for (const opt of INTERES_OPTIONS) {
+    for (const opt of INTERES_ADMIN_OPTIONS) {
       interesCounts[opt.key] = 0;
     }
     for (const row of rows) {
@@ -100,7 +100,7 @@ export async function GET(req: Request) {
         label: b.label,
       })),
       interesCounts,
-      interesLabels: INTERES_OPTIONS,
+      interesLabels: INTERES_ADMIN_OPTIONS,
       comentarios,
     });
   } catch (e) {

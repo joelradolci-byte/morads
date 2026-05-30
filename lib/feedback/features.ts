@@ -42,22 +42,78 @@ export const FEATURE_BLOCKS: {
   },
 ];
 
-export const INTERES_KEYS = [
+/** Chips visibles en la encuesta (roadmap / prioridades). */
+export const INTERES_ACTIVE_KEYS = [
   "multi_cuenta",
   "alertas_email",
   "meta_ads",
+  "explicaciones_ia",
+  "integracion_ads",
+] as const;
+
+export type InteresActiveKey = (typeof INTERES_ACTIVE_KEYS)[number];
+
+/** Respuestas históricas; ya no se muestran en el modal. */
+export const INTERES_LEGACY_KEYS = [
   "informes_cliente",
   "automatizar_mas",
 ] as const;
 
+export type InteresLegacyKey = (typeof INTERES_LEGACY_KEYS)[number];
+
+export const INTERES_KEYS = [
+  ...INTERES_ACTIVE_KEYS,
+  ...INTERES_LEGACY_KEYS,
+] as const;
+
 export type InteresKey = (typeof INTERES_KEYS)[number];
 
-export const INTERES_OPTIONS: { key: InteresKey; label: string }[] = [
-  { key: "multi_cuenta", label: "Varias cuentas / modo agencia" },
-  { key: "alertas_email", label: "Alertas cuando algo se rompe" },
-  { key: "meta_ads", label: "Soporte para Meta Ads" },
-  { key: "informes_cliente", label: "Informes listos para clientes" },
-  { key: "automatizar_mas", label: "Más automatización con tu OK" },
+export const INTERES_OPTIONS: { key: InteresActiveKey; label: string }[] = [
+  {
+    key: "multi_cuenta",
+    label: "Gestionar varias cuentas o clientes en un solo panel",
+  },
+  {
+    key: "alertas_email",
+    label: "Avisos por email si el rendimiento o el gasto se desvían",
+  },
+  {
+    key: "meta_ads",
+    label: "Auditar y optimizar Meta Ads (además de Google)",
+  },
+  {
+    key: "explicaciones_ia",
+    label: "Entender mejor por qué la IA recomienda cada cambio",
+  },
+  {
+    key: "integracion_ads",
+    label:
+      "Conectar mi cuenta de Google Ads y usar datos reales sin tanto paso manual",
+  },
+];
+
+export const INTERES_LEGACY_OPTIONS: {
+  key: InteresLegacyKey;
+  label: string;
+}[] = [
+  {
+    key: "informes_cliente",
+    label: "Informes listos para clientes (histórico)",
+  },
+  {
+    key: "automatizar_mas",
+    label: "Más automatización con tu OK (histórico)",
+  },
+];
+
+/** Admin: conteos activos + legacy. */
+export const INTERES_ADMIN_OPTIONS: {
+  key: InteresKey;
+  label: string;
+  legacy?: boolean;
+}[] = [
+  ...INTERES_OPTIONS.map((o) => ({ ...o, legacy: false as const })),
+  ...INTERES_LEGACY_OPTIONS.map((o) => ({ ...o, legacy: true as const })),
 ];
 
 export const USAGE_LABELS: Record<FeatureUsage, string> = {

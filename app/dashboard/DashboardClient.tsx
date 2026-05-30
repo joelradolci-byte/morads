@@ -6,7 +6,7 @@ import {
   Zap, AlertTriangle, CheckCircle2, CreditCard, Settings, 
   Search, ArrowRight, ArrowLeft, TrendingUp, TrendingDown, LayoutPanelLeft,
   FileText, BarChart3, ShieldCheck, Plus, Clock, Activity, Trash2, Lock, 
-  Bell, ListChecks, LayoutGrid, CheckSquare, Sparkles, Undo2, RefreshCcw, Type, Calculator, BookOpen,
+  ListChecks, LayoutGrid, CheckSquare, Sparkles, Undo2, RefreshCcw, Type, Calculator, BookOpen,
   Upload, Copy, Check, TrendingUp as TrendUp, ChevronRight, Folder, LayoutDashboard, X, Loader2
 } from 'lucide-react';
 import { extraerDatosGoogle, construirDatosAuditoria } from '../../lib/googleAds'; 
@@ -548,10 +548,6 @@ export function AuditorDashboard({
   const [tareasCompletadas, setTareasCompletadas] = useState<number[]>([]);
   const [mostrarConfirmacion, setMostrarConfirmacion] = useState(false);
   const [toastState, setToastState] = useState<{show: boolean, status: 'success' | 'undoing' | 'reverted', timeLeft: number}>({show: false, status: 'success', timeLeft: 15});
-  const [alertas, setAlertas] = useState<any[]>([]);
-  const [toastsActivos, setToastsActivos] = useState<any[]>([]);
-  const [mostrarCentroAlertas, setMostrarCentroAlertas] = useState(false);
-  const [alertasNoLeidas, setAlertasNoLeidas] = useState(false);    
   const [pacingAccionPendiente, setPacingAccionPendiente] = useState<PacingAccionPendiente | null>(null);
   const [pacingUndo, setPacingUndo] = useState<SafeApplyPlan | null>(null);
   const [robinAccionPendiente, setRobinAccionPendiente] = useState<SafeApplyPlan | null>(null);
@@ -865,48 +861,6 @@ export function AuditorDashboard({
     const qs = sp.toString();
     window.history.pushState(null, "", qs ? `/campanas?${qs}` : "/campanas");
   };
-
-  useEffect(() => {
-    if (!ultimaAuditoria?.reporte_json?.hallazgos?.graves_rojo) return;
-
-    const fugasIA = ultimaAuditoria.reporte_json.hallazgos.graves_rojo;
-
-    const nuevasAlertas = fugasIA.map((fuga: any, idx: number) => ({
-      id: `ai-alert-${ultimaAuditoria.id}-${idx}`, 
-      titulo: fuga.titulo,
-      mensaje: fuga.descripcion,
-      accion: "Ver Detalles",
-      tipo: "critico",
-      hallazgoData: fuga 
-    }));
-
-    if (nuevasAlertas.length > 0) {
-      setAlertas(nuevasAlertas);
-      setAlertasNoLeidas(true);
-      
-      setToastsActivos(nuevasAlertas.map((a: any) => ({ 
-        ...a, 
-        isLeaving: false, 
-        timeLeft: 10 
-      }))); 
-      
-      setTimeout(() => {
-        setToastsActivos(prev => prev.map(t => ({ ...t, isLeaving: true })));
-      }, 9500);
-
-      setTimeout(() => setToastsActivos([]), 10200);
-    }
-  }, [ultimaAuditoria?.id]); 
-
-  useEffect(() => {
-    const intervalo = setInterval(() => {
-      setToastsActivos(prev => prev.map(t => ({
-        ...t,
-        timeLeft: t.timeLeft > 0 ? t.timeLeft - 1 : 0
-      })));
-    }, 1000);
-    return () => clearInterval(intervalo);
-  }, []);
 
   const renderGestorCampañas = () => (
     <GestorCampanasView
@@ -1612,16 +1566,6 @@ export function AuditorDashboard({
         @keyframes fadeInCustom { 0% { opacity: 0; transform: translateY(10px); } 100% { opacity: 1; transform: translateY(0); } }
         .animate-fade-custom { animation: fadeInCustom 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         
-        @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
-        @keyframes slideOutRight { from { transform: translateX(0); } to { transform: translateX(100%); } }
-        @keyframes fadeInBg { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes fadeOutBg { from { opacity: 1; } to { opacity: 0; } }
-        
-        .animate-slide-in-right { animation: slideInRight 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
-        .animate-slide-out-right { animation: slideOutRight 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
-        .animate-fade-in-bg { animation: fadeInBg 0.5s ease-out forwards; }
-        .animate-fade-out-bg { animation: fadeOutBg 0.5s ease-out forwards; }
-        
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #44403C; border-radius: 10px; }
@@ -1630,14 +1574,6 @@ export function AuditorDashboard({
         @keyframes shrinkBar { from { width: '100%'; } to { width: '0%'; } }
         .animate-shrink-bar { animation: shrinkBar 9.5s linear forwards; }
 
-        @keyframes shrinkBar { from { width: '100%'; } to { width: '0%'; } }
-        .animate-shrink-bar { animation: shrinkBar 9.5s linear forwards; }
-
-        @keyframes vaciarBarra { from { width: 100%; } to { width: 0%; } }
-        .animate-barra-tiempo { animation: vaciarBarra 9.5s linear forwards; }
-        
-        @keyframes deslizarAfuera { to { transform: translateX(150%); opacity: 0; } }
-        .animate-salida-total { animation: deslizarAfuera 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
       `}} />
 
       <div style={{ zoom: 0.75 }} className={`flex h-[133.33vh] w-full font-sans overflow-hidden print-container relative ${!session ? "bg-[#FDE8D3] selection:bg-[#E0E7FF] selection:text-[#0a0a0a]" : "bg-[#0a0a0a] selection:bg-[#F3C3B2] selection:text-[#0a0a0a]"}`}>
@@ -1991,54 +1927,6 @@ export function AuditorDashboard({
                       {vista === "reporte_lectura" ? "Leer resumen" : "Ver resumen fácil"}
                     </button>
                   )}
-
-                  <div className="relative z-[60]">
-                    <button 
-                      onClick={() => {
-                        setMostrarCentroAlertas(!mostrarCentroAlertas);
-                        if (!mostrarCentroAlertas) setAlertasNoLeidas(false);
-                      }} 
-                      className="relative p-2.5 rounded-full bg-[#292524] border border-[#44403C] hover:border-[#E07070]/50 transition-colors shadow-lg flex items-center justify-center"
-                    >
-                      <Bell size={20} className={alertas.length > 0 ? "text-[#E07070]" : "text-[#A8A29E]"} />
-                      {alertas.length > 0 && alertasNoLeidas && (
-                        <span className="absolute -top-1 -right-1 w-5 h-5 bg-[#E07070] text-[#0a0a0a] text-[11px] font-black rounded-full flex items-center justify-center border-2 border-[#1C1917]">
-                          {alertas.length}
-                        </span>
-                      )}
-                    </button>
-
-                    <div className={`absolute top-full right-0 mt-4 w-80 md:w-96 bg-[#292524] border border-[#44403C] rounded-2xl shadow-2xl overflow-hidden transition-all duration-300 origin-top-right ${mostrarCentroAlertas ? 'opacity-100 scale-100 visible' : 'opacity-0 scale-95 invisible'}`}>
-                      <div className="p-4 border-b border-[#44403C] bg-[#1C1917] flex justify-between items-center">
-                        <span className="font-black text-[#F5F0EB] uppercase tracking-widest text-[10px]">Centro de Alertas</span>
-                        <span className="text-[9px] bg-[#E07070]/10 text-[#E07070] font-black uppercase tracking-widest px-2 py-1 rounded-md border border-[#E07070]/20">
-                          {alertas.length} Pendientes
-                        </span>
-                      </div>
-                      <div className="max-h-96 overflow-y-auto">
-                        {alertas.length === 0 ? (
-                          <div className="p-6 text-center text-[#A8A29E] text-sm font-bold">Todo en orden. No hay alertas.</div>
-                        ) : (
-                          alertas.map(alerta => (
-                            <div key={alerta.id} className="p-5 border-b border-[#44403C]/50 hover:bg-[#1C1917] transition-colors">
-                              <h4 className="text-[#F3C3B2] font-black text-xs uppercase tracking-widest flex items-center gap-2"><Zap size={14}/> {alerta.titulo}</h4>
-                              <p className="text-[11px] text-[#A8A29E] mt-2 leading-relaxed font-medium">{alerta.mensaje}</p>
-                              <button onClick={() => { 
-                                if (alerta.hallazgoData) {
-                                  abrirDetalleHallazgo(alerta.hallazgoData, "critico", ultimaAuditoria?.reporte_json);
-                                } else {
-                                  setMostrarConfirmacion(true); 
-                                }
-                                setMostrarCentroAlertas(false); 
-                              }} className="mt-4 w-full bg-[#E07070]/10 hover:bg-[#E07070] text-[#E07070] hover:text-[#0a0a0a] border border-[#E07070]/30 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-colors shadow-sm">
-                                {alerta.accion}
-                              </button>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </div>
-                  </div>
 
                   <div className="flex items-center gap-3 bg-[#292524] border border-[#44403C] p-1.5 pr-4 rounded-full shadow-lg relative group cursor-pointer hover:bg-[#44403C]/50 transition-colors">
                     <div className="w-10 h-10 rounded-full bg-[#F3C3B2]/20 border border-[#F3C3B2]/40 text-[#F3C3B2] flex items-center justify-center text-lg font-black">
@@ -3329,59 +3217,9 @@ export function AuditorDashboard({
         </div>
       )}
 
-      {/* TOASTS FLOTANTES */}
-      <div className="fixed bottom-10 right-10 z-[110] flex flex-col gap-4 pointer-events-none print:hidden">
-        {toastsActivos.map((toast, index) => (
-          <div 
-            key={toast.id} 
-            className={`bg-[#1C1917] border border-[#E07070]/40 p-5 rounded-2xl shadow-[0_20px_40px_rgba(0,0,0,0.5)] w-80 md:w-96 pointer-events-auto relative overflow-hidden ${
-              toast.isLeaving ? 'animate-salida-total' : 'animate-slide-in-right'
-            }`}
-            style={{ animationDelay: toast.isLeaving ? '0ms' : `${index * 150}ms` }}
-          >
-            <div className="absolute top-0 left-0 w-1 h-full bg-[#E07070] z-10"></div>
-            
-            <div className="absolute bottom-0 left-0 w-full h-1 bg-[#292524]">
-              <div className="h-full bg-[#E07070] animate-barra-tiempo"></div>
-            </div>
-
-            <div className="flex justify-between items-start relative z-10">
-              <h4 className="text-[#F5F0EB] font-black text-xs uppercase tracking-widest flex items-center gap-2">
-                <AlertTriangle size={14} className="text-[#E07070]" /> {toast.titulo}
-              </h4>
-              <div className="flex items-center gap-3">
-                <button 
-                  onClick={() => {
-                    setToastsActivos(prev => prev.map(t => t.id === toast.id ? { ...t, isLeaving: true } : t));
-                    setTimeout(() => setToastsActivos(prev => prev.filter(t => t.id !== toast.id)), 600);
-                  }} 
-                  className="text-[#A8A29E] hover:text-[#F5F0EB] transition-colors"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-            </div>
-            <p className="text-[11px] text-[#A8A29E] mt-2 mb-3 font-medium leading-relaxed relative z-10">{toast.mensaje}</p>
-            
-            <button 
-               onClick={() => {
-                  if (toast.hallazgoData) {
-                    abrirDetalleHallazgo(toast.hallazgoData, "critico", ultimaAuditoria?.reporte_json);
-                  }
-                  setToastsActivos(prev => prev.map(t => t.id === toast.id ? { ...t, isLeaving: true } : t));
-                  setTimeout(() => setToastsActivos(prev => prev.filter(t => t.id !== toast.id)), 600);
-               }} 
-               className="relative z-10 mt-1 w-full bg-[#E07070]/10 hover:bg-[#E07070] text-[#E07070] hover:text-[#0a0a0a] border border-[#E07070]/30 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-colors"
-            >
-               {toast.accion}
-            </button>
-          </div>
-        ))}
-      </div>
-
       {/* TOAST PACING CON UNDO */}
       {pacingToast.show && (
-        <div className="fixed bottom-28 left-1/2 transform -translate-x-1/2 z-[125] bg-[#FAFAF9] border border-[#E5E7EB] shadow-2xl rounded-2xl overflow-hidden flex flex-col w-96 animate-fade-custom print:hidden">
+        <div className="fixed bottom-10 left-1/2 transform -translate-x-1/2 z-[125] bg-[#FAFAF9] border border-[#E5E7EB] shadow-2xl rounded-2xl overflow-hidden flex flex-col w-96 animate-fade-custom print:hidden">
           <div className="p-5 flex justify-between items-center gap-3">
             <div className="flex items-center gap-3 min-w-0">
               {pacingToast.status === "success" && <CheckCircle2 className="text-[#10B981] shrink-0" size={24} />}

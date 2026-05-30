@@ -10,7 +10,7 @@ import {
   USAGE_LABELS,
   type FeatureBlockKey,
   type FeatureUsage,
-  type InteresKey,
+  type InteresActiveKey,
 } from "@/lib/feedback/features";
 
 const USAGE_OPTIONS: FeatureUsage[] = ["mucho", "algo", "poco", "no_usado"];
@@ -34,7 +34,7 @@ export default function EncuestaFeedbackModal({
         FEATURE_BLOCK_KEYS.map((k) => [k, "no_usado" as FeatureUsage])
       ) as Record<FeatureBlockKey, FeatureUsage>
   );
-  const [intereses, setIntereses] = useState<Set<InteresKey>>(new Set());
+  const [intereses, setIntereses] = useState<Set<InteresActiveKey>>(new Set());
   const [comentario, setComentario] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -64,7 +64,7 @@ export default function EncuestaFeedbackModal({
     onClose();
   };
 
-  const toggleInteres = (key: InteresKey) => {
+  const toggleInteres = (key: InteresActiveKey) => {
     setIntereses((prev) => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
@@ -138,7 +138,7 @@ export default function EncuestaFeedbackModal({
                 "Del 0 al 10, ¿con qué probabilidad se lo recomendarías a un colega?"}
               {step === 1 && "Un tap por bloque — 30 segundos."}
               {step === 2 &&
-                "Marcá temas que te interesen y dejá un comentario si querés."}
+                "Elegí una o varias — nos ayuda a priorizar el roadmap."}
             </p>
           </div>
           <button
@@ -153,21 +153,27 @@ export default function EncuestaFeedbackModal({
 
         <div className="flex-1 overflow-y-auto overscroll-contain px-6 py-5">
           {step === 0 && (
-            <div className="flex flex-wrap gap-2 justify-center">
-              {Array.from({ length: 11 }, (_, i) => i).map((v) => (
-                <button
-                  key={v}
-                  type="button"
-                  onClick={() => setNps(v)}
-                  className={`w-11 h-11 rounded-xl font-black text-sm border transition-all ${
-                    nps === v
-                      ? "bg-[#F3C3B2] border-[#F3C3B2] text-[#0a0a0a] scale-105 shadow-md"
-                      : "bg-white border-[#E5E7EB] text-[#4B5563] hover:border-[#E0E7FF]"
-                  }`}
-                >
-                  {v}
-                </button>
-              ))}
+            <div>
+              <div className="grid grid-cols-11 gap-1">
+                {Array.from({ length: 11 }, (_, i) => i).map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => setNps(v)}
+                    className={`aspect-square min-w-0 rounded-lg font-black text-xs sm:text-sm border transition-all ${
+                      nps === v
+                        ? "bg-[#F3C3B2] border-[#F3C3B2] text-[#0a0a0a] scale-105 shadow-md"
+                        : "bg-white border-[#E5E7EB] text-[#4B5563] hover:border-[#E0E7FF]"
+                    }`}
+                  >
+                    {v}
+                  </button>
+                ))}
+              </div>
+              <div className="flex justify-between mt-2 px-0.5 text-[10px] font-bold text-[#8A968C]">
+                <span>Nada probable</span>
+                <span>Muy probable</span>
+              </div>
             </div>
           )}
 
@@ -208,7 +214,7 @@ export default function EncuestaFeedbackModal({
             <div className="space-y-5">
               <div>
                 <p className="text-[11px] font-black uppercase tracking-widest text-[#4B5563] mb-3">
-                  ¿En qué te gustaría que profundicemos?
+                  ¿Qué haría Mora más útil para vos?
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {INTERES_OPTIONS.map((opt) => (
@@ -234,7 +240,7 @@ export default function EncuestaFeedbackModal({
                 <textarea
                   value={comentario}
                   onChange={(e) => setComentario(e.target.value)}
-                  placeholder="Lo que no entró en las opciones de arriba..."
+                  placeholder="Ej.: qué te costó, qué extrañás de otra herramienta, o una idea concreta..."
                   className="w-full h-28 p-4 bg-[#F4F4F5] border border-[#E5E7EB] rounded-2xl text-sm text-[#0a0a0a] font-medium resize-none focus:outline-none focus:border-[#E0E7FF]"
                   maxLength={2000}
                 />
