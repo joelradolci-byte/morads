@@ -19,6 +19,7 @@ import {
   type DaypartingApplyPlan,
   type DaypartingApplyResult,
 } from "../../lib/daypartingSafeApply";
+import { moraAuthHeaders } from "../../lib/auth/client-headers";
 import DaypartingHeatmapGrid from "./DaypartingHeatmapGrid";
 
 interface DaypartingPanelProps {
@@ -106,14 +107,19 @@ export default function DaypartingPanel({
     try {
       const res = await fetch("/api/dayparting/aplicar", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: await moraAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ plan, userConfirmed: true }),
       });
-      const data: DaypartingApplyResult | { error: string } = await res.json();
+      const data: DaypartingApplyResult | { error?: string; message?: string; status?: string } =
+        await res.json();
       if (!res.ok) {
-        const err = (data as { error?: string }).error || "No se pudo aplicar.";
+        const err =
+          (data as { message?: string }).message ||
+          (data as { error?: string }).error ||
+          "No se pudo aplicar.";
+        const bloqueado = (data as { status?: string }).status === "bloqueado_sin_conexion";
         setResultado({
-          status: "cancelado",
+          status: bloqueado ? "bloqueado_sin_conexion" : "cancelado",
           message: err,
           applied: [],
           rejected: plan.items.map(item => ({ item, reason: err })),

@@ -33,6 +33,7 @@ import {
   type NivelSalud,
 } from "../../lib/saludMora";
 import type { AdGeneratorContext } from "./AdGeneratorPanel";
+import { moraAuthHeaders } from "../../lib/auth/client-headers";
 import {
   construirPlanHallazgo,
   type HallazgoApplyPlan,
@@ -215,7 +216,7 @@ export default function HallazgoDetallePanel({
       reason: detalle.razonamiento,
       expectedImpact: detalle.resultado_esperado,
       payload: {
-        accion,
+        accion: accion === "detalle_hallazgo" ? undefined : accion,
         id_rastreo: detalle.id_rastreo,
         sugerencia: detalle.sugerencia,
         tipo: detalle.tipo,
@@ -230,17 +231,33 @@ export default function HallazgoDetallePanel({
     try {
       const res = await fetch("/api/hallazgos/aplicar", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: await moraAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ plan, userConfirmed: true }),
       });
-      const data = (await res.json()) as HallazgoApplyResult | { error?: string };
+      const data = (await res.json()) as
+        | HallazgoApplyResult
+        | { error?: string; message?: string; status?: string };
+      if (res.status === 409) {
+        const msg =
+          typeof data === "object" && data && "message" in data && typeof data.message === "string"
+            ? data.message
+            : "Abrí la herramienta indicada para aplicar este cambio.";
+        setApplyResult({ status: "cancelado", message: msg });
+        return;
+      }
       if (!res.ok) {
         const errorMessage =
-          typeof data === "object" && data && "error" in data && typeof data.error === "string"
+          (typeof data === "object" && data && "message" in data && typeof data.message === "string"
+            ? data.message
+            : null) ||
+          (typeof data === "object" && data && "error" in data && typeof data.error === "string"
             ? data.error
-            : "No se pudo registrar la confirmación.";
+            : "No se pudo aplicar el hallazgo.");
         setApplyResult({
-          status: "cancelado",
+          status:
+            typeof data === "object" && data && data.status === "bloqueado_sin_conexion"
+              ? "bloqueado_sin_conexion"
+              : "cancelado",
           message: errorMessage,
         });
         return;
@@ -511,8 +528,8 @@ export default function HallazgoDetallePanel({
                     <ListChecks size={14} /> Aplicar con Mora
                   </p>
                   <p className="text-xs text-[#4B5563] font-medium mt-2 leading-relaxed">
-                    Te mostramos el paso a paso, y si querés, podés registrar la aplicación con Mora. Cuando
-                    se conecte Google Ads en escritura, se aplicará con este mismo plan.
+                    Te mostramos el paso a paso. Si el cambio es automático, Mora lo aplica en Google Ads al
+                    confirmar; si no, te indica qué herramienta usar.
                   </p>
                 </div>
                 <button

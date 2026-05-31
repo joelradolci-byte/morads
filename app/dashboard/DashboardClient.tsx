@@ -41,11 +41,10 @@ import {
 } from '../../lib/destripadorEstado';
 import {
   createSafeApplyPlan,
-  executeLocalSafeApply,
-  rollbackLocalSafeApply,
   type SafeApplyAuditEntry,
   type SafeApplyChange,
   type SafeApplyPlan,
+  type SafeApplyStatus,
 } from '../../lib/safeApply';
 import { supabase } from "../../lib/supabase/browser";
 import { moraAuthHeaders } from "../../lib/auth/client-headers";
@@ -981,7 +980,43 @@ export function AuditorDashboard({
     return () => clearTimeout(timer);
   }, [pacingToast.show, pacingToast.status, pacingToast.timeLeft]);
 
-  const confirmarAccionPacing = () => {
+  const postSafeApplyGoogle = async (
+    plan: SafeApplyPlan,
+    mode: "apply" | "undo"
+  ): Promise<{ status: SafeApplyStatus; message: string; audit: SafeApplyAuditEntry }> => {
+    const res = await fetch("/api/google-ads/safe-apply", {
+      method: "POST",
+      headers: await moraAuthHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify({ plan, userConfirmed: true, mode }),
+    });
+    const data = (await res.json()) as {
+      status?: SafeApplyStatus;
+      message?: string;
+      audit?: SafeApplyAuditEntry;
+      error?: string;
+    };
+    if (!res.ok) {
+      throw new Error(
+        typeof data.message === "string"
+          ? data.message
+          : data.error || "No se pudo aplicar el cambio en Google Ads."
+      );
+    }
+    return {
+      status: data.status ?? "cancelado",
+      message: data.message ?? "",
+      audit: data.audit ?? {
+        id: `${plan.id}-${Date.now()}`,
+        planId: plan.id,
+        status: data.status ?? "cancelado",
+        timestamp: new Date().toISOString(),
+        details: data.message ?? "",
+        changes: plan.changes,
+      },
+    };
+  };
+
+  const confirmarAccionPacing = async () => {
     if (!pacingAccionPendiente) return;
     const { campanaId, campanaNombre, valorAnterior, valorPropuesto } = pacingAccionPendiente;
     const safePlan = createSafeApplyPlan({
@@ -1000,30 +1035,51 @@ export function AuditorDashboard({
         reason: pacingAccionPendiente.motivo,
       }],
     });
-    const result = executeLocalSafeApply(campanas, safePlan);
-    setCampanas(result.entities);
-    setSafeApplyAuditLog(prev => [result.audit, ...prev].slice(0, 20));
-    setPacingUndo(result.status === "aplicado" ? safePlan : null);
-    setPacingAccionPendiente(null);
-    setPacingToast({
-      show: true,
-      status: result.status === "requiere_revision" ? "review" : result.status === "cancelado" ? "reverted" : "success",
-      timeLeft: result.status === "aplicado" ? 10 : 0,
-      message: result.status === "aplicado" ? `Presupuesto ajustado para ${campanaNombre}.` : result.message,
-    });
+    try {
+      const result = await postSafeApplyGoogle(safePlan, "apply");
+      if (result.status === "aplicado" || result.status === "requiere_revision") {
+        await cargarCampanas();
+      }
+      setSafeApplyAuditLog(prev => [result.audit, ...prev].slice(0, 20));
+      setPacingUndo(result.status === "aplicado" ? safePlan : null);
+      setPacingAccionPendiente(null);
+      setPacingToast({
+        show: true,
+        status:
+          result.status === "requiere_revision"
+            ? "review"
+            : result.status === "cancelado"
+              ? "reverted"
+              : "success",
+        timeLeft: result.status === "aplicado" ? 10 : 0,
+        message:
+          result.status === "aplicado"
+            ? `Presupuesto ajustado en Google Ads para ${campanaNombre}.`
+            : result.message,
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "No se pudo aplicar en Google Ads.";
+      setPacingAccionPendiente(null);
+      setPacingToast({ show: true, status: "reverted", timeLeft: 0, message });
+    }
   };
 
-  const deshacerAccionPacing = () => {
+  const deshacerAccionPacing = async () => {
     if (!pacingUndo) return;
     setPacingToast(prev => ({ ...prev, status: "undoing", message: "Deshaciendo cambio..." }));
-    setTimeout(() => {
-      const result = rollbackLocalSafeApply(campanas, pacingUndo);
-      setCampanas(result.entities);
+    try {
+      const result = await postSafeApplyGoogle(pacingUndo, "undo");
+      await cargarCampanas();
       setSafeApplyAuditLog(prev => [result.audit, ...prev].slice(0, 20));
       setPacingUndo(null);
       setPacingToast({ show: true, status: "reverted", timeLeft: 0, message: result.message });
       setTimeout(() => setPacingToast(prev => ({ ...prev, show: false })), 2000);
-    }, 800);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "No se pudo deshacer en Google Ads.";
+      setPacingToast({ show: true, status: "reverted", timeLeft: 0, message });
+    }
   };
 
   const crearPlanSeguroRobin = (robin: ReturnType<typeof calcularPlanRobinHood>): SafeApplyPlan | null => {
@@ -1056,19 +1112,36 @@ export function AuditorDashboard({
     });
   };
 
-  const confirmarAccionRobin = () => {
+  const confirmarAccionRobin = async () => {
     if (!robinAccionPendiente) return;
-    const result = executeLocalSafeApply(campanas, robinAccionPendiente);
-    setCampanas(result.entities);
-    setSafeApplyAuditLog(prev => [result.audit, ...prev].slice(0, 20));
-    setPacingUndo(result.status === "aplicado" ? robinAccionPendiente : null);
-    setRobinAccionPendiente(null);
-    setPacingToast({
-      show: true,
-      status: result.status === "requiere_revision" ? "review" : result.status === "cancelado" ? "reverted" : "success",
-      timeLeft: result.status === "aplicado" ? 10 : 0,
-      message: result.status === "aplicado" ? "Reasignación Robin Hood aplicada y verificada." : result.message,
-    });
+    try {
+      const result = await postSafeApplyGoogle(robinAccionPendiente, "apply");
+      if (result.status === "aplicado" || result.status === "requiere_revision") {
+        await cargarCampanas();
+      }
+      setSafeApplyAuditLog(prev => [result.audit, ...prev].slice(0, 20));
+      setPacingUndo(result.status === "aplicado" ? robinAccionPendiente : null);
+      setRobinAccionPendiente(null);
+      setPacingToast({
+        show: true,
+        status:
+          result.status === "requiere_revision"
+            ? "review"
+            : result.status === "cancelado"
+              ? "reverted"
+              : "success",
+        timeLeft: result.status === "aplicado" ? 10 : 0,
+        message:
+          result.status === "aplicado"
+            ? "Reasignación Robin Hood aplicada en Google Ads."
+            : result.message,
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "No se pudo aplicar en Google Ads.";
+      setRobinAccionPendiente(null);
+      setPacingToast({ show: true, status: "reverted", timeLeft: 0, message });
+    }
   };
 
   const obtenerPerfil = async () => {

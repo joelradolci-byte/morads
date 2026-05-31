@@ -19,6 +19,7 @@ import type {
   DestripadorTermino,
   CategoriaIntencionId,
 } from "../../lib/motorMora";
+import { moraAuthHeaders } from "../../lib/auth/client-headers";
 import { terminoKey } from "../../lib/destripadorEstado";
 import {
   construirPlanNegativos,
@@ -228,14 +229,19 @@ export default function DestripadorPanel({
     try {
       const res = await fetch("/api/negativos/aplicar", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: await moraAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ plan, userConfirmed: true }),
       });
-      const data: NegativosApplyResult | { error: string } = await res.json();
+      const data: NegativosApplyResult | { error?: string; message?: string; status?: string } =
+        await res.json();
       if (!res.ok) {
-        const err = (data as { error?: string }).error || "No se pudo aplicar.";
+        const err =
+          (data as { message?: string }).message ||
+          (data as { error?: string }).error ||
+          "No se pudo aplicar.";
+        const bloqueado = (data as { status?: string }).status === "bloqueado_sin_conexion";
         setResultado({
-          status: "cancelado",
+          status: bloqueado ? "bloqueado_sin_conexion" : "cancelado",
           message: err,
           applied: [],
           rejected: plan.items.map(item => ({ item, reason: err })),
@@ -755,7 +761,7 @@ export default function DestripadorPanel({
                 <p className="text-[10px] font-black uppercase tracking-widest text-[#E07070] mb-1">Aviso</p>
                 <p className="text-xs text-[#A8A29E] leading-relaxed">
                   Al confirmar, los términos pasan a <span className="text-[#10B981] font-black">Aplicados</span> en esta
-                  auditoría. Mora registra tu decisión; la escritura directa en Google Ads se conecta cuando esté activa la API.
+                  auditoría. Al confirmar, Mora aplica los negativos en tu cuenta de Google Ads.
                 </p>
               </div>
 

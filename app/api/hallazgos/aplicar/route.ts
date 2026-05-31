@@ -1,11 +1,17 @@
 import { NextResponse } from "next/server";
-import type {
-  HallazgoApplyPlan,
-  HallazgoApplyResult,
-} from "@/lib/hallazgoSafeApply";
+import { getUserFromRequest } from "@/lib/auth/api-user";
+import { resolveApplyContext } from "@/lib/googleAds/applyContext";
+import { googleAdsApplyErrorResponse } from "@/lib/googleAds/applyHttp";
+import { delegateHallazgoApply } from "@/lib/googleAds/delegateHallazgo";
+import type { HallazgoApplyPlan } from "@/lib/hallazgoSafeApply";
 import { validateHallazgoPlan } from "@/lib/hallazgoSafeApply";
 
 export async function POST(req: Request) {
+  const user = await getUserFromRequest(req);
+  if (!user) {
+    return NextResponse.json({ error: "unauthorized", message: "Iniciá sesión." }, { status: 401 });
+  }
+
   try {
     const body = await req.json();
     const plan = body?.plan as HallazgoApplyPlan | undefined;
@@ -30,22 +36,18 @@ export async function POST(req: Request) {
       );
     }
 
-    const result: HallazgoApplyResult = {
-      status: "aplicado",
-      message:
-        "Mora registró tu confirmación. Cuando conectes Google Ads en escritura, " +
-        "este cambio quedará listo para aplicarse con este mismo plan.",
-      appliedAt: new Date().toISOString(),
-      receiptId: plan.id,
-    };
+    const ctx = await resolveApplyContext(user.id);
+    const outcome = await delegateHallazgoApply(ctx, plan);
 
-    return NextResponse.json(result);
-  } catch (error) {
-    console.error("[hallazgos/aplicar] error inesperado:", error);
-    return NextResponse.json(
-      { error: "Error inesperado al procesar el plan del hallazgo." },
-      { status: 500 }
-    );
+    if (outcome.httpStatus === 409) {
+      return NextResponse.json(outcome.body, { status: 409 });
+    }
+    if (outcome.httpStatus === 400) {
+      return NextResponse.json(outcome.body, { status: 400 });
+    }
+
+    return NextResponse.json(outcome.result);
+  } catch (err) {
+    return googleAdsApplyErrorResponse(err);
   }
 }
-

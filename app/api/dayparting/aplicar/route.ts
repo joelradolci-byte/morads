@@ -1,10 +1,19 @@
 import { NextResponse } from "next/server";
+import { getUserFromRequest } from "@/lib/auth/api-user";
+import { resolveApplyContext } from "@/lib/googleAds/applyContext";
+import { googleAdsApplyErrorResponse } from "@/lib/googleAds/applyHttp";
+import { applyDaypartingPlan } from "@/lib/googleAds/mutations";
 import type {
   DaypartingApplyPlan,
   DaypartingApplyResult,
 } from "@/lib/daypartingSafeApply";
 
 export async function POST(req: Request) {
+  const user = await getUserFromRequest(req);
+  if (!user) {
+    return NextResponse.json({ error: "unauthorized", message: "Iniciá sesión." }, { status: 401 });
+  }
+
   try {
     const body = await req.json();
     const plan = body?.plan as DaypartingApplyPlan | undefined;
@@ -31,23 +40,22 @@ export async function POST(req: Request) {
       );
     }
 
+    const ctx = await resolveApplyContext(user.id);
+    const outcome = await applyDaypartingPlan(ctx.customer, ctx.customerId, plan);
+
     const result: DaypartingApplyResult = {
-      status: "aplicado",
-      message:
-        "Mora registró tu confirmación. Cuando conectes Google Ads en escritura, " +
-        "estos ajustes de dayparting quedan listos para aplicarse con este mismo plan.",
+      status: outcome.applied.length > 0 ? "aplicado" : "cancelado",
+      message: outcome.message,
       appliedAt: new Date().toISOString(),
-      applied: plan.items,
-      rejected: [],
+      applied: outcome.applied,
+      rejected: outcome.rejected,
       receiptId: plan.id,
     };
 
-    return NextResponse.json(result);
-  } catch (error) {
-    console.error("[dayparting/aplicar] error inesperado:", error);
-    return NextResponse.json(
-      { error: "Error inesperado al procesar el plan de dayparting." },
-      { status: 500 }
-    );
+    return NextResponse.json(result, {
+      status: outcome.applied.length === 0 ? 422 : 200,
+    });
+  } catch (err) {
+    return googleAdsApplyErrorResponse(err);
   }
 }

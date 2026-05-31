@@ -6,14 +6,23 @@ export type DaypartingApplyStatus =
   | "cancelado"
   | "bloqueado_sin_conexion";
 
+export interface DaypartingCampanaTarget {
+  campana_id: string;
+  campana_nombre: string;
+}
+
 export interface DaypartingApplyItem {
   franja_id: string;
   etiqueta: string;
+  dia_semana: number;
+  dia_fin: number;
   hora_inicio: number;
   hora_fin: number;
   accion: DaypartingAccionTipo;
   gasto_desperdiciado: number;
-  campanas: string[];
+  /** @deprecated Usar campanas_top */
+  campanas?: string[];
+  campanas_top: DaypartingCampanaTarget[];
 }
 
 export interface DaypartingApplyPlan {
@@ -52,11 +61,17 @@ export function construirPlanDayparting(franjas: DaypartingFranja[]): Dayparting
   const items: DaypartingApplyItem[] = franjas.map(f => ({
     franja_id: f.id,
     etiqueta: f.etiqueta,
+    dia_semana: f.dia_semana,
+    dia_fin: f.dia_fin,
     hora_inicio: f.hora_inicio,
     hora_fin: f.hora_fin,
     accion: f.accion_recomendada,
     gasto_desperdiciado: f.gasto_desperdiciado,
     campanas: f.campanas_top.map(c => c.campana_nombre),
+    campanas_top: f.campanas_top.map(c => ({
+      campana_id: c.campana_id,
+      campana_nombre: c.campana_nombre,
+    })),
   }));
 
   const ahorro = items.reduce((acc, i) => acc + i.gasto_desperdiciado, 0);

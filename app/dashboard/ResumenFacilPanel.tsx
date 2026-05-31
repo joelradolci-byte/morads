@@ -33,6 +33,7 @@ import {
   construirPlanHallazgo,
   type HallazgoApplyResult,
 } from "../../lib/hallazgoSafeApply";
+import { moraAuthHeaders } from "../../lib/auth/client-headers";
 
 export type ItemResumenHallazgo = {
   id_rastreo: string;
@@ -236,6 +237,7 @@ export default function ResumenFacilPanel({
   const aplicarHallazgo = async (item: ItemResumenHallazgo) => {
     setAplicandoId(item.id_rastreo);
     setResultById((prev) => ({ ...prev, [item.id_rastreo]: null }));
+    const accionHallazgo = resolverAccionHallazgo(item.id_rastreo);
     const plan = construirPlanHallazgo({
       hallazgo_id: item.id_rastreo,
       title: item.titulo,
@@ -246,6 +248,7 @@ export default function ResumenFacilPanel({
         "Mora detectó una oportunidad con impacto en eficiencia y performance.",
       expectedImpact: item.resultado_esperado || "Mejora de eficiencia y performance.",
       payload: {
+        accion: accionHallazgo === "detalle_hallazgo" ? undefined : accionHallazgo,
         id_rastreo: item.id_rastreo,
         sugerencia: item.sugerencia || item.descripcion_simple || item.descripcion_tecnica || item.titulo,
         tipo: item.tipo,
@@ -255,18 +258,40 @@ export default function ResumenFacilPanel({
     try {
       const res = await fetch("/api/hallazgos/aplicar", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: await moraAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ plan, userConfirmed: true }),
       });
-      const data = (await res.json()) as HallazgoApplyResult | { error?: string };
-      if (!res.ok) {
+      const data = (await res.json()) as
+        | HallazgoApplyResult
+        | { error?: string; message?: string; status?: string };
+      if (res.status === 409) {
         const msg =
-          typeof data === "object" && data && "error" in data && typeof data.error === "string"
-            ? data.error
-            : "No se pudo registrar la confirmación.";
+          typeof data === "object" && data && "message" in data && typeof data.message === "string"
+            ? data.message
+            : "Abrí la herramienta indicada para aplicar este cambio.";
         setResultById((prev) => ({
           ...prev,
           [item.id_rastreo]: { status: "cancelado", message: msg },
+        }));
+        return;
+      }
+      if (!res.ok) {
+        const msg =
+          (typeof data === "object" && data && "message" in data && typeof data.message === "string"
+            ? data.message
+            : null) ||
+          (typeof data === "object" && data && "error" in data && typeof data.error === "string"
+            ? data.error
+            : "No se pudo aplicar el hallazgo.");
+        setResultById((prev) => ({
+          ...prev,
+          [item.id_rastreo]: {
+            status:
+              typeof data === "object" && data && data.status === "bloqueado_sin_conexion"
+                ? "bloqueado_sin_conexion"
+                : "cancelado",
+            message: msg,
+          },
         }));
         return;
       }
@@ -540,8 +565,8 @@ export default function ResumenFacilPanel({
                               <ShieldCheck size={14} className="text-[#6366F1]" /> Aplicar con Mora
                             </p>
                             <p className="text-xs text-[#4B5563] font-medium mt-2 leading-relaxed">
-                              Mora registra tu confirmación y deja un recibo. Cuando conectes Google Ads en
-                              escritura, se aplicará con este mismo plan.
+                              Mora aplica en Google Ads los cambios que se pueden automatizar; el resto te
+                              indica qué herramienta usar.
                             </p>
                             <div className="mt-3 flex gap-2">
                               <button
@@ -576,8 +601,8 @@ export default function ResumenFacilPanel({
                                   Confirmación explícita
                                 </p>
                                 <p className="text-xs text-[#4B5563] font-medium mt-1 leading-relaxed">
-                                  Al confirmar, aceptás registrar este cambio para aplicarlo cuando haya
-                                  escritura habilitada.
+                                  Al confirmar, Mora intentará aplicar el cambio o te dirá cómo hacerlo en la
+                                  herramienta correspondiente.
                                 </p>
                               </div>
                             )}

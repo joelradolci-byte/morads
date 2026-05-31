@@ -6,11 +6,19 @@ export type HallazgoApplyStatus =
   | "cancelado"
   | "bloqueado_sin_conexion";
 
+import type { SafeApplyPlan } from "./safeApply";
+import type { NegativosApplyPlan } from "./destripadorSafeApply";
+import type { DaypartingApplyPlan } from "./daypartingSafeApply";
+
 export type HallazgoApplyPayload = {
   accion?: string;
   id_rastreo: string;
   sugerencia: string;
   tipo?: "critico" | "mejora" | "saludable";
+  mutation?:
+    | { kind: "budget"; plan: SafeApplyPlan }
+    | { kind: "negativos"; plan: NegativosApplyPlan }
+    | { kind: "dayparting"; plan: DaypartingApplyPlan };
 };
 
 export interface HallazgoApplyPlan {

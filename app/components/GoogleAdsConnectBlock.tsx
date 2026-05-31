@@ -14,10 +14,10 @@ const copy = {
     dataNote:
       "Mora usa datos reales de tu cuenta conectada. Sin tráfico reciente, las métricas pueden aparecer en cero.",
     readOnly:
-      "Solo lectura: Mora no puede crear, pausar ni modificar campañas sin tu acción.",
+      "Mora solo aplica cambios en Google Ads cuando vos los confirmás en la app.",
     heroTitle: "Conectá tu cuenta de Google Ads",
     heroBody:
-      "Autorizá el acceso de solo lectura para que Mora analice tus campañas. Es el primer paso antes de tu primera auditoría.",
+      "Autorizá el acceso para que Mora analice y aplique cambios que confirmes. Es el primer paso antes de tu primera auditoría.",
   },
   en: {
     title: "Google Ads",
@@ -28,10 +28,10 @@ const copy = {
     dataNote:
       "Mora uses real data from your connected account. Without recent traffic, metrics may show as zero.",
     readOnly:
-      "Read-only: Mora cannot create, pause, or change campaigns without you.",
+      "Mora only applies changes in Google Ads when you confirm them in the app.",
     heroTitle: "Connect your Google Ads account",
     heroBody:
-      "Grant read-only access so Mora can analyze your campaigns. This is the first step before your first audit.",
+      "Authorize access so Mora can analyze your account and apply changes you confirm. This is the first step before your first audit.",
   },
 } as const;
 
