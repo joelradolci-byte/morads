@@ -1,7 +1,11 @@
 "use client";
 
 import { Target, Folder, ArrowRight } from "lucide-react";
-import { campanasPacingAlerta, type CampanaEvaluada } from "../../../lib/campanasEvaluacion";
+import {
+  campanasPacingAlerta,
+  etiquetaScoreCampana,
+  type CampanaEvaluada,
+} from "../../../lib/campanasEvaluacion";
 
 type Props = {
   evaluadas: CampanaEvaluada[];
@@ -63,7 +67,7 @@ export default function PacingResumenCuenta({ evaluadas, cargando, onVerTodas }:
                 </p>
               </div>
               <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded shrink-0 ${pacing.bg} ${pacing.color}`}>
-                Score {evaluacion.score}
+                Score {etiquetaScoreCampana(evaluacion)}
               </span>
             </div>
           ))}

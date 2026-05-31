@@ -9,7 +9,11 @@ import {
   ListChecks, LayoutGrid, CheckSquare, Sparkles, Undo2, RefreshCcw, Type, Calculator, BookOpen,
   Upload, Copy, Check, TrendingUp as TrendUp, ChevronRight, Folder, LayoutDashboard, X, Loader2
 } from 'lucide-react';
-import { extraerDatosGoogle, construirDatosAuditoria } from '../../lib/googleAds'; 
+import {
+  extraerDatosGoogle,
+  construirDatosAuditoria,
+  GoogleAdsDataError,
+} from '../../lib/googleAds'; 
 import {
   calcularPlanRobinHood,
   type DestripadorReporte,
@@ -65,6 +69,7 @@ import {
 } from './reportes/buildQuickWinsFromReporte';
 import ConfiguracionView from '../configuracion/ConfiguracionView';
 import GoogleAdsConnectBlock from '../components/GoogleAdsConnectBlock';
+import GoogleAdsAccountPicker from '../components/GoogleAdsAccountPicker';
 import { LocaleProvider, useLocale } from '../../lib/i18n/LocaleProvider';
 import { copyResumen } from '../../lib/copyResumen';
 import { getCurrencyCodeFromReporte } from '../../lib/formatoMoneda';
@@ -513,6 +518,7 @@ export function AuditorDashboard({
 
   const [campanas, setCampanas] = useState<any[]>([]);
   const [cargandoCampanas, setCargandoCampanas] = useState(false);
+  const [campanasError, setCampanasError] = useState<string | null>(null);
   const [session, setSession] = useState<any>(null);
   const [status, setStatus] = useState("loading");
   const [nombreCuenta, setNombreCuenta] = useState("");
@@ -544,6 +550,7 @@ export function AuditorDashboard({
   const [agenciaWeb, setAgenciaWeb] = useState("");
   const [agenciaPie, setAgenciaPie] = useState("Auditoría generada con tecnología IA - Reporte Confidencial.");
   const [googleAdsConnected, setGoogleAdsConnected] = useState(false);
+  const [googleAdsAccountLinked, setGoogleAdsAccountLinked] = useState(false);
   const [googleAdsChecking, setGoogleAdsChecking] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [tareasCompletadas, setTareasCompletadas] = useState<number[]>([]);
@@ -621,17 +628,24 @@ export function AuditorDashboard({
 
       if (supaSession?.provider_refresh_token) {
         setTimeout(() => {
-          void supabase
-            .from('google_ads_tokens')
-            .upsert({
-              user_id: supaSession.user.id,
-              refresh_token: supaSession.provider_refresh_token,
-              actualizado_el: new Date().toISOString(),
-            })
-            .then(() => {
-              setGoogleAdsConnected(true);
-              setGoogleAdsChecking(false);
-            });
+          void (async () => {
+            try {
+              const res = await fetch("/api/google-ads/link", {
+                method: "POST",
+                headers: await moraAuthHeaders({
+                  "Content-Type": "application/json",
+                }),
+                body: JSON.stringify({
+                  refresh_token: supaSession.provider_refresh_token,
+                }),
+              });
+              if (res.ok) {
+                void verificarConexionGoogleAds(supaSession.user.id);
+              }
+            } catch {
+              /* ignore */
+            }
+          })();
         }, 0);
       }
     });
@@ -699,19 +713,29 @@ export function AuditorDashboard({
     const uid = userId ?? session?.user?.id;
     if (!uid) {
       setGoogleAdsConnected(false);
+      setGoogleAdsAccountLinked(false);
       setGoogleAdsChecking(false);
       return;
     }
     setGoogleAdsChecking(true);
     try {
-      const { data } = await supabase
-        .from("google_ads_tokens")
-        .select("refresh_token")
-        .eq("user_id", uid)
-        .maybeSingle();
-      setGoogleAdsConnected(!!data?.refresh_token);
+      const res = await fetch("/api/google-ads/status", {
+        headers: await moraAuthHeaders(),
+      });
+      if (res.ok) {
+        const data = (await res.json()) as {
+          connected?: boolean;
+          accountLinked?: boolean;
+        };
+        setGoogleAdsConnected(!!data.connected);
+        setGoogleAdsAccountLinked(!!data.accountLinked);
+      } else {
+        setGoogleAdsConnected(false);
+        setGoogleAdsAccountLinked(false);
+      }
     } catch {
       setGoogleAdsConnected(false);
+      setGoogleAdsAccountLinked(false);
     } finally {
       setGoogleAdsChecking(false);
     }
@@ -772,7 +796,13 @@ export function AuditorDashboard({
 
     } catch (error) {
       console.error("Fallo crítico en la auditoría:", error);
-      setErrorAuditoria(MENSAJE_ERROR_AUDITORIA);
+      const mensaje =
+        error instanceof GoogleAdsDataError
+          ? error.message
+          : error instanceof Error && error.message
+            ? error.message
+            : MENSAJE_ERROR_AUDITORIA;
+      setErrorAuditoria(mensaje);
     } finally {
       setLoading(false);
     }
@@ -904,6 +934,7 @@ export function AuditorDashboard({
     <GestorCampanasView
       campanas={campanas}
       cargando={cargandoCampanas}
+      error={campanasError}
       diagnosticoSalud={diagnosticoSalud}
       reporteJson={ultimaAuditoria?.reporte_json ?? null}
       initialSubVista={initialCampanasQuery?.subVista ?? "lista"}
@@ -1086,11 +1117,18 @@ export function AuditorDashboard({
   
   const cargarCampanas = async () => {
     setCargandoCampanas(true);
+    setCampanasError(null);
     try {
       const datos = await extraerDatosGoogle();
       setCampanas(datos);
     } catch (error) {
       console.error("Error al extraer los datos de Google Ads:", error);
+      setCampanas([]);
+      const mensaje =
+        error instanceof GoogleAdsDataError
+          ? error.message
+          : "No se pudieron cargar las campañas de Google Ads.";
+      setCampanasError(mensaje);
     } finally {
       setCargandoCampanas(false);
     }
@@ -2051,10 +2089,29 @@ export function AuditorDashboard({
                           onConnect={() => void conectarGoogleAds()}
                           variant="inline"
                         />
+                        {googleAdsConnected && !googleAdsAccountLinked && (
+                          <GoogleAdsAccountPicker
+                            locale={locale}
+                            connected={googleAdsConnected}
+                            variant="dashboard"
+                            onLinked={() => void verificarConexionGoogleAds()}
+                          />
+                        )}
                         <button
                           type="button"
                           onClick={ejecutarAuditoriaConIA}
-                          disabled={loading || auditoriaBloqueadaPorCuota}
+                          disabled={
+                            loading ||
+                            auditoriaBloqueadaPorCuota ||
+                            !googleAdsAccountLinked
+                          }
+                          title={
+                            !googleAdsAccountLinked
+                              ? locale === "en"
+                                ? "Select a Google Ads account first"
+                                : "Elegí una cuenta de Google Ads primero"
+                              : undefined
+                          }
                           className="w-full px-8 py-4 rounded-2xl text-sm uppercase tracking-widest font-black bg-[#F3C3B2] text-[#0a0a0a] hover:bg-[#eab3a1] transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           {loading
@@ -3027,6 +3084,7 @@ export function AuditorDashboard({
                   googleAdsConnected={googleAdsConnected}
                   googleAdsChecking={googleAdsChecking}
                   onConectarGoogleAds={() => void conectarGoogleAds()}
+                  onGoogleAdsAccountLinked={() => void verificarConexionGoogleAds()}
                 />
               )}
 

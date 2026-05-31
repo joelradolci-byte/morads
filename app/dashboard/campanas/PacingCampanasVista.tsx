@@ -1,7 +1,12 @@
 "use client";
 
 import { Target } from "lucide-react";
-import { obtenerAccionPacing, type CampanaEvaluada, type PacingAccionDef } from "../../../lib/campanasEvaluacion";
+import {
+  formatearCpaCampana,
+  obtenerAccionPacing,
+  type CampanaEvaluada,
+  type PacingAccionDef,
+} from "../../../lib/campanasEvaluacion";
 
 export type PacingAccionPendiente = PacingAccionDef & {
   campanaId: string;
@@ -36,8 +41,12 @@ export default function PacingCampanasVista({ items, pacingUndoIds, onAccion }: 
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {activas.map(({ campana, pacing, evaluacion, cpaObjetivo }) => {
+          const sinDatos = evaluacion.tag === "SIN_DATOS";
+          const cpa = evaluacion.cpaActual;
           const cpaCritico =
-            evaluacion.cpaActual > cpaObjetivo * 1.2 || evaluacion.tag === "BASURA";
+            !sinDatos &&
+            cpa != null &&
+            (cpa > cpaObjetivo * 1.2 || evaluacion.tag === "BASURA");
           const accion = obtenerAccionPacing(campana, pacing, evaluacion, cpaObjetivo);
           const fueAplicada = pacingUndoIds.includes(String(campana.id));
           const alerta =
@@ -94,8 +103,12 @@ export default function PacingCampanasVista({ items, pacingUndoIds, onAccion }: 
                 </div>
                 <div>
                   <p className="text-[9px] text-[#A8A29E] uppercase font-black">CPA</p>
-                  <p className={`text-sm font-black ${cpaCritico ? "text-[#E07070]" : "text-[#10B981]"}`}>
-                    ${evaluacion.cpaActual.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                  <p
+                    className={`text-sm font-black ${
+                      sinDatos ? "text-[#78716C]" : cpaCritico ? "text-[#E07070]" : "text-[#10B981]"
+                    }`}
+                  >
+                    {formatearCpaCampana(cpa)}
                   </p>
                 </div>
                 <div>

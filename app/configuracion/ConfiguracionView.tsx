@@ -11,6 +11,7 @@ import {
 import { useLocale } from "../../lib/i18n/LocaleProvider";
 import type { UsageSnapshot } from "../../lib/usage/config";
 import GoogleAdsConnectBlock from "../components/GoogleAdsConnectBlock";
+import GoogleAdsAccountPicker from "../components/GoogleAdsAccountPicker";
 
 type TabId = "cuenta" | "experiencia" | "pdf";
 
@@ -34,6 +35,7 @@ export interface ConfiguracionViewProps {
   googleAdsConnected: boolean;
   googleAdsChecking: boolean;
   onConectarGoogleAds: () => void;
+  onGoogleAdsAccountLinked?: () => void;
 }
 
 export default function ConfiguracionView({
@@ -56,6 +58,7 @@ export default function ConfiguracionView({
   googleAdsConnected,
   googleAdsChecking,
   onConectarGoogleAds,
+  onGoogleAdsAccountLinked,
 }: ConfiguracionViewProps) {
   const { locale, dict, setLocale, resumenAutoAbrir, setResumenAutoAbrir } = useLocale();
   const s = dict.settings;
@@ -117,6 +120,12 @@ export default function ConfiguracionView({
             checking={googleAdsChecking}
             onConnect={onConectarGoogleAds}
             variant="settings"
+          />
+          <GoogleAdsAccountPicker
+            locale={locale}
+            connected={googleAdsConnected}
+            variant="settings"
+            onLinked={onGoogleAdsAccountLinked}
           />
           <div className="rounded-2xl border border-[#E5E7EB] bg-[#F4F4F5] p-6">
             <p className="text-[10px] font-bold text-[#8A968C] uppercase tracking-widest mb-2">Email</p>

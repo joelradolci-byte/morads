@@ -172,9 +172,11 @@ export function obtenerAccionPacing(
 
   if (presupuesto <= 0) return null;
 
+  if (evaluacion.tag === "SIN_DATOS" || evaluacion.cpaActual == null) return null;
+
   if (
     pacing.estado === "Sobreinvirtiendo" &&
-    (evaluacion.cpaActual > cpaObjetivo * 1.2 || evaluacion.tag === "BASURA")
+    ((evaluacion.cpaActual ?? 0) > cpaObjetivo * 1.2 || evaluacion.tag === "BASURA")
   ) {
     const propuesto = Math.max(Math.round(presupuesto * 0.85), Math.round(gasto));
     return {
@@ -202,12 +204,36 @@ export function obtenerAccionPacing(
 }
 
 export function agruparMatriz(evaluaciones: MatrizItemEval[]) {
+  const sinDatos = evaluaciones.filter(e => e.evaluacion.tag === "SIN_DATOS");
   return {
     escalar: evaluaciones.filter(e => e.evaluacion.tag === "ESTRELLA"),
     testear: evaluaciones.filter(e => e.evaluacion.tag === "POTENCIAL"),
-    observar: evaluaciones.filter(e => e.evaluacion.tag === "DUDOSO"),
+    observar: evaluaciones.filter(
+      e => e.evaluacion.tag === "DUDOSO" || e.evaluacion.tag === "SIN_DATOS"
+    ),
     apagar: evaluaciones.filter(e => e.evaluacion.tag === "BASURA"),
+    sin_datos: sinDatos,
   };
+}
+
+export function formatearCpaCampana(cpa: number | null): string {
+  if (cpa == null) return "—";
+  return `$${cpa.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+}
+
+export function etiquetaScoreCampana(ev: ScoreCampanaResult): string {
+  if (ev.tag === "SIN_DATOS" || ev.score == null) return "—";
+  return String(ev.score);
+}
+
+function scoreOrden(ev: ScoreCampanaResult): number {
+  if (ev.tag === "SIN_DATOS" || ev.score == null) return -1;
+  return ev.score;
+}
+
+function cpaOrden(ev: ScoreCampanaResult): number {
+  if (ev.cpaActual == null) return Number.POSITIVE_INFINITY;
+  return ev.cpaActual;
 }
 
 export function impactoFinancieroApagar(items: MatrizItemEval[]): number {
@@ -276,9 +302,9 @@ export function filtrarYOrdenarCampanas(
       case "gasto_desc":
         return (b.campana.gasto_mensual || 0) - (a.campana.gasto_mensual || 0);
       case "cpa_asc":
-        return a.evaluacion.cpaActual - b.evaluacion.cpaActual;
+        return cpaOrden(a.evaluacion) - cpaOrden(b.evaluacion);
       default:
-        return b.evaluacion.score - a.evaluacion.score;
+        return scoreOrden(b.evaluacion) - scoreOrden(a.evaluacion);
     }
   });
 }
@@ -286,8 +312,10 @@ export function filtrarYOrdenarCampanas(
 export function campanasPacingAlerta(evaluadas: CampanaEvaluada[]): CampanaEvaluada[] {
   return evaluadas.filter(item => {
     if (item.campana.estado !== "ENABLED") return false;
+    if (item.evaluacion.tag === "SIN_DATOS") return false;
+    const cpa = item.evaluacion.cpaActual;
     const cpaCritico =
-      item.evaluacion.cpaActual > item.cpaObjetivo * 1.2 || item.evaluacion.tag === "BASURA";
+      (cpa != null && cpa > item.cpaObjetivo * 1.2) || item.evaluacion.tag === "BASURA";
     return (
       item.pacing.estado === "Sobreinvirtiendo" ||
       (cpaCritico && item.pacing.estado !== "Sin presupuesto") ||
@@ -306,6 +334,8 @@ export function colorClassesPorTag(tag: string) {
       return { border: "hover:border-blue-400", text: "text-blue-400", bg: "bg-blue-400/10", bar: "bg-blue-400" };
     case "DUDOSO":
       return { border: "hover:border-[#EAB308]", text: "text-[#EAB308]", bg: "bg-[#EAB308]/10", bar: "bg-[#EAB308]" };
+    case "SIN_DATOS":
+      return { border: "border-[#44403C]", text: "text-[#78716C]", bg: "bg-[#44403C]/30", bar: "bg-[#57534E]" };
     default:
       return { border: "border-[#44403C]", text: "text-[#A8A29E]", bg: "bg-[#A8A29E]/10", bar: "bg-[#A8A29E]" };
   }

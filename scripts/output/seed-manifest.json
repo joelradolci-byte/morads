@@ -1,0 +1,48 @@
+{
+  "customerId": "9498814950",
+  "loginCustomerId": "6004722058",
+  "createdAt": "2026-05-31T21:18:39.942Z",
+  "dryRun": false,
+  "campaigns": [
+    {
+      "id": "23891550216",
+      "name": "Mora Seed — Search - Marca Exacta",
+      "mockCampaignId": "101"
+    },
+    {
+      "id": "23901140149",
+      "name": "Mora Seed — Search - Producto Principal Exacta",
+      "mockCampaignId": "102"
+    },
+    {
+      "id": "23901140101",
+      "name": "Mora Seed — Search - Competidores Amplia",
+      "mockCampaignId": "104"
+    },
+    {
+      "id": "23891550402",
+      "name": "Mora Seed — Search - Genérica Amplia Modificada",
+      "mockCampaignId": "105"
+    },
+    {
+      "id": "23901140299",
+      "name": "Mora Seed — Search - Categoría Secundaria Frase",
+      "mockCampaignId": "109"
+    },
+    {
+      "id": "23891550633",
+      "name": "Mora Seed — Search - Oferta Flash Sin Optimizar",
+      "mockCampaignId": "118"
+    },
+    {
+      "id": "23901140308",
+      "name": "Mora Seed — Search - Marca Frase",
+      "mockCampaignId": "120"
+    },
+    {
+      "id": "23896679000",
+      "name": "Mora Seed — Search - Basura Control",
+      "mockCampaignId": "105"
+    }
+  ]
+}

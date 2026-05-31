@@ -1,10 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Folder, Sparkles } from "lucide-react";
+import Link from "next/link";
+import { AlertCircle, Folder, Sparkles } from "lucide-react";
 import {
   colorClassesPorTag,
+  etiquetaScoreCampana,
   filtrarYOrdenarCampanas,
+  formatearCpaCampana,
   type CampanasSubVista,
   type FiltroCampanaEstado,
   type FiltroCampanaSalud,
@@ -24,6 +27,7 @@ import PacingCampanasVista, { type PacingAccionPendiente } from "./PacingCampana
 type Props = {
   campanas: (CampanaMora & { id: string; nombre: string })[];
   cargando: boolean;
+  error?: string | null;
   diagnosticoSalud?: DiagnosticoSaludReporte | null;
   reporteJson?: Record<string, unknown> | null;
   initialSubVista?: CampanasSubVista;
@@ -41,6 +45,7 @@ type Props = {
 export default function GestorCampanasView({
   campanas,
   cargando,
+  error = null,
   diagnosticoSalud,
   reporteJson,
   initialSubVista = "lista",
@@ -211,12 +216,27 @@ export default function GestorCampanasView({
         </div>
       )}
 
-      {!cargando && campanas.length === 0 && (
+      {!cargando && error && (
+        <div className="bg-[#1C1917] border border-[#B91C1C]/40 rounded-2xl p-12 flex flex-col items-center justify-center text-center">
+          <AlertCircle size={48} className="text-[#F87171] mb-4" />
+          <h3 className="text-xl font-bold text-[#F5F0EB]">No se pudieron cargar las campañas</h3>
+          <p className="text-[#A8A29E] mt-2 max-w-md">{error}</p>
+          <Link
+            href="/configuracion"
+            className="mt-6 text-[10px] font-black uppercase tracking-widest text-[#F3C3B2] hover:underline"
+          >
+            Ir a Configuración
+          </Link>
+        </div>
+      )}
+
+      {!cargando && !error && campanas.length === 0 && (
         <div className="bg-[#1C1917] border border-[#44403C] rounded-2xl p-12 flex flex-col items-center justify-center text-center">
           <Folder size={48} className="text-[#44403C] mb-4" />
-          <h3 className="text-xl font-bold text-[#F5F0EB]">Sin datos de campañas</h3>
+          <h3 className="text-xl font-bold text-[#F5F0EB]">Sin campañas en la cuenta</h3>
           <p className="text-[#A8A29E] mt-2 max-w-sm">
-            Aún no hay campañas para mostrar. Conecta tu cuenta o inyecta datos de prueba desde el simulador.
+            No hay campañas activas con datos en los últimos 30 días. Si acabás de crear campañas, puede
+            tardar hasta que Google Ads registre métricas.
           </p>
         </div>
       )}
@@ -250,9 +270,12 @@ export default function GestorCampanasView({
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filtradas.map(({ campana, evaluacion, nivelSalud }) => {
             const { score, tag, penalizacion, cpaActual, gasto } = evaluacion;
+            const sinDatos = tag === "SIN_DATOS";
             const presupuesto = Math.max(evaluacion.presupuesto, 1);
             const colorClasses = colorClassesPorTag(tag);
             const cpaObjetivo = campana.cpa_objetivo ?? cpaPromedio;
+            const scoreLabel = etiquetaScoreCampana(evaluacion);
+            const scoreRing = score ?? 0;
 
             return (
               <div
@@ -276,26 +299,35 @@ export default function GestorCampanasView({
                         {campana.estado === "ENABLED" ? "Activa" : "Pausada"}
                       </span>
                       <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded border border-[#44403C] text-[#A8A29E]">
-                        {etiquetaBadgeSalud(nivelSalud)}
+                        {sinDatos ? "Sin datos suficientes" : etiquetaBadgeSalud(nivelSalud)}
                       </span>
                     </div>
                   </div>
-                  <div className="relative w-10 h-10 flex items-center justify-center">
-                    <svg className="w-full h-full transform -rotate-90">
-                      <circle cx="20" cy="20" r="16" stroke="currentColor" strokeWidth="4" fill="transparent" className="text-[#1C1917]" />
-                      <circle
-                        cx="20"
-                        cy="20"
-                        r="16"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                        fill="transparent"
-                        strokeDasharray="100.5"
-                        strokeDashoffset={100.5 - (100.5 * score) / 100}
-                        className={colorClasses.text}
-                      />
-                    </svg>
-                    <span className="absolute text-[10px] font-black text-[#F5F0EB]">{score}</span>
+                  <div
+                    className="relative w-10 h-10 flex items-center justify-center"
+                    title={sinDatos ? "Sin datos suficientes en el período" : undefined}
+                  >
+                    {!sinDatos && (
+                      <svg className="w-full h-full transform -rotate-90">
+                        <circle cx="20" cy="20" r="16" stroke="currentColor" strokeWidth="4" fill="transparent" className="text-[#1C1917]" />
+                        <circle
+                          cx="20"
+                          cy="20"
+                          r="16"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                          fill="transparent"
+                          strokeDasharray="100.5"
+                          strokeDashoffset={100.5 - (100.5 * scoreRing) / 100}
+                          className={colorClasses.text}
+                        />
+                      </svg>
+                    )}
+                    <span
+                      className={`absolute text-[10px] font-black ${sinDatos ? "text-[#78716C]" : "text-[#F5F0EB]"}`}
+                    >
+                      {scoreLabel}
+                    </span>
                   </div>
                 </div>
 
@@ -315,16 +347,22 @@ export default function GestorCampanasView({
                     <div>
                       <p className="text-[#A8A29E] text-[10px] uppercase tracking-wider mb-1">CPA Actual</p>
                       <p
-                        className={`font-mono text-lg font-black ${cpaActual > cpaObjetivo * 1.2 ? "text-[#E07070]" : "text-[#22c55e]"}`}
+                        className={`font-mono text-lg font-black ${
+                          sinDatos || cpaActual == null
+                            ? "text-[#78716C]"
+                            : cpaActual > cpaObjetivo * 1.2
+                              ? "text-[#E07070]"
+                              : "text-[#22c55e]"
+                        }`}
                       >
-                        ${cpaActual.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                        {formatearCpaCampana(cpaActual)}
                       </p>
-                      <p className="text-[9px] text-[#78716c] font-bold mt-0.5">
-                        Obj. ${cpaObjetivo.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                      <p className={`text-[9px] font-bold mt-0.5 ${sinDatos ? "text-[#57534E]" : "text-[#78716c]"}`}>
+                        {sinDatos ? "Sin conversiones en 30 días" : `Obj. ${formatearCpaCampana(cpaObjetivo)}`}
                       </p>
                     </div>
                     <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded ${colorClasses.bg} ${colorClasses.text}`}>
-                      {tag}
+                      {sinDatos ? "SIN DATOS" : tag}
                     </span>
                   </div>
                   {(tag === "ESTRELLA" || tag === "POTENCIAL") && (
@@ -343,7 +381,10 @@ export default function GestorCampanasView({
                           campana_nombre: campana.nombre,
                           hallazgo_titulo: `Escalar campaña ${tag}: ${campana.nombre}`,
                           hallazgo_descripcion: penalizacion,
-                          angulo_comercial: `CPA $${cpaActual.toFixed(2)} vs objetivo $${cpaObjetivo.toFixed(2)}.`,
+                          angulo_comercial:
+                            cpaActual != null
+                              ? `CPA $${cpaActual.toFixed(2)} vs objetivo $${cpaObjetivo.toFixed(2)}.`
+                              : `Sin datos de CPA; objetivo $${cpaObjetivo.toFixed(2)}.`,
                           keywords_buenas: [],
                           hallazgo_id: `campana_${campana.id}`,
                         });
@@ -375,8 +416,10 @@ export default function GestorCampanasView({
             <tbody className="divide-y divide-[#44403C]">
               {filtradas.map(({ campana, evaluacion, nivelSalud }) => {
                 const { score, tag, cpaActual, gasto } = evaluacion;
+                const sinDatos = tag === "SIN_DATOS";
                 const colorClasses = colorClassesPorTag(tag);
                 const cpaObjetivo = campana.cpa_objetivo ?? cpaPromedio;
+                const scoreLabel = etiquetaScoreCampana(evaluacion);
 
                 return (
                   <tr
@@ -390,28 +433,35 @@ export default function GestorCampanasView({
                           <div className="flex items-center gap-2 flex-wrap">
                             <p className="text-[#F5F0EB] font-bold text-sm">{campana.nombre}</p>
                             <span className="text-[8px] uppercase tracking-widest font-black px-1.5 py-0.5 rounded border border-[#44403C] text-[#A8A29E]">
-                              {etiquetaBadgeSalud(nivelSalud)}
+                              {sinDatos ? "Sin datos suficientes" : etiquetaBadgeSalud(nivelSalud)}
                             </span>
                           </div>
-                          <div className="w-48 h-1 bg-[#1C1917] mt-1.5 rounded-full overflow-hidden relative">
-                            <div className={`h-full ${colorClasses.bar}`} style={{ width: `${score}%` }} />
-                          </div>
+                          {!sinDatos && (
+                            <div className="w-48 h-1 bg-[#1C1917] mt-1.5 rounded-full overflow-hidden relative">
+                              <div
+                                className={`h-full ${colorClasses.bar}`}
+                                style={{ width: `${score ?? 0}%` }}
+                              />
+                            </div>
+                          )}
                         </div>
-                        <span className="text-xs font-black text-[#A8A29E] w-6">{score}</span>
+                        <span className={`text-xs font-black w-6 ${sinDatos ? "text-[#78716C]" : "text-[#A8A29E]"}`}>
+                          {scoreLabel}
+                        </span>
                       </div>
                     </td>
                     <td className="p-4 text-[#A8A29E] font-mono text-sm">${gasto.toLocaleString()}</td>
-                    <td className="p-4 font-mono font-bold text-sm">
-                      <span className={colorClasses.text}>
-                        ${cpaActual.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                    <td className={`p-4 font-mono font-bold text-sm ${sinDatos ? "text-[#78716C]" : ""}`}>
+                      <span className={sinDatos ? "" : colorClasses.text}>
+                        {formatearCpaCampana(cpaActual)}
                       </span>
                     </td>
                     <td className="p-4 text-[#A8A29E] font-mono text-sm">
-                      ${cpaObjetivo.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                      {formatearCpaCampana(cpaObjetivo)}
                     </td>
                     <td className="p-4 text-right">
                       <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded inline-block ${colorClasses.bg} ${colorClasses.text}`}>
-                        {tag}
+                        {sinDatos ? "SIN DATOS" : tag}
                       </span>
                     </td>
                   </tr>

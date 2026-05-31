@@ -129,16 +129,18 @@ function notaEscalarOpcional(
 }
 
 function nivelDesdeScoreCampana(
-  score: number,
+  score: number | null,
   tag: ScoreCampanaResult["tag"],
   requiere_accion: boolean
 ): NivelSalud {
+  if (tag === "SIN_DATOS") return "estable";
+  const s = score ?? 0;
   if (requiere_accion) {
-    if (tag === "BASURA" || score < 55) return "critica";
+    if (tag === "BASURA" || s < 55) return "critica";
     return "mejorable";
   }
-  if (score >= 92 && tag === "ESTRELLA") return "optima";
-  if (score >= 75) return "estable";
+  if (s >= 92 && tag === "ESTRELLA") return "optima";
+  if (s >= 75) return "estable";
   return "mejorable";
 }
 
@@ -150,10 +152,37 @@ export function evaluarSaludCampana(
   const cpaObj = cpaObjetivo(camp, cpaPromedioCuenta);
   const { score, tag, penalizacion, cpaActual, gasto, presupuesto, conversiones } = ev;
 
+  if (tag === "SIN_DATOS") {
+    return {
+      campana_id: camp.id,
+      nombre: camp.nombre,
+      score: 0,
+      tag,
+      nivel: "estable",
+      requiere_accion: false,
+      intensidad_escala_opcional: "ninguna",
+      razones: [
+        penalizacion,
+        "Sin clics, gasto ni conversiones en los últimos 30 días.",
+        `Presupuesto mensual $${Math.round(presupuesto).toLocaleString()}.`,
+      ],
+      sugerencia_principal: null,
+      nota_escala_opcional: null,
+      titulo_detalle: `${camp.nombre}: sin datos suficientes`,
+      problema_detalle: penalizacion,
+      razonamiento:
+        "No hay señal de rendimiento en el período. Activá la campaña o esperá tráfico antes de evaluar CPA y score.",
+      resultado_esperado:
+        "Acumular impresiones y clics para poder auditar con confianza.",
+    };
+  }
+
   const razones: string[] = [
-    `Score de salud ${score}/100 (${tag}).`,
+    `Score de salud ${score ?? "—"}/100 (${tag}).`,
     penalizacion,
-    `CPA actual $${cpaActual.toFixed(2)} vs objetivo $${cpaObj.toFixed(2)}.`,
+    cpaActual != null
+      ? `CPA actual $${cpaActual.toFixed(2)} vs objetivo $${cpaObj.toFixed(2)}.`
+      : `CPA sin calcular; objetivo $${cpaObj.toFixed(2)}.`,
     `Conversiones: ${conversiones}; gasto mensual $${Math.round(gasto).toLocaleString()} de presupuesto $${Math.round(presupuesto).toLocaleString()}.`,
   ];
 
@@ -163,14 +192,14 @@ export function evaluarSaludCampana(
   let resultado_esperado =
     "Mantener el rendimiento actual sin cambios obligatorios en la plataforma.";
 
-  if (tag === "BASURA" || score < 55) {
+  if (tag === "BASURA" || (score != null && score < 55)) {
     requiere_accion = true;
     sugerencia_principal =
       tag === "BASURA" && conversiones === 0
         ? "Pausar temporalmente o reducir gasto hasta validar intención de búsqueda."
         : "Reducir gasto o pausar y revisar términos de búsqueda y puja.";
     resultado_esperado = "Cortar gasto ineficiente y recuperar eficiencia de CPA.";
-  } else if (tag === "DUDOSO" || (score >= 55 && score < 80)) {
+  } else if (tag === "DUDOSO" || (score != null && score >= 55 && score < 80)) {
     requiere_accion = true;
     sugerencia_principal = "Revisar términos de búsqueda, anuncios y puja antes de escalar.";
     resultado_esperado = "Mejorar CPA y estabilizar conversiones.";
@@ -182,11 +211,11 @@ export function evaluarSaludCampana(
   } else if (tag === "ESTRELLA") {
     requiere_accion = false;
     sugerencia_principal = null;
-    if (score >= 92) {
+    if (score != null && score >= 92) {
       intensidad_escala_opcional = "baja";
       resultado_esperado =
         "Mantener configuración actual; el rendimiento está alineado con el objetivo.";
-    } else if (score >= 80) {
+    } else if (score != null && score >= 80) {
       intensidad_escala_opcional = "media";
       resultado_esperado =
         "Seguir monitoreando; el rendimiento es bueno y no exige correcciones urgentes.";
@@ -194,19 +223,17 @@ export function evaluarSaludCampana(
       intensidad_escala_opcional = "ninguna";
     }
   } else {
-    requiere_accion = score < 65;
+    requiere_accion = score != null && score < 65;
     sugerencia_principal = requiere_accion
       ? "Revisar configuración de la campaña en Google Ads."
       : null;
   }
 
   const nivel = nivelDesdeScoreCampana(score, tag, requiere_accion);
-  const nota_escala_opcional = notaEscalarOpcional(
-    intensidad_escala_opcional,
-    camp,
-    cpaActual,
-    cpaObj
-  );
+  const nota_escala_opcional =
+    cpaActual != null
+      ? notaEscalarOpcional(intensidad_escala_opcional, camp, cpaActual, cpaObj)
+      : null;
 
   const titulo_detalle =
     !requiere_accion && (nivel === "optima" || nivel === "estable")
@@ -220,13 +247,17 @@ export function evaluarSaludCampana(
       : `No necesitás cambios urgentes en esta campaña. ${penalizacion}`;
 
   const razonamiento = requiere_accion
-    ? `El CPA de esta campaña es de $${cpaActual.toFixed(2)}, mientras que el objetivo es $${cpaObj.toFixed(2)}.`
-    : `Rinde dentro del objetivo (CPA $${cpaActual.toFixed(2)} vs $${cpaObj.toFixed(2)}) con score ${score}/100.`;
+    ? cpaActual != null
+      ? `El CPA de esta campaña es de $${cpaActual.toFixed(2)}, mientras que el objetivo es $${cpaObj.toFixed(2)}.`
+      : `La campaña no cumple el objetivo de eficiencia (objetivo $${cpaObj.toFixed(2)}).`
+    : cpaActual != null
+      ? `Rinde dentro del objetivo (CPA $${cpaActual.toFixed(2)} vs $${cpaObj.toFixed(2)}) con score ${score ?? "—"}/100.`
+      : `Score ${score ?? "—"}/100; revisar métricas cuando haya más tráfico.`;
 
   return {
     campana_id: camp.id,
     nombre: camp.nombre,
-    score,
+    score: score ?? 0,
     tag,
     nivel,
     requiere_accion,

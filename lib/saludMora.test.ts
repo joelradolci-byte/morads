@@ -40,6 +40,23 @@ describe("evaluarSaludCampana", () => {
     assert.equal(d.requiere_accion, true);
     assert.ok(d.sugerencia_principal);
   });
+
+  it("campaña sin métricas no requiere acción ni muestra CPA ficticio", () => {
+    const d = evaluarSaludCampana(
+      {
+        ...campanaEstrella,
+        gasto_mensual: 0,
+        clics: 0,
+        conversiones: 0,
+        cpa_actual: null,
+      },
+      100
+    );
+    assert.equal(d.tag, "SIN_DATOS");
+    assert.equal(d.requiere_accion, false);
+    assert.match(d.problema_detalle, /Sin datos suficientes/i);
+    assert.ok(!d.razonamiento.includes("9999"));
+  });
 });
 
 describe("evaluarSaludCuenta", () => {

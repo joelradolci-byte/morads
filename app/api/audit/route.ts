@@ -7,7 +7,8 @@ import {
   UsageLimitError,
   usageLimitResponse,
 } from "@/lib/usage/enforce";
-import { extraerTerminosGoogle, extraerDatosHorariosGoogle } from "@/lib/googleAds";
+import { buildDatosAuditoriaFromGoogleAds } from "@/lib/googleAds/liveExtract";
+import { getUserGoogleAdsLink } from "@/lib/googleAds/client";
 import { construirPayloadEstratega } from "@/lib/ai/auditPayload";
 import {
   mergeBucketsHallazgos,
@@ -84,63 +85,37 @@ export async function POST(req: Request) {
     const idioma = typeof idioma_ui === "string" ? idioma_ui : "es";
 
     let datosEstructurados: DatosAuditoriaInput;
-    const [terminosSimulados, horariosSimulados] = await Promise.all([
-      extraerTerminosGoogle(),
-      extraerDatosHorariosGoogle(),
-    ]);
 
-    if (Array.isArray(datos)) {
-      const campanasNormalizadas = datos.map((c: Record<string, unknown>) => ({
-        id: String(c.id || c.ID || Math.random().toString()),
-        nombre: String(c.nombre || c.Nombre || "Campaña Sin Nombre"),
-        estado: String(c.estado || c.Estado || "ENABLED"),
-        presupuesto_mensual: Number(
-          c.presupuesto_mensual || c.presupuesto || c.Presupuesto_Mensual || 0
-        ),
-        gasto_mensual: Number(c.gasto_mensual || c.gasto || c.Gasto_Mensual || 0),
-        clics: Number(c.clics || c.Clics || 0),
-        conversiones: Number(c.conversiones || c.Conversiones || 0),
-        cpa_actual: Number(c.cpa_actual || c.cpa || c.CPA_Actual || 0),
-        cpa_objetivo: c.cpa_objetivo !== undefined ? Number(c.cpa_objetivo) : undefined,
-        quality_score: c.quality_score !== undefined ? Number(c.quality_score) : undefined,
-        quality_ctr: c.quality_ctr ? String(c.quality_ctr) : undefined,
-        quality_relevance: c.quality_relevance ? String(c.quality_relevance) : undefined,
-        quality_landing: c.quality_landing ? String(c.quality_landing) : undefined,
-        search_lost_is_budget:
-          c.search_lost_is_budget !== undefined ? Number(c.search_lost_is_budget) : undefined,
-        cuota_impresiones_perdida_presupuesto:
-          c.cuota_impresiones_perdida_presupuesto !== undefined
-            ? Number(c.cuota_impresiones_perdida_presupuesto)
-            : undefined,
-        impression_share_lost_budget:
-          c.impression_share_lost_budget !== undefined
-            ? Number(c.impression_share_lost_budget)
-            : undefined,
-      }));
-
-      const gastoTotal = campanasNormalizadas.reduce((sum, c) => sum + c.gasto_mensual, 0);
-      const convTotales = campanasNormalizadas.reduce((sum, c) => sum + c.conversiones, 0);
-      const clicsTotales = campanasNormalizadas.reduce((sum, c) => sum + c.clics, 0);
-      const cpaPromedio = convTotales > 0 ? gastoTotal / convTotales : 0;
-
+    if (
+      datos &&
+      typeof datos === "object" &&
+      !Array.isArray(datos) &&
+      Array.isArray((datos as DatosAuditoriaInput).campanas)
+    ) {
       datosEstructurados = {
-        tipo_negocio: "ecommerce",
-        cpa_promedio_cuenta: cpaPromedio,
-        gasto_total_cuenta: gastoTotal,
-        conversiones_totales: convTotales,
-        clics_totales: clicsTotales,
-        campanas: campanasNormalizadas,
-        terminos: terminosSimulados,
-        horarios: horariosSimulados,
-        marca_cliente,
+        ...(datos as DatosAuditoriaInput),
+        marca_cliente:
+          (datos as DatosAuditoriaInput).marca_cliente ?? marca_cliente,
       };
     } else {
-      datosEstructurados = {
-        ...datos,
-        terminos: datos.terminos || terminosSimulados,
-        horarios: datos.horarios || horariosSimulados,
-        marca_cliente: datos.marca_cliente || marca_cliente,
-      };
+      const link = await getUserGoogleAdsLink(user.id);
+      if (link.connected && link.refresh_token && link.customer_id) {
+        datosEstructurados = await buildDatosAuditoriaFromGoogleAds({
+          refreshToken: link.refresh_token,
+          customerId: link.customer_id,
+          loginCustomerId: link.login_customer_id,
+          marca_cliente,
+          useFixtureMetrics: false,
+        });
+      } else {
+        return NextResponse.json(
+          {
+            error: "google_ads_not_ready",
+            message: "Conectá y elegí una cuenta de Google Ads antes de auditar.",
+          },
+          { status: 400 }
+        );
+      }
     }
 
     const esqueletoJSON = generarEsqueletoAuditoria(datosEstructurados) as Record<string, unknown> & {

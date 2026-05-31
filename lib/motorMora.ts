@@ -19,7 +19,8 @@ export interface CampanaMora {
   gasto_mensual: number;
   clics: number;
   conversiones: number;
-  cpa_actual: number;
+  /** null = sin gasto/clics/conversiones en el período (no usar 9999 como centinela). */
+  cpa_actual: number | null;
   cpa_objetivo?: number;
   // LO NUEVO: Campos para el Analizador de Quality Score
   quality_score?: number;
@@ -457,6 +458,26 @@ function clamp(valor: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, valor));
 }
 
+/** Sin señal en el período (p. ej. campaña pausada / seed sin tráfico). */
+export function campanaSinMetricas(camp: CampanaMora): boolean {
+  if ((camp.gasto_mensual ?? 0) > 0 || (camp.clics ?? 0) > 0 || (camp.conversiones ?? 0) > 0) {
+    return false;
+  }
+  if (camp.cpa_actual === 9999) return true;
+  return camp.cpa_actual == null;
+}
+
+function resolverCpaCampana(
+  gasto: number,
+  clics: number,
+  conversiones: number
+): number | null {
+  if (gasto <= 0 && clics <= 0 && conversiones <= 0) return null;
+  if (conversiones > 0) return parseFloat((gasto / conversiones).toFixed(2));
+  if (gasto > 0) return 9999;
+  return null;
+}
+
 function campanasActivasConGasto(campanas: CampanaMora[]): CampanaMora[] {
   return campanas.filter(c => {
     const activa = c.estado.toLowerCase() === "enabled" || c.estado.toLowerCase() === "activa";
@@ -469,10 +490,13 @@ function cpaObjetivoCampana(camp: CampanaMora, cpaPromedioCuenta: number): numbe
 }
 
 function ratioCpaCampana(camp: CampanaMora, cpaPromedioCuenta: number): number {
+  if (campanaSinMetricas(camp)) return 1;
   const objetivo = cpaObjetivoCampana(camp, cpaPromedioCuenta);
   if (objetivo <= 0) return 1;
   if (camp.conversiones === 0 && camp.gasto_mensual > objetivo * 1.5) return 3;
-  return camp.cpa_actual / objetivo;
+  const cpa = camp.cpa_actual;
+  if (cpa == null || cpa <= 0) return 1;
+  return cpa / objetivo;
 }
 
 function severidadRatioCpa(ratio: number): number {
@@ -485,10 +509,10 @@ function severidadRatioCpa(ratio: number): number {
 }
 
 export interface ScoreCampanaResult {
-  score: number;
-  tag: "ESTRELLA" | "BASURA" | "POTENCIAL" | "DUDOSO" | "EVALUANDO";
+  score: number | null;
+  tag: "ESTRELLA" | "BASURA" | "POTENCIAL" | "DUDOSO" | "EVALUANDO" | "SIN_DATOS";
   penalizacion: string;
-  cpaActual: number;
+  cpaActual: number | null;
   gasto: number;
   presupuesto: number;
   conversiones: number;
@@ -570,7 +594,23 @@ export function calcularScoreCampana(camp: CampanaMora, cpaPromedioCuenta = 20):
   const presupuesto = camp.presupuesto_mensual || 0;
   const conversiones = camp.conversiones || 0;
   const cpaObjetivo = cpaObjetivoCampana(camp, cpaPromedioCuenta);
-  const cpaActual = camp.cpa_actual ?? (conversiones > 0 ? gasto / conversiones : gasto > 0 ? 9999 : 0);
+
+  if (campanaSinMetricas(camp)) {
+    return {
+      score: null,
+      tag: "SIN_DATOS",
+      penalizacion: "Sin datos suficientes en los últimos 30 días.",
+      cpaActual: null,
+      gasto,
+      presupuesto,
+      conversiones,
+    };
+  }
+
+  const cpaActual =
+    camp.cpa_actual ??
+    resolverCpaCampana(gasto, camp.clics ?? 0, conversiones) ??
+    0;
 
   const hoy = new Date();
   const diaActual = hoy.getDate();
@@ -580,7 +620,7 @@ export function calcularScoreCampana(camp: CampanaMora, cpaPromedioCuenta = 20):
   let cpaPenalty = 0;
   if (conversiones === 0 && gasto > cpaObjetivo * 1.5) {
     cpaPenalty = 45;
-  } else if (conversiones > 0) {
+  } else if (conversiones > 0 && cpaActual != null) {
     cpaPenalty = severidadRatioCpa(cpaActual / cpaObjetivo) * 45;
   } else if (gasto > 0) {
     cpaPenalty = 8;
@@ -589,7 +629,7 @@ export function calcularScoreCampana(camp: CampanaMora, cpaPromedioCuenta = 20):
   let wastePenalty = 0;
   if (conversiones === 0 && gasto > cpaObjetivo * 1.5) {
     wastePenalty = clamp((gasto / Math.max(presupuesto, cpaObjetivo * 3, 1)) * 25, 10, 25);
-  } else if (conversiones > 0 && cpaActual > cpaObjetivo * 1.2) {
+  } else if (conversiones > 0 && cpaActual != null && cpaActual > cpaObjetivo * 1.2) {
     const gastoEsperado = conversiones * cpaObjetivo * 1.2;
     wastePenalty = clamp(((gasto - gastoEsperado) / Math.max(gasto, 1)) * 25, 0, 25);
   }
@@ -618,13 +658,16 @@ export function calcularScoreCampana(camp: CampanaMora, cpaPromedioCuenta = 20):
   if (conversiones === 0 && gasto > cpaObjetivo * 1.5) {
     tag = "BASURA";
     penalizacion = "Gasto significativo sin conversiones.";
-  } else if (score >= 80 && conversiones >= 3 && cpaActual <= cpaObjetivo) {
+  } else if (score >= 80 && conversiones >= 3 && cpaActual != null && cpaActual <= cpaObjetivo) {
     tag = "ESTRELLA";
     penalizacion = "CPA por debajo del objetivo. Oportunidad de escalar.";
   } else if (conversiones < 3 && score >= 55 && gasto <= presupuesto * 0.5) {
     tag = "POTENCIAL";
     penalizacion = "Poca data estadística. Monitorear evolución.";
-  } else if (score < 40 || (conversiones >= 3 && cpaActual > cpaObjetivo * 1.3)) {
+  } else if (
+    score < 40 ||
+    (conversiones >= 3 && cpaActual != null && cpaActual > cpaObjetivo * 1.3)
+  ) {
     tag = "BASURA";
     penalizacion = "CPA insostenible respecto al objetivo.";
   } else if (score < 65) {
@@ -729,10 +772,11 @@ function calcularPenalizacionAsignacion(
 
   campanasActivasConGasto(campanas).forEach(camp => {
     const objetivo = cpaObjetivoCampana(camp, cpaPromedioCuenta);
+    const cpa = camp.cpa_actual;
     const esMala =
-      (camp.conversiones >= 3 && camp.cpa_actual > objetivo * 1.2) ||
+      (camp.conversiones >= 3 && cpa != null && cpa > objetivo * 1.2) ||
       (camp.conversiones === 0 && camp.gasto_mensual > objetivo * 1.5);
-    const esBuena = camp.conversiones >= 3 && camp.cpa_actual <= objetivo * 0.9;
+    const esBuena = camp.conversiones >= 3 && cpa != null && cpa <= objetivo * 0.9;
 
     if (esMala) gastoMalo += camp.gasto_mensual;
     if (esBuena) gastoBueno += camp.gasto_mensual;
@@ -873,9 +917,10 @@ export function calcularPlanRobinHood(
     .map((camp): RobinHoodOrigen | null => {
       const cpaObjetivo = cpaObjetivoCampana(camp, cpaPromedioCuenta);
       const ejecucion = camp.presupuesto_mensual > 0 ? camp.gasto_mensual / camp.presupuesto_mensual : 0;
+      if (campanaSinMetricas(camp)) return null;
       const cpaMalo = camp.conversiones === 0
         ? camp.gasto_mensual > cpaObjetivo * 1.5
-        : camp.cpa_actual > Math.max(cpaSuperior, cpaObjetivo * 1.2);
+        : (camp.cpa_actual ?? 0) > Math.max(cpaSuperior, cpaObjetivo * 1.2);
       if (!cpaMalo || ejecucion <= 0.2 || camp.presupuesto_mensual <= 0) return null;
 
       const techoRecorte = Math.max(0, camp.presupuesto_mensual - camp.gasto_mensual);
@@ -892,7 +937,7 @@ export function calcularPlanRobinHood(
         presupuesto_actual: Math.round(camp.presupuesto_mensual),
         presupuesto_propuesto: Math.round(camp.presupuesto_mensual - montoRecortado),
         monto_recortado: montoRecortado,
-        cpa_actual: parseFloat(camp.cpa_actual.toFixed(2)),
+        cpa_actual: parseFloat((camp.cpa_actual ?? 0).toFixed(2)),
         cpa_objetivo: parseFloat(cpaObjetivo.toFixed(2)),
         motivo: camp.conversiones === 0
           ? "Gasto relevante sin conversiones y margen seguro de recorte."
@@ -906,16 +951,22 @@ export function calcularPlanRobinHood(
       const cpaObjetivo = cpaObjetivoCampana(camp, cpaPromedioCuenta);
       const margen = margenEscalabilidad(camp);
       const score = calcularScoreCampana(camp, cpaPromedioCuenta);
-      const cpaEficiente = camp.conversiones >= 3 && camp.cpa_actual > 0 && camp.cpa_actual <= Math.min(cpaInferior, cpaObjetivo);
+      if (score.tag === "SIN_DATOS") return null;
+      const cpaVal = camp.cpa_actual;
+      const cpaEficiente =
+        camp.conversiones >= 3 &&
+        cpaVal != null &&
+        cpaVal > 0 &&
+        cpaVal <= Math.min(cpaInferior, cpaObjetivo);
       if (!cpaEficiente) return null;
 
-      const eficiencia = clamp(cpaObjetivo / Math.max(camp.cpa_actual, 1), 0, 2) / 2;
+      const eficiencia = clamp(cpaObjetivo / Math.max(cpaVal, 1), 0, 2) / 2;
       const confianzaData = clamp(camp.conversiones / 20, 0, 1);
       const scoreEscalabilidad = Math.round(
         clamp(margen, 0, 1) * 40 +
         eficiencia * 35 +
         confianzaData * 15 +
-        (score.score / 100) * 10
+        ((score.score ?? 0) / 100) * 10
       );
 
       if (margen < 0.1) {
@@ -1001,7 +1052,9 @@ export function calcularPlanRobinHood(
     );
   }
 
-  const conversionesExtra = totalReasignado > 0 ? totalReasignado / Math.max(destinoPrincipal.campana.cpa_actual, 1) : 0;
+  const cpaDestinoRobin = destinoPrincipal.campana.cpa_actual ?? cpaPromedioCuenta;
+  const conversionesExtra =
+    totalReasignado > 0 ? totalReasignado / Math.max(cpaDestinoRobin, 1) : 0;
   const cpaGlobalActual = cpaPromedioCuenta;
   const gastoBase = gastoTotalCuenta > 0 ? gastoTotalCuenta : campanas.reduce((acc, camp) => acc + camp.gasto_mensual, 0);
   const convBase = conversionesTotales > 0 ? conversionesTotales : campanas.reduce((acc, camp) => acc + camp.conversiones, 0);
@@ -1014,7 +1067,7 @@ export function calcularPlanRobinHood(
     presupuesto_actual: Math.round(destinoPrincipal.campana.presupuesto_mensual),
     presupuesto_propuesto: Math.round(destinoPrincipal.campana.presupuesto_mensual + totalReasignado),
     monto_incrementado: Math.round(totalReasignado),
-    cpa_actual: parseFloat(destinoPrincipal.campana.cpa_actual.toFixed(2)),
+    cpa_actual: parseFloat(cpaDestinoRobin.toFixed(2)),
     cpa_objetivo: parseFloat(destinoPrincipal.cpaObjetivo.toFixed(2)),
     margen_escalabilidad: parseFloat((destinoPrincipal.margen * 100).toFixed(1)),
     score_escalabilidad: destinoPrincipal.scoreEscalabilidad,
@@ -1028,7 +1081,7 @@ export function calcularPlanRobinHood(
     presupuesto_actual: Math.round(item.campana.presupuesto_mensual),
     presupuesto_propuesto: Math.round(item.campana.presupuesto_mensual),
     monto_incrementado: 0,
-    cpa_actual: parseFloat(item.campana.cpa_actual.toFixed(2)),
+    cpa_actual: parseFloat((item.campana.cpa_actual ?? cpaPromedioCuenta).toFixed(2)),
     cpa_objetivo: parseFloat(item.cpaObjetivo.toFixed(2)),
     margen_escalabilidad: parseFloat((item.margen * 100).toFixed(1)),
     score_escalabilidad: item.scoreEscalabilidad,
@@ -1471,9 +1524,9 @@ export function construirSimuladorPresupuesto(
       presupuesto_propuesto: propuesto,
       gasto_mensual: Math.round(camp.gasto_mensual),
       conversiones: camp.conversiones,
-      cpa_actual: parseFloat(ev.cpaActual.toFixed(2)),
+      cpa_actual: ev.cpaActual != null ? parseFloat(ev.cpaActual.toFixed(2)) : 0,
       cpa_objetivo: parseFloat(cpaObj.toFixed(2)),
-      score: ev.score,
+      score: ev.score ?? 0,
       tag: ev.tag,
       margen_escalabilidad: parseFloat((margen * 100).toFixed(1)),
       confianza: conf,

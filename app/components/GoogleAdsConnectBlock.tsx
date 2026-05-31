@@ -1,7 +1,6 @@
 "use client";
 
-import { Link2, CheckCircle2, AlertCircle } from "lucide-react";
-import { isGoogleAdsDemoMode } from "../../lib/googleAdsMode";
+import { Link2, CheckCircle2 } from "lucide-react";
 
 type Locale = "es" | "en";
 
@@ -12,8 +11,8 @@ const copy = {
     notConnected: "Sin autorizar",
     connect: "Conectar Google Ads",
     reconnect: "Volver a autorizar",
-    demoNote:
-      "El análisis usa datos de demostración hasta activar la API en vivo. Los montos respetan la moneda de tu cuenta cuando esté activa.",
+    dataNote:
+      "Mora usa datos reales de tu cuenta conectada. Sin tráfico reciente, las métricas pueden aparecer en cero.",
     readOnly:
       "Solo lectura: Mora no puede crear, pausar ni modificar campañas sin tu acción.",
     heroTitle: "Conectá tu cuenta de Google Ads",
@@ -26,8 +25,8 @@ const copy = {
     notConnected: "Not authorized",
     connect: "Connect Google Ads",
     reconnect: "Re-authorize",
-    demoNote:
-      "Audits use demo data until the live API is enabled. Amounts will follow your account currency once live.",
+    dataNote:
+      "Mora uses real data from your connected account. Without recent traffic, metrics may show as zero.",
     readOnly:
       "Read-only: Mora cannot create, pause, or change campaigns without you.",
     heroTitle: "Connect your Google Ads account",
@@ -52,7 +51,6 @@ export default function GoogleAdsConnectBlock({
   variant = "settings",
 }: GoogleAdsConnectBlockProps) {
   const c = copy[locale];
-  const demo = isGoogleAdsDemoMode();
 
   if (variant === "hero") {
     return (
@@ -64,11 +62,9 @@ export default function GoogleAdsConnectBlock({
           <h3 className="text-xl font-black text-[#F5F0EB]">{c.heroTitle}</h3>
           <p className="text-[#A8A29E] text-sm font-medium leading-relaxed">{c.heroBody}</p>
           <p className="text-[#78716C] text-xs font-medium leading-relaxed">{c.readOnly}</p>
-          {demo && (
-            <p className="text-[#78716C] text-xs font-medium leading-relaxed border border-[#44403C] rounded-xl px-4 py-3 bg-[#1C1917]/80">
-              {c.demoNote}
-            </p>
-          )}
+          <p className="text-[#78716C] text-xs font-medium leading-relaxed border border-[#44403C] rounded-xl px-4 py-3 bg-[#1C1917]/80">
+            {c.dataNote}
+          </p>
         </div>
         <button
           type="button"
@@ -136,16 +132,13 @@ export default function GoogleAdsConnectBlock({
           {connected ? c.reconnect : c.connect}
         </button>
       </div>
-      {demo && (
-        <p
-          className={`text-xs mt-4 font-medium leading-relaxed flex gap-2 ${
-            variant === "inline" ? "text-[#78716C]" : "text-[#4B5563]"
-          }`}
-        >
-          <AlertCircle size={14} className="shrink-0 mt-0.5" />
-          {c.demoNote}
-        </p>
-      )}
+      <p
+        className={`text-xs mt-4 font-medium leading-relaxed ${
+          variant === "inline" ? "text-[#78716C]" : "text-[#4B5563]"
+        }`}
+      >
+        {c.dataNote}
+      </p>
       <p
         className={`text-[10px] mt-3 font-medium ${
           variant === "inline" ? "text-[#57534E]" : "text-[#8A968C]"

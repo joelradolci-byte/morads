@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { ChevronDown, LayoutGrid } from "lucide-react";
 import {
+  etiquetaScoreCampana,
+  formatearCpaCampana,
   gastoEnBucket,
   impactoFinancieroApagar,
   impactoFinancieroEscalar,
@@ -160,9 +162,19 @@ export default function MatrizCampanas({ evaluaciones, cpaPromedio }: Props) {
                         {campana.nombre}
                       </p>
                       <div className="flex items-center gap-2 shrink-0 text-[10px] font-black">
-                        <span className="text-[#A8A29E]">${evaluacion.cpaActual.toFixed(0)}</span>
-                        <span className={`px-1.5 py-0.5 rounded ${evaluacion.score >= 70 ? "bg-[#10B981]/10 text-[#10B981]" : evaluacion.score < 40 ? "bg-[#E07070]/10 text-[#E07070]" : "bg-[#EAB308]/10 text-[#EAB308]"}`}>
-                          {evaluacion.score}
+                        <span className="text-[#78716C]">{formatearCpaCampana(evaluacion.cpaActual)}</span>
+                        <span
+                          className={`px-1.5 py-0.5 rounded ${
+                            evaluacion.tag === "SIN_DATOS"
+                              ? "bg-[#44403C]/50 text-[#78716C]"
+                              : (evaluacion.score ?? 0) >= 70
+                                ? "bg-[#10B981]/10 text-[#10B981]"
+                                : (evaluacion.score ?? 0) < 40
+                                  ? "bg-[#E07070]/10 text-[#E07070]"
+                                  : "bg-[#EAB308]/10 text-[#EAB308]"
+                          }`}
+                        >
+                          {etiquetaScoreCampana(evaluacion)}
                         </span>
                       </div>
                     </div>

@@ -333,9 +333,18 @@ function getScoreColor(score: number) {
   return { border: "#86efac", bg: C.greenLight, text: C.green };
 }
 
-function getCampaignVeredicto(camp: any): { label: string; bg: string; text: string } {
+function getCampaignVeredicto(camp: Campana & { clics?: number }): { label: string; bg: string; text: string } {
+  const gasto = camp.gasto ?? 0;
+  const clics = camp.clics ?? 0;
+  const conv = camp.conversiones ?? 0;
+  if (gasto <= 0 && clics <= 0 && conv <= 0) {
+    return { label: "Sin datos", bg: "#f5f5f4", text: "#78716c" };
+  }
   const cpa = camp.cpa_actual ?? 0;
   const qs = camp.quality_score ?? 10;
+  if (cpa === 9999 && gasto <= 0) {
+    return { label: "Sin datos", bg: "#f5f5f4", text: "#78716c" };
+  }
   if (qs <= 3 || cpa > 100) return { label: "Fuga Crítica", bg: C.redLight, text: C.red };
   if (cpa > 50) return { label: "Drenaje", bg: C.yellowLight, text: C.yellow };
   if (camp.conversiones >= 10 && cpa < 40) return { label: "Salud Óptima", bg: C.greenLight, text: C.green };
@@ -446,7 +455,7 @@ interface Campana {
   gasto: number;
   presupuesto: number;
   conversiones: number;
-  cpa_actual: number;
+  cpa_actual: number | null;
   quality_score?: number;
 }
 
@@ -786,10 +795,22 @@ function Page3({ reporte, meta }: { reporte: ReporteData; meta: AuditMeta }) {
               <Text
                 style={[
                   styles.campCell,
-                  { flex: 1, textAlign: "right", fontFamily: "Courier", color: c.cpa_actual > 80 ? C.red : C.stone950 },
+                  {
+                    flex: 1,
+                    textAlign: "right",
+                    fontFamily: "Courier",
+                    color:
+                      c.cpa_actual == null || (c.cpa_actual === 9999 && (c.gasto ?? 0) <= 0)
+                        ? "#78716c"
+                        : c.cpa_actual > 80
+                          ? C.red
+                          : C.stone950,
+                  },
                 ]}
               >
-                {fmt(c.cpa_actual, meta)}
+                {c.cpa_actual == null || (c.cpa_actual === 9999 && (c.gasto ?? 0) <= 0)
+                  ? "—"
+                  : fmt(c.cpa_actual, meta)}
               </Text>
               <Text
                 style={[
