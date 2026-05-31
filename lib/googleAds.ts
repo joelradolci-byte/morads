@@ -8,6 +8,7 @@ import type {
   DatosAuditoriaInput,
   DatoHorarioCampana,
 } from "./motorMora";
+import { getMockCurrencyCode } from "./formatoMoneda";
 
 // ============================================================================
 // TIPOS QUE IMITAN LA RESPUESTA CRUDA DE LA API DE GOOGLE ADS
@@ -330,5 +331,6 @@ export const construirDatosAuditoria = async (): Promise<DatosAuditoriaInput> =>
     campanas,
     terminos,
     horarios,
+    currency_code: getMockCurrencyCode(),
   };
 };

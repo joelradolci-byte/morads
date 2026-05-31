@@ -58,22 +58,25 @@ import HistorialAuditoriasSection from './reportes/HistorialAuditoriasSection';
 import LecturaAuditoriaView from './reportes/LecturaAuditoriaView';
 import FeedbackFab from './feedback/FeedbackFab';
 import ComparacionHallazgosBloque from './reportes/ComparacionHallazgosBloque';
-import { buildQuickWinsFromReporte } from './reportes/buildQuickWinsFromReporte';
+import {
+  buildQuickWinsFromReporte,
+  buildPositivosFromReporte,
+  countHallazgosAccionables,
+} from './reportes/buildQuickWinsFromReporte';
+import ConfiguracionView from '../configuracion/ConfiguracionView';
+import GoogleAdsConnectBlock from '../components/GoogleAdsConnectBlock';
+import { LocaleProvider, useLocale } from '../../lib/i18n/LocaleProvider';
+import { copyResumen } from '../../lib/copyResumen';
+import { getCurrencyCodeFromReporte } from '../../lib/formatoMoneda';
 import {
   buildPdfFilename,
   comparacionEsMismaCuenta,
 } from './reportes/historialReportesUtils';
 import type { DetalleHallazgo } from '../../lib/types/hallazgoDetalle';
-import {
-  getPreferenciaExplicacion,
-  setPreferenciaExplicacion,
-  isOnboardingExplicacionDone,
-  type PreferenciaExplicacion,
-} from '../../lib/preferenciasMora';
 import { esAuditoriaHistorica } from '../../lib/copyHistorico';
 import {
   resolverAccionHallazgo,
-  INTRO_PANEL_DESDE_RESUMEN,
+  introPanelDesdeResumen,
   textoHallazgoParaUsuario,
   type AccionResumenPanel,
 } from '../../lib/resumenFacil';
@@ -132,14 +135,11 @@ function getBadgeAuditoria(createdAt: string | undefined | null): BadgeAuditoria
 }
 
 /** Texto breve por Quick Win: solo la descripción del hallazgo, sin fallback a `descripcion`. */
-function textoQuickWin(
-  hallazgo: {
-    descripcion_simple?: string;
-    descripcion_tecnica?: string;
-  },
-  explicacionClara: boolean
-): string {
-  const texto = textoHallazgoParaUsuario(hallazgo, explicacionClara);
+function textoQuickWin(hallazgo: {
+  descripcion_simple?: string;
+  descripcion_tecnica?: string;
+}): string {
+  const texto = textoHallazgoParaUsuario(hallazgo, true);
   if (texto.length > 360) {
     return `${texto.slice(0, 357).trimEnd()}…`;
   }
@@ -507,6 +507,10 @@ export function AuditorDashboard({
   initialVista?: AuditorVista;
   initialCampanasQuery?: CampanasQueryInicial;
 } = {}) {
+  const { locale, setLocale, resumenAutoAbrir } = useLocale();
+  const idioma = locale;
+  const copyR = copyResumen(locale);
+
   const [campanas, setCampanas] = useState<any[]>([]);
   const [cargandoCampanas, setCargandoCampanas] = useState(false);
   const [session, setSession] = useState<any>(null);
@@ -515,7 +519,6 @@ export function AuditorDashboard({
   const [reporte, setReporte] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [errorAuditoria, setErrorAuditoria] = useState<string | null>(null);
-  const [idioma, setIdioma] = useState<"es" | "en">("es");
   const [quickWinsCompletados, setQuickWinsCompletados] = useState<string[]>([]);
   const [vista, setVista] = useState<AuditorVista>(initialVista);
   const [subVistaReporte, setSubVistaReporte] = useState<"diagnostico" | "checklist" | "avanzado">("diagnostico");
@@ -530,9 +533,7 @@ export function AuditorDashboard({
   const [pdfComparacionCargando, setPdfComparacionCargando] = useState(false);
   const [hintComparacionMax, setHintComparacionMax] = useState(false);
   const deepLinkAuditoriaHandled = useRef(false);
-  const [explicacionClara, setExplicacionClara] = useState(false);
   const [resumenFacilAbierto, setResumenFacilAbierto] = useState(false);
-  const [mostrarOnboardingExplicacion, setMostrarOnboardingExplicacion] = useState(false);
   const [panelIntroResumen, setPanelIntroResumen] = useState<AccionResumenPanel | null>(null);
   const [filtroEstado, setFiltroEstado] = useState<"todos" | "critico" | "atencion" | "optimo">("todos");
   const [busqueda, setBusqueda] = useState(""); 
@@ -542,8 +543,8 @@ export function AuditorDashboard({
   const [agenciaLogo, setAgenciaLogo] = useState("");
   const [agenciaWeb, setAgenciaWeb] = useState("");
   const [agenciaPie, setAgenciaPie] = useState("Auditoría generada con tecnología IA - Reporte Confidencial.");
-  const [moneda, setMoneda] = useState("USD ($)");
-  const [metrica, setMetrica] = useState("ROAS");
+  const [googleAdsConnected, setGoogleAdsConnected] = useState(false);
+  const [googleAdsChecking, setGoogleAdsChecking] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [tareasCompletadas, setTareasCompletadas] = useState<number[]>([]);
   const [mostrarConfirmacion, setMostrarConfirmacion] = useState(false);
@@ -622,20 +623,20 @@ export function AuditorDashboard({
         setTimeout(() => {
           void supabase
             .from('google_ads_tokens')
-            .upsert({ 
-              user_id: supaSession.user.id, 
+            .upsert({
+              user_id: supaSession.user.id,
               refresh_token: supaSession.provider_refresh_token,
-              actualizado_el: new Date().toISOString()
+              actualizado_el: new Date().toISOString(),
+            })
+            .then(() => {
+              setGoogleAdsConnected(true);
+              setGoogleAdsChecking(false);
             });
         }, 0);
       }
     });
 
     return () => subscription.unsubscribe();
-  }, []);
-
-  useEffect(() => {
-    setExplicacionClara(getPreferenciaExplicacion() === "clara");
   }, []);
 
   const cargarUsoMensual = async () => {
@@ -678,18 +679,42 @@ export function AuditorDashboard({
 
   const auditoriaBloqueadaPorCuota = auditoriasRestantes === 0;
 
-  const iniciarSesion = async () => {
+  const conectarGoogleAds = async (redirectPath = "/dashboard") => {
     await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { 
-        redirectTo: window.location.origin,
-        scopes: 'https://www.googleapis.com/auth/adwords',
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}${redirectPath}`,
+        scopes: "https://www.googleapis.com/auth/adwords",
         queryParams: {
-          access_type: 'offline',
-          prompt: 'consent',
-        }
-      }
+          access_type: "offline",
+          prompt: "consent",
+        },
+      },
     });
+  };
+
+  const iniciarSesion = () => conectarGoogleAds("/dashboard");
+
+  const verificarConexionGoogleAds = async (userId?: string) => {
+    const uid = userId ?? session?.user?.id;
+    if (!uid) {
+      setGoogleAdsConnected(false);
+      setGoogleAdsChecking(false);
+      return;
+    }
+    setGoogleAdsChecking(true);
+    try {
+      const { data } = await supabase
+        .from("google_ads_tokens")
+        .select("refresh_token")
+        .eq("user_id", uid)
+        .maybeSingle();
+      setGoogleAdsConnected(!!data?.refresh_token);
+    } catch {
+      setGoogleAdsConnected(false);
+    } finally {
+      setGoogleAdsChecking(false);
+    }
   };
 
   const MENSAJE_ERROR_AUDITORIA =
@@ -708,7 +733,7 @@ export function AuditorDashboard({
         headers: await moraAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           datos: datosParaAuditar,
-          idioma_ui: "es",
+          idioma_ui: locale,
         }),
       });
 
@@ -741,9 +766,7 @@ export function AuditorDashboard({
 
       void cargarUsoMensual();
 
-      if (!isOnboardingExplicacionDone()) {
-        setMostrarOnboardingExplicacion(true);
-      } else if (getPreferenciaExplicacion() === "clara") {
+      if (resumenAutoAbrir) {
         setResumenFacilAbierto(true);
       }
 
@@ -819,6 +842,21 @@ export function AuditorDashboard({
   const quickWinsResumen = useMemo(
     () => buildQuickWinsFromReporte(auditoriaResumen?.reporte_json),
     [auditoriaResumen?.reporte_json]
+  );
+
+  const positivosResumen = useMemo(
+    () => buildPositivosFromReporte(auditoriaResumen?.reporte_json),
+    [auditoriaResumen?.reporte_json]
+  );
+
+  const totalHallazgosResumen = useMemo(
+    () => countHallazgosAccionables(auditoriaResumen?.reporte_json),
+    [auditoriaResumen?.reporte_json]
+  );
+
+  const currencyCodeActiva = useMemo(
+    () => getCurrencyCodeFromReporte(auditoriaResumen?.reporte_json ?? reporte),
+    [auditoriaResumen?.reporte_json, reporte]
   );
 
   const diagnosticoSalud = ultimaAuditoria?.reporte_json?.diagnostico_salud ?? null;
@@ -1013,8 +1051,6 @@ export function AuditorDashboard({
       if (configAgencia.agencia_logo) setAgenciaLogo(configAgencia.agencia_logo);
       if (configAgencia.agencia_web) setAgenciaWeb(configAgencia.agencia_web);
       if (configAgencia.agencia_pie) setAgenciaPie(configAgencia.agencia_pie);
-      if (configAgencia.moneda_default) setMoneda(configAgencia.moneda_default);
-      if (configAgencia.metrica_default) setMetrica(configAgencia.metrica_default);
     }
   };
   const cargarHistorial = async () => {
@@ -1061,9 +1097,10 @@ export function AuditorDashboard({
   };
 
   useEffect(() => {
-    if (session) {
+    if (session?.user?.id) {
       obtenerPerfil();
       cargarCampanas();
+      void verificarConexionGoogleAds(session.user.id);
     }
     if (vista === "historial" || vista === "dashboard" || vista === "reporte_lectura")
       cargarHistorial();
@@ -1109,11 +1146,17 @@ export function AuditorDashboard({
     const userId = session?.user?.id;
     if (!userId) return;
     setLoading(true);
-    const { error } = await supabase.from('configuracion_agencia').upsert({ 
-        user_id: userId, agencia_nombre: agenciaNombre, agencia_logo: agenciaLogo, 
-        agencia_web: agenciaWeb, agencia_pie: agenciaPie, moneda_default: moneda, metrica_default: metrica 
+    const { error } = await supabase.from('configuracion_agencia').upsert({
+      user_id: userId,
+      agencia_nombre: agenciaNombre,
+      agencia_logo: agenciaLogo,
+      agencia_web: agenciaWeb,
+      agencia_pie: agenciaPie,
+      idioma_ui: locale,
+      resumen_auto_abrir: resumenAutoAbrir,
     });
-    if (!error) { alert("¡Ajustes guardados correctamente!"); obtenerPerfil(); } else { alert("Error guardando configuraciones."); }
+    if (error) throw error;
+    await obtenerPerfil();
     setLoading(false);
   };
 
@@ -1123,15 +1166,6 @@ export function AuditorDashboard({
 
   const cerrarPanelesHerramientas = () => {
     setPanelIntroResumen(null);
-  };
-
-  const confirmarPreferenciaExplicacion = (pref: PreferenciaExplicacion) => {
-    setPreferenciaExplicacion(pref);
-    setExplicacionClara(pref === "clara");
-    setMostrarOnboardingExplicacion(false);
-    if (pref === "clara") {
-      setResumenFacilAbierto(true);
-    }
   };
 
   const abrirHerramientaDesdeDetalle = (idRastreo: string) => {
@@ -1593,7 +1627,7 @@ export function AuditorDashboard({
                 <Link href="/faq" className="hover:text-[#0a0a0a] transition-colors">FAQ</Link>
               </div>
               <div className="flex items-center gap-4">
-                <button onClick={() => setIdioma(idioma === "es" ? "en" : "es")} className="text-sm font-bold text-[#4B5563] hover:text-[#0a0a0a] transition-colors uppercase hidden sm:block">
+                <button onClick={() => setLocale(idioma === "es" ? "en" : "es")} className="text-sm font-bold text-[#4B5563] hover:text-[#0a0a0a] transition-colors uppercase hidden sm:block">
                   {idioma}
                 </button>
                 <button onClick={iniciarSesion} className="bg-[#0a0a0a] text-[#FDE8D3] px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-[#0a0a0a]/90 transition-colors shadow-lg border border-[#0a0a0a]">
@@ -1924,7 +1958,7 @@ export function AuditorDashboard({
                       className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-[#E0E7FF]/50 bg-[#E0E7FF]/15 text-[#E0E7FF] hover:bg-[#E0E7FF]/25 transition-all text-[11px] font-black uppercase tracking-widest shadow-lg"
                     >
                       <BookOpen size={14} />
-                      {vista === "reporte_lectura" ? "Leer resumen" : "Ver resumen fácil"}
+                      {vista === "reporte_lectura" ? copyR.leerResumenSimple : copyR.verResumenSimple}
                     </button>
                   )}
 
@@ -1975,40 +2009,80 @@ export function AuditorDashboard({
                       </button>
                     </div>
                   )}
-                  {cargandoHistorial ? (
+                  {cargandoHistorial || googleAdsChecking ? (
                     <div className="flex flex-col items-center justify-center py-32 gap-4 mt-6">
                       <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#F3C3B2]" />
                       <p className="text-[#A8A29E] text-sm font-bold uppercase tracking-widest">
-                        Cargando historial…
+                        {locale === "en" ? "Loading…" : "Cargando…"}
                       </p>
+                    </div>
+                  ) : !googleAdsConnected && !ultimaAuditoria ? (
+                    <div className="flex flex-col items-center justify-center text-center min-h-[min(70vh,640px)] px-8 py-20 mt-6 rounded-3xl border border-[#44403C] border-t-white/10 bg-gradient-to-b from-[#292524] to-[#1C1917] shadow-2xl">
+                      <GoogleAdsConnectBlock
+                        locale={locale}
+                        connected={false}
+                        checking={googleAdsChecking}
+                        onConnect={() => void conectarGoogleAds()}
+                        variant="hero"
+                      />
                     </div>
                   ) : !ultimaAuditoria ? (
                     <div className="flex flex-col items-center justify-center text-center min-h-[min(70vh,640px)] px-8 py-20 mt-6 rounded-3xl border border-[#44403C] border-t-white/10 bg-gradient-to-b from-[#292524] to-[#1C1917] shadow-2xl">
-                      <div className="w-16 h-16 rounded-2xl bg-[#F3C3B2]/15 border border-[#F3C3B2]/30 flex items-center justify-center">
-                        <Activity size={28} className="text-[#F3C3B2]" />
+                      <div className="w-full max-w-lg space-y-8">
+                        <div>
+                          <div className="w-16 h-16 rounded-2xl bg-[#F3C3B2]/15 border border-[#F3C3B2]/30 flex items-center justify-center mx-auto">
+                            <Activity size={28} className="text-[#F3C3B2]" />
+                          </div>
+                          <h2 className="text-2xl md:text-3xl font-black text-[#F5F0EB] mt-8 max-w-xl tracking-tight mx-auto">
+                            {locale === "en"
+                              ? "Ready for your first audit"
+                              : "Mora está lista para tu primera auditoría"}
+                          </h2>
+                          <p className="text-[#A8A29E] text-sm md:text-base mt-4 max-w-lg font-medium leading-relaxed mx-auto">
+                            {locale === "en"
+                              ? "Google Ads is connected. Run an audit to see your account health and opportunities."
+                              : "Google Ads está conectado. Ejecutá una auditoría para ver el estado de tus campañas y las oportunidades de mejora."}
+                          </p>
+                        </div>
+                        <GoogleAdsConnectBlock
+                          locale={locale}
+                          connected={googleAdsConnected}
+                          checking={googleAdsChecking}
+                          onConnect={() => void conectarGoogleAds()}
+                          variant="inline"
+                        />
+                        <button
+                          type="button"
+                          onClick={ejecutarAuditoriaConIA}
+                          disabled={loading || auditoriaBloqueadaPorCuota}
+                          className="w-full px-8 py-4 rounded-2xl text-sm uppercase tracking-widest font-black bg-[#F3C3B2] text-[#0a0a0a] hover:bg-[#eab3a1] transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {loading
+                            ? locale === "en"
+                              ? "ANALYZING…"
+                              : "MORA ESTÁ ANALIZANDO…"
+                            : auditoriaBloqueadaPorCuota
+                              ? locale === "en"
+                                ? "MONTHLY LIMIT REACHED"
+                                : "LÍMITE MENSUAL ALCANZADO"
+                              : locale === "en"
+                                ? "RUN PRO AUDIT"
+                                : "EJECUTAR AUDITORÍA PRO"}
+                        </button>
                       </div>
-                      <h2 className="text-2xl md:text-3xl font-black text-[#F5F0EB] mt-8 max-w-xl tracking-tight">
-                        Mora está lista para analizar tu cuenta
-                      </h2>
-                      <p className="text-[#A8A29E] text-sm md:text-base mt-4 max-w-lg font-medium leading-relaxed">
-                        Ejecutá tu primera auditoría para ver el estado real de tus campañas y las
-                        oportunidades de mejora.
-                      </p>
-                      <button
-                        type="button"
-                        onClick={ejecutarAuditoriaConIA}
-                        disabled={loading || auditoriaBloqueadaPorCuota}
-                        className="mt-10 px-8 py-4 rounded-2xl text-sm uppercase tracking-widest font-black bg-[#F3C3B2] text-[#0a0a0a] hover:bg-[#eab3a1] transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {loading
-                          ? "MORA ESTÁ ANALIZANDO…"
-                          : auditoriaBloqueadaPorCuota
-                            ? "LÍMITE MENSUAL ALCANZADO"
-                            : "EJECUTAR AUDITORÍA PRO"}
-                      </button>
                     </div>
                   ) : (
                   <>
+                  {!googleAdsConnected && !googleAdsChecking && (
+                    <div className="mt-6">
+                      <GoogleAdsConnectBlock
+                        locale={locale}
+                        connected={false}
+                        onConnect={() => void conectarGoogleAds()}
+                        variant="inline"
+                      />
+                    </div>
+                  )}
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mt-6">
                      
                     {/* 1. Salud de la Cuenta */}
@@ -2269,7 +2343,7 @@ export function AuditorDashboard({
                                       {win.titulo}
                                     </h4>
                                     <p className="text-[11px] text-[#A8A29E] mt-2 font-medium line-clamp-2 leading-relaxed">
-                                      {textoQuickWin(win, explicacionClara)}
+                                      {textoQuickWin(win)}
                                     </p>
                                   </div>
 
@@ -2377,7 +2451,7 @@ export function AuditorDashboard({
                             <ChevronRight size={16} className="text-[#A8A29E] group-hover:text-[#F5F0EB] transition-colors" />
                           </div>
                           <p className="text-lg font-black text-[#F5F0EB] mt-2">{item.titulo}</p>
-                          <p className="text-sm text-[#A8A29E] font-medium mt-2 leading-relaxed line-clamp-2">{textoHallazgoParaUsuario(item, explicacionClara)}</p>
+                          <p className="text-sm text-[#A8A29E] font-medium mt-2 leading-relaxed line-clamp-2">{textoHallazgoParaUsuario(item, true, { locale })}</p>
                         </div>
                       ))}
                       {ultimaAuditoria.reporte_json?.hallazgos?.debiles_amarillo?.map((item: any, i: number) => (
@@ -2395,7 +2469,7 @@ export function AuditorDashboard({
                             <ChevronRight size={16} className="text-[#A8A29E] group-hover:text-[#F5F0EB] transition-colors" />
                           </div>
                           <p className="text-lg font-black text-[#F5F0EB] mt-2">{item.titulo}</p>
-                          <p className="text-sm text-[#A8A29E] font-medium mt-2 leading-relaxed line-clamp-2">{textoHallazgoParaUsuario(item, explicacionClara)}</p>
+                          <p className="text-sm text-[#A8A29E] font-medium mt-2 leading-relaxed line-clamp-2">{textoHallazgoParaUsuario(item, true, { locale })}</p>
                         </div>
                       ))}
                       {ultimaAuditoria.reporte_json?.hallazgos?.bien_verde?.map((item: any, i: number) => {
@@ -2423,7 +2497,7 @@ export function AuditorDashboard({
                           </div>
                           <p className="text-lg font-black text-[#F5F0EB]">{item.titulo}</p>
                           <p className="text-sm text-[#A8A29E] font-medium mt-2 leading-relaxed">
-                            {textoHallazgoParaUsuario(item, explicacionClara)}
+                            {textoHallazgoParaUsuario(item, true, { locale })}
                           </p>
                         </div>
                         );
@@ -2528,35 +2602,6 @@ export function AuditorDashboard({
                 </div>
               )}
 
-              {mostrarOnboardingExplicacion && (
-                <div className="fixed inset-0 z-[140] flex items-center justify-center p-4 bg-[#0a0a0a]/70 backdrop-blur-sm print:hidden">
-                  <div className="bg-white rounded-3xl border border-[#E5E7EB] shadow-2xl max-w-md w-full p-8">
-                    <h3 className="text-2xl font-black text-[#0a0a0a]">¿Cómo querés que Mora te explique?</h3>
-                    <p className="text-sm text-[#4B5563] mt-2 font-medium leading-relaxed">
-                      Podés cambiarlo después en Configuración.
-                    </p>
-                    <div className="flex flex-col gap-3 mt-6">
-                      <button
-                        type="button"
-                        onClick={() => confirmarPreferenciaExplicacion("clara")}
-                        className="text-left p-4 rounded-2xl border-2 border-[#E0E7FF] bg-[#E0E7FF]/10 hover:bg-[#E0E7FF]/20 transition-colors"
-                      >
-                        <p className="font-black text-[#0a0a0a]">Explicaciones claras</p>
-                        <p className="text-xs text-[#4B5563] mt-1">Sin siglas. Ideal si no manejás Google Ads a diario.</p>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => confirmarPreferenciaExplicacion("tecnica")}
-                        className="text-left p-4 rounded-2xl border border-[#E5E7EB] hover:bg-[#F4F4F5] transition-colors"
-                      >
-                        <p className="font-black text-[#0a0a0a]">Con detalle técnico</p>
-                        <p className="text-xs text-[#4B5563] mt-1">CPA, campañas y términos de plataforma.</p>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
               <ResumenFacilPanel
                 open={resumenFacilAbierto}
                 onClose={() => setResumenFacilAbierto(false)}
@@ -2588,8 +2633,17 @@ export function AuditorDashboard({
                     : []
                 }
                 items={quickWinsResumen}
-                lenguajeClaro={explicacionClara}
+                itemsPositivos={positivosResumen}
+                totalHallazgosAccionables={totalHallazgosResumen}
+                locale={locale}
+                currencyCode={currencyCodeActiva}
                 onResolver={handleResolverDesdeResumen}
+                onVerReporteCompleto={() => {
+                  setResumenFacilAbierto(false);
+                  if (vista !== "reporte_lectura" && auditoriaResumen) {
+                    abrirAuditoriaHistorial(auditoriaResumen);
+                  }
+                }}
                 soloLectura={vista === "reporte_lectura"}
                 modoHistorico={modoHistoricoAuditoria}
                 fechaAuditoria={fechaAuditoriaResumen}
@@ -2603,9 +2657,11 @@ export function AuditorDashboard({
                 mitigadosKeys={mitigadosKeys}
                 copiadosKeys={copiadosKeys}
                 introDesdeResumen={
-                  panelIntroResumen === "destripador" ? INTRO_PANEL_DESDE_RESUMEN.destripador : null
+                  panelIntroResumen === "destripador"
+                    ? introPanelDesdeResumen("destripador", locale)
+                    : null
                 }
-                tituloLenguajeClaro={explicacionClara}
+                tituloLenguajeClaro
                 onClose={() => {
                   setDestripadorAbierto(false);
                   cerrarPanelesHerramientas();
@@ -2620,9 +2676,11 @@ export function AuditorDashboard({
                 auditId={auditoriaContextual?.id ?? null}
                 aplicadosIds={daypartingAplicadosIds}
                 introDesdeResumen={
-                  panelIntroResumen === "dayparting" ? INTRO_PANEL_DESDE_RESUMEN.dayparting : null
+                  panelIntroResumen === "dayparting"
+                    ? introPanelDesdeResumen("dayparting", locale)
+                    : null
                 }
-                tituloLenguajeClaro={explicacionClara}
+                tituloLenguajeClaro
                 onClose={() => {
                   setDaypartingAbierto(false);
                   cerrarPanelesHerramientas();
@@ -2635,9 +2693,11 @@ export function AuditorDashboard({
                 open={simuladorAbierto}
                 auditId={auditoriaContextual?.id ?? null}
                 introDesdeResumen={
-                  panelIntroResumen === "simulador" ? INTRO_PANEL_DESDE_RESUMEN.simulador : null
+                  panelIntroResumen === "simulador"
+                    ? introPanelDesdeResumen("simulador", locale)
+                    : null
                 }
-                tituloLenguajeClaro={explicacionClara}
+                tituloLenguajeClaro
                 onClose={() => {
                   setSimuladorAbierto(false);
                   cerrarPanelesHerramientas();
@@ -2654,7 +2714,7 @@ export function AuditorDashboard({
                 detalle={detalleHallazgo}
                 open={!!detalleHallazgo && !isClosing}
                 isClosing={isClosing}
-                lenguajeClaro={explicacionClara}
+                locale={locale}
                 onClose={cerrarDetalle}
                 onAbrirResumen={() => {
                   cerrarDetalle();
@@ -2936,101 +2996,38 @@ export function AuditorDashboard({
                       problemas: t[idioma].problemas,
                       mejoras: t[idioma].mejoras,
                     }}
-                    explicacionClara={explicacionClara}
                     modoHistorico={esAuditoriaHistorica(
                       auditoriaActiva?.id,
                       ultimaAuditoria?.id
                     )}
+                    locale={locale}
                     onAbrirResumenFacil={() => setResumenFacilAbierto(true)}
                   />
                 </div>
               )}
 
-              {/* VISTA: CONFIGURACIÓN */}
               {vista === "perfil" && (
-                <div className="animate-fade-custom bg-[#FFFFFF] border border-[#E5E7EB] p-10 rounded-[2rem] shadow-sm max-w-4xl mx-auto print:hidden relative z-10 w-full">
-                  <div className="flex items-center gap-4 mb-8 pb-6 border-b border-[#F4F4F5]">
-                     <div className="w-14 h-14 bg-[#F4F4F5] border border-[#E5E7EB] shadow-sm rounded-2xl flex items-center justify-center text-[#0a0a0a]"><Settings size={24} /></div>
-                     <div>
-                        <h2 className="text-3xl font-black text-[#0a0a0a]">{t[idioma].configuracion}</h2>
-                        <p className="text-[#4B5563] text-sm mt-1 font-medium">{t[idioma].persPdf}</p>
-                     </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-                    <div className="space-y-6">
-                      <h3 className="text-xs font-black text-[#0a0a0a] uppercase tracking-widest mb-6 border-b border-[#F4F4F5] pb-2">Marca Blanca Visual</h3>
-                      <div><label className="block text-[10px] font-bold text-[#8A968C] mb-2 uppercase tracking-widest">{t[idioma].nomAgencia}</label><input type="text" className="w-full p-4 bg-[#F4F4F5] border border-[#E5E7EB] rounded-xl text-[#0a0a0a] font-bold shadow-inner focus:border-[#E0E7FF] focus:bg-[#FAFAF9] focus:outline-none transition-all text-sm" value={agenciaNombre} onChange={(e) => setAgenciaNombre(e.target.value)} /></div>
-                      <div><label className="block text-[10px] font-bold text-[#8A968C] mb-2 uppercase tracking-widest">{t[idioma].sitioWeb}</label><input type="text" placeholder="Ej: www.tuagencia.com" className="w-full p-4 bg-[#F4F4F5] border border-[#E5E7EB] rounded-xl text-[#0a0a0a] font-bold shadow-inner focus:border-[#E0E7FF] focus:bg-[#FAFAF9] focus:outline-none transition-all text-sm" value={agenciaWeb} onChange={(e) => setAgenciaWeb(e.target.value)} /></div>
-                      <div>
-                        <label className="block text-[10px] font-bold text-[#8A968C] mb-2 uppercase tracking-widest">{t[idioma].logoPdf}</label>
-                        <div className="flex items-center gap-6 p-4 border border-[#E5E7EB] rounded-xl bg-[#F4F4F5] shadow-inner">
-                          {agenciaLogo ? <img src={agenciaLogo} alt="Logo" className="w-14 h-14 object-contain rounded bg-white p-1 border border-[#E5E7EB] shadow-sm" /> : <div className="w-14 h-14 bg-[#FAFAF9] rounded-lg flex items-center justify-center text-[#8A968C] text-[9px] uppercase font-black text-center border border-dashed border-[#8A968C]">Sube</div>}
-                          <div className="flex-1"><input type="file" accept="image/*" onChange={subirLogo} disabled={uploading} className="w-full text-xs text-[#4B5563] font-bold cursor-pointer file:mr-4 file:py-2.5 file:px-5 file:rounded-lg file:border-0 file:text-[10px] file:uppercase file:tracking-widest file:font-black file:bg-[#FAFAF9] file:border file:border-[#E5E7EB] file:text-[#0a0a0a] hover:file:bg-white hover:file:shadow-sm transition-all" /></div>
-                        </div>
-                      </div>
-                      <div><label className="block text-[10px] font-bold text-[#8A968C] mb-2 uppercase tracking-widest">{t[idioma].piePagina}</label><textarea className="w-full h-24 p-4 bg-[#F4F4F5] border border-[#E5E7EB] rounded-xl text-[#0a0a0a] font-bold shadow-inner text-sm focus:border-[#E0E7FF] focus:bg-[#FAFAF9] focus:outline-none transition-all resize-none" value={agenciaPie} onChange={(e) => setAgenciaPie(e.target.value)} /></div>
-                    </div>
-
-                    <div className="space-y-6">
-                      <h3 className="text-xs font-black text-[#0a0a0a] uppercase tracking-widest mb-6 border-b border-[#F4F4F5] pb-2">Preferencias de Trabajo</h3>
-                      <div>
-                        <label className="block text-[10px] font-bold text-[#8A968C] mb-2 uppercase tracking-widest">{t[idioma].monedaDef}</label>
-                        <div className="relative"><select className="w-full p-4 bg-[#F4F4F5] border border-[#E5E7EB] rounded-xl text-[#0a0a0a] font-bold shadow-inner focus:border-[#E0E7FF] focus:bg-[#FAFAF9] focus:outline-none transition-all appearance-none cursor-pointer text-sm" value={moneda} onChange={(e) => setMoneda(e.target.value)}><option value="USD ($)">Dólares USD ($)</option><option value="EUR (€)">Euros EUR (€)</option><option value="ARS ($)">Pesos Argentinos ARS ($)</option><option value="MXN ($)">Pesos Mexicanos MXN ($)</option></select><ChevronDown size={16} className="absolute right-4 top-1/2 transform -translate-y-1/2 text-[#4B5563] pointer-events-none" /></div>
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-bold text-[#8A968C] mb-2 uppercase tracking-widest flex items-center gap-1">
-                          {t[idioma].metricaDef}
-                          {metrica === "CPA" && <GlosarioTip termino="CPA" />}
-                          {metrica === "ROAS" && <GlosarioTip termino="ROAS" />}
-                        </label>
-                        <div className="relative"><select className="w-full p-4 bg-[#F4F4F5] border border-[#E5E7EB] rounded-xl text-[#0a0a0a] font-bold shadow-inner focus:border-[#E0E7FF] focus:bg-[#FAFAF9] focus:outline-none transition-all appearance-none cursor-pointer text-sm" value={metrica} onChange={(e) => setMetrica(e.target.value)}><option value="ROAS">ROAS (Retorno de Inversión)</option><option value="CPA">CPA (Costo por Adquisición)</option><option value="ROI">ROI</option></select><ChevronDown size={16} className="absolute right-4 top-1/2 transform -translate-y-1/2 text-[#4B5563] pointer-events-none" /></div>
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-bold text-[#8A968C] mb-2 uppercase tracking-widest">
-                          Cómo te explica Mora
-                        </label>
-                        <div className="flex flex-col gap-2">
-                          <label className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-colors ${explicacionClara ? "border-[#E0E7FF] bg-[#E0E7FF]/15" : "border-[#E5E7EB] bg-[#F4F4F5]"}`}>
-                            <input
-                              type="radio"
-                              name="mora-explicacion"
-                              className="mt-1"
-                              checked={explicacionClara}
-                              onChange={() => {
-                                setPreferenciaExplicacion("clara");
-                                setExplicacionClara(true);
-                              }}
-                            />
-                            <span>
-                              <span className="block text-sm font-black text-[#0a0a0a]">Explicaciones claras</span>
-                              <span className="block text-xs text-[#4B5563] mt-0.5">Sin siglas. Usá &quot;Ver resumen fácil&quot; en el dashboard.</span>
-                            </span>
-                          </label>
-                          <label className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-colors ${!explicacionClara ? "border-[#E0E7FF] bg-[#E0E7FF]/15" : "border-[#E5E7EB] bg-[#F4F4F5]"}`}>
-                            <input
-                              type="radio"
-                              name="mora-explicacion"
-                              className="mt-1"
-                              checked={!explicacionClara}
-                              onChange={() => {
-                                setPreferenciaExplicacion("tecnica");
-                                setExplicacionClara(false);
-                              }}
-                            />
-                            <span>
-                              <span className="block text-sm font-black text-[#0a0a0a]">Con detalle técnico</span>
-                              <span className="block text-xs text-[#4B5563] mt-0.5">CPA, ROAS y términos de Google Ads.</span>
-                            </span>
-                          </label>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="border-t border-[#E5E7EB] mt-10 pt-8 flex justify-end max-w-5xl mx-auto">
-                    <button onClick={guardarAjustesAgencia} disabled={loading || uploading} className="w-full md:w-auto md:px-10 text-[#0a0a0a] bg-[#E0E7FF] hover:bg-[#eab3a1] px-6 py-4 rounded-xl font-black text-sm uppercase tracking-widest disabled:opacity-50 transition-colors shadow-md">{loading ? t[idioma].guardando : t[idioma].guardarAj}</button>
-                  </div>
-                </div>
+                <ConfiguracionView
+                  session={session}
+                  perfil={perfil}
+                  usageSnapshot={usageSnapshot}
+                  agenciaNombre={agenciaNombre}
+                  setAgenciaNombre={setAgenciaNombre}
+                  agenciaLogo={agenciaLogo}
+                  agenciaWeb={agenciaWeb}
+                  setAgenciaWeb={setAgenciaWeb}
+                  agenciaPie={agenciaPie}
+                  setAgenciaPie={setAgenciaPie}
+                  uploading={uploading}
+                  loading={loading}
+                  onSubirLogo={subirLogo}
+                  onGuardar={guardarAjustesAgencia}
+                  onIrFacturacion={() => navegar("facturacion", "/facturacion")}
+                  currencyCodeLabel={currencyCodeActiva}
+                  googleAdsConnected={googleAdsConnected}
+                  googleAdsChecking={googleAdsChecking}
+                  onConectarGoogleAds={() => void conectarGoogleAds()}
+                />
               )}
 
               {/* VISTA: FACTURACIÓN */}
@@ -3298,9 +3295,11 @@ export default function AuditorPageWrapper({
   const vistaInicial =
     initialVista === "feedback" ? "dashboard" : initialVista;
   return (
-    <AuditorDashboard
-      initialVista={vistaInicial}
-      initialCampanasQuery={initialCampanasQuery}
-    />
+    <LocaleProvider>
+      <AuditorDashboard
+        initialVista={vistaInicial}
+        initialCampanasQuery={initialCampanasQuery}
+      />
+    </LocaleProvider>
   );
 }

@@ -8,6 +8,7 @@ import {
   StyleSheet,
   Image,
 } from "@react-pdf/renderer";
+import { formatMonto, localeForUi } from "@/lib/formatoMoneda";
 
 // ─── Paleta Mora ────────────────────────────────────────────────────────────
 const C = {
@@ -321,9 +322,9 @@ const styles = StyleSheet.create({
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-function fmt(n: number | undefined | null, prefix = "$") {
+function fmt(n: number | undefined | null, meta?: AuditMeta) {
   if (n == null) return "—";
-  return `${prefix}${Number(n).toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return formatMonto(n, meta?.currency_code ?? "USD", meta?.idioma_ui ?? "es");
 }
 
 function getScoreColor(score: number) {
@@ -348,11 +349,13 @@ function Header({
   logoUrl,
   accountName,
   date,
+  website,
 }: {
   agencyName: string;
   logoUrl?: string;
   accountName: string;
   date: string;
+  website?: string;
 }) {
   return (
     <View style={styles.headerRow}>
@@ -369,16 +372,30 @@ function Header({
       <Text style={styles.headerRight}>
         {"Cuenta: " + accountName + "\n"}
         {"Fecha: " + date}
+        {website ? `\n${website}` : ""}
       </Text>
     </View>
   );
 }
 
-function Footer({ page, total }: { page: number; total: number }) {
+function Footer({
+  page,
+  total,
+  legalText,
+}: {
+  page: number;
+  total: number;
+  legalText?: string;
+}) {
+  const left =
+    legalText?.trim() ||
+    "Generado con Mora · Diagnóstico de ineficiencias en Google Ads";
   return (
     <View style={styles.footer}>
-      <Text style={styles.footerText}>Tecnología Mora Analytics · Diagnóstico de Ineficiencias Estructurales</Text>
-      <Text style={styles.footerText}>Página {page} de {total}</Text>
+      <Text style={styles.footerText}>{left}</Text>
+      <Text style={styles.footerText}>
+        Página {page} de {total}
+      </Text>
     </View>
   );
 }
@@ -438,6 +455,10 @@ export interface AuditMeta {
   created_at: string;
   agencia_nombre?: string;
   agencia_logo?: string;
+  agencia_web?: string;
+  agencia_pie?: string;
+  currency_code?: string;
+  idioma_ui?: string;
 }
 
 // ─── Página 1: Situación Financiera ─────────────────────────────────────────
@@ -450,13 +471,15 @@ function Page1({
   meta: AuditMeta;
 }) {
   const scoreColors = getScoreColor(reporte.health_score);
-  const date = new Date(meta.created_at).toLocaleDateString("es-AR");
-  const agencyName = meta.agencia_nombre || "Mora Analytics";
+  const date = new Date(meta.created_at).toLocaleDateString(
+    localeForUi(meta.idioma_ui)
+  );
+  const agencyName = meta.agencia_nombre || "Mora";
 
   const metricas = [
     {
       label: "Inversión Mensual Procesada",
-      value: fmt(reporte.gasto_total_cuenta),
+      value: fmt(reporte.gasto_total_cuenta, meta),
       note: "Muestra estadísticamente relevante para auditoría.",
       highlight: false,
     },
@@ -468,13 +491,13 @@ function Page1({
     },
     {
       label: "Costo por Adquisición (CPA Promedio)",
-      value: fmt(reporte.cpa_promedio_cuenta),
+      value: fmt(reporte.cpa_promedio_cuenta, meta),
       note: "Inflado artificialmente por fugas de subasta.",
       highlight: false,
     },
     {
       label: "Capital Mensual Neto Desperdiciado",
-      value: fmt(reporte.resumen?.gasto_desperdiciado),
+      value: fmt(reporte.resumen?.gasto_desperdiciado, meta),
       note: `Equivale al ${reporte.resumen?.porcentaje_desperdiciado ?? "—"}% del presupuesto drenado.`,
       highlight: true,
     },
@@ -482,7 +505,13 @@ function Page1({
 
   return (
     <Page size="A4" style={styles.page}>
-      <Header agencyName={agencyName} logoUrl={meta.agencia_logo} accountName={meta.nombre_cuenta} date={date} />
+      <Header
+        agencyName={agencyName}
+        logoUrl={meta.agencia_logo}
+        accountName={meta.nombre_cuenta}
+        date={date}
+        website={meta.agencia_web}
+      />
 
       <Text style={styles.sectionTag}>Auditoría Estructural · Análisis de Situación Financiera</Text>
       <Text style={styles.pageTitle}>Diagnóstico Macroeconómico</Text>
@@ -564,7 +593,7 @@ function Page1({
         ))}
       </View>
 
-      <Footer page={1} total={3} />
+      <Footer page={1} total={3} legalText={meta.agencia_pie} />
     </Page>
   );
 }
@@ -572,15 +601,23 @@ function Page1({
 // ─── Página 2: Causas Raíz ───────────────────────────────────────────────────
 
 function Page2({ reporte, meta }: { reporte: ReporteData; meta: AuditMeta }) {
-  const date = new Date(meta.created_at).toLocaleDateString("es-AR");
-  const agencyName = meta.agencia_nombre || "Mora Analytics";
+  const date = new Date(meta.created_at).toLocaleDateString(
+    localeForUi(meta.idioma_ui)
+  );
+  const agencyName = meta.agencia_nombre || "Mora";
   const graves = reporte.hallazgos?.graves_rojo ?? [];
   const debiles = reporte.hallazgos?.debiles_amarillo ?? [];
   const verdes = reporte.hallazgos?.bien_verde ?? [];
 
   return (
     <Page size="A4" style={styles.page}>
-      <Header agencyName={agencyName} logoUrl={meta.agencia_logo} accountName={meta.nombre_cuenta} date={date} />
+      <Header
+        agencyName={agencyName}
+        logoUrl={meta.agencia_logo}
+        accountName={meta.nombre_cuenta}
+        date={date}
+        website={meta.agencia_web}
+      />
 
       <Text style={styles.sectionTag}>Sección: Diagnóstico de Causas Raíz</Text>
       <Text style={styles.pageTitle}>Análisis de Fugas Estructurales</Text>
@@ -597,7 +634,7 @@ function Page2({ reporte, meta }: { reporte: ReporteData; meta: AuditMeta }) {
           ]}
         >
           <Text style={[styles.findingBadge, { color: C.red }]}>
-            Causa #1 · Drenaje Activo por Tráfico Irrelevante · Fuga estimada: {fmt(reporte.n_gramas.ahorro_estimado)} / mes
+            Causa #1 · Drenaje Activo por Tráfico Irrelevante · Fuga estimada: {fmt(reporte.n_gramas.ahorro_estimado, meta)} / mes
           </Text>
           <Text style={styles.findingTitle}>
             {reporte.n_gramas.cantidad_palabras} términos detectados acumulando gasto con conversión cero
@@ -680,7 +717,7 @@ function Page2({ reporte, meta }: { reporte: ReporteData; meta: AuditMeta }) {
         </View>
       ))}
 
-      <Footer page={2} total={3} />
+      <Footer page={2} total={3} legalText={meta.agencia_pie} />
     </Page>
   );
 }
@@ -688,13 +725,21 @@ function Page2({ reporte, meta }: { reporte: ReporteData; meta: AuditMeta }) {
 // ─── Página 3: Auditoría por Línea de Inversión ──────────────────────────────
 
 function Page3({ reporte, meta }: { reporte: ReporteData; meta: AuditMeta }) {
-  const date = new Date(meta.created_at).toLocaleDateString("es-AR");
-  const agencyName = meta.agencia_nombre || "Mora Analytics";
+  const date = new Date(meta.created_at).toLocaleDateString(
+    localeForUi(meta.idioma_ui)
+  );
+  const agencyName = meta.agencia_nombre || "Mora";
   const campanas = reporte.campanas ?? [];
 
   return (
     <Page size="A4" style={styles.page}>
-      <Header agencyName={agencyName} logoUrl={meta.agencia_logo} accountName={meta.nombre_cuenta} date={date} />
+      <Header
+        agencyName={agencyName}
+        logoUrl={meta.agencia_logo}
+        accountName={meta.nombre_cuenta}
+        date={date}
+        website={meta.agencia_web}
+      />
 
       <Text style={styles.sectionTag}>Sección: Auditoría por Línea de Inversión</Text>
       <Text style={styles.pageTitle}>Situación por Línea de Inversión</Text>
@@ -722,7 +767,7 @@ function Page3({ reporte, meta }: { reporte: ReporteData; meta: AuditMeta }) {
               <View style={{ flex: 3 }}>
                 <Text style={[styles.campCell, { fontFamily: "Helvetica-Bold" }]}>{c.nombre}</Text>
                 <Text style={{ fontSize: 7, color: C.stone400, marginTop: 1 }}>
-                  Presupuesto: {fmt(c.presupuesto)}
+                  Presupuesto: {fmt(c.presupuesto, meta)}
                 </Text>
               </View>
 
@@ -733,7 +778,7 @@ function Page3({ reporte, meta }: { reporte: ReporteData; meta: AuditMeta }) {
               </View>
 
               <Text style={[styles.campCell, { flex: 1, textAlign: "right", fontFamily: "Courier" }]}>
-                {fmt(c.gasto)}
+                {fmt(c.gasto, meta)}
               </Text>
               <Text style={[styles.campCell, { flex: 0.8, textAlign: "center" }]}>
                 {c.conversiones ?? "—"}
@@ -744,7 +789,7 @@ function Page3({ reporte, meta }: { reporte: ReporteData; meta: AuditMeta }) {
                   { flex: 1, textAlign: "right", fontFamily: "Courier", color: c.cpa_actual > 80 ? C.red : C.stone950 },
                 ]}
               >
-                {fmt(c.cpa_actual)}
+                {fmt(c.cpa_actual, meta)}
               </Text>
               <Text
                 style={[
@@ -764,7 +809,7 @@ function Page3({ reporte, meta }: { reporte: ReporteData; meta: AuditMeta }) {
         })}
       </View>
 
-      <Footer page={3} total={3} />
+      <Footer page={3} total={3} legalText={meta.agencia_pie} />
     </Page>
   );
 }

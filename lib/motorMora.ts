@@ -51,6 +51,8 @@ export interface DatosAuditoriaInput {
   // Nombre/s de marca del cliente para proteger términos que la mencionan.
   // Puede ser una palabra ("acme"), varias separadas por coma, o un array.
   marca_cliente?: string | string[];
+  /** ISO 4217 desde Google Ads (ej. USD, ARS). */
+  currency_code?: string;
 }
 
 // ============================================================================

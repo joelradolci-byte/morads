@@ -25,6 +25,8 @@ import {
   accionTieneHerramienta,
 } from "../../lib/types/hallazgoDetalle";
 import { resolverAccionHallazgo } from "../../lib/resumenFacil";
+import { copyResumen } from "../../lib/copyResumen";
+import type { Locale } from "../../lib/i18n/types";
 import {
   etiquetaBadgeSalud,
   tituloSeccionSaludable,
@@ -41,7 +43,7 @@ interface HallazgoDetallePanelProps {
   detalle: DetalleHallazgo | null;
   open: boolean;
   isClosing?: boolean;
-  lenguajeClaro: boolean;
+  locale?: Locale;
   onClose: () => void;
   onAbrirResumen?: () => void;
   onAbrirHerramienta: (idRastreo: string) => void;
@@ -57,14 +59,15 @@ export default function HallazgoDetallePanel({
   detalle,
   open,
   isClosing = false,
-  lenguajeClaro,
+  locale = "es",
   onClose,
   onAbrirResumen,
   onAbrirHerramienta,
   onGenerarAnuncios,
 }: HallazgoDetallePanelProps) {
   const [copiedKw, setCopiedKw] = useState<string | null>(null);
-  const [verTecnico, setVerTecnico] = useState(!lenguajeClaro);
+  const [verTecnico, setVerTecnico] = useState(false);
+  const copyR = copyResumen(locale);
   const [mostrarConfirmacion, setMostrarConfirmacion] = useState(false);
   const [aplicando, setAplicando] = useState(false);
   const [applyResult, setApplyResult] = useState<HallazgoApplyResult | null>(null);
@@ -344,7 +347,7 @@ export default function HallazgoDetallePanel({
                 onClick={onAbrirResumen}
                 className="hover:text-[#0a0a0a] transition-colors"
               >
-                Resumen fácil
+                {copyR.breadcrumbResumen}
               </button>
               <ChevronRight size={14} />
               <span className="text-[#4B5563]">Detalle del hallazgo</span>
@@ -364,7 +367,7 @@ export default function HallazgoDetallePanel({
                   onClick={() => setVerTecnico((v) => !v)}
                   className="text-[11px] font-black uppercase tracking-widest text-[#6366F1] hover:underline"
                 >
-                  {verTecnico ? "Ver en criollo" : "Ver detalle técnico"}
+                  {verTecnico ? copyR.verPalabrasSimple : copyR.verDetalleTecnico}
                 </button>
               )}
             </div>

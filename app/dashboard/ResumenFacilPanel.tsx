@@ -25,6 +25,9 @@ import {
   tituloHumanoHallazgo,
   textoHallazgoParaUsuario,
 } from "../../lib/resumenFacil";
+import { copyResumen } from "../../lib/copyResumen";
+import { formatMonto } from "../../lib/formatoMoneda";
+import type { Locale } from "../../lib/i18n/types";
 import { etiquetaChipCuenta, type NivelSalud } from "../../lib/saludMora";
 import {
   construirPlanHallazgo,
@@ -56,11 +59,13 @@ interface ResumenFacilPanelProps {
   nivelCuenta?: string;
   razonesCuenta?: string[];
   items: ItemResumenHallazgo[];
-  lenguajeClaro: boolean;
+  itemsPositivos?: ItemResumenHallazgo[];
+  totalHallazgosAccionables?: number;
+  locale?: Locale;
+  currencyCode?: string;
   onResolver: (item: ItemResumenHallazgo) => void;
-  /** Auditoría pasada: solo narrativa, sin corregir ni abrir herramientas */
+  onVerReporteCompleto?: () => void;
   soloLectura?: boolean;
-  /** No es la auditoría más reciente: copy en pasado */
   modoHistorico?: boolean;
   fechaAuditoria?: string;
 }
@@ -103,12 +108,17 @@ export default function ResumenFacilPanel({
   nivelCuenta,
   razonesCuenta = [],
   items,
-  lenguajeClaro,
+  itemsPositivos = [],
+  totalHallazgosAccionables = 0,
+  locale = "es",
+  currencyCode = "USD",
   onResolver,
+  onVerReporteCompleto,
   soloLectura = false,
   modoHistorico = false,
   fechaAuditoria,
 }: ResumenFacilPanelProps) {
+  const copy = copyResumen(locale);
   const [copiadoIdx, setCopiadoIdx] = useState<number | null>(null);
   const [confirmOpen, setConfirmOpen] = useState<Record<string, boolean>>({});
   const [aplicandoId, setAplicandoId] = useState<string | null>(null);
@@ -125,6 +135,8 @@ export default function ResumenFacilPanel({
       nivel: nivelCuenta,
       modoHistorico,
       fechaAuditoria,
+      currencyCode,
+      locale,
     });
   }, [
     resumenEjecutivo,
@@ -135,6 +147,8 @@ export default function ResumenFacilPanel({
     nivelCuenta,
     modoHistorico,
     fechaAuditoria,
+    currencyCode,
+    locale,
   ]);
 
   const visual = useMemo(() => scoreVisual(score, nivelCuenta), [score, nivelCuenta]);
@@ -157,8 +171,10 @@ export default function ResumenFacilPanel({
 
   const gastoFmt =
     gastoDesperdiciado > 0
-      ? `$${Math.round(gastoDesperdiciado).toLocaleString()}`
+      ? formatMonto(gastoDesperdiciado, currencyCode, locale)
       : "—";
+
+  const hallazgosRestantes = Math.max(0, totalHallazgosAccionables - items.length);
 
   const labelToolCta = (accion: string) => {
     switch (accion) {
@@ -209,9 +225,10 @@ export default function ResumenFacilPanel({
   };
 
   const copiarPasoAPaso = async (item: ItemResumenHallazgo, idx: number) => {
-    const titulo = lenguajeClaro
-      ? tituloHumanoHallazgo(item.id_rastreo, item.titulo)
-      : item.titulo;
+    const titulo = tituloHumanoHallazgo(item.id_rastreo, item.titulo, {
+      modoHistorico,
+      locale,
+    });
     const pasos = pasosCortos(item);
     await copiarItem(idx, `${titulo}\n\nPaso a paso:\n${pasos.map((p, i) => `${i + 1}. ${p}`).join("\n")}`);
   };
@@ -291,7 +308,7 @@ export default function ResumenFacilPanel({
                     <BookOpen size={18} className="text-[#0a0a0a]" />
                   </div>
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#6366F1]">
-                    {soloLectura ? "Resumen histórico" : "Resumen fácil"}
+                    {soloLectura ? (locale === "en" ? "Historical summary" : "Resumen histórico") : copy.panelBadge}
                   </span>
                   <span
                     className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded border ${visual.chip}`}
@@ -300,7 +317,7 @@ export default function ResumenFacilPanel({
                   </span>
                 </div>
                 <h2 className="text-xl md:text-2xl font-black text-[#0a0a0a] mt-2 leading-tight">
-                  {modoHistorico ? "Tu cuenta en esa auditoría" : "Tu cuenta en criollo"}
+                  {modoHistorico ? copy.panelTitleHistorico : copy.panelTitle}
                 </h2>
                 <p className="text-sm md:text-base text-[#4B5563] mt-2 leading-relaxed font-medium max-w-xl">
                   {fraseSalud}
@@ -321,7 +338,7 @@ export default function ResumenFacilPanel({
             <div className="inline-flex items-center gap-2 rounded-xl border border-[#FECACA] bg-[#FEE2E2]/60 px-3 py-2">
               <TrendingDown size={14} className="text-[#B91C1C] shrink-0" />
               <span className="text-[10px] font-black uppercase tracking-widest text-[#B91C1C]">
-                Gasto desperdiciado
+                {copy.gastoDesperdiciado}
               </span>
               <span className="text-sm font-black text-[#0a0a0a]">{gastoFmt}</span>
               {porcentajeDesperdiciado > 0 && (
@@ -387,27 +404,22 @@ export default function ResumenFacilPanel({
                 )}
               </div>
             ) : (
-              <p className="text-sm text-[#4B5563] text-center py-12">
-                Corré una auditoría para ver tu resumen en lenguaje claro.
-              </p>
+              <p className="text-sm text-[#4B5563] text-center py-12">{copy.sinAuditoria}</p>
             )
           ) : (
             <>
               <p className="text-[11px] font-black uppercase tracking-widest text-[#4B5563] flex items-center gap-2">
                 <ListChecks size={14} />
-                {modoHistorico
-                  ? "Lo que Mora había marcado en esa auditoría"
-                  : "Lo más urgente — tocá para ver el detalle completo"}
+                {modoHistorico ? copy.loMarcadoHistorico : copy.loMasUrgente}
               </p>
               {items.map((item, idx) => {
-                const titulo =
-                  lenguajeClaro || modoHistorico
-                    ? tituloHumanoHallazgo(item.id_rastreo, item.titulo, {
-                        modoHistorico,
-                      })
-                    : item.titulo;
-                const cuerpo = textoHallazgoParaUsuario(item, lenguajeClaro, {
+                const titulo = tituloHumanoHallazgo(item.id_rastreo, item.titulo, {
                   modoHistorico,
+                  locale,
+                });
+                const cuerpo = textoHallazgoParaUsuario(item, true, {
+                  modoHistorico,
+                  locale,
                 });
                 const esCritico = item.tipo === "critico";
                 const accion = resolverAccionHallazgo(item.id_rastreo);
@@ -593,6 +605,37 @@ export default function ResumenFacilPanel({
                   </div>
                 );
               })}
+              {!soloLectura && hallazgosRestantes > 0 && onVerReporteCompleto && (
+                <button
+                  type="button"
+                  onClick={onVerReporteCompleto}
+                  className="w-full py-4 rounded-xl border border-[#E0E7FF] bg-[#E0E7FF]/10 text-[#6366F1] text-[11px] font-black uppercase tracking-widest hover:bg-[#E0E7FF]/20 flex items-center justify-center gap-2"
+                >
+                  {copy.verHallazgosEnReporte(totalHallazgosAccionables)}
+                  <ArrowRight size={14} />
+                </button>
+              )}
+              {itemsPositivos.length > 0 && (
+                <div className="mt-6 space-y-3">
+                  <p className="text-[11px] font-black uppercase tracking-widest text-[#047857] flex items-center gap-2">
+                    <ShieldCheck size={14} />
+                    {copy.queEstaBien}
+                  </p>
+                  {itemsPositivos.map((item) => (
+                    <div
+                      key={item.id_rastreo}
+                      className="rounded-2xl border border-[#A7F3D0] bg-[#ECFDF5] p-5"
+                    >
+                      <h4 className="text-sm font-black text-[#0a0a0a]">
+                        {tituloHumanoHallazgo(item.id_rastreo, item.titulo, { locale, modoHistorico })}
+                      </h4>
+                      <p className="text-sm text-[#4B5563] mt-2 font-medium leading-relaxed">
+                        {textoHallazgoParaUsuario(item, true, { locale, modoHistorico })}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </>
           )}
           </div>
@@ -604,7 +647,7 @@ export default function ResumenFacilPanel({
             onClick={onClose}
             className="w-full py-3.5 rounded-xl text-[11px] font-black uppercase tracking-widest border border-[#E5E7EB] text-[#4B5563] hover:bg-[#F4F4F5]"
           >
-            Volver al dashboard
+            {locale === "en" ? "Back to dashboard" : "Volver al dashboard"}
           </button>
         </div>
       </div>

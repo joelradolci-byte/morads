@@ -187,7 +187,21 @@ export async function POST(req: Request) {
       estratega = await ejecutarEstrategaAuditoria(payloadEstratega, idioma);
     }
 
-    const reporteFinal = aplicarEstratega(esqueletoJSON, hallazgosRedactados, estratega);
+    const reporteFinal = aplicarEstratega(esqueletoJSON, hallazgosRedactados, estratega) as Record<
+      string,
+      unknown
+    >;
+    const currencyCode =
+      typeof datosEstructurados.currency_code === "string"
+        ? datosEstructurados.currency_code
+        : "USD";
+    reporteFinal.meta = {
+      ...(typeof reporteFinal.meta === "object" && reporteFinal.meta !== null
+        ? (reporteFinal.meta as Record<string, unknown>)
+        : {}),
+      currency_code: currencyCode,
+      idioma_ui: idioma,
+    };
 
     await recordUsageSuccess(user.id, "audit");
 

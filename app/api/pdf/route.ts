@@ -10,6 +10,7 @@ import {
   UsageLimitError,
   usageLimitResponse,
 } from "@/lib/usage/enforce";
+import { getCurrencyCodeFromReporte } from "@/lib/formatoMoneda";
 
 export async function GET(req: Request) {
   try {
@@ -56,15 +57,24 @@ export async function GET(req: Request) {
 
     const { data: agencia } = await supabase
       .from("configuracion_agencia")
-      .select("agencia_nombre, agencia_logo")
+      .select("agencia_nombre, agencia_logo, agencia_web, agencia_pie")
       .eq("user_id", audit.user_id)
       .maybeSingle();
 
+    const reporteJson = audit.reporte_json as Record<string, unknown> | null;
     const meta = {
       nombre_cuenta: audit.nombre_cuenta || "Cliente",
       created_at: audit.created_at,
-      agencia_nombre: agencia?.agencia_nombre || "Mora Analytics",
+      agencia_nombre: agencia?.agencia_nombre || audit.nombre_cuenta || "Mora",
       agencia_logo: agencia?.agencia_logo || undefined,
+      agencia_web: agencia?.agencia_web || undefined,
+      agencia_pie: agencia?.agencia_pie || undefined,
+      currency_code: getCurrencyCodeFromReporte(reporteJson),
+      idioma_ui:
+        typeof (reporteJson?.meta as Record<string, unknown> | undefined)?.idioma_ui ===
+        "string"
+          ? String((reporteJson!.meta as Record<string, unknown>).idioma_ui)
+          : "es",
     };
 
     const pdfBuffer = await renderToBuffer(

@@ -9,6 +9,8 @@ import {
 } from "lucide-react";
 import { etiquetaBadgeSalud, type NivelSalud } from "../../../lib/saludMora";
 import { tituloHumanoHallazgo, textoHallazgoParaUsuario } from "../../../lib/resumenFacil";
+import { copyResumen } from "../../../lib/copyResumen";
+import type { Locale } from "../../../lib/i18n/types";
 
 type HallazgoItem = {
   id_rastreo?: string;
@@ -45,7 +47,7 @@ type LecturaAuditoriaViewProps = {
     problemas: string;
     mejoras: string;
   };
-  explicacionClara: boolean;
+  locale?: Locale;
   modoHistorico: boolean;
   onAbrirResumenFacil: () => void;
 };
@@ -55,10 +57,11 @@ export default function LecturaAuditoriaView({
   score,
   fechaLabel,
   labels,
-  explicacionClara,
+  locale = "es",
   modoHistorico,
   onAbrirResumenFacil,
 }: LecturaAuditoriaViewProps) {
+  const copyR = copyResumen(locale);
   const rojos = reporte.hallazgos?.graves_rojo ?? [];
   const amarillos = reporte.hallazgos?.debiles_amarillo ?? [];
   const verdes = reporte.hallazgos?.bien_verde ?? [];
@@ -100,7 +103,7 @@ export default function LecturaAuditoriaView({
             className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl border border-[#E0E7FF]/50 bg-[#E0E7FF]/15 text-[#E0E7FF] hover:bg-[#E0E7FF]/25 transition-all text-[11px] font-black uppercase tracking-widest shrink-0"
           >
             <BookOpen size={14} />
-            Leer resumen fácil
+            {copyR.leerResumenSimple}
           </button>
         </div>
 
@@ -130,7 +133,7 @@ export default function LecturaAuditoriaView({
                   )}
                 </p>
                 <p className="text-[#A8A29E] text-base leading-relaxed font-medium">
-                  {textoHallazgoParaUsuario(item, explicacionClara, { modoHistorico })}
+                  {textoHallazgoParaUsuario(item, true, { modoHistorico, locale })}
                 </p>
               </div>
             ))}
@@ -157,7 +160,7 @@ export default function LecturaAuditoriaView({
                   )}
                 </p>
                 <p className="text-[#A8A29E] text-base leading-relaxed font-medium">
-                  {textoHallazgoParaUsuario(item, explicacionClara, { modoHistorico })}
+                  {textoHallazgoParaUsuario(item, true, { modoHistorico, locale })}
                 </p>
               </div>
             ))}
@@ -193,7 +196,7 @@ export default function LecturaAuditoriaView({
               })}
             </p>
             <p className="text-sm text-[#A8A29E] font-medium mt-2 leading-relaxed">
-              {textoHallazgoParaUsuario(item, explicacionClara, { modoHistorico })}
+              {textoHallazgoParaUsuario(item, true, { modoHistorico, locale })}
             </p>
           </div>
         );
