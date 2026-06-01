@@ -13,7 +13,7 @@ export default function PrivacidadPage() {
         <p className="text-[#657166] mb-8 font-bold">Sitio Web Oficial: <a href="https://mora-analytics.com" className="text-[#99CDD8] underline">https://mora-analytics.com</a></p>
         
         <div className="space-y-10 text-[#657166] leading-relaxed font-medium">
-          <p className="text-sm uppercase tracking-widest font-bold text-[#99CDD8]">Última actualización: 10 de Marzo de 2026.</p>
+          <p className="text-sm uppercase tracking-widest font-bold text-[#99CDD8]">Última actualización: 1 de junio de 2026.</p>
           
           <section>
             <h2 className="text-2xl font-bold text-[#262B27] mb-4" style={{ fontFamily: "'Playfair Display', serif" }}>1. Datos que recopilamos (Google Ads API)</h2>
@@ -34,7 +34,8 @@ export default function PrivacidadPage() {
 
           <section>
             <h2 className="text-2xl font-bold text-[#262B27] mb-4" style={{ fontFamily: "'Playfair Display', serif" }}>3. Cláusula de Copiloto y Ejecución de Cambios</h2>
-            <p>De acuerdo con nuestra filosofía de "Copiloto", los algoritmos de Mora Analytics acceden a la información únicamente con fines de análisis y diagnóstico. Mora no aplica, inyecta, ni ejecuta modificaciones automatizadas en el presupuesto o estructura de las campañas sin que exista una instrucción directa, voluntaria y explícita por parte del usuario dentro de la interfaz.</p>
+            <p>De acuerdo con nuestra filosofía de &quot;Copiloto&quot;, los algoritmos de Mora Analytics acceden a la información principalmente para análisis y diagnóstico. Por defecto no modificamos tu cuenta de Google Ads.</p>
+            <p className="mt-4">En el <strong>plan Pro</strong>, la función <strong>Safe Apply</strong> puede aplicar cambios en Google Ads únicamente después de tu <strong>confirmación explícita</strong> en la interfaz. Sin esa confirmación no se ejecutan ajustes automatizados en presupuesto, palabras clave, estructura de campañas ni configuraciones equivalentes.</p>
           </section>
 
           <section>
@@ -49,21 +50,33 @@ export default function PrivacidadPage() {
 
           <section>
             <h2 className="text-2xl font-bold text-[#262B27] mb-4" style={{ fontFamily: "'Playfair Display', serif" }}>6. Compartir con Terceros</h2>
-            <p>Mora Analytics no vende, alquila ni comparte bajo ninguna circunstancia tus datos personales o el rendimiento de las campañas de tus clientes con agencias de publicidad, competidores u otros terceros con fines comerciales.</p>
+            <p>Mora Analytics no vende, alquila ni comparte tus datos personales ni el rendimiento de tus campañas con agencias de publicidad, competidores u otros terceros con fines comerciales. Compartimos datos únicamente con proveedores necesarios para operar el servicio (infraestructura, IA y pagos), bajo obligaciones de confidencialidad y solo en la medida requerida.</p>
           </section>
 
           <section>
-            <h2 className="text-2xl font-bold text-[#262B27] mb-4" style={{ fontFamily: "'Playfair Display', serif" }}>7. Derechos del Usuario</h2>
-            <p>Tienes derecho a solicitar la eliminación completa de tu cuenta, tu perfil y todo el historial de auditorías de nuestros servidores contactando al equipo de soporte. Esta acción es irreversible.</p>
+            <h2 className="text-2xl font-bold text-[#262B27] mb-4" style={{ fontFamily: "'Playfair Display', serif" }}>7. Pagos y Facturación (Lemon Squeezy)</h2>
+            <p>Las suscripciones del plan Pro se procesan mediante <strong>Lemon Squeezy</strong>. Recibimos de Lemon la información necesaria para gestionar tu suscripción (por ejemplo: email de compra, estado de pago, identificadores de cliente y suscripción). <strong>No almacenamos números completos de tarjeta de crédito</strong>; el procesamiento de pagos lo realiza Lemon Squeezy.</p>
+            <p className="mt-4">
+              Consultá la política de privacidad de Lemon Squeezy en{" "}
+              <a href="https://www.lemonsqueezy.com/privacy" target="_blank" rel="noopener noreferrer" className="underline hover:text-[#262B27] text-[#99CDD8]">
+                lemonsqueezy.com/privacy
+              </a>
+              .
+            </p>
           </section>
 
           <section>
-            <h2 className="text-2xl font-bold text-[#262B27] mb-4" style={{ fontFamily: "'Playfair Display', serif" }}>8. Uso de Cookies</h2>
+            <h2 className="text-2xl font-bold text-[#262B27] mb-4" style={{ fontFamily: "'Playfair Display', serif" }}>8. Derechos del Usuario</h2>
+            <p>Tienes derecho a solicitar la eliminación completa de tu cuenta, tu perfil y todo el historial de auditorías de nuestros servidores contactando al equipo de soporte en <strong>contacto@mora-analytics.com</strong>. Esta acción es irreversible.</p>
+          </section>
+
+          <section>
+            <h2 className="text-2xl font-bold text-[#262B27] mb-4" style={{ fontFamily: "'Playfair Display', serif" }}>9. Uso de Cookies</h2>
             <p>Mora Analytics utiliza cookies técnicas y esenciales para el funcionamiento de la plataforma (gestión de inicio de sesión a través de Google OAuth y seguridad de la sesión). No utilizamos cookies de publicidad de terceros ni realizamos seguimiento de usuarios fuera de nuestra plataforma.</p>
           </section>
 
           <section>
-            <h2 className="text-2xl font-bold text-[#262B27] mb-4" style={{ fontFamily: "'Playfair Display', serif" }}>9. Contacto</h2>
+            <h2 className="text-2xl font-bold text-[#262B27] mb-4" style={{ fontFamily: "'Playfair Display', serif" }}>10. Contacto</h2>
             <p>Si tienes preguntas o inquietudes sobre esta Política de Privacidad o el manejo de tus datos, puedes contactarnos en: <strong>contacto@mora-analytics.com</strong>.</p>
           </section>
         </div>
