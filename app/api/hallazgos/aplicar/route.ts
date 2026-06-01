@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
 import { getUserFromRequest } from "@/lib/auth/api-user";
+import {
+  assertProFeature,
+  ProFeatureError,
+  proFeatureResponse,
+} from "@/lib/usage/enforce";
 import { resolveApplyContext } from "@/lib/googleAds/applyContext";
 import { googleAdsApplyErrorResponse } from "@/lib/googleAds/applyHttp";
 import { delegateHallazgoApply } from "@/lib/googleAds/delegateHallazgo";
@@ -13,6 +18,13 @@ export async function POST(req: Request) {
   }
 
   try {
+    try {
+      await assertProFeature(user.id, user.email);
+    } catch (err) {
+      if (err instanceof ProFeatureError) return proFeatureResponse(err);
+      throw err;
+    }
+
     const body = await req.json();
     const plan = body?.plan as HallazgoApplyPlan | undefined;
     const userConfirmed = Boolean(body?.userConfirmed);

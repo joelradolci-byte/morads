@@ -51,6 +51,16 @@ import { moraAuthHeaders } from "../../lib/auth/client-headers";
 import { downloadAuditPdf } from "../../lib/pdf/downloadAuditPdf";
 import { downloadComparacionPdf } from "../../lib/pdf/downloadComparacionPdf";
 import type { UsageSnapshot } from "../../lib/usage/config";
+import { applyReportTeaserForPlanKind } from "../../lib/billing/reportTeaser";
+import {
+  auditsQuotaLabel,
+  auditsRemaining,
+  isAuditBlocked,
+  isPro,
+  pdfQuotaLabel as pdfQuotaLabelFromSnapshot,
+  pdfRemaining,
+} from "../../lib/billing/usageDisplay";
+import { TrialEvalBanner } from "../../components/billing/ProGate";
 import DestripadorPanel from './DestripadorPanel';
 import DaypartingPanel from './DaypartingPanel';
 import PresupuestoSimulatorPanel from './PresupuestoSimulatorPanel';
@@ -669,28 +679,59 @@ export function AuditorDashboard({
     if (session?.user?.id) void cargarUsoMensual();
   }, [session?.user?.id]);
 
+  useEffect(() => {
+    if (typeof window === "undefined" || !session?.user?.id) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("checkout") === "success") {
+      void cargarUsoMensual();
+      window.history.replaceState(null, "", "/dashboard");
+    }
+  }, [session?.user?.id]);
+
   const auditoriasRestantes = useMemo(() => {
     if (!usageSnapshot) return null;
-    return Math.max(
-      0,
-      usageSnapshot.limits.audit.monthly - usageSnapshot.usage.audit
-    );
+    return auditsRemaining(usageSnapshot);
   }, [usageSnapshot]);
 
   const pdfRestantes = useMemo(() => {
     if (!usageSnapshot) return null;
-    return Math.max(0, usageSnapshot.limits.pdf.monthly - usageSnapshot.usage.pdf);
+    return pdfRemaining(usageSnapshot);
   }, [usageSnapshot]);
 
   const pdfExportDisabled = pdfRestantes === 0;
+  const proActivo = isPro(usageSnapshot);
+  const comparacionProBloqueada = !proActivo;
 
-  const pdfQuotaLabel = usageSnapshot
-    ? `PDFs este mes: ${usageSnapshot.usage.pdf}/${usageSnapshot.limits.pdf.monthly}${
-        usageSnapshot.tier === "trial" ? " (trial)" : ""
-      }`
-    : null;
+  const pdfQuotaLabel = usageSnapshot ? pdfQuotaLabelFromSnapshot(usageSnapshot) : null;
+  const auditoriaQuotaLabel = usageSnapshot ? auditsQuotaLabel(usageSnapshot) : null;
 
-  const auditoriaBloqueadaPorCuota = auditoriasRestantes === 0;
+  const auditoriaBloqueadaPorCuota = isAuditBlocked(usageSnapshot);
+
+  const historialVisible = useMemo(() => {
+    if (usageSnapshot?.planKind === "trial_expired") {
+      return historial.slice(0, 1);
+    }
+    return historial;
+  }, [historial, usageSnapshot?.planKind]);
+
+  const iniciarCheckoutPro = async () => {
+    try {
+      const res = await fetch("/api/billing/checkout", {
+        method: "POST",
+        headers: await moraAuthHeaders(),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(typeof body?.message === "string" ? body.message : "No se pudo iniciar el pago.");
+        return;
+      }
+      if (typeof body.checkout_url === "string") {
+        window.location.href = body.checkout_url;
+      }
+    } catch {
+      alert("Error al conectar con el pago.");
+    }
+  };
 
   const conectarGoogleAds = async (redirectPath = "/dashboard") => {
     await supabase.auth.signInWithOAuth({
@@ -1403,7 +1444,7 @@ export function AuditorDashboard({
     return { label: "Óptimo", color: "text-[#10B981]", bgTints: "bg-[#10B981]/10", hex: "#10B981", icon: CheckCircle2, msg: "Cuentas estables y sanas" };
   };
 
-  const clientesFiltrados = historial.filter(item => {
+  const clientesFiltrados = historialVisible.filter(item => {
     const coincideFiltro = filtroEstado === "todos" || (filtroEstado === "critico" && item.score < 50) || (filtroEstado === "atencion" && item.score >= 50 && item.score < 80) || (filtroEstado === "optimo" && item.score >= 80);
     const nombreSeguro = item.nombre_cuenta || t[idioma].cuentaSinNombre;
     const coincideBusqueda = nombreSeguro.toLowerCase().includes(busqueda.toLowerCase());
@@ -1486,7 +1527,12 @@ export function AuditorDashboard({
     setResumenFacilAbierto(false);
     cerrarPanelesHerramientas();
     setAuditoriaActivaId(item.id);
-    setReporte(item.reporte_json);
+    const raw = item.reporte_json as Record<string, unknown> | null;
+    setReporte(
+      raw && usageSnapshot?.planKind
+        ? applyReportTeaserForPlanKind(raw, usageSnapshot.planKind)
+        : item.reporte_json
+    );
     setNombreCuenta(item.nombre_cuenta || "Sin nombre");
     setSubVistaReporte("diagnostico");
     setVista("reporte_lectura");
@@ -2099,6 +2145,13 @@ export function AuditorDashboard({
               {/* DASHBOARD INDIVIDUAL */}
               {vista === "dashboard" && (
                 <div className="animate-fade-custom print:hidden flex flex-col gap-6 w-full mx-auto">
+                  <TrialEvalBanner
+                    planKind={usageSnapshot?.planKind ?? "trial_not_started"}
+                    trialDaysLeft={usageSnapshot?.trialDaysLeft}
+                    auditsLeft={auditoriasRestantes ?? undefined}
+                    pdfLeft={pdfRestantes ?? undefined}
+                    onUpgrade={() => void iniciarCheckoutPro()}
+                  />
                   {errorAuditoria && (
                     <div
                       role="alert"
@@ -2249,11 +2302,9 @@ export function AuditorDashboard({
                             </span>
                           )}
 
-                          {usageSnapshot && (
+                          {auditoriaQuotaLabel && (
                             <p className="text-[9px] text-[#A8A29E] font-bold text-center leading-snug">
-                              Auditorías este mes: {usageSnapshot.usage.audit}/
-                              {usageSnapshot.limits.audit.monthly}
-                              {usageSnapshot.tier === "trial" ? " (trial)" : ""}
+                              {auditoriaQuotaLabel}
                             </p>
                           )}
 
@@ -2935,8 +2986,19 @@ export function AuditorDashboard({
                       </div>
                       <button
                         type="button"
-                        disabled={pdfExportDisabled || pdfComparacionCargando || pdfDescargandoId !== null}
-                        title={pdfExportDisabled ? "Límite mensual de PDFs alcanzado" : undefined}
+                        disabled={
+                          comparacionProBloqueada ||
+                          pdfExportDisabled ||
+                          pdfComparacionCargando ||
+                          pdfDescargandoId !== null
+                        }
+                        title={
+                          comparacionProBloqueada
+                            ? "Comparación PDF disponible en Pro"
+                            : pdfExportDisabled
+                              ? "Límite de PDFs alcanzado"
+                              : undefined
+                        }
                         onClick={() => void handleDescargarComparacionPdf(auditA.id, auditB.id)}
                         className="flex items-center gap-2 px-5 py-3 rounded-xl font-black text-xs uppercase tracking-widest bg-[#F3C3B2] text-[#0a0a0a] hover:bg-[#eab3a1] disabled:opacity-50 transition-all"
                       >
@@ -3175,13 +3237,49 @@ export function AuditorDashboard({
                     <div>
                       <p className="text-[10px] font-bold text-[#8A968C] uppercase tracking-widest mb-3">{t[idioma].planActual}</p>
                       <div className="flex items-center gap-4">
-                        <span className="text-3xl font-black text-[#0a0a0a]">{perfil?.plan === 'pro' ? 'Mora Pro' : 'Mora Free'}</span>
-                        <span className="px-3 py-1 rounded-md text-[10px] font-black bg-[#FAFAF9] border border-[#10B981] text-[#10B981] uppercase tracking-widest shadow-sm">{t[idioma].activa}</span>
+                        <span className="text-3xl font-black text-[#0a0a0a]">
+                          {proActivo ? "Mora Pro" : "Evaluación gratuita"}
+                        </span>
+                        <span className={`px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-widest shadow-sm border ${
+                          proActivo
+                            ? "bg-[#FAFAF9] border-[#10B981] text-[#10B981]"
+                            : usageSnapshot?.planKind === "trial_expired"
+                              ? "bg-[#FDE8D3] border-[#E66767] text-[#E66767]"
+                              : "bg-[#FAFAF9] border-[#CFD6C4] text-[#4B5563]"
+                        }`}>
+                          {proActivo
+                            ? t[idioma].activa
+                            : usageSnapshot?.planKind === "trial_active"
+                              ? "Evaluación"
+                              : usageSnapshot?.planKind === "trial_expired"
+                                ? "Finalizada"
+                                : "Sin iniciar"}
+                        </span>
                       </div>
-                      <p className="text-sm text-[#4B5563] mt-3 font-medium">Renueva el 14 de Abril, 2026</p>
+                      {usageSnapshot?.planKind === "trial_active" && usageSnapshot.trialEndsAt && (
+                        <p className="text-sm text-[#4B5563] mt-3 font-medium">
+                          Tu evaluación termina el{" "}
+                          {new Date(usageSnapshot.trialEndsAt).toLocaleDateString("es-AR")}
+                        </p>
+                      )}
+                      {proActivo && (
+                        <p className="text-sm text-[#4B5563] mt-3 font-medium">$27 USD / mes · Lemon Squeezy</p>
+                      )}
                     </div>
                   </div>
-                  <button className="w-full text-[#4B5563] bg-[#FAFAF9] border border-[#E5E7EB] hover:bg-white px-6 py-4 rounded-xl text-sm font-black transition-colors mt-2 flex justify-center items-center gap-2 cursor-not-allowed shadow-sm uppercase tracking-widest"><CreditCard size={18} /> {t[idioma].gestionarSuscripcion} <span className="text-[#E0E7FF] text-[9px] uppercase tracking-widest ml-2 bg-[#E0E7FF]/10 px-2 py-0.5 rounded">{t[idioma].pronto}</span></button>
+                  {!proActivo ? (
+                    <button
+                      type="button"
+                      onClick={() => void iniciarCheckoutPro()}
+                      className="w-full text-[#0a0a0a] bg-[#E0E7FF] hover:bg-[#eab3a1] px-6 py-4 rounded-xl text-sm font-black transition-colors flex justify-center items-center gap-2 shadow-sm uppercase tracking-widest"
+                    >
+                      Activar Pro — $27/mes
+                    </button>
+                  ) : (
+                    <p className="text-sm text-[#4B5563] font-medium text-center">
+                      Gestioná tu suscripción desde el portal de Lemon Squeezy (email de confirmación de pago).
+                    </p>
+                  )}
                 </div>
               )}
 

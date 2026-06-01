@@ -2,37 +2,80 @@ export type UsageAction = "audit" | "anuncios" | "pdf";
 
 export type PlanTier = "trial" | "paid";
 
-export type ActionLimits = {
+/** Cupos en ventana de evaluación (totales, no mensuales) */
+export type TrialActionLimits = {
+  total: number;
+  minIntervalSec: number;
+  maxPerHour: number;
+};
+
+export type TrialLimits = Record<UsageAction, TrialActionLimits>;
+
+/** Cupos mensuales Pro ($27/mes) */
+export type PaidActionLimits = {
   monthly: number;
   minIntervalSec: number;
   maxPerHour: number;
 };
 
-export type PlanLimits = Record<UsageAction, ActionLimits>;
+export type PaidLimits = Record<UsageAction, PaidActionLimits>;
+
+/** @deprecated Usar trialLimits / paidLimits en snapshot extendido */
+export type ActionLimits = PaidActionLimits;
+
+/** @deprecated Usar PaidLimits */
+export type PlanLimits = PaidLimits;
+
+export const TRIAL_DAYS = 14;
+
+export const PRO_PRICE_USD = 27;
+
+/** Evaluación: 14 días desde 1er customer_id en Google Ads */
+export const LIMITS_TRIAL: TrialLimits = {
+  audit: { total: 2, minIntervalSec: 86400, maxPerHour: 2 },
+  anuncios: { total: 1, minIntervalSec: 60, maxPerHour: 3 },
+  pdf: { total: 1, minIntervalSec: 0, maxPerHour: 5 },
+};
+
+/** Plan Pro — Lemon Squeezy $27/mes */
+export const LIMITS_PAID: PaidLimits = {
+  audit: { monthly: 30, minIntervalSec: 120, maxPerHour: 5 },
+  anuncios: { monthly: 20, minIntervalSec: 60, maxPerHour: 15 },
+  pdf: { monthly: 60, minIntervalSec: 30, maxPerHour: 20 },
+};
+
+export type PlanKind =
+  | "paid"
+  | "trial_active"
+  | "trial_expired"
+  | "trial_not_started";
 
 export type UsageSnapshot = {
   tier: PlanTier;
+  planKind: PlanKind;
   period: string;
-  limits: PlanLimits;
+  limits: PaidLimits;
+  trialLimits: TrialLimits;
   usage: {
     audit: number;
     anuncios: number;
     pdf: number;
   };
-};
-
-/** Trial / sin suscripción activa */
-export const LIMITS_TRIAL: PlanLimits = {
-  audit: { monthly: 5, minIntervalSec: 120, maxPerHour: 3 },
-  anuncios: { monthly: 5, minIntervalSec: 60, maxPerHour: 10 },
-  pdf: { monthly: 10, minIntervalSec: 30, maxPerHour: 10 },
-};
-
-/** Plan pago ($29/mes) — plan pro o estado activa en `suscripciones` */
-export const LIMITS_PAID: PlanLimits = {
-  audit: { monthly: 30, minIntervalSec: 120, maxPerHour: 5 },
-  anuncios: { monthly: 20, minIntervalSec: 60, maxPerHour: 15 },
-  pdf: { monthly: 60, minIntervalSec: 30, maxPerHour: 20 },
+  trialUsage?: {
+    audit: number;
+    anuncios: number;
+    pdf: number;
+  };
+  trialEndsAt?: string | null;
+  trialDaysLeft?: number | null;
+  trialNotStartedReason?: "connect_ads" | "confirm_email" | null;
+  pdfWatermark: boolean;
+  features: {
+    safeApply: boolean;
+    comparisonPdf: boolean;
+    fullReport: boolean;
+    whiteLabelPdf: boolean;
+  };
 };
 
 export function currentUsagePeriod(): string {

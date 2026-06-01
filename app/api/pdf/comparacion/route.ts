@@ -5,7 +5,10 @@ import { ComparacionPDF } from "@/app/components/pdf/ComparacionPDF";
 import { getUserFromRequest } from "@/lib/auth/api-user";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import {
+  assertProFeature,
   assertUsageAllowed,
+  ProFeatureError,
+  proFeatureResponse,
   recordUsageSuccess,
   UsageLimitError,
   usageLimitResponse,
@@ -24,8 +27,10 @@ export async function GET(req: Request) {
     }
 
     try {
-      await assertUsageAllowed(user.id, "pdf");
+      await assertProFeature(user.id, user.email);
+      await assertUsageAllowed(user.id, "pdf", user.email);
     } catch (err) {
+      if (err instanceof ProFeatureError) return proFeatureResponse(err);
       if (err instanceof UsageLimitError) return usageLimitResponse(err);
       throw err;
     }
@@ -89,7 +94,7 @@ export async function GET(req: Request) {
       createElement(ComparacionPDF as never, { data: payload } as never) as never
     );
 
-    await recordUsageSuccess(user.id, "pdf");
+    await recordUsageSuccess(user.id, "pdf", user.email);
 
     const safeName = (payload.meta.nombre_cuenta || "Cuenta").replace(/\s+/g, "_");
     const filename = `Comparacion_Mora_${safeName}.pdf`;

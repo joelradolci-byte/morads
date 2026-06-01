@@ -200,6 +200,9 @@ export default function ConfiguracionView({
       {tab === "pdf" && (
         <div className="space-y-6 max-w-xl">
           <p className="text-sm text-[#4B5563] font-medium">{s.businessNameHint}</p>
+          <p className="text-xs text-[#8A968C] font-medium border border-[#E5E7EB] rounded-xl p-3 bg-[#F4F4F5]">
+            En evaluación gratuita el PDF lleva marca Mora. Con Pro, los reportes usan tu nombre y logo (si lo cargás) sin watermark.
+          </p>
           <div>
             <label className="block text-[10px] font-bold text-[#8A968C] mb-2 uppercase tracking-widest">
               {s.businessName}

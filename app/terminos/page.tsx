@@ -32,7 +32,7 @@ export default function TerminosPage() {
 
           <section>
             <h2 className="text-2xl font-bold text-[#262B27] mb-4" style={{ fontFamily: "'Playfair Display', serif" }}>3. Suscripciones y Gestión de Pagos</h2>
-            <p>El servicio opera bajo un modelo de suscripción mensual. Los precios vigentes se detallan en la sección de Precios y pueden actualizarse con previo aviso. Ofrecemos un periodo de prueba gratuito de 14 días. La suscripción se puede cancelar en cualquier momento desde el panel de usuario, sin obligación de permanencia. No se emiten reembolsos parciales tras la cancelación.</p>
+            <p>El servicio incluye una evaluación gratuita de 14 días (sin tarjeta) al conectar Google Ads, con límites publicados en Precios, y el plan Pro por suscripción mensual de USD 27 procesada por Lemon Squeezy. Los precios pueden actualizarse con previo aviso. La suscripción Pro se puede cancelar desde el portal de pagos. No se emiten reembolsos parciales tras la cancelación. Un trial por email.</p>
           </section>
 
           <section>

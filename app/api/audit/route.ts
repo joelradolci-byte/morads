@@ -75,7 +75,7 @@ export async function POST(req: Request) {
     }
 
     try {
-      await assertUsageAllowed(user.id, "audit");
+      await assertUsageAllowed(user.id, "audit", user.email);
     } catch (err) {
       if (err instanceof UsageLimitError) return usageLimitResponse(err);
       throw err;
@@ -178,7 +178,7 @@ export async function POST(req: Request) {
       idioma_ui: idioma,
     };
 
-    await recordUsageSuccess(user.id, "audit");
+    await recordUsageSuccess(user.id, "audit", user.email);
 
     return NextResponse.json(reporteFinal);
   } catch (error: unknown) {

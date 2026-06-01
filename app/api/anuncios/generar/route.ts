@@ -34,7 +34,7 @@ export async function POST(req: Request) {
     }
 
     try {
-      await assertUsageAllowed(user.id, "anuncios");
+      await assertUsageAllowed(user.id, "anuncios", user.email);
     } catch (err) {
       if (err instanceof UsageLimitError) return usageLimitResponse(err);
       throw err;
@@ -114,7 +114,7 @@ Evitar términos: ${terminos_evitar.slice(0, 15).join(", ") || "N/A"}`;
       );
     }
 
-    await recordUsageSuccess(user.id, "anuncios");
+    await recordUsageSuccess(user.id, "anuncios", user.email);
 
     return NextResponse.json({
       variantes,

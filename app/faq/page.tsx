@@ -25,8 +25,8 @@ export default function FaqPage() {
           </div>
 
           <div className="bg-white/60 backdrop-blur-xl border border-[#CFD6C4]/60 rounded-2xl p-8 shadow-sm">
-            <h3 className="text-xl font-bold text-[#262B27] mb-3">¿Qué significa el "Plan Agency" con Marca Blanca?</h3>
-            <p className="text-[#657166] font-medium leading-relaxed">Te permite exportar los reportes eliminando el branding de Mora para aplicar el logotipo y los colores de tu propia agencia. Esto te ayuda a entregar auditorías de calidad corporativa manteniendo una presencia de marca profesional y unificada frente a tus clientes.</p>
+            <h3 className="text-xl font-bold text-[#262B27] mb-3">¿Qué es la marca blanca en PDF?</h3>
+            <p className="text-[#657166] font-medium leading-relaxed">Con Mora Pro podés exportar reportes con el nombre de tu negocio y logo (si lo cargás en Configuración). En la evaluación gratuita el PDF incluye marca de agua Mora para que veas la calidad del informe.</p>
           </div>
 
           <div className="bg-white/60 backdrop-blur-xl border border-[#CFD6C4]/60 rounded-2xl p-8 shadow-sm">
@@ -45,8 +45,8 @@ export default function FaqPage() {
           </div>
 
           <div className="bg-white/60 backdrop-blur-xl border border-[#CFD6C4]/60 rounded-2xl p-8 shadow-sm">
-            <h3 className="text-xl font-bold text-[#262B27] mb-3">¿Cómo funciona el período de prueba?</h3>
-            <p className="text-[#657166] font-medium leading-relaxed">Todos los planes pagos vienen con 14 días de prueba gratuita y acceso total a sus funciones. Podés cancelar en cualquier momento desde tu panel de facturación con un solo clic. Sin correos ni demoras.</p>
+            <h3 className="text-xl font-bold text-[#262B27] mb-3">¿Cómo funciona la evaluación gratuita?</h3>
+            <p className="text-[#657166] font-medium leading-relaxed">Al conectar tu cuenta de Google Ads tenés 14 días para usar 2 auditorías completas, 1 generación de anuncios y 1 PDF de muestra (con marca Mora), sin tarjeta. Después podés activar Pro ($27/mes) para seguir optimizando. Un trial por email.</p>
           </div>
 
         </div>

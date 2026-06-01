@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
+import { ensureSuscripcionRow, startTrialIfEligible } from "@/lib/billing/plan";
 import { getUserFromRequest } from "@/lib/auth/api-user";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
-import { getUserGoogleAdsToken } from "@/lib/googleAds/client";
+import { getUserGoogleAdsLink, getUserGoogleAdsToken } from "@/lib/googleAds/client";
 
 type LinkBody = {
   refresh_token?: string;
@@ -46,9 +47,39 @@ export async function POST(req: Request) {
   }
 
   const now = new Date().toISOString();
+  const userId = user.id;
+  const userEmail = user.email ?? "";
 
   try {
     const admin = getSupabaseAdmin();
+    if (userEmail) {
+      await ensureSuscripcionRow(userId, userEmail);
+    }
+
+    async function maybeStartTrial(wasCustomerIdEmpty: boolean) {
+      if (!hasCustomerId || !wasCustomerIdEmpty || !userEmail) return null;
+      const result = await startTrialIfEligible(userId, userEmail);
+      if (result.error === "trial_already_used") {
+        return NextResponse.json(
+          {
+            error: "trial_already_used",
+            message:
+              "Este email ya usó la evaluación gratuita. Activá Pro para seguir usando Mora.",
+          },
+          { status: 403 }
+        );
+      }
+      if (result.error === "confirm_email") {
+        return NextResponse.json(
+          {
+            error: "confirm_email",
+            message: "Confirmá tu email para activar la evaluación de 14 días.",
+          },
+          { status: 403 }
+        );
+      }
+      return null;
+    }
 
     if (hasRefreshToken) {
       const row: Record<string, unknown> = {
@@ -68,6 +99,9 @@ export async function POST(req: Request) {
             : null;
       }
 
+      const priorLink = await getUserGoogleAdsLink(user.id);
+      const wasEmpty = !priorLink?.customer_id;
+
       const { error } = await admin
         .from("google_ads_tokens")
         .upsert(row, { onConflict: "user_id" });
@@ -80,11 +114,17 @@ export async function POST(req: Request) {
         );
       }
 
-      return NextResponse.json({ ok: true });
+      const trialBlock = await maybeStartTrial(wasEmpty && hasCustomerId);
+      if (trialBlock) return trialBlock;
+
+      return NextResponse.json({
+        ok: true,
+        trial_started: wasEmpty && hasCustomerId,
+      });
     }
 
-    const existingToken = await getUserGoogleAdsToken(user.id);
-    if (!existingToken) {
+    const existingLink = await getUserGoogleAdsLink(user.id);
+    if (!existingLink?.refresh_token) {
       return NextResponse.json(
         {
           error: "not_connected",
@@ -110,6 +150,8 @@ export async function POST(req: Request) {
       updateRow.login_customer_id = loginCustomerId;
     }
 
+    const wasEmpty = !existingLink.customer_id;
+
     const { error } = await admin
       .from("google_ads_tokens")
       .update(updateRow)
@@ -123,7 +165,10 @@ export async function POST(req: Request) {
       );
     }
 
-    return NextResponse.json({ ok: true });
+    const trialBlock = await maybeStartTrial(wasEmpty);
+    if (trialBlock) return trialBlock;
+
+    return NextResponse.json({ ok: true, trial_started: wasEmpty });
   } catch (e) {
     console.error("[api/google-ads/link]", e);
     return NextResponse.json(

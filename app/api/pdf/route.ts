@@ -2,10 +2,12 @@ import { NextResponse } from "next/server";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { createElement } from "react";
 import { ReportePDF } from "../../components/pdf/ReportePDF";
+import { fetchSuscripcion } from "@/lib/billing/plan";
 import { getUserFromRequest } from "@/lib/auth/api-user";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import {
-  assertUsageAllowed,
+  assertPdfAllowed,
+  getUsageSnapshot,
   recordUsageSuccess,
   UsageLimitError,
   usageLimitResponse,
@@ -22,18 +24,26 @@ export async function GET(req: Request) {
       );
     }
 
-    try {
-      await assertUsageAllowed(user.id, "pdf");
-    } catch (err) {
-      if (err instanceof UsageLimitError) return usageLimitResponse(err);
-      throw err;
-    }
-
     const { searchParams } = new URL(req.url);
     const auditId = searchParams.get("id");
 
     if (!auditId) {
       return NextResponse.json({ error: "Falta el ID de la auditoría" }, { status: 400 });
+    }
+
+    const sub = await fetchSuscripcion(user.id);
+    const isRedownload =
+      Boolean(sub?.trial_pdf_used) && sub?.trial_pdf_audit_id === auditId;
+
+    try {
+      await assertPdfAllowed(
+        user.id,
+        { auditId, isRedownload },
+        user.email
+      );
+    } catch (err) {
+      if (err instanceof UsageLimitError) return usageLimitResponse(err);
+      throw err;
     }
 
     const supabase = getSupabaseAdmin();
@@ -62,26 +72,34 @@ export async function GET(req: Request) {
       .maybeSingle();
 
     const reporteJson = audit.reporte_json as Record<string, unknown> | null;
+    const snapshot = await getUsageSnapshot(user.id, user.email);
+    const isPaid = snapshot.planKind === "paid";
+
     const meta = {
       nombre_cuenta: audit.nombre_cuenta || "Cliente",
       created_at: audit.created_at,
-      agencia_nombre: agencia?.agencia_nombre || audit.nombre_cuenta || "Mora",
-      agencia_logo: agencia?.agencia_logo || undefined,
-      agencia_web: agencia?.agencia_web || undefined,
-      agencia_pie: agencia?.agencia_pie || undefined,
+      agencia_nombre: isPaid
+        ? agencia?.agencia_nombre || audit.nombre_cuenta || "Mora"
+        : agencia?.agencia_nombre || "Mora",
+      agencia_logo: isPaid ? agencia?.agencia_logo || undefined : undefined,
+      agencia_web: isPaid ? agencia?.agencia_web || undefined : undefined,
+      agencia_pie: isPaid ? agencia?.agencia_pie || undefined : undefined,
       currency_code: getCurrencyCodeFromReporte(reporteJson),
       idioma_ui:
         typeof (reporteJson?.meta as Record<string, unknown> | undefined)?.idioma_ui ===
         "string"
           ? String((reporteJson!.meta as Record<string, unknown>).idioma_ui)
           : "es",
+      watermark: !isPaid,
     };
 
     const pdfBuffer = await renderToBuffer(
       createElement(ReportePDF as never, { reporte: audit.reporte_json, meta } as never) as never
     );
 
-    await recordUsageSuccess(user.id, "pdf");
+    if (!isRedownload) {
+      await recordUsageSuccess(user.id, "pdf", user.email, auditId);
+    }
 
     const pdfBody = new Uint8Array(pdfBuffer);
     const filename = `Auditoria_Mora_${meta.nombre_cuenta.replace(/\s+/g, "_")}.pdf`;

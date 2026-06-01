@@ -9,7 +9,7 @@ export async function GET(req: Request) {
   }
 
   try {
-    const snapshot = await getUsageSnapshot(user.id);
+    const snapshot = await getUsageSnapshot(user.id, user.email);
     return NextResponse.json(snapshot);
   } catch (error) {
     console.error("[api/usage]", error);

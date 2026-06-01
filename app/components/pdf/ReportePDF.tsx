@@ -318,6 +318,29 @@ const styles = StyleSheet.create({
     fontSize: 7,
     color: C.stone400,
   },
+
+  watermarkWrap: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 48,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  watermarkText: {
+    fontSize: 36,
+    fontFamily: "Helvetica-Bold",
+    color: C.salmon,
+    opacity: 0.14,
+    letterSpacing: 2,
+  },
+  watermarkSub: {
+    fontSize: 10,
+    color: C.stone600,
+    opacity: 0.2,
+    marginTop: 8,
+  },
 });
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -383,6 +406,15 @@ function Header({
         {"Fecha: " + date}
         {website ? `\n${website}` : ""}
       </Text>
+    </View>
+  );
+}
+
+function TrialWatermark() {
+  return (
+    <View style={styles.watermarkWrap} fixed>
+      <Text style={styles.watermarkText}>EVALUACIÓN MORA</Text>
+      <Text style={styles.watermarkSub}>Activá Pro para exportar sin marca</Text>
     </View>
   );
 }
@@ -468,6 +500,8 @@ export interface AuditMeta {
   agencia_pie?: string;
   currency_code?: string;
   idioma_ui?: string;
+  /** Evaluación gratuita: marca de agua Mora */
+  watermark?: boolean;
 }
 
 // ─── Página 1: Situación Financiera ─────────────────────────────────────────
@@ -602,7 +636,16 @@ function Page1({
         ))}
       </View>
 
-      <Footer page={1} total={3} legalText={meta.agencia_pie} />
+      <Footer
+        page={1}
+        total={3}
+        legalText={
+          meta.watermark
+            ? "Evaluación Mora · Documento con marca de agua"
+            : meta.agencia_pie
+        }
+      />
+      {meta.watermark ? <TrialWatermark /> : null}
     </Page>
   );
 }
@@ -726,7 +769,16 @@ function Page2({ reporte, meta }: { reporte: ReporteData; meta: AuditMeta }) {
         </View>
       ))}
 
-      <Footer page={2} total={3} legalText={meta.agencia_pie} />
+      <Footer
+        page={2}
+        total={3}
+        legalText={
+          meta.watermark
+            ? "Evaluación Mora · Documento con marca de agua"
+            : meta.agencia_pie
+        }
+      />
+      {meta.watermark ? <TrialWatermark /> : null}
     </Page>
   );
 }
@@ -830,7 +882,16 @@ function Page3({ reporte, meta }: { reporte: ReporteData; meta: AuditMeta }) {
         })}
       </View>
 
-      <Footer page={3} total={3} legalText={meta.agencia_pie} />
+      <Footer
+        page={3}
+        total={3}
+        legalText={
+          meta.watermark
+            ? "Evaluación Mora · Documento con marca de agua"
+            : meta.agencia_pie
+        }
+      />
+      {meta.watermark ? <TrialWatermark /> : null}
     </Page>
   );
 }
