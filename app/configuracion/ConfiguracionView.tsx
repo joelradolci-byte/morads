@@ -11,7 +11,9 @@ import {
 import { useLocale } from "../../lib/i18n/LocaleProvider";
 import type { UsageSnapshot } from "../../lib/usage/config";
 import GoogleAdsConnectBlock from "../components/GoogleAdsConnectBlock";
-import GoogleAdsAccountPicker from "../components/GoogleAdsAccountPicker";
+import GoogleAdsAccountPicker, {
+  type GoogleAdsLinkResult,
+} from "../components/GoogleAdsAccountPicker";
 
 type TabId = "cuenta" | "experiencia" | "pdf";
 
@@ -35,7 +37,7 @@ export interface ConfiguracionViewProps {
   googleAdsConnected: boolean;
   googleAdsChecking: boolean;
   onConectarGoogleAds: () => void;
-  onGoogleAdsAccountLinked?: () => void;
+  onGoogleAdsAccountLinked?: (result: GoogleAdsLinkResult) => void;
 }
 
 export default function ConfiguracionView({

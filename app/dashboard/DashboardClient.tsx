@@ -75,9 +75,15 @@ import {
   buildQuickWinsFromReporte,
   buildPositivosFromReporte,
   countHallazgosAccionables,
+  MAX_QUICK_WINS_DASHBOARD,
 } from './reportes/buildQuickWinsFromReporte';
 import ConfiguracionView from '../configuracion/ConfiguracionView';
 import GoogleAdsConnectBlock from '../components/GoogleAdsConnectBlock';
+import DashboardKpiSection from './components/kpi/DashboardKpiSection';
+import {
+  cpaFromReporte,
+  cpaTrendSemantic,
+} from './components/kpi/accountHealthMetrics';
 import GoogleAdsAccountPicker from '../components/GoogleAdsAccountPicker';
 import { LocaleProvider, useLocale } from '../../lib/i18n/LocaleProvider';
 import { copyResumen } from '../../lib/copyResumen';
@@ -146,18 +152,6 @@ function getBadgeAuditoria(createdAt: string | undefined | null): BadgeAuditoria
   if (dias < 3) return null;
   if (dias <= 6) return "recomendado";
   return "desactualizada";
-}
-
-/** Texto breve por Quick Win: solo la descripción del hallazgo, sin fallback a `descripcion`. */
-function textoQuickWin(hallazgo: {
-  descripcion_simple?: string;
-  descripcion_tecnica?: string;
-}): string {
-  const texto = textoHallazgoParaUsuario(hallazgo, true);
-  if (texto.length > 360) {
-    return `${texto.slice(0, 357).trimEnd()}…`;
-  }
-  return texto;
 }
 
 function FadeInOnScroll({ children, delay = 0 }: { children: React.ReactNode, delay?: number }) {
@@ -412,108 +406,6 @@ const CurveBottom = () => (
   </svg>
 );
 
-function ScoreRing({ score, size = 150 }: { score: number, size?: number }) {
-  const stroke = 12;
-  const radius = (size / 2) - stroke;
-  const circumference = radius * 2 * Math.PI;
-  const strokeDashoffset = circumference - (score / 100) * circumference;
-  
-  const color = score < 50 ? "#E07070" : score < 80 ? "#D4A843" : "#7EB893";
-
-  return (
-    <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
-      <div className="absolute inset-0 rounded-full blur-2xl opacity-20" style={{ backgroundColor: color }}></div>
-      <svg height={size} width={size} className="transform -rotate-90 relative z-10">
-        <circle stroke="rgba(0,0,0,0.4)" fill="transparent" strokeWidth={stroke} r={radius} cx={size/2} cy={size/2} />
-        <circle stroke={color} fill="transparent" strokeWidth={stroke} strokeDasharray={circumference + ' ' + circumference} style={{ strokeDashoffset }} strokeLinecap="round" r={radius} cx={size/2} cy={size/2} className="transition-all duration-1000 ease-out" />
-      </svg>
-      <div className="absolute inset-0 flex items-center justify-center z-20">
-        <span className="text-6xl font-black text-white tracking-tighter drop-shadow-md">{score}</span>
-      </div>
-    </div>
-  );
-}
-
-function ScoreSparkline({ data, fechas }: { data: number[], fechas: string[] }) {
-  const [hovered, setHovered] = useState<number | null>(null);
-
-  if (!data || data.length < 2) return null;
-
-  const min = Math.min(...data);
-  const max = Math.max(...data);
-  const range = max - min || 1;
-  const w = 500;
-  const h = 140; 
-  const padX = 40;
-  const padY = 45; 
-
-  const coords = data.map((v, i) => {
-    const x = padX + (i / (data.length - 1)) * (w - padX * 2);
-    const y = h - padY - ((v - min) / range) * (h - padY * 2);
-    return { x, y, v };
-  });
-
-  const polyline = coords.map(c => `${c.x},${c.y}`).join(' ');
-  const areaPoints = `${coords[0].x},${h} ${polyline} ${coords[coords.length-1].x},${h}`;
-
-  const formatFecha = (dateStr: string) => {
-    if (!dateStr) return '';
-    const d = new Date(dateStr);
-    return `${d.getDate()}/${d.getMonth()+1}`;
-  };
-
-  return (
-    <div className="relative w-full" style={{height: '160px'}}>
-      <svg viewBox={`0 0 ${w} ${h}`} className="w-full" style={{height:'140px'}} preserveAspectRatio="xMidYMid meet">
-        <defs>
-          <linearGradient id="sparkGrad2" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#F3C3B2" stopOpacity="0.2" />
-            <stop offset="100%" stopColor="#F3C3B2" stopOpacity="0" />
-          </linearGradient>
-        </defs>
-
-        {[0, 25, 50, 75, 100].map(val => {
-          const y = h - padY - ((val - min) / range) * (h - padY * 2);
-          if (y < padY || y > h - padY + 5) return null;
-          return (
-            <line key={val} x1={padX} y1={y} x2={w - padX} y2={y}
-              stroke="#44403C" strokeWidth="1" strokeDasharray="4,4" />
-          );
-        })}
-
-        <polygon points={areaPoints} fill="url(#sparkGrad2)" />
-        <polyline points={polyline} fill="none" stroke="#F3C3B2" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />
-
-        {coords.map((c, i) => (
-          <g key={i}>
-            <circle cx={c.x} cy={c.y} r="5" fill="#F3C3B2" stroke="#292524" strokeWidth="2" />
-            <circle cx={c.x} cy={c.y} r="16" fill="transparent"
-              onMouseEnter={() => setHovered(i)}
-              onMouseLeave={() => setHovered(null)}
-              style={{cursor: 'pointer'}}
-            />
-            {hovered === i && (
-              <g>
-                <rect x={c.x - 28} y={c.y - 38} width="56" height="28" rx="6" fill="#1C1917" stroke="#44403C" strokeWidth="1" />
-                <text x={c.x} y={c.y - 23} textAnchor="middle" fill="#F5F0EB" fontSize="11" fontWeight="bold">{c.v}/100</text>
-                <text x={c.x} y={c.y - 12} textAnchor="middle" fill="#A8A29E" fontSize="9" fontWeight="500">{formatFecha(fechas[i])}</text>
-              </g>
-            )}
-          </g>
-        ))}
-      </svg>
-
-      <div className="flex justify-between mt-1" style={{ paddingLeft: `${(padX/w)*100}%`, paddingRight: `${(padX/w)*100}%` }}>
-        {fechas.map((f, i) => (
-          <span key={i} className={`text-[10px] font-bold transition-colors ${hovered === i ? 'text-[#F5F0EB]' : 'text-[#A8A29E]'}`}>
-            {formatFecha(f)}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 export function AuditorDashboard({
   initialVista = "dashboard",
   initialCampanasQuery,
@@ -586,6 +478,7 @@ export function AuditorDashboard({
   const [daypartingEstado, setDaypartingEstado] = useState<DaypartingEstadoPersistido>({
     aplicados: {},
   });
+  const [accountLinkNotice, setAccountLinkNotice] = useState<string | null>(null);
 
   const navegar = (nextVista: AuditorVista, path: string) => {
     setVista(nextVista);
@@ -749,6 +642,31 @@ export function AuditorDashboard({
 
   const iniciarSesion = () => conectarGoogleAds("/dashboard");
 
+  const handleGoogleAdsAccountLinked = async (result: {
+    accountChanged: boolean;
+  }) => {
+    if (result.accountChanged) {
+      setHistorial([]);
+      setReporte(null);
+      setQuickWinsCompletados([]);
+      setAuditoriaActivaId(null);
+      setComparacionIds([]);
+      setDetalleHallazgo(null);
+      if (vista === "reporte_lectura" || vista === "historial") {
+        navegar("dashboard", "/dashboard");
+      }
+      setAccountLinkNotice(
+        locale === "en"
+          ? "Account updated. Run a new audit to see your dashboard."
+          : "Cuenta actualizada. Ejecutá una nueva auditoría."
+      );
+      void cargarCampanas();
+    } else {
+      void cargarHistorial();
+    }
+    void verificarConexionGoogleAds();
+  };
+
   const verificarConexionGoogleAds = async (userId?: string) => {
     const uid = userId ?? session?.user?.id;
     if (!uid) {
@@ -905,7 +823,11 @@ export function AuditorDashboard({
   );
 
   const quickWinsDelDia = useMemo(
-    () => buildQuickWinsFromReporte(ultimaAuditoria?.reporte_json),
+    () =>
+      buildQuickWinsFromReporte(
+        ultimaAuditoria?.reporte_json,
+        MAX_QUICK_WINS_DASHBOARD
+      ),
     [ultimaAuditoria?.reporte_json]
   );
 
@@ -942,7 +864,7 @@ export function AuditorDashboard({
     ultimaAuditoria?.reporte_json?.cuenta_sin_cambios_urgentes === true ||
     ultimaAuditoria?.reporte_json?.diagnostico_salud?.cuenta?.cuenta_sin_cambios_urgentes === true;
 
-  const razonesCuentaSana: string[] =
+  const razonesScore: string[] =
     ultimaAuditoria?.reporte_json?.diagnostico_salud?.cuenta?.razones ?? [];
 
   const planRobin = useMemo(() => {
@@ -1004,6 +926,12 @@ export function AuditorDashboard({
     }
     return () => clearInterval(timer);
   }, [toastState.show, toastState.status, toastState.timeLeft]);
+
+  useEffect(() => {
+    if (!accountLinkNotice) return;
+    const timer = setTimeout(() => setAccountLinkNotice(null), 8000);
+    return () => clearTimeout(timer);
+  }, [accountLinkNotice]);
 
   const aplicarCambios = () => { setMostrarConfirmacion(false); setToastState({show: true, status: 'success', timeLeft: 15}); };
   const deshacerCambios = () => { setToastState(prev => ({...prev, status: 'undoing'})); setTimeout(() => { setToastState(prev => ({...prev, status: 'reverted'})); setTimeout(() => { setToastState(prev => ({...prev, show: false})); }, 3000); }, 1500); };
@@ -1596,8 +1524,17 @@ export function AuditorDashboard({
   const fugasIndividuales = ultimaAuditoria?.reporte_json?.hallazgos?.graves_rojo?.length || 0;
   const oportunidadesIndividuales = ultimaAuditoria?.reporte_json?.hallazgos?.debiles_amarillo?.length || 0;
 
-  const scoreHistorico = historial.slice(0, 8).reverse().map((h: any) => h.score);
-  const fechasHistorico = historial.slice(0, 8).reverse().map((h: any) => h.created_at || '');
+  const scoreHistorico = historial.slice(0, 10).reverse().map((h: any) => h.score);
+  const fechasHistorico = historial.slice(0, 10).reverse().map((h: any) => h.created_at || '');
+
+  const deltaVsAnterior =
+    historial.length >= 2 ? historial[0].score - historial[1].score : null;
+
+  const cpaCuentaKpi = cpaFromReporte(ultimaAuditoria?.reporte_json);
+  const cpaTrendKpi = cpaTrendSemantic(
+    cpaCuentaKpi,
+    historial.length >= 2 ? cpaFromReporte(historial[1].reporte_json) : null
+  );
 
   const textoUltimaAuditoria = useMemo(
     () => formatearUltimaAuditoria(ultimaAuditoria?.created_at),
@@ -1696,6 +1633,45 @@ export function AuditorDashboard({
   const terminosNegativizables = terminosPendientesDestripador.length;
   const cantidadCopiadosDestripador = terminosCopiadosDestripador.length;
   const cantidadAplicadosDestripador = terminosAplicadosDestripador.length;
+
+  const tieneDatosDestripador = useMemo(
+    () =>
+      !!destripadorReporte &&
+      (terminosNegativizables > 0 ||
+        cantidadCopiadosDestripador > 0 ||
+        cantidadAplicadosDestripador > 0 ||
+        palabrasBasura > 0),
+    [
+      destripadorReporte,
+      terminosNegativizables,
+      cantidadCopiadosDestripador,
+      cantidadAplicadosDestripador,
+      palabrasBasura,
+    ]
+  );
+
+  const subtituloDestripador = useMemo(() => {
+    const partes: string[] = [];
+    if (terminosNegativizables > 0) partes.push(`${terminosNegativizables} pendientes`);
+    if (cantidadCopiadosDestripador > 0) partes.push(`${cantidadCopiadosDestripador} copiados`);
+    if (cantidadAplicadosDestripador > 0) partes.push(`${cantidadAplicadosDestripador} aplicados`);
+    if (partes.length > 0) return partes.join(" · ");
+    if (palabrasBasura > 0) return `En ${palabrasBasura} palabras basura`;
+    return "Sin pendientes";
+  }, [
+    terminosNegativizables,
+    cantidadCopiadosDestripador,
+    cantidadAplicadosDestripador,
+    palabrasBasura,
+  ]);
+
+  const cuentaSinCambiosUrgentesKpi = useMemo(
+    () =>
+      ultimaAuditoria?.reporte_json?.cuenta_sin_cambios_urgentes === true ||
+      ultimaAuditoria?.reporte_json?.diagnostico_salud?.cuenta
+        ?.cuenta_sin_cambios_urgentes === true,
+    [ultimaAuditoria?.reporte_json]
+  );
 
   const handleDestripadorMitigar = (keys: string[], planId?: string) => {
     const auditId = auditoriaContextual?.id;
@@ -2107,15 +2083,14 @@ export function AuditorDashboard({
                     </div>
                   )}
 
-                  {((vista === "dashboard" && ultimaAuditoria) ||
-                    (vista === "reporte_lectura" && auditoriaActiva)) && (
+                  {vista === "reporte_lectura" && auditoriaActiva && (
                     <button
                       type="button"
                       onClick={() => setResumenFacilAbierto(true)}
                       className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-[#E0E7FF]/50 bg-[#E0E7FF]/15 text-[#E0E7FF] hover:bg-[#E0E7FF]/25 transition-all text-[11px] font-black uppercase tracking-widest shadow-lg"
                     >
                       <BookOpen size={14} />
-                      {vista === "reporte_lectura" ? copyR.leerResumenSimple : copyR.verResumenSimple}
+                      {copyR.leerResumenSimple}
                     </button>
                   )}
 
@@ -2173,6 +2148,22 @@ export function AuditorDashboard({
                       </button>
                     </div>
                   )}
+                  {accountLinkNotice && vista === "dashboard" && (
+                    <div className="mt-6 flex items-start gap-3 rounded-2xl border border-[#7EB893]/40 bg-[#7EB893]/10 px-5 py-4">
+                      <CheckCircle2 size={20} className="shrink-0 text-[#5B9A8B]" />
+                      <p className="text-sm font-bold leading-snug text-[#F5F0EB]">
+                        {accountLinkNotice}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setAccountLinkNotice(null)}
+                        className="ml-auto shrink-0 text-[#A8A29E] hover:text-[#F5F0EB]"
+                        aria-label={locale === "en" ? "Dismiss" : "Cerrar"}
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  )}
                   {cargandoHistorial || googleAdsChecking ? (
                     <div className="flex flex-col items-center justify-center py-32 gap-4 mt-6">
                       <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#F3C3B2]" />
@@ -2220,7 +2211,7 @@ export function AuditorDashboard({
                             locale={locale}
                             connected={googleAdsConnected}
                             variant="dashboard"
-                            onLinked={() => void verificarConexionGoogleAds()}
+                            onLinked={handleGoogleAdsAccountLinked}
                           />
                         )}
                         <button
@@ -2266,353 +2257,75 @@ export function AuditorDashboard({
                       />
                     </div>
                   )}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mt-6">
-                     
-                    {/* 1. Salud de la Cuenta */}
-                    <div className="bg-gradient-to-b from-[#292524] to-[#1C1917] border border-[#44403C] border-t-white/10 shadow-2xl rounded-3xl p-6 flex items-center justify-between min-h-[220px] relative overflow-hidden">
-                      <div className="flex flex-col h-full justify-between w-full relative z-10">
-                        <p className="text-[10px] font-black text-[#A8A29E] uppercase tracking-widest flex items-center gap-2"><Activity size={14} className="text-[#F3C3B2]"/> Salud de la Cuenta</p>
-                        
-                        <div className="flex flex-col items-center gap-3 mt-2 w-full">
-                          <ScoreRing score={ultimaAuditoria.score} size={120} />
-
-                          {textoUltimaAuditoria && (
-                            <p className="text-[10px] text-[#A8A29E] font-bold text-center leading-relaxed px-1">
-                              Última auditoría:{" "}
-                              <span className="text-[#F5F0EB]">{textoUltimaAuditoria}</span>
-                            </p>
-                          )}
-
-                          {badgeUltimaAuditoria === "recomendado" && (
-                            <span className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border border-[#10B981]/40 bg-[#10B981]/10 text-[#10B981] text-center">
-                              Recomendado auditar
-                            </span>
-                          )}
-                          {badgeUltimaAuditoria === "desactualizada" && (
-                            <span className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border border-[#D4A843]/40 bg-[#D4A843]/10 text-[#D4A843] text-center">
-                              Auditoría desactualizada
-                            </span>
-                          )}
-
-                          {(ultimaAuditoria.reporte_json?.cuenta_sin_cambios_urgentes === true ||
-                            ultimaAuditoria.reporte_json?.diagnostico_salud?.cuenta
-                              ?.cuenta_sin_cambios_urgentes === true) && (
-                            <span className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border border-[#10B981]/40 bg-[#10B981]/10 text-[#10B981] text-center leading-snug">
-                              Sin cambios urgentes
-                            </span>
-                          )}
-
-                          {auditoriaQuotaLabel && (
-                            <p className="text-[9px] text-[#A8A29E] font-bold text-center leading-snug">
-                              {auditoriaQuotaLabel}
-                            </p>
-                          )}
-
-                          <button 
-                            type="button"
-                            onClick={ejecutarAuditoriaConIA} 
-                            disabled={loading || auditoriaBloqueadaPorCuota}
-                            className="w-full text-[10px] uppercase tracking-widest font-black border border-[#44403C] bg-[#F3C3B2]/10 text-[#F3C3B2] hover:bg-[#F3C3B2] hover:text-[#0a0a0a] transition-colors px-5 py-2.5 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            {loading
-                              ? "MORA ESTÁ ANALIZANDO..."
-                              : auditoriaBloqueadaPorCuota
-                                ? "LÍMITE MENSUAL"
-                                : "EJECUTAR AUDITORÍA PRO"}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-
-                     {/* 2. Fugas Críticas */}
-                     <div className="bg-gradient-to-b from-[#292524] to-[#1C1917] border border-[#44403C] border-t-white/10 shadow-2xl rounded-3xl p-6 flex flex-col justify-between min-h-[160px] relative overflow-hidden group">
-                        <div className="absolute top-5 right-5 px-3 py-1.5 rounded-lg bg-[#E07070]/10 border border-[#E07070]/20 text-[#E07070] text-[9px] font-black uppercase tracking-widest">Crítico</div>
-                        <div className="w-12 h-12 rounded-2xl bg-[#E07070]/15 flex items-center justify-center mb-3 border border-[#E07070]/30 shadow-inner">
-                          <AlertTriangle size={22} className="text-[#E07070]" />
-                        </div>
-                        <div>
-                          <div className="flex items-baseline gap-2">
-                            <span className="text-5xl font-black text-white tracking-tighter leading-none">{fugasIndividuales}</span>
-                            <span className="text-xs font-black text-[#A8A29E] uppercase tracking-widest">Fugas</span>
-                          </div>
-                        </div>
-                     </div>
-
-                     {/* 3. DESTRIPADOR (Fugas en Palabras) */}
-                     {(() => {
-                       const tieneDatos =
-                         !!destripadorReporte &&
-                         (terminosNegativizables > 0 ||
-                           cantidadCopiadosDestripador > 0 ||
-                           cantidadAplicadosDestripador > 0 ||
-                           palabrasBasura > 0);
-                       const subtituloPartes: string[] = [];
-                       if (terminosNegativizables > 0) subtituloPartes.push(`${terminosNegativizables} pendientes`);
-                       if (cantidadCopiadosDestripador > 0) subtituloPartes.push(`${cantidadCopiadosDestripador} copiados`);
-                       if (cantidadAplicadosDestripador > 0) subtituloPartes.push(`${cantidadAplicadosDestripador} aplicados`);
-                       const subtitulo =
-                         subtituloPartes.length > 0
-                           ? subtituloPartes.join(" · ")
-                           : palabrasBasura > 0
-                             ? `En ${palabrasBasura} palabras basura`
-                             : "Sin pendientes";
-                       return (
-                     <div 
-                        onClick={() => {
-                          if (tieneDatos) setDestripadorAbierto(true);
-                        }}
-                        className={`bg-gradient-to-b from-[#292524] to-[#1C1917] border border-[#44403C] border-t-white/10 shadow-2xl rounded-3xl p-6 flex flex-col justify-between min-h-[160px] relative overflow-hidden group transition-all ${tieneDatos ? 'cursor-pointer hover:border-[#F3C3B2]/50' : 'opacity-70 grayscale'}`}
-                     >
-                        <div className="absolute top-5 right-5 px-3 py-1.5 rounded-lg bg-[#F3C3B2]/10 border border-[#F3C3B2]/20 text-[#F3C3B2] text-[9px] font-black uppercase tracking-widest">N-gramas</div>
-                        <div className="w-12 h-12 rounded-2xl bg-[#F3C3B2]/15 flex items-center justify-center mb-3 border border-[#F3C3B2]/30 shadow-inner">
-                          <Trash2 size={22} className="text-[#F3C3B2]" />
-                        </div>
-                        <div>
-                          <div className="flex items-baseline gap-2">
-                            <span className="text-5xl font-black text-[#F3C3B2] tracking-tighter leading-none">${ahorroNGramas.toLocaleString()}</span>
-                            <span className="text-xs font-black text-[#A8A29E] uppercase tracking-widest">Recuperable</span>
-                          </div>
-                          <p className="text-[10px] text-[#A8A29E] mt-2 font-bold uppercase tracking-widest">
-                            {subtitulo}
-                          </p>
-                        </div>
-                     </div>
-                       );
-                     })()}
-
-                     {/* 4. Dayparting */}
-                     <div
-                        onClick={() => {
-                          if (daypartingReporte) setDaypartingAbierto(true);
-                        }}
-                        className={`bg-gradient-to-b from-[#292524] to-[#1C1917] border border-[#44403C] border-t-white/10 shadow-2xl rounded-3xl p-6 flex flex-col justify-between min-h-[160px] relative overflow-hidden group transition-all ${daypartingReporte ? "cursor-pointer hover:border-[#D4A843]/50" : "opacity-70 grayscale"}`}
-                     >
-                        <div className="absolute top-5 right-5 px-3 py-1.5 rounded-lg bg-[#D4A843]/10 border border-[#D4A843]/20 text-[#D4A843] text-[9px] font-black uppercase tracking-widest">Dayparting</div>
-                        <div className="w-12 h-12 rounded-2xl bg-[#D4A843]/15 flex items-center justify-center mb-3 border border-[#D4A843]/30 shadow-inner">
-                          <Clock size={22} className="text-[#D4A843]" />
-                        </div>
-                        {daypartingReporte ? (
-                          <div>
-                            <div className="flex items-baseline gap-2">
-                              <span
-                                className={`text-5xl font-black tracking-tighter leading-none ${
-                                  franjasDaypartingPendientes > 0 ? "text-[#E07070]" : "text-[#D4A843]"
-                                }`}
-                              >
-                                {franjasDaypartingPendientes}
-                              </span>
-                              <span className="text-xs font-black text-[#A8A29E] uppercase tracking-widest">
-                                {franjasDaypartingPendientes === 1 ? "Patrón crítico" : "Patrones críticos"}
-                              </span>
-                            </div>
-                            <p className="text-[10px] text-[#A8A29E] mt-2 font-bold uppercase tracking-widest">
-                              ${ahorroMensualDayparting.toLocaleString()} recuperable/mes
-                            </p>
-                            {daypartingReporte.patron_principal && (
-                              <p className="text-[9px] text-[#A8A29E] mt-1.5 font-medium line-clamp-2 leading-snug opacity-90">
-                                {daypartingReporte.patron_principal.dias.join(" · ")} ·{" "}
-                                {String(daypartingReporte.patron_principal.hora_inicio).padStart(2, "0")}:00–
-                                {String(daypartingReporte.patron_principal.hora_fin).padStart(2, "0")}:00
-                              </p>
-                            )}
-                          </div>
-                        ) : (
-                          <p className="text-[10px] text-[#A8A29E] font-bold uppercase tracking-widest">Corré una auditoría</p>
-                        )}
-                     </div>
-
-                     {/* 5. Simulador de presupuesto */}
-                     <div
-                        onClick={() => {
-                          if (simuladorReporte) setSimuladorAbierto(true);
-                        }}
-                        className={`bg-gradient-to-b from-[#292524] to-[#1C1917] border border-[#44403C] border-t-white/10 shadow-2xl rounded-3xl p-6 flex flex-col justify-between min-h-[160px] relative overflow-hidden group transition-all ${simuladorReporte ? "cursor-pointer hover:border-[#10B981]/50" : "opacity-70 grayscale"}`}
-                     >
-                        <div className="absolute top-5 right-5 px-3 py-1.5 rounded-lg bg-[#10B981]/10 border border-[#10B981]/20 text-[#10B981] text-[9px] font-black uppercase tracking-widest">Simulador</div>
-                        <div className="w-12 h-12 rounded-2xl bg-[#10B981]/15 flex items-center justify-center mb-3 border border-[#10B981]/30 shadow-inner">
-                          <Calculator size={22} className="text-[#10B981]" />
-                        </div>
-                        {simuladorReporte && escenarioSimRecomendado ? (
-                          <div>
-                            <div className="flex items-baseline gap-2 flex-wrap">
-                              <span className="text-3xl font-black text-[#10B981] tracking-tighter leading-none">
-                                +{escenarioSimRecomendado.conversiones_extra.pesimista}–
-                                {escenarioSimRecomendado.conversiones_extra.optimista}
-                              </span>
-                              <span className="text-xs font-black text-[#A8A29E] uppercase tracking-widest">Conv./mes</span>
-                            </div>
-                            <p className="text-[10px] text-[#A8A29E] mt-2 font-bold uppercase tracking-widest line-clamp-2">
-                              Reasignando ${escenarioSimRecomendado.presupuesto_reasignable.toLocaleString()}
-                            </p>
-                          </div>
-                        ) : (
-                          <p className="text-[10px] text-[#A8A29E] font-bold uppercase tracking-widest">Corré una auditoría</p>
-                        )}
-                     </div>
-                     
-                  </div>
-
-                  {/* QUICK WINS DEL DÍA */}
-                  {(quickWinsDelDia.length > 0 || cuentaSinCambiosUrgentes) && (
-                    <div className="bg-[#292524] border border-[#44403C] shadow-2xl rounded-3xl p-6 w-full animate-fade-custom">
-                      {quickWinsDelDia.length === 0 && cuentaSinCambiosUrgentes ? (
-                        <div className="p-8 text-center flex flex-col items-center justify-center bg-[#10B981]/10 border-2 border-dashed border-[#10B981]/30 rounded-2xl">
-                          <CheckCircle2 size={40} className="text-[#10B981] mb-4" />
-                          <h3 className="text-xl font-black text-[#F5F0EB] tracking-tight">No hay acciones urgentes hoy</h3>
-                          <p className="text-[#A8A29E] text-sm mt-2 max-w-md font-medium leading-relaxed">
-                            {razonesCuentaSana.length > 0
-                              ? razonesCuentaSana.join(" ")
-                              : "Tu cuenta está en buen estado. Si tenés tiempo, revisá el detalle por campaña."}
-                          </p>
-                          <button
-                            type="button"
-                            onClick={() => navegar("campañas", "/campanas")}
-                            className="mt-4 text-[10px] font-black uppercase tracking-widest text-[#F3C3B2] hover:underline"
-                          >
-                            Ver detalle por campaña →
-                          </button>
-                        </div>
-                      ) : quickWinsCompletados.length === quickWinsDelDia.length ? (
-                        <div className="p-8 text-center flex flex-col items-center justify-center bg-[#10B981]/10 border-2 border-dashed border-[#10B981]/30 rounded-2xl animate-fade-custom">
-                          <div className="w-16 h-16 rounded-full bg-[#10B981]/20 flex items-center justify-center text-[#10B981] mb-4 shadow-lg animate-bounce">
-                            <CheckCircle2 size={32} strokeWidth={3} />
-                          </div>
-                          <h3 className="text-2xl font-black text-white tracking-tight">¡Cuenta blindada por hoy! 🎉</h3>
-                          <p className="text-[#A8A29E] text-sm mt-2 max-w-md font-medium leading-relaxed">
-                            Completaste las 3 acciones prioritarias recomendadas por Mora para este ciclo. El capital diario de tu cliente está seguro.
-                          </p>
-                        </div>
-                      ) : (
-                        <div>
-                          <div className="flex justify-between items-center mb-6">
-                            <div>
-                              <h3 className="text-base font-black text-[#F5F0EB] flex items-center gap-2">
-                                <Zap className="text-[#F3C3B2]" size={20} /> Quick Wins del Día
-                              </h3>
-                              <p className="text-[11px] text-[#A8A29E] mt-1 font-bold uppercase tracking-widest">Si tenés 10 minutos, empezá acá</p>
-                            </div>
-                            <span className="text-[10px] font-black bg-[#1C1917] border border-[#44403C] text-[#F3C3B2] px-3 py-1.5 rounded-lg">
-                              {quickWinsCompletados.length} de {quickWinsDelDia.length} Completados
-                            </span>
-                          </div>
-
-                          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                            {quickWinsDelDia.map((win: any, idx: number) => {
-                              const winId = win.id_rastreo || `win-${idx}-${win.titulo}`;
-                              const esCompletado = quickWinsCompletados.includes(winId);
-
-                              return (
-                                <div 
-                                  key={winId} 
-                                  className={`bg-[#1C1917] border rounded-2xl p-5 flex flex-col justify-between transition-all relative overflow-hidden ${
-                                    esCompletado ? 'border-[#10B981]/30 opacity-50 bg-[#10B981]/5' : 'border-[#44403C] hover:border-[#44403C]/80 shadow-md'
-                                  }`}
-                                >
-                                  <div>
-                                    <div className="flex justify-between items-center mb-3">
-                                      <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded border ${
-                                        esCompletado 
-                                          ? 'bg-[#10B981]/10 text-[#10B981] border-[#10B981]/20' 
-                                          : win.tipo === 'critico' 
-                                            ? 'bg-[#E07070]/10 text-[#E07070] border-[#E07070]/20' 
-                                            : 'bg-[#D4A843]/10 text-[#D4A843] border-[#D4A843]/20'
-                                      }`}>
-                                        {esCompletado ? 'Solucionado' : win.tipo === 'critico' ? 'Urgente' : 'Optimización'}
-                                      </span>
-                                    </div>
-                                    <h4 className={`text-sm font-bold text-[#F5F0EB] leading-tight ${esCompletado ? 'line-through opacity-60' : ''}`}>
-                                      {win.titulo}
-                                    </h4>
-                                    <p className="text-[11px] text-[#A8A29E] mt-2 font-medium line-clamp-2 leading-relaxed">
-                                      {textoQuickWin(win)}
-                                    </p>
-                                  </div>
-
-                                  <div className="mt-5 pt-3 border-t border-[#44403C]/30 flex items-center justify-between gap-4 shrink-0">
-                                    <button 
-                                      onClick={() => abrirDetalleHallazgo(win, win.tipo, ultimaAuditoria?.reporte_json)}
-                                      className="text-[10px] font-black uppercase tracking-widest text-[#A8A29E] hover:text-[#F5F0EB] transition-colors"
-                                    >
-                                      Ver detalle
-                                    </button>
-                                    
-                                    {!esCompletado ? (
-                                      <button 
-                                        onClick={() => {
-                                          if (win.id_rastreo === "GENERADOR_NEGATIVOS_URGENTE" && destripadorReporte) {
-                                            setPanelIntroResumen("destripador");
-                                            setDestripadorAbierto(true);
-                                          } else if (win.id_rastreo === "SIMULADOR_PRESUPUESTO" && simuladorReporte) {
-                                            setPanelIntroResumen("simulador");
-                                            setSimuladorAbierto(true);
-                                          } else if (win.id_rastreo === "DAYPARTING_FUGAS_HORARIAS" && daypartingReporte) {
-                                            setPanelIntroResumen("dayparting");
-                                            setDaypartingAbierto(true);
-                                          } else {
-                                            setQuickWinsCompletados([...quickWinsCompletados, winId]);
-                                            setToastState({ show: true, status: 'success', timeLeft: 5 });
-                                          }
-                                        }}
-                                        className="bg-[#F3C3B2] hover:bg-[#eab3a1] text-[#0a0a0a] font-black text-[10px] uppercase tracking-widest px-4 py-2 rounded-xl transition-all shadow-sm"
-                                      >
-                                        {win.id_rastreo === "GENERADOR_NEGATIVOS_URGENTE"
-                                          ? "Abrir Destripador"
-                                          : win.id_rastreo === "DAYPARTING_FUGAS_HORARIAS"
-                                            ? "Abrir Dayparting"
-                                            : win.id_rastreo === "SIMULADOR_PRESUPUESTO"
-                                              ? "Abrir Simulador"
-                                              : "Corregir Ahora"}
-                                      </button>
-                                    ) : (
-                                      <span className="text-[#10B981] flex items-center gap-1 text-[10px] font-black uppercase tracking-widest">
-                                        <Check size={14} strokeWidth={3} /> Listo
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                  <DashboardKpiSection
+                    score={ultimaAuditoria.score}
+                    fugasCount={fugasIndividuales}
+                    textoUltimaAuditoria={textoUltimaAuditoria}
+                    badgeUltimaAuditoria={badgeUltimaAuditoria}
+                    cuentaSinCambiosUrgentes={cuentaSinCambiosUrgentesKpi}
+                    scoreHistorico={scoreHistorico}
+                    fechasHistorico={fechasHistorico}
+                    deltaVsAnterior={deltaVsAnterior}
+                    reporteJson={ultimaAuditoria.reporte_json}
+                    cpaCuenta={cpaCuentaKpi}
+                    cpaTrend={cpaTrendKpi}
+                    currencyCode={currencyCodeActiva}
+                    locale={locale}
+                    resumenLabel={copyR.verResumenSimple}
+                    tieneAuditoria={!!ultimaAuditoria}
+                    onVerResumenSimple={() => setResumenFacilAbierto(true)}
+                    onHistorial={() => navegar("historial", "/reportes")}
+                    ahorroNGramas={ahorroNGramas}
+                    subtituloDestripador={subtituloDestripador}
+                    tieneDatosDestripador={tieneDatosDestripador}
+                    onOpenDestripador={() => setDestripadorAbierto(true)}
+                    daypartingReporte={daypartingReporte}
+                    franjasDaypartingPendientes={franjasDaypartingPendientes}
+                    ahorroMensualDayparting={ahorroMensualDayparting}
+                    onOpenDayparting={() => setDaypartingAbierto(true)}
+                    simuladorReporte={simuladorReporte}
+                    escenarioSimRecomendado={escenarioSimRecomendado}
+                    onOpenSimulador={() => setSimuladorAbierto(true)}
+                    quickWins={quickWinsDelDia}
+                    quickWinsCompletados={quickWinsCompletados}
+                    razonesScore={razonesScore}
+                    onQuickWinDetalle={win =>
+                      abrirDetalleHallazgo(win, win.tipo, ultimaAuditoria?.reporte_json)
+                    }
+                    onQuickWinAccion={(win, winId) => {
+                      if (
+                        win.id_rastreo === "GENERADOR_NEGATIVOS_URGENTE" &&
+                        destripadorReporte
+                      ) {
+                        setPanelIntroResumen("destripador");
+                        setDestripadorAbierto(true);
+                      } else if (
+                        win.id_rastreo === "SIMULADOR_PRESUPUESTO" &&
+                        simuladorReporte
+                      ) {
+                        setPanelIntroResumen("simulador");
+                        setSimuladorAbierto(true);
+                      } else if (
+                        win.id_rastreo === "DAYPARTING_FUGAS_HORARIAS" &&
+                        daypartingReporte
+                      ) {
+                        setPanelIntroResumen("dayparting");
+                        setDaypartingAbierto(true);
+                      } else {
+                        setQuickWinsCompletados(prev =>
+                          prev.includes(winId) ? prev : [...prev, winId]
+                        );
+                        setToastState({ show: true, status: "success", timeLeft: 5 });
+                      }
+                    }}
+                    onVerCampanas={() => navegar("campañas", "/campanas")}
+                  />
 
                   <PacingResumenCuenta
                     evaluadas={campanasEvaluadas}
                     cargando={cargandoCampanas}
                     onVerTodas={() => navegar("campañas", "/campanas?vista=pacing")}
                   />
-
-                  {/* EVOLUCIÓN DEL SCORE */}
-                  {scoreHistorico.length >= 2 && (
-                    <div className="bg-[#292524] border border-[#44403C] shadow-lg rounded-3xl p-6 w-full">
-                      <div className="flex justify-between items-center mb-4">
-                        <div>
-                          <h3 className="text-base font-black text-[#F5F0EB]">Evolución del score</h3>
-                          <p className="text-[11px] text-[#A8A29E] mt-1 font-bold uppercase tracking-widest">Últimas {scoreHistorico.length} auditorías</p>
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <div className="text-right">
-                            <p className="text-[9px] text-[#A8A29E] uppercase tracking-widest font-black">Mejor score</p>
-                            <p className="text-sm font-black text-[#F3C3B2]">{Math.max(...scoreHistorico)}/100</p>
-                          </div>
-                          {(() => {
-                            const delta = scoreHistorico[scoreHistorico.length - 1] - scoreHistorico[0];
-                            const color = delta >= 0 ? 'text-[#7EB893] bg-[#7EB893]/10 border border-[#7EB893]/30' : 'text-[#E07070] bg-[#E07070]/10 border border-[#E07070]/30';
-                            return (
-                              <span className={`text-xs font-black px-3 py-1.5 rounded-lg shadow-sm ${color}`}>
-                                {delta >= 0 ? '+' : ''}{delta} pts
-                              </span>
-                            );
-                          })()}
-                        </div>
-                      </div>
-                      <div className="mt-4 w-full">
-                        <ScoreSparkline data={scoreHistorico} fechas={fechasHistorico} />
-                      </div>
-                    </div>
-                  )}
 
                   {/* PROBLEMAS Y OPORTUNIDADES DETALLADOS */}
                   {ultimaAuditoria && (
@@ -3219,7 +2932,7 @@ export function AuditorDashboard({
                   googleAdsConnected={googleAdsConnected}
                   googleAdsChecking={googleAdsChecking}
                   onConectarGoogleAds={() => void conectarGoogleAds()}
-                  onGoogleAdsAccountLinked={() => void verificarConexionGoogleAds()}
+                  onGoogleAdsAccountLinked={handleGoogleAdsAccountLinked}
                 />
               )}
 

@@ -1,6 +1,8 @@
 import type { ItemResumenHallazgo } from "../ResumenFacilPanel";
 
 const MAX_RESUMEN_ITEMS = 5;
+/** Dashboard: las 3 acciones más importantes (críticos primero). */
+export const MAX_QUICK_WINS_DASHBOARD = 3;
 const MAX_POSITIVOS = 2;
 
 function mapHallazgo(
@@ -34,7 +36,10 @@ export function countHallazgosAccionables(reporteJson: unknown): number {
   return rojos + amarillos;
 }
 
-export function buildQuickWinsFromReporte(reporteJson: unknown): ItemResumenHallazgo[] {
+export function buildQuickWinsFromReporte(
+  reporteJson: unknown,
+  limit = MAX_RESUMEN_ITEMS
+): ItemResumenHallazgo[] {
   const hallazgos = (reporteJson as { hallazgos?: Record<string, unknown> } | null)?.hallazgos;
   if (!hallazgos) return [];
 
@@ -52,7 +57,7 @@ export function buildQuickWinsFromReporte(reporteJson: unknown): ItemResumenHall
       .map((a: Record<string, unknown>) => mapHallazgo(a, "mejora")),
   ];
 
-  return unificados.slice(0, MAX_RESUMEN_ITEMS);
+  return unificados.slice(0, limit);
 }
 
 /** Ítems verdes para bloque "Qué está bien" en el resumen. */

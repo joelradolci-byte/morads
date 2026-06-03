@@ -2,13 +2,31 @@ import { NextResponse } from "next/server";
 import { ensureSuscripcionRow, startTrialIfEligible } from "@/lib/billing/plan";
 import { getUserFromRequest } from "@/lib/auth/api-user";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
-import { getUserGoogleAdsLink, getUserGoogleAdsToken } from "@/lib/googleAds/client";
+import { getUserGoogleAdsLink } from "@/lib/googleAds/client";
+import { googleAdsAccountChanged } from "@/lib/googleAds/normalizeCustomerId";
+import { wipeHistorialOnAccountChange } from "@/lib/googleAds/wipeHistorialOnAccountChange";
 
 type LinkBody = {
   refresh_token?: string;
   customer_id?: string | null;
   login_customer_id?: string | null;
 };
+
+async function wipeIfAccountChanged(
+  admin: ReturnType<typeof getSupabaseAdmin>,
+  userId: string,
+  priorCustomerId: string | null | undefined,
+  nextCustomerId: string
+): Promise<{ accountChanged: boolean; wipeError?: string }> {
+  if (!googleAdsAccountChanged(priorCustomerId, nextCustomerId)) {
+    return { accountChanged: false };
+  }
+  const { error } = await wipeHistorialOnAccountChange(admin, userId);
+  if (error) {
+    return { accountChanged: true, wipeError: error.message };
+  }
+  return { accountChanged: true };
+}
 
 export async function POST(req: Request) {
   const user = await getUserFromRequest(req);
@@ -102,6 +120,23 @@ export async function POST(req: Request) {
       const priorLink = await getUserGoogleAdsLink(user.id);
       const wasEmpty = !priorLink?.customer_id;
 
+      let accountChanged = false;
+      if (hasCustomerId && priorLink?.customer_id) {
+        const wipe = await wipeIfAccountChanged(
+          admin,
+          userId,
+          priorLink.customer_id,
+          customerId
+        );
+        if (wipe.wipeError) {
+          return NextResponse.json(
+            { error: "db_error", message: "No se pudo reiniciar el historial." },
+            { status: 500 }
+          );
+        }
+        accountChanged = wipe.accountChanged;
+      }
+
       const { error } = await admin
         .from("google_ads_tokens")
         .upsert(row, { onConflict: "user_id" });
@@ -120,6 +155,7 @@ export async function POST(req: Request) {
       return NextResponse.json({
         ok: true,
         trial_started: wasEmpty && hasCustomerId,
+        account_changed: accountChanged,
       });
     }
 
@@ -141,6 +177,19 @@ export async function POST(req: Request) {
             body.login_customer_id.trim()
           ? body.login_customer_id.trim()
           : null;
+
+    const wipe = await wipeIfAccountChanged(
+      admin,
+      userId,
+      existingLink.customer_id,
+      customerId
+    );
+    if (wipe.wipeError) {
+      return NextResponse.json(
+        { error: "db_error", message: "No se pudo reiniciar el historial." },
+        { status: 500 }
+      );
+    }
 
     const updateRow: Record<string, unknown> = {
       customer_id: customerId,
@@ -168,7 +217,11 @@ export async function POST(req: Request) {
     const trialBlock = await maybeStartTrial(wasEmpty);
     if (trialBlock) return trialBlock;
 
-    return NextResponse.json({ ok: true, trial_started: wasEmpty });
+    return NextResponse.json({
+      ok: true,
+      trial_started: wasEmpty,
+      account_changed: wipe.accountChanged,
+    });
   } catch (e) {
     console.error("[api/google-ads/link]", e);
     return NextResponse.json(

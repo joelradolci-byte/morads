@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Building2, Loader2, AlertCircle, ChevronRight } from "lucide-react";
 import { moraAuthHeaders } from "@/lib/auth/client-headers";
+import { normalizeCustomerId } from "@/lib/googleAds/normalizeCustomerId";
 
 type Locale = "es" | "en";
 
@@ -52,6 +53,8 @@ const copy = {
         : `Cuenta activa: ${customerId}`,
     mcc: "MCC",
     subMcc: "Sub-MCC",
+    confirmChangeAccount:
+      "Al cambiar de cuenta se eliminará todo tu historial de auditorías. ¿Continuar?",
   },
   en: {
     title: "Account to audit",
@@ -76,14 +79,20 @@ const copy = {
         : `Active account: ${customerId}`,
     mcc: "MCC",
     subMcc: "Sub-MCC",
+    confirmChangeAccount:
+      "Switching accounts will delete all your audit history. Continue?",
   },
 } as const;
+
+export type GoogleAdsLinkResult = {
+  accountChanged: boolean;
+};
 
 export interface GoogleAdsAccountPickerProps {
   locale: Locale;
   connected: boolean;
   variant?: "settings" | "dashboard";
-  onLinked?: () => void;
+  onLinked?: (result: GoogleAdsLinkResult) => void;
 }
 
 export default function GoogleAdsAccountPicker({
@@ -243,6 +252,16 @@ export default function GoogleAdsAccountPicker({
         ? breadcrumb[breadcrumb.length - 1].id
         : null;
 
+    if (
+      linked?.customerId &&
+      normalizeCustomerId(linked.customerId) !==
+        normalizeCustomerId(selectedAccount.id)
+    ) {
+      if (!window.confirm(c.confirmChangeAccount)) {
+        return;
+      }
+    }
+
     setSaving(true);
     setError(null);
     try {
@@ -254,8 +273,11 @@ export default function GoogleAdsAccountPicker({
           login_customer_id: loginCustomerId,
         }),
       });
+      const data = (await res.json().catch(() => ({}))) as {
+        message?: string;
+        account_changed?: boolean;
+      };
       if (!res.ok) {
-        const data = (await res.json().catch(() => ({}))) as { message?: string };
         setError(data.message ?? c.error);
         return;
       }
@@ -266,7 +288,7 @@ export default function GoogleAdsAccountPicker({
       setEditing(false);
       setSavedFlash(true);
       setTimeout(() => setSavedFlash(false), 3000);
-      onLinked?.();
+      onLinked?.({ accountChanged: !!data.account_changed });
     } catch {
       setError(c.error);
     } finally {

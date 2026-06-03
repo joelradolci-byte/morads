@@ -1903,6 +1903,9 @@ export function generarEsqueletoAuditoria(datos: DatosAuditoriaInput) {
     resumen: {
       gasto_desperdiciado: parseFloat(gastoDesperdiciadoTotal.toFixed(2)),
       porcentaje_desperdiciado: parseFloat((porcentajeDesperdiciado * 100).toFixed(1)),
+      cpa_promedio_cuenta: parseFloat(datos.cpa_promedio_cuenta.toFixed(2)),
+      gasto_total_cuenta: parseFloat(datos.gasto_total_cuenta.toFixed(2)),
+      conversiones_totales: datos.conversiones_totales,
       fugas_criticas_count: fugasCriticas.length,
       fugas_parciales_count: fugasParciales.length,
       casos_canibalizacion: 0

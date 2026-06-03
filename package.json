@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "npx --yes tsx --test lib/saludMora.test.ts lib/motorMora.sinMetricas.test.ts lib/copyHistorico.test.ts lib/feedback/eligibility.test.ts lib/googleAds/mutations.test.ts",
+    "test": "npx --yes tsx --test lib/saludMora.test.ts lib/motorMora.sinMetricas.test.ts lib/motorMora.resumen.test.ts lib/accountHealthMetrics.test.ts lib/copyHistorico.test.ts lib/feedback/eligibility.test.ts lib/googleAds/mutations.test.ts",
     "seed:google-ads": "npx --yes tsx --env-file=.env.local scripts/seed-google-ads-account.ts",
     "seed:google-ads:dry": "npx --yes tsx --env-file=.env.local scripts/seed-google-ads-account.ts --dry-run",
     "verify:audit-seed": "npx --yes tsx --env-file=.env.local scripts/verify-audit-seed.ts"
