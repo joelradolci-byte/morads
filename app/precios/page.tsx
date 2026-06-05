@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { CheckCircle2, Minus, ArrowLeft } from "lucide-react";
+import { PRO_PRICE_PER_MONTH } from "@/lib/usage/config";
 
 export default function PreciosPage() {
   return (
@@ -34,7 +35,7 @@ export default function PreciosPage() {
                 </th>
                 <th className="p-6 text-center w-1/3 border-l border-white/10 bg-white/5">
                   <p className="font-bold text-xl text-[#F3C3B2] mb-1">Watchdog</p>
-                  <span className="text-[#CFD6C4] font-medium text-sm">$27/mes</span>
+                  <span className="text-[#CFD6C4] font-medium text-sm">{PRO_PRICE_PER_MONTH}</span>
                 </th>
               </tr>
             </thead>

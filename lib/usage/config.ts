@@ -11,7 +11,7 @@ export type TrialActionLimits = {
 
 export type TrialLimits = Record<UsageAction, TrialActionLimits>;
 
-/** Cupos mensuales Mora Watchdog ($27/mes) */
+/** Cupos mensuales Mora Watchdog ($26.99/mes) */
 export type PaidActionLimits = {
   monthly: number;
   minIntervalSec: number;
@@ -28,7 +28,11 @@ export type PlanLimits = PaidLimits;
 
 export const TRIAL_DAYS = 14;
 
-export const PRO_PRICE_USD = 27;
+export const PRO_PRICE_USD = 26.99;
+
+export const PRO_PRICE_LABEL = `$${PRO_PRICE_USD.toFixed(2)}`;
+
+export const PRO_PRICE_PER_MONTH = `${PRO_PRICE_LABEL}/mes`;
 
 /** Evaluación: 14 días desde 1er customer_id en Google Ads */
 export const LIMITS_TRIAL: TrialLimits = {
@@ -37,7 +41,7 @@ export const LIMITS_TRIAL: TrialLimits = {
   pdf: { total: 1, minIntervalSec: 0, maxPerHour: 5 },
 };
 
-/** Mora Watchdog — Lemon Squeezy $27/mes */
+/** Mora Watchdog — Lemon Squeezy $26.99/mes */
 export const LIMITS_PAID: PaidLimits = {
   audit: { monthly: 30, minIntervalSec: 120, maxPerHour: 5 },
   anuncios: { monthly: 20, minIntervalSec: 60, maxPerHour: 15 },

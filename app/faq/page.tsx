@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { PRO_PRICE_PER_MONTH } from "@/lib/usage/config";
 
 export default function FaqPage() {
   return (
@@ -46,7 +47,7 @@ export default function FaqPage() {
 
           <div className="bg-white/60 backdrop-blur-xl border border-[#CFD6C4]/60 rounded-2xl p-8 shadow-sm">
             <h3 className="text-xl font-bold text-[#262B27] mb-3">¿Cómo funciona la evaluación gratuita?</h3>
-            <p className="text-[#657166] font-medium leading-relaxed">Al conectar tu cuenta de Google Ads tenés 14 días para usar 2 auditorías completas, 1 generación de anuncios y 1 PDF de muestra (con marca Mora), sin tarjeta. Después podés activar Mora Watchdog ($27/mes) para seguir optimizando. Un trial por email.</p>
+            <p className="text-[#657166] font-medium leading-relaxed">Al conectar tu cuenta de Google Ads tenés 14 días para usar 2 auditorías completas, 1 generación de anuncios y 1 PDF de muestra (con marca Mora), sin tarjeta. Después podés activar Mora Watchdog ({PRO_PRICE_PER_MONTH}) para seguir optimizando. Un trial por email.</p>
           </div>
 
         </div>

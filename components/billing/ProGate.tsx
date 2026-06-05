@@ -2,6 +2,7 @@
 
 import { Lock } from "lucide-react";
 import type { ReactNode } from "react";
+import { PRO_PRICE_PER_MONTH } from "@/lib/usage/config";
 
 type ProGateProps = {
   locked: boolean;
@@ -37,7 +38,7 @@ export function ProGate({
         <p className="text-sm font-bold text-[#0a0a0a] text-center max-w-xs">
           {featureLabel} está disponible en Mora Watchdog
         </p>
-        <p className="text-xs text-[#4B5563] font-medium text-center">$27/mes · sin permanencia</p>
+        <p className="text-xs text-[#4B5563] font-medium text-center">{PRO_PRICE_PER_MONTH} · sin permanencia</p>
         {onUpgrade ? (
           <button
             type="button"
@@ -79,7 +80,7 @@ export function TrialEvalBanner({
             onClick={onUpgrade}
             className="px-4 py-2 rounded-xl bg-[#0a0a0a] text-white text-xs font-black uppercase tracking-widest"
           >
-            Watchdog — $27/mes
+            Watchdog — {PRO_PRICE_PER_MONTH}
           </button>
         ) : null}
       </div>

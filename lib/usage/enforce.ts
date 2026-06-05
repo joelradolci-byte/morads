@@ -5,6 +5,7 @@ import {
   currentUsagePeriod,
   LIMITS_PAID,
   LIMITS_TRIAL,
+  PRO_PRICE_PER_MONTH,
   type PaidActionLimits,
   type PlanTier,
   type TrialActionLimits,
@@ -306,7 +307,7 @@ export async function assertProFeature(
   const snapshot = await getUsageSnapshot(userId, userEmail);
   if (snapshot.planKind !== "paid") {
     throw new ProFeatureError(
-      "Esta función está disponible en Mora Watchdog ($27/mes).",
+      `Esta función está disponible en Mora Watchdog (${PRO_PRICE_PER_MONTH}).`,
       snapshot
     );
   }

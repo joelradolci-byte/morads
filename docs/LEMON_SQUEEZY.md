@@ -1,4 +1,4 @@
-# Lemon Squeezy — Guía de configuración (Mora Watchdog $27/mes)
+# Lemon Squeezy — Guía de configuración (Mora Watchdog $26.99/mes)
 
 ## 1. Cuenta y legal
 
@@ -14,7 +14,7 @@
 ## 2. Producto
 
 1. **Products → New** → nombre: `Mora Watchdog`
-2. Crear **Variant** suscripción **$27 USD / month** (recurring)
+2. Crear **Variant** suscripción **$26.99 USD / month** (recurring)
 3. Copiar **Variant ID** y **Store ID**
 
 ## 3. Variables en `.env` (servidor)

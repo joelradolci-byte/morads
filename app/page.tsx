@@ -6,6 +6,7 @@ import {
   AlertTriangle, CheckCircle2, FileText, LayoutGrid, Search, TrendingUp, Upload
 } from 'lucide-react';
 import { supabase } from "../lib/supabase/browser";
+import { PRO_PRICE_LABEL } from "../lib/usage/config";
 
 function FadeInOnScroll({ children, delay = 0 }: { children: React.ReactNode, delay?: number }) {
   const [isVisible, setVisible] = useState(false);
@@ -533,44 +534,34 @@ export default function LandingPage() {
 
             <FadeInOnScroll>
               <section className="max-w-[1600px] mx-auto px-8 md:px-10 py-24 border-t border-[#CFD6C4]/40">
-                <div className="text-center mb-16">
+                <div className="text-center mb-12">
                   <p className="inline-block px-3 py-1.5 rounded-md text-[10px] font-bold tracking-widest uppercase text-[#0a0a0a] bg-[#DAEBE3] mb-4">Precios Simples</p>
                   <h2 className="text-4xl md:text-5xl font-serif font-black text-[#0a0a0a] mb-4">Elegí tu camino.</h2>
-                  <p className="text-[#4B5563] font-medium">
-                    Evaluación de 14 días sin tarjeta al conectar Google Ads. Watchdog $27/mes para gestionar tu cuenta en serio.
+                  <p className="text-[#4B5563] font-medium max-w-xl mx-auto">
+                    14 días de evaluación sin tarjeta al conectar Google Ads.
                   </p>
                 </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-                  <TiltWrapper>
-                    <div className="bg-white/60 backdrop-blur-sm border-2 border-transparent hover:border-[#DAEBE3] p-10 rounded-[2rem] flex flex-col justify-between hover:bg-white transition-colors shadow-sm h-full">
-                      <div>
-                        <h3 className="text-xl font-bold text-[#0a0a0a] mb-2">Evaluación</h3>
-                        <p className="text-[#4B5563] mb-8 text-sm font-medium">Probá si Mora detecta fugas en tu cuenta.</p>
-                        <div className="text-5xl font-black text-[#0a0a0a] mb-8">$0</div>
-                        <ul className="space-y-4 mb-10 text-sm font-medium text-[#0a0a0a]">
-                          <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#DAEBE3]" strokeWidth={3} /> 2 auditorías en 14 días</li>
-                          <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#DAEBE3]" strokeWidth={3} /> 1 PDF con marca Mora</li>
-                          <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#DAEBE3]" strokeWidth={3} /> Sin tarjeta</li>
-                        </ul>
-                      </div>
-                      <button onClick={iniciarSesion} className="w-full bg-[#C4614A] hover:bg-[#a84c38] text-white font-bold py-4 rounded-xl transition-colors shadow-md mt-auto">Empezar evaluación</button>
-                    </div>
-                  </TiltWrapper>
 
+                <div className="max-w-lg mx-auto">
                   <TiltWrapper>
                     <div className="bg-white/60 backdrop-blur-sm border-2 border-[#10B981]/40 p-10 rounded-[2rem] flex flex-col justify-between hover:bg-white transition-colors shadow-sm h-full">
                       <div>
-                        <h3 className="text-xl font-bold text-[#0a0a0a] mb-2">Watchdog</h3>
-                        <p className="text-[#4B5563] mb-8 text-sm font-medium">Para auditar y optimizar cada semana.</p>
-                        <div className="text-5xl font-black text-[#0a0a0a] mb-8">$27<span className="text-lg text-[#4B5563] font-medium">/mes</span></div>
+                        <h3 className="text-2xl font-bold text-[#0a0a0a] mb-2">Mora Watchdog</h3>
+                        <p className="text-[#4B5563] mb-8 text-sm font-medium">Para auditar y optimizar tu cuenta cada semana.</p>
+                        <div className="text-5xl font-black text-[#0a0a0a] mb-8">
+                          {PRO_PRICE_LABEL}
+                          <span className="text-lg text-[#4B5563] font-medium">/mes</span>
+                        </div>
                         <ul className="space-y-4 mb-10 text-sm font-medium text-[#0a0a0a]">
-                          <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#10B981]" strokeWidth={3} /> Hasta 30 auditorías/mes</li>
-                          <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#10B981]" strokeWidth={3} /> PDF marca blanca</li>
-                          <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#10B981]" strokeWidth={3} /> Aplicar cambios en Ads</li>
+                          <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#10B981]" strokeWidth={3} /> Hasta 30 auditorías con IA / mes</li>
+                          <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#10B981]" strokeWidth={3} /> Hasta 20 generaciones de anuncios RSA / mes</li>
+                          <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#10B981]" strokeWidth={3} /> Hasta 60 PDFs / mes · marca blanca</li>
+                          <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#10B981]" strokeWidth={3} /> PDF de comparación entre auditorías</li>
+                          <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#10B981]" strokeWidth={3} /> Aplicar cambios en Google Ads (con tu confirmación)</li>
+                          <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#10B981]" strokeWidth={3} /> Historial y comparación completos</li>
                         </ul>
                       </div>
-                      <button onClick={iniciarSesion} className="w-full bg-[#0a0a0a] hover:bg-[#262B27] text-white font-bold py-4 rounded-xl transition-colors shadow-md mt-auto">Comenzar con Mora</button>
+                      <button onClick={iniciarSesion} className="w-full bg-[#0a0a0a] hover:bg-[#262B27] text-white font-bold py-4 rounded-xl transition-colors shadow-md mt-auto">Empezar evaluación</button>
                     </div>
                   </TiltWrapper>
                 </div>

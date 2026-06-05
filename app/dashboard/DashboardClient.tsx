@@ -50,6 +50,7 @@ import { moraAuthHeaders } from "../../lib/auth/client-headers";
 import { downloadAuditPdf } from "../../lib/pdf/downloadAuditPdf";
 import { downloadComparacionPdf } from "../../lib/pdf/downloadComparacionPdf";
 import type { UsageSnapshot } from "../../lib/usage/config";
+import { PRO_PRICE_LABEL, PRO_PRICE_PER_MONTH } from "../../lib/usage/config";
 import { applyReportTeaserForPlanKind } from "../../lib/billing/reportTeaser";
 import {
   auditsQuotaLabel,
@@ -482,6 +483,7 @@ export function AuditorDashboard({
   const [daypartingEstado, setDaypartingEstado] = useState<DaypartingEstadoPersistido>({
     aplicados: {},
   });
+  const [accountLinkNotice, setAccountLinkNotice] = useState<string | null>(null);
   const [portalLoading, setPortalLoading] = useState(false);
   const [billingToast, setBillingToast] = useState<{ show: boolean; timeLeft: number }>({
     show: false,
@@ -3118,7 +3120,7 @@ export function AuditorDashboard({
                         </p>
                       )}
                       {proActivo && (
-                        <p className="text-sm text-[#4B5563] mt-3 font-medium">$27 USD / mes · Lemon Squeezy</p>
+                        <p className="text-sm text-[#4B5563] mt-3 font-medium">{PRO_PRICE_LABEL} USD / mes · Lemon Squeezy</p>
                       )}
                     </div>
                   </div>
@@ -3128,7 +3130,7 @@ export function AuditorDashboard({
                       onClick={() => void iniciarCheckoutPro()}
                       className="w-full text-[#0a0a0a] bg-[#E0E7FF] hover:bg-[#eab3a1] px-6 py-4 rounded-xl text-sm font-black transition-colors flex justify-center items-center gap-2 shadow-sm uppercase tracking-widest"
                     >
-                      Activar Watchdog — $27/mes
+                      Activar Watchdog — {PRO_PRICE_PER_MONTH}
                     </button>
                   ) : (
                     <button
