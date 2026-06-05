@@ -6,7 +6,7 @@ import {
   AlertTriangle, CheckCircle2, FileText, LayoutGrid, Search, TrendingUp, Upload
 } from 'lucide-react';
 import { supabase } from "../lib/supabase/browser";
-import { PRO_PRICE_LABEL } from "../lib/usage/config";
+import { PRO_PRICE_LABEL, PRO_PRICE_PER_MONTH } from "../lib/usage/config";
 
 function FadeInOnScroll({ children, delay = 0 }: { children: React.ReactNode, delay?: number }) {
   const [isVisible, setVisible] = useState(false);
@@ -300,6 +300,27 @@ export default function LandingPage() {
     });
   };
 
+  const iniciarEvaluacion = iniciarSesion;
+
+  const activarWatchdog = async () => {
+    const { data } = await supabase.auth.getSession();
+    if (data.session) {
+      window.location.href = "/facturacion?pay=1";
+      return;
+    }
+    await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/facturacion?pay=1`,
+        scopes: "https://www.googleapis.com/auth/adwords",
+        queryParams: {
+          access_type: "offline",
+          prompt: "consent",
+        },
+      },
+    });
+  };
+
   const t: Record<"es" | "en", { login: string }> = {
     es: { login: "Iniciar sesión" },
     en: { login: "Log In" },
@@ -561,7 +582,22 @@ export default function LandingPage() {
                           <li className="flex items-center gap-3"><CheckCircle2 size={18} className="text-[#10B981]" strokeWidth={3} /> Historial y comparación completos</li>
                         </ul>
                       </div>
-                      <button onClick={iniciarSesion} className="w-full bg-[#0a0a0a] hover:bg-[#262B27] text-white font-bold py-4 rounded-xl transition-colors shadow-md mt-auto">Empezar evaluación</button>
+                      <div className="flex flex-col gap-3 mt-auto">
+                        <button
+                          type="button"
+                          onClick={() => void iniciarEvaluacion()}
+                          className="w-full bg-[#0a0a0a] hover:bg-[#262B27] text-white font-bold py-4 rounded-xl transition-colors shadow-md"
+                        >
+                          Empezar evaluación
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void activarWatchdog()}
+                          className="w-full bg-white hover:bg-[#E0E7FF] text-[#0a0a0a] font-bold py-3.5 rounded-xl transition-colors border border-[#E5E7EB] text-sm"
+                        >
+                          Activar Watchdog — {PRO_PRICE_PER_MONTH}
+                        </button>
+                      </div>
                     </div>
                   </TiltWrapper>
                 </div>

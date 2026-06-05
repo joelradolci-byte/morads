@@ -485,11 +485,13 @@ export function AuditorDashboard({
   });
   const [accountLinkNotice, setAccountLinkNotice] = useState<string | null>(null);
   const [portalLoading, setPortalLoading] = useState(false);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [billingToast, setBillingToast] = useState<{ show: boolean; timeLeft: number }>({
     show: false,
     timeLeft: 8,
   });
 
+  const payCheckoutTriggeredRef = useRef(false);
   /** Evita re-bootstrap al refrescar token de Supabase al volver a la pestaña. */
   const dashboardLoadedForUserRef = useRef<string | null>(null);
   const [initialDashboardReady, setInitialDashboardReady] = useState(false);
@@ -640,6 +642,28 @@ export function AuditorDashboard({
   const proActivo = isPro(usageSnapshot);
   const comparacionProBloqueada = !proActivo;
 
+  useEffect(() => {
+    if (typeof window === "undefined" || !session?.user?.id) return;
+    if (usageSnapshot === null) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("pay") !== "1") return;
+
+    if (proActivo) {
+      window.history.replaceState(null, "", window.location.pathname);
+      return;
+    }
+
+    if (vista !== "facturacion") {
+      navegar("facturacion", "/facturacion?pay=1");
+      return;
+    }
+
+    if (payCheckoutTriggeredRef.current) return;
+    payCheckoutTriggeredRef.current = true;
+    window.history.replaceState(null, "", "/facturacion");
+    void iniciarCheckoutPro();
+  }, [session?.user?.id, usageSnapshot, proActivo, vista]);
+
   const pdfQuotaLabel = usageSnapshot ? pdfQuotaLabelFromSnapshot(usageSnapshot) : null;
   const auditoriaQuotaLabel = usageSnapshot ? auditsQuotaLabel(usageSnapshot) : null;
 
@@ -653,6 +677,7 @@ export function AuditorDashboard({
   }, [historial, usageSnapshot?.planKind]);
 
   const iniciarCheckoutPro = async () => {
+    setCheckoutLoading(true);
     try {
       const res = await fetch("/api/billing/checkout", {
         method: "POST",
@@ -668,6 +693,8 @@ export function AuditorDashboard({
       }
     } catch {
       alert("Error al conectar con el pago.");
+    } finally {
+      setCheckoutLoading(false);
     }
   };
 
@@ -3069,9 +3096,11 @@ export function AuditorDashboard({
                   onSubirLogo={subirLogo}
                   onGuardar={guardarAjustesAgencia}
                   onIrFacturacion={() => navegar("facturacion", "/facturacion")}
+                  onActivarWatchdog={() => void iniciarCheckoutPro()}
                   onGestionarSuscripcion={() => void abrirPortalSuscripcion()}
                   proActivo={proActivo}
                   portalLoading={portalLoading}
+                  checkoutLoading={checkoutLoading}
                   currencyCodeLabel={currencyCodeActiva}
                   googleAdsConnected={googleAdsConnected}
                   googleAdsChecking={googleAdsChecking}
@@ -3128,9 +3157,10 @@ export function AuditorDashboard({
                     <button
                       type="button"
                       onClick={() => void iniciarCheckoutPro()}
-                      className="w-full text-[#0a0a0a] bg-[#E0E7FF] hover:bg-[#eab3a1] px-6 py-4 rounded-xl text-sm font-black transition-colors flex justify-center items-center gap-2 shadow-sm uppercase tracking-widest"
+                      disabled={checkoutLoading}
+                      className="w-full text-[#0a0a0a] bg-[#E0E7FF] hover:bg-[#eab3a1] disabled:opacity-60 px-6 py-4 rounded-xl text-sm font-black transition-colors flex justify-center items-center gap-2 shadow-sm uppercase tracking-widest"
                     >
-                      Activar Watchdog — {PRO_PRICE_PER_MONTH}
+                      {checkoutLoading ? "Abriendo..." : `Activar Watchdog — ${PRO_PRICE_PER_MONTH}`}
                     </button>
                   ) : (
                     <button

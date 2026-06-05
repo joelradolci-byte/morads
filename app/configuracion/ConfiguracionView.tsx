@@ -14,6 +14,7 @@ import GoogleAdsConnectBlock from "../components/GoogleAdsConnectBlock";
 import GoogleAdsAccountPicker, {
   type GoogleAdsLinkResult,
 } from "../components/GoogleAdsAccountPicker";
+import { PRO_PRICE_PER_MONTH } from "../../lib/usage/config";
 
 type TabId = "cuenta" | "experiencia" | "pdf";
 
@@ -33,9 +34,11 @@ export interface ConfiguracionViewProps {
   onSubirLogo: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onGuardar: () => Promise<void>;
   onIrFacturacion: () => void;
+  onActivarWatchdog?: () => void;
   onGestionarSuscripcion?: () => void;
   proActivo?: boolean;
   portalLoading?: boolean;
+  checkoutLoading?: boolean;
   currencyCodeLabel?: string | null;
   googleAdsConnected: boolean;
   googleAdsChecking: boolean;
@@ -59,9 +62,11 @@ export default function ConfiguracionView({
   onSubirLogo,
   onGuardar,
   onIrFacturacion,
+  onActivarWatchdog,
   onGestionarSuscripcion,
   proActivo = false,
   portalLoading = false,
+  checkoutLoading = false,
   currencyCodeLabel,
   googleAdsConnected,
   googleAdsChecking,
@@ -167,9 +172,13 @@ export default function ConfiguracionView({
                   onGestionarSuscripcion();
                   return;
                 }
+                if (onActivarWatchdog) {
+                  onActivarWatchdog();
+                  return;
+                }
                 onIrFacturacion();
               }}
-              disabled={proActivo && portalLoading}
+              disabled={(proActivo && portalLoading) || (!proActivo && checkoutLoading)}
               className="text-[10px] font-black uppercase tracking-widest px-4 py-3 rounded-xl border border-[#E5E7EB] hover:bg-[#F4F4F5] disabled:opacity-60"
             >
               {proActivo
@@ -180,9 +189,13 @@ export default function ConfiguracionView({
                   : locale === "en"
                     ? "Manage subscription"
                     : "Gestionar suscripción"
-                : locale === "en"
-                  ? "Manage billing"
-                  : "Gestionar facturación"}
+                : checkoutLoading
+                  ? locale === "en"
+                    ? "Opening..."
+                    : "Abriendo..."
+                  : locale === "en"
+                    ? `Activate Watchdog — ${PRO_PRICE_PER_MONTH}`
+                    : `Activar Watchdog — ${PRO_PRICE_PER_MONTH}`}
             </button>
           </div>
         </div>
