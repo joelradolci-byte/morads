@@ -55,7 +55,7 @@ export default function SecondaryKpiGrid({
         disabled={!tieneDatosDestripador}
         onClick={onOpenDestripador}
       >
-        <p className="text-[10px] font-black uppercase tracking-widest text-[#262B27]">
+        <p className="text-sm font-black uppercase tracking-widest text-[#262B27]">
           Recuperable
         </p>
         <KpiIconBox color={KPI_WARM.gold}>
@@ -66,11 +66,11 @@ export default function SecondaryKpiGrid({
             <span className="text-5xl font-black leading-none tracking-tighter text-[#D4A843]">
               ${ahorroNGramas.toLocaleString()}
             </span>
-            <span className="text-xs font-black uppercase tracking-widest text-[#657166]">
+            <span className="text-sm font-black uppercase tracking-widest text-[#657166]">
               N-gramas
             </span>
           </div>
-          <p className="mt-2 text-[10px] font-bold uppercase tracking-widest text-[#657166]">
+          <p className="mt-2 text-sm font-bold uppercase tracking-widest text-[#657166]">
             {subtituloDestripador}
           </p>
         </div>
@@ -84,7 +84,7 @@ export default function SecondaryKpiGrid({
         disabled={!daypartingReporte}
         onClick={onOpenDayparting}
       >
-        <p className="text-[10px] font-black uppercase tracking-widest text-[#262B27]">
+        <p className="text-sm font-black uppercase tracking-widest text-[#262B27]">
           Patrones
         </p>
         <KpiIconBox color={KPI_WARM.gold}>
@@ -102,17 +102,17 @@ export default function SecondaryKpiGrid({
               >
                 {franjasDaypartingPendientes}
               </span>
-              <span className="text-xs font-black uppercase tracking-widest text-[#657166]">
+              <span className="text-sm font-black uppercase tracking-widest text-[#657166]">
                 {franjasDaypartingPendientes === 1
                   ? "Patrón crítico"
                   : "Patrones críticos"}
               </span>
             </div>
-            <p className="mt-2 text-[10px] font-bold uppercase tracking-widest text-[#657166]">
+            <p className="mt-2 text-sm font-bold uppercase tracking-widest text-[#657166]">
               ${ahorroMensualDayparting.toLocaleString()} recuperable/mes
             </p>
             {daypartingReporte.patron_principal && (
-              <p className="mt-1.5 line-clamp-2 text-[9px] font-medium leading-snug text-[#4B5563]">
+              <p className="mt-1.5 line-clamp-2 text-xs font-medium leading-snug text-[#4B5563]">
                 {daypartingReporte.patron_principal.dias.join(" · ")} ·{" "}
                 {String(daypartingReporte.patron_principal.hora_inicio).padStart(2, "0")}
                 :00–
@@ -122,7 +122,7 @@ export default function SecondaryKpiGrid({
             )}
           </div>
         ) : (
-          <p className="text-[10px] font-bold uppercase tracking-widest text-[#657166]">
+          <p className="text-sm font-bold uppercase tracking-widest text-[#657166]">
             Corré una auditoría
           </p>
         )}
@@ -136,7 +136,7 @@ export default function SecondaryKpiGrid({
         disabled={!simuladorReporte}
         onClick={onOpenSimulador}
       >
-        <p className="text-[10px] font-black uppercase tracking-widest text-[#262B27]">
+        <p className="text-sm font-black uppercase tracking-widest text-[#262B27]">
           Simulador
         </p>
         <KpiIconBox color={KPI_WARM.aqua}>
@@ -149,17 +149,17 @@ export default function SecondaryKpiGrid({
                 +{escenarioSimRecomendado.conversiones_extra.pesimista}–
                 {escenarioSimRecomendado.conversiones_extra.optimista}
               </span>
-              <span className="text-xs font-black uppercase tracking-widest text-[#657166]">
+              <span className="text-sm font-black uppercase tracking-widest text-[#657166]">
                 Conv./mes
               </span>
             </div>
-            <p className="mt-2 line-clamp-2 text-[10px] font-bold uppercase tracking-widest text-[#657166]">
+            <p className="mt-2 line-clamp-2 text-sm font-bold uppercase tracking-widest text-[#657166]">
               Reasignando $
               {escenarioSimRecomendado.presupuesto_reasignable.toLocaleString()}
             </p>
           </div>
         ) : (
-          <p className="text-[10px] font-bold uppercase tracking-widest text-[#657166]">
+          <p className="text-sm font-bold uppercase tracking-widest text-[#657166]">
             Corré una auditoría
           </p>
         )}

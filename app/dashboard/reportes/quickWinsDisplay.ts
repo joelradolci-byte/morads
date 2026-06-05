@@ -12,9 +12,19 @@ export function textoQuickWin(hallazgo: {
   return texto;
 }
 
+const QUICK_WIN_TOOL_IDS = new Set([
+  "GENERADOR_NEGATIVOS_URGENTE",
+  "DAYPARTING_FUGAS_HORARIAS",
+  "SIMULADOR_PRESUPUESTO",
+]);
+
+export function esQuickWinTool(idRastreo: string | undefined): boolean {
+  return idRastreo != null && QUICK_WIN_TOOL_IDS.has(idRastreo);
+}
+
 export function quickWinPrimaryLabel(idRastreo: string | undefined): string {
   if (idRastreo === "GENERADOR_NEGATIVOS_URGENTE") return "Abrir Destripador";
   if (idRastreo === "DAYPARTING_FUGAS_HORARIAS") return "Abrir Dayparting";
   if (idRastreo === "SIMULADOR_PRESUPUESTO") return "Abrir Simulador";
-  return "Corregir Ahora";
+  return "Ver detalle";
 }

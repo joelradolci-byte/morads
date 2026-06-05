@@ -66,7 +66,7 @@ export default function DashboardKpiCard({
     >
       {badge && (
         <div
-          className="absolute right-5 top-5 z-20 rounded-lg border px-3 py-1.5 text-[9px] font-black uppercase tracking-widest"
+          className="absolute right-5 top-5 z-20 rounded-lg border px-3 py-1.5 text-[11px] font-black uppercase tracking-widest"
           style={{
             color: accentColor,
             borderColor: hexToRgba(accentColor, 0.25),

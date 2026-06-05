@@ -9,6 +9,8 @@ import type { ItemResumenHallazgo } from "../../ResumenFacilPanel";
 import AccountHealthCard from "./AccountHealthCard";
 import QuickWinsDelDiaPanel from "./QuickWinsDelDiaPanel";
 import SecondaryKpiGrid from "./SecondaryKpiGrid";
+import PacingResumenCuenta from "../../campanas/PacingResumenCuenta";
+import type { CampanaEvaluada } from "../../../../lib/campanasEvaluacion";
 import {
   buildAccountHealthMiniStats,
   type CpaTrendSemantic,
@@ -52,9 +54,11 @@ export type DashboardKpiSectionProps = {
   quickWins: ItemResumenHallazgo[];
   quickWinsCompletados: string[];
   razonesScore: string[];
-  onQuickWinDetalle: (win: ItemResumenHallazgo) => void;
   onQuickWinAccion: (win: ItemResumenHallazgo, winId: string) => void;
   onVerCampanas: () => void;
+  campanasEvaluadas: CampanaEvaluada[];
+  cargandoCampanas: boolean;
+  onVerPacingTodas: () => void;
 };
 
 export default function DashboardKpiSection(props: DashboardKpiSectionProps) {
@@ -90,9 +94,11 @@ export default function DashboardKpiSection(props: DashboardKpiSectionProps) {
     quickWins,
     quickWinsCompletados,
     razonesScore,
-    onQuickWinDetalle,
     onQuickWinAccion,
     onVerCampanas,
+    campanasEvaluadas,
+    cargandoCampanas,
+    onVerPacingTodas,
   } = props;
 
   const miniStats = useMemo(
@@ -137,8 +143,7 @@ export default function DashboardKpiSection(props: DashboardKpiSectionProps) {
             completados={quickWinsCompletados}
             cuentaSinCambiosUrgentes={cuentaSinCambiosUrgentes}
             razonesScore={razonesScore}
-            onAbrirDetalle={onQuickWinDetalle}
-            onAccionPrimary={onQuickWinAccion}
+            onAccion={onQuickWinAccion}
             onVerCampanas={onVerCampanas}
           />
         )}
@@ -157,6 +162,12 @@ export default function DashboardKpiSection(props: DashboardKpiSectionProps) {
         simuladorReporte={simuladorReporte}
         escenarioSimRecomendado={escenarioSimRecomendado}
         onOpenSimulador={onOpenSimulador}
+      />
+
+      <PacingResumenCuenta
+        evaluadas={campanasEvaluadas}
+        cargando={cargandoCampanas}
+        onVerTodas={onVerPacingTodas}
       />
     </div>
   );

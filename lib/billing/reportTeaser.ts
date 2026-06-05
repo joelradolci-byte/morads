@@ -39,7 +39,7 @@ export function applyReportTeaser(
             {
               id_rastreo: "_teaser_verde",
               titulo: `${verdes.length} punto(s) fuerte(s)`,
-              descripcion_simple: "Activá Pro para ver el detalle completo.",
+              descripcion_simple: "Activá Watchdog para ver el detalle completo.",
               descripcion_tecnica: "",
             },
           ]
@@ -52,7 +52,7 @@ export function applyReportTeaser(
         ? (out._teaser as Record<string, unknown>)
         : {}),
       amarillos_ocultos: amarillosOcultos,
-      mensaje: `+${amarillosOcultos} hallazgo(s) más en Pro`,
+      mensaje: `+${amarillosOcultos} hallazgo(s) más en Watchdog`,
     };
   }
 

@@ -66,8 +66,8 @@ export default function HistorialAuditoriaRow({
 
   return (
     <div
-      className={`bg-[#1C1917] border hover:border-[#F3C3B2]/50 rounded-[1.5rem] p-5 md:p-6 transition-all shadow-sm hover:shadow-lg ${
-        isSelected ? "border-[#F3C3B2] bg-[#F3C3B2]/5" : "border-[#44403C]"
+      className={`bg-white/85 border hover:border-[#F3C3B2]/50 rounded-[1.5rem] p-5 md:p-6 transition-all shadow-sm hover:shadow-lg ${
+        isSelected ? "border-[#F3C3B2] bg-[#F3C3B2]/5" : "border-[#CFD6C4]"
       }`}
     >
       <div className="flex flex-col gap-5 md:flex-row md:items-center md:gap-6">
@@ -79,7 +79,7 @@ export default function HistorialAuditoriaRow({
             className={`shrink-0 w-6 h-6 rounded border-2 flex items-center justify-center transition-colors mt-1 ${
               isSelected
                 ? "bg-[#F3C3B2] border-[#F3C3B2] text-[#0a0a0a]"
-                : "border-[#44403C] hover:border-[#A8A29E]"
+                : "border-[#CFD6C4] hover:border-[#A8A29E]"
             }`}
           >
             {isSelected && <Check size={14} strokeWidth={3} />}
@@ -87,11 +87,11 @@ export default function HistorialAuditoriaRow({
 
           <div className="min-w-0 flex-1">
             {showCuentaNombre && (
-              <p className="font-black text-[#F5F0EB] text-xl truncate mb-1">
+              <p className="font-black text-[#262B27] text-xl truncate mb-1">
                 {item.nombre_cuenta || "Cuenta sin nombre"}
               </p>
             )}
-            <p className="text-xs font-bold text-[#A8A29E] uppercase tracking-widest">
+            <p className="text-xs font-bold text-[#8A968C] uppercase tracking-widest">
               {parseDate(item.created_at ?? "")}
             </p>
 
@@ -118,7 +118,7 @@ export default function HistorialAuditoriaRow({
                 className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border ${
                   fugas > 0
                     ? "bg-[#E07070]/10 text-[#E07070] border-[#E07070]/20"
-                    : "bg-[#292524] text-[#A8A29E] border-[#44403C]"
+                    : "bg-white/80 text-[#8A968C] border-[#CFD6C4]"
                 }`}
               >
                 {fugas} {fugas === 1 ? "Fuga" : "Fugas"}
@@ -127,7 +127,7 @@ export default function HistorialAuditoriaRow({
                 className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border ${
                   mejoras > 0
                     ? "bg-[#EAB308]/10 text-[#EAB308] border-[#EAB308]/20"
-                    : "bg-[#292524] text-[#A8A29E] border-[#44403C]"
+                    : "bg-white/80 text-[#8A968C] border-[#CFD6C4]"
                 }`}
               >
                 {mejoras} {mejoras === 1 ? "Mejora" : "Mejoras"}
@@ -157,8 +157,8 @@ export default function HistorialAuditoriaRow({
         </div>
 
         <div className="hidden md:block shrink-0">
-          <div className="bg-[#292524] border border-[#44403C] rounded-xl p-3">
-            <p className="text-[9px] font-black text-[#A8A29E] uppercase tracking-widest mb-1">
+          <div className="bg-white/80 border border-[#CFD6C4] rounded-xl p-3">
+            <p className="text-[9px] font-black text-[#8A968C] uppercase tracking-widest mb-1">
               Gasto desperdiciado
             </p>
             <p className="text-lg font-black text-[#E07070]">
@@ -174,7 +174,7 @@ export default function HistorialAuditoriaRow({
             className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg w-max border ${
               fugas > 0
                 ? "bg-[#E07070]/10 text-[#E07070] border-[#E07070]/20"
-                : "bg-[#292524] text-[#A8A29E] border-[#44403C]"
+                : "bg-white/80 text-[#8A968C] border-[#CFD6C4]"
             }`}
           >
             {fugas} {fugas === 1 ? "Fuga" : "Fugas"}
@@ -183,7 +183,7 @@ export default function HistorialAuditoriaRow({
             className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg w-max border ${
               mejoras > 0
                 ? "bg-[#EAB308]/10 text-[#EAB308] border-[#EAB308]/20"
-                : "bg-[#292524] text-[#A8A29E] border-[#44403C]"
+                : "bg-white/80 text-[#8A968C] border-[#CFD6C4]"
             }`}
           >
             {mejoras} {mejoras === 1 ? "Mejora" : "Mejoras"}
@@ -195,7 +195,7 @@ export default function HistorialAuditoriaRow({
             <button
               type="button"
               onClick={() => onCompararConAnterior(item)}
-              className="flex items-center gap-1.5 px-4 py-3 rounded-xl text-[10px] uppercase tracking-widest font-black bg-[#292524] border border-[#44403C] text-[#A8A29E] hover:text-[#F5F0EB] hover:border-[#F3C3B2]/50 transition-all"
+              className="flex items-center gap-1.5 px-4 py-3 rounded-xl text-[10px] uppercase tracking-widest font-black bg-white/80 border border-[#CFD6C4] text-[#8A968C] hover:text-[#262B27] hover:border-[#F3C3B2]/50 transition-all"
             >
               <GitCompare size={14} />
               vs anterior
@@ -204,7 +204,7 @@ export default function HistorialAuditoriaRow({
           <button
             type="button"
             onClick={() => onBorrar(item.id)}
-            className="text-[#8A968C] hover:text-[#E66767] transition-colors p-3 bg-[#292524] border border-[#44403C] rounded-xl hover:border-[#E66767]/30"
+            className="text-[#8A968C] hover:text-[#E66767] transition-colors p-3 bg-white/80 border border-[#CFD6C4] rounded-xl hover:border-[#E66767]/30"
             aria-label="Eliminar auditoría"
           >
             <Trash2 size={16} />
@@ -226,14 +226,14 @@ export default function HistorialAuditoriaRow({
           <button
             type="button"
             onClick={() => onAbrirAuditoria(item)}
-            className="bg-[#292524] border border-[#44403C] text-[#A8A29E] hover:text-[#F5F0EB] hover:border-[#F5F0EB] px-5 py-3 rounded-xl text-xs uppercase tracking-widest font-black transition-all"
+            className="bg-white/80 border border-[#CFD6C4] text-[#8A968C] hover:text-[#262B27] hover:border-[#F5F0EB] px-5 py-3 rounded-xl text-xs uppercase tracking-widest font-black transition-all"
           >
             Ver auditoría
           </button>
         </div>
       </div>
 
-      <p className="md:hidden text-[10px] font-black text-[#A8A29E] uppercase tracking-widest mt-3">
+      <p className="md:hidden text-[10px] font-black text-[#8A968C] uppercase tracking-widest mt-3">
         Gasto desperdiciado:{" "}
         <span className="text-[#E07070]">
           {gastoDesperdiciado > 0

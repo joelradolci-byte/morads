@@ -309,6 +309,48 @@ export function filtrarYOrdenarCampanas(
   });
 }
 
+export type PacingDashboardTier = "critico" | "calmo";
+
+function cpaCriticoPacingItem(item: CampanaEvaluada): boolean {
+  const cpa = item.evaluacion.cpaActual;
+  return (
+    (cpa != null && cpa > item.cpaObjetivo * 1.2) || item.evaluacion.tag === "BASURA"
+  );
+}
+
+export function desvioPacingVsMes(pacing: PacingCampanaResult): number {
+  const hoy = new Date();
+  const diasMes = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).getDate();
+  const pctMes = (hoy.getDate() / diasMes) * 100;
+  return Math.round(pacing.porcentajeGasto - pctMes);
+}
+
+export function pacingTierDashboard(item: CampanaEvaluada): PacingDashboardTier {
+  if (item.pacing.estado === "Sobreinvirtiendo") return "critico";
+  if (
+    item.pacing.presupuesto > 0 &&
+    item.pacing.estado !== "Sin presupuesto" &&
+    cpaCriticoPacingItem(item)
+  ) {
+    return "critico";
+  }
+  return "calmo";
+}
+
+export function ordenarPacingDashboard(items: CampanaEvaluada[]): CampanaEvaluada[] {
+  return [...items].sort((a, b) => {
+    const tierA = pacingTierDashboard(a) === "critico" ? 0 : 1;
+    const tierB = pacingTierDashboard(b) === "critico" ? 0 : 1;
+    if (tierA !== tierB) return tierA - tierB;
+    const desvioA = Math.abs(desvioPacingVsMes(a.pacing));
+    const desvioB = Math.abs(desvioPacingVsMes(b.pacing));
+    if (desvioB !== desvioA) return desvioB - desvioA;
+    const scoreA = a.evaluacion.score ?? 999;
+    const scoreB = b.evaluacion.score ?? 999;
+    return scoreA - scoreB;
+  });
+}
+
 export function campanasPacingAlerta(evaluadas: CampanaEvaluada[]): CampanaEvaluada[] {
   return evaluadas.filter(item => {
     if (item.campana.estado !== "ENABLED") return false;

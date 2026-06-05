@@ -201,7 +201,7 @@ function denyTrialExpired(snapshot: UsageSnapshot): never {
   throw new UsageLimitError(
     "trial_expired",
     0,
-    "Tu evaluación terminó. Activá Pro para seguir auditando.",
+    "Tu evaluación terminó. Activá Watchdog para seguir auditando.",
     snapshot
   );
 }
@@ -226,7 +226,7 @@ async function assertTrialQuota(
     throw new UsageLimitError(
       "quota_exceeded",
       0,
-      `Usaste el límite de evaluación (${limits.total}). Activá Pro para continuar.`,
+      `Usaste el límite de evaluación (${limits.total}). Activá Watchdog para continuar.`,
       snapshot
     );
   }
@@ -306,7 +306,7 @@ export async function assertProFeature(
   const snapshot = await getUsageSnapshot(userId, userEmail);
   if (snapshot.planKind !== "paid") {
     throw new ProFeatureError(
-      "Esta función está disponible en Mora Pro ($27/mes).",
+      "Esta función está disponible en Mora Watchdog ($27/mes).",
       snapshot
     );
   }
@@ -344,7 +344,7 @@ export async function assertPdfAllowed(
     throw new UsageLimitError(
       "quota_exceeded",
       0,
-      "En evaluación solo podés exportar 1 PDF. Activá Pro para más.",
+      "En evaluación solo podés exportar 1 PDF. Activá Watchdog para más.",
       snapshot
     );
   }

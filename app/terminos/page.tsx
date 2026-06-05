@@ -21,7 +21,7 @@ export default function TerminosPage() {
             <ul className="list-disc ml-6 mt-4 space-y-2">
               <li><strong>Supervisión Humana Obligatoria:</strong> Mora actúa como una herramienta de diagnóstico que sugiere optimizaciones. El usuario es el único responsable de validar, revisar y confirmar la pertinencia de dichos cambios antes de aplicarlos.</li>
               <li><strong>Responsabilidad del Propietario:</strong> La decisión estratégica final y la ejecución de ajustes en la plataforma de Google Ads recaen exclusivamente sobre el titular de la cuenta o el gestor autorizado.</li>
-              <li><strong>Safe Apply (plan Pro):</strong> Las funciones que aplican cambios en Google Ads solo lo hacen tras tu confirmación explícita en la interfaz. Sin esa confirmación no se ejecutan ajustes.</li>
+              <li><strong>Safe Apply (Mora Watchdog):</strong> Las funciones que aplican cambios en Google Ads solo lo hacen tras tu confirmación explícita en la interfaz. Sin esa confirmación no se ejecutan ajustes.</li>
               <li><strong>Red de Seguridad:</strong> Las acciones aplicadas mediante Safe Apply pueden revertirse cuando la plataforma de Google Ads lo permita; el usuario debe validar el impacto de cada cambio.</li>
             </ul>
           </section>
@@ -33,15 +33,15 @@ export default function TerminosPage() {
 
           <section>
             <h2 className="text-2xl font-bold text-[#262B27] mb-4" style={{ fontFamily: "'Playfair Display', serif" }}>3. Suscripciones y Gestión de Pagos</h2>
-            <p><strong>Evaluación:</strong> 14 días sin tarjeta al conectar Google Ads (con email confirmado), con los límites publicados en la página de <Link href="/precios" className="text-[#99CDD8] underline hover:text-[#262B27]">Precios</Link> (2 auditorías, 1 generación de anuncios RSA, 1 PDF con marca Mora). Un solo periodo de evaluación por dirección de email. Tras finalizar la evaluación, el acceso queda limitado a la lectura de la última auditoría hasta activar el plan Pro.</p>
-            <p className="mt-4"><strong>Plan Pro:</strong> suscripción mensual de <strong>USD 27</strong>, procesada por <strong>Lemon Squeezy</strong> como merchant of record. El acceso Pro se activa con el mismo email utilizado en la compra. Podés cancelar en cualquier momento desde el portal de pagos de Lemon Squeezy; el acceso Pro continúa hasta el final del período ya facturado.</p>
-            <p className="mt-4"><strong>Precios:</strong> podemos actualizar los precios o límites del plan Pro con aviso razonable en el sitio web.</p>
+            <p><strong>Evaluación:</strong> 14 días sin tarjeta al conectar Google Ads (con email confirmado), con los límites publicados en la página de <Link href="/precios" className="text-[#99CDD8] underline hover:text-[#262B27]">Precios</Link> (2 auditorías, 1 generación de anuncios RSA, 1 PDF con marca Mora). Un solo periodo de evaluación por dirección de email. Tras finalizar la evaluación, el acceso queda limitado a la lectura de la última auditoría hasta activar Mora Watchdog.</p>
+            <p className="mt-4"><strong>Mora Watchdog:</strong> suscripción mensual de <strong>USD 27</strong>, procesada por <strong>Lemon Squeezy</strong> como merchant of record. El acceso se activa con el mismo email utilizado en la compra. Podés cancelar en cualquier momento desde el portal de pagos de Lemon Squeezy; el acceso continúa hasta el final del período ya facturado.</p>
+            <p className="mt-4"><strong>Precios:</strong> podemos actualizar los precios o límites de Mora Watchdog con aviso razonable en el sitio web.</p>
             <p className="mt-4"><strong>Reembolsos:</strong> salvo obligación legal aplicable en tu jurisdicción, no ofrecemos reembolsos prorrateados por cancelación a mitad de período. Las disputas de cargo y solicitudes de reembolso se gestionan según las políticas de Lemon Squeezy. Para consultas: <strong>contacto@mora-analytics.com</strong>.</p>
           </section>
 
           <section>
             <h2 className="text-2xl font-bold text-[#262B27] mb-4" style={{ fontFamily: "'Playfair Display', serif" }}>4. Propiedad Intelectual</h2>
-            <p>Los usuarios del <strong>plan Pro</strong> pueden exportar reportes PDF con <strong>marca blanca</strong> (logo de su agencia u organización). El software, código fuente, algoritmos de procesamiento y prompts propietarios de inteligencia artificial siguen siendo propiedad intelectual exclusiva de Mora Analytics.</p>
+            <p>Los usuarios de <strong>Mora Watchdog</strong> pueden exportar reportes PDF con <strong>marca blanca</strong> (logo de su agencia u organización). El software, código fuente, algoritmos de procesamiento y prompts propietarios de inteligencia artificial siguen siendo propiedad intelectual exclusiva de Mora Analytics.</p>
           </section>
 
           <section>

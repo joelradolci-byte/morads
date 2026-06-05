@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { 
   Target, Users, Building2, LogOut, ChevronDown, 
@@ -26,7 +26,6 @@ import {
   type FiltroCampanaTag,
 } from '../../lib/campanasEvaluacion';
 import { useCampanasEvaluadas } from '../../lib/useCampanasEvaluadas';
-import PacingResumenCuenta from './campanas/PacingResumenCuenta';
 import MatrizResumenCuenta from './campanas/MatrizResumenCuenta';
 import GestorCampanasView from './campanas/GestorCampanasView';
 import type { PacingAccionPendiente } from './campanas/PacingCampanasVista';
@@ -85,6 +84,11 @@ import {
   cpaTrendSemantic,
 } from './components/kpi/accountHealthMetrics';
 import GoogleAdsAccountPicker from '../components/GoogleAdsAccountPicker';
+import {
+  blockingLoad,
+  silentLoad,
+  type DashboardLoadOptions,
+} from './hooks/dashboardLoadOptions';
 import { LocaleProvider, useLocale } from '../../lib/i18n/LocaleProvider';
 import { copyResumen } from '../../lib/copyResumen';
 import { getCurrencyCodeFromReporte } from '../../lib/formatoMoneda';
@@ -478,7 +482,18 @@ export function AuditorDashboard({
   const [daypartingEstado, setDaypartingEstado] = useState<DaypartingEstadoPersistido>({
     aplicados: {},
   });
-  const [accountLinkNotice, setAccountLinkNotice] = useState<string | null>(null);
+  const [portalLoading, setPortalLoading] = useState(false);
+  const [billingToast, setBillingToast] = useState<{ show: boolean; timeLeft: number }>({
+    show: false,
+    timeLeft: 8,
+  });
+
+  /** Evita re-bootstrap al refrescar token de Supabase al volver a la pestaña. */
+  const dashboardLoadedForUserRef = useRef<string | null>(null);
+  const [initialDashboardReady, setInitialDashboardReady] = useState(false);
+  const verifyGoogleAdsRef = useRef<
+    (userId?: string, opts?: DashboardLoadOptions) => Promise<void>
+  >(async () => {});
 
   const navegar = (nextVista: AuditorVista, path: string) => {
     setVista(nextVista);
@@ -513,22 +528,46 @@ export function AuditorDashboard({
         user: {
           id: supaSession.user.id,
           email: supaSession.user.email,
-          name: supaSession.user.user_metadata?.full_name || supaSession.user.user_metadata?.name || "Usuario",
-          image: supaSession.user.user_metadata?.avatar_url
-        }
+          name:
+            supaSession.user.user_metadata?.full_name ||
+            supaSession.user.user_metadata?.name ||
+            "Usuario",
+          image: supaSession.user.user_metadata?.avatar_url,
+        },
       };
     };
 
     supabase.auth.getSession().then(({ data }) => {
       setSession(formatSession(data.session));
       setStatus(data.session ? "authenticated" : "unauthenticated");
+      if (!data.session) {
+        setGoogleAdsChecking(false);
+        setInitialDashboardReady(true);
+      }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, supaSession) => {
-      setSession(formatSession(supaSession));
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, supaSession) => {
       setStatus(supaSession ? "authenticated" : "unauthenticated");
 
-      if (supaSession?.provider_refresh_token) {
+      setSession((prev: ReturnType<typeof formatSession>) => {
+        const next = formatSession(supaSession);
+        if (event === "TOKEN_REFRESHED" && prev?.user?.id === next?.user?.id) {
+          return prev;
+        }
+        return next;
+      });
+
+      if (event === "SIGNED_OUT") {
+        dashboardLoadedForUserRef.current = null;
+        setInitialDashboardReady(true);
+        setGoogleAdsChecking(false);
+        setCargandoHistorial(false);
+        return;
+      }
+
+      if (event === "SIGNED_IN" && supaSession?.provider_refresh_token) {
         setTimeout(() => {
           void (async () => {
             try {
@@ -542,7 +581,10 @@ export function AuditorDashboard({
                 }),
               });
               if (res.ok) {
-                void verificarConexionGoogleAds(supaSession.user.id);
+                await verifyGoogleAdsRef.current(
+                  supaSession.user.id,
+                  silentLoad
+                );
               }
             } catch {
               /* ignore */
@@ -577,7 +619,8 @@ export function AuditorDashboard({
     const params = new URLSearchParams(window.location.search);
     if (params.get("checkout") === "success") {
       void cargarUsoMensual();
-      window.history.replaceState(null, "", "/dashboard");
+      setBillingToast({ show: true, timeLeft: 8 });
+      window.history.replaceState(null, "", window.location.pathname);
     }
   }, [session?.user?.id]);
 
@@ -626,6 +669,27 @@ export function AuditorDashboard({
     }
   };
 
+  const abrirPortalSuscripcion = async () => {
+    setPortalLoading(true);
+    try {
+      const res = await fetch("/api/billing/portal", {
+        headers: await moraAuthHeaders(),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(typeof body?.message === "string" ? body.message : "No se pudo abrir el portal.");
+        return;
+      }
+      if (typeof body.portal_url === "string") {
+        window.open(body.portal_url, "_blank", "noopener,noreferrer");
+      }
+    } catch {
+      alert("Error al conectar con el portal.");
+    } finally {
+      setPortalLoading(false);
+    }
+  };
+
   const conectarGoogleAds = async (redirectPath = "/dashboard") => {
     await supabase.auth.signInWithOAuth({
       provider: "google",
@@ -642,9 +706,144 @@ export function AuditorDashboard({
 
   const iniciarSesion = () => conectarGoogleAds("/dashboard");
 
+  const verificarConexionGoogleAds = useCallback(
+    async (userId?: string, opts: DashboardLoadOptions = blockingLoad) => {
+      const uid = userId ?? session?.user?.id;
+      if (!uid) {
+        setGoogleAdsConnected(false);
+        setGoogleAdsAccountLinked(false);
+        setGoogleAdsChecking(false);
+        return;
+      }
+      if (opts.blocking !== false) {
+        setGoogleAdsChecking(true);
+      }
+      try {
+        const res = await fetch("/api/google-ads/status", {
+          headers: await moraAuthHeaders(),
+        });
+        if (res.ok) {
+          const data = (await res.json()) as {
+            connected?: boolean;
+            accountLinked?: boolean;
+          };
+          setGoogleAdsConnected(!!data.connected);
+          setGoogleAdsAccountLinked(!!data.accountLinked);
+        } else {
+          setGoogleAdsConnected(false);
+          setGoogleAdsAccountLinked(false);
+        }
+      } catch {
+        setGoogleAdsConnected(false);
+        setGoogleAdsAccountLinked(false);
+      } finally {
+        if (opts.blocking !== false) {
+          setGoogleAdsChecking(false);
+        }
+      }
+    },
+    [session?.user?.id]
+  );
+
+  verifyGoogleAdsRef.current = verificarConexionGoogleAds;
+
+  const obtenerPerfil = useCallback(async (userId: string) => {
+    const { data: userProfile } = await supabase
+      .from("suscripciones")
+      .select("*")
+      .eq("user_id", userId)
+      .maybeSingle();
+    setPerfil(userProfile);
+    const { data: configAgencia } = await supabase
+      .from("configuracion_agencia")
+      .select("*")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (configAgencia) {
+      if (configAgencia.agencia_nombre) setAgenciaNombre(configAgencia.agencia_nombre);
+      if (configAgencia.agencia_logo) setAgenciaLogo(configAgencia.agencia_logo);
+      if (configAgencia.agencia_web) setAgenciaWeb(configAgencia.agencia_web);
+      if (configAgencia.agencia_pie) setAgenciaPie(configAgencia.agencia_pie);
+    }
+  }, []);
+
+  const cargarHistorial = useCallback(
+    async (userId: string, opts: DashboardLoadOptions = silentLoad) => {
+      if (!userId) return;
+      if (opts.blocking !== false) {
+        setCargandoHistorial(true);
+      }
+      try {
+        const { data: registros, error } = await supabase
+          .from("historial_auditorias")
+          .select("*")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false });
+        if (!error && registros) setHistorial(registros);
+      } finally {
+        if (opts.blocking !== false) {
+          setCargandoHistorial(false);
+        }
+      }
+    },
+    []
+  );
+
+  const cargarCampanas = useCallback(async (opts: DashboardLoadOptions = silentLoad) => {
+    if (opts.blocking !== false) {
+      setCargandoCampanas(true);
+    }
+    setCampanasError(null);
+    try {
+      const datos = await extraerDatosGoogle();
+      setCampanas(datos);
+    } catch (error) {
+      console.error("Error al extraer los datos de Google Ads:", error);
+      setCampanas([]);
+      const mensaje =
+        error instanceof GoogleAdsDataError
+          ? error.message
+          : "No se pudieron cargar las campañas de Google Ads.";
+      setCampanasError(mensaje);
+    } finally {
+      if (opts.blocking !== false) {
+        setCargandoCampanas(false);
+      }
+    }
+  }, []);
+
+  const bootstrapDashboard = useCallback(
+    async (userId: string, opts: DashboardLoadOptions = blockingLoad) => {
+      setInitialDashboardReady(false);
+      try {
+        await Promise.all([
+          obtenerPerfil(userId),
+          verificarConexionGoogleAds(userId, opts),
+          cargarHistorial(userId, opts),
+          cargarCampanas(opts),
+        ]);
+      } finally {
+        dashboardLoadedForUserRef.current = userId;
+        setInitialDashboardReady(true);
+      }
+    },
+    [obtenerPerfil, verificarConexionGoogleAds, cargarHistorial, cargarCampanas]
+  );
+
+  const forceReloadDashboard = useCallback(
+    async (userId: string) => {
+      dashboardLoadedForUserRef.current = null;
+      await bootstrapDashboard(userId, blockingLoad);
+    },
+    [bootstrapDashboard]
+  );
+
   const handleGoogleAdsAccountLinked = async (result: {
     accountChanged: boolean;
   }) => {
+    const userId = session?.user?.id;
+    if (!userId) return;
+
     if (result.accountChanged) {
       setHistorial([]);
       setReporte(null);
@@ -660,42 +859,10 @@ export function AuditorDashboard({
           ? "Account updated. Run a new audit to see your dashboard."
           : "Cuenta actualizada. Ejecutá una nueva auditoría."
       );
-      void cargarCampanas();
+      await forceReloadDashboard(userId);
     } else {
-      void cargarHistorial();
-    }
-    void verificarConexionGoogleAds();
-  };
-
-  const verificarConexionGoogleAds = async (userId?: string) => {
-    const uid = userId ?? session?.user?.id;
-    if (!uid) {
-      setGoogleAdsConnected(false);
-      setGoogleAdsAccountLinked(false);
-      setGoogleAdsChecking(false);
-      return;
-    }
-    setGoogleAdsChecking(true);
-    try {
-      const res = await fetch("/api/google-ads/status", {
-        headers: await moraAuthHeaders(),
-      });
-      if (res.ok) {
-        const data = (await res.json()) as {
-          connected?: boolean;
-          accountLinked?: boolean;
-        };
-        setGoogleAdsConnected(!!data.connected);
-        setGoogleAdsAccountLinked(!!data.accountLinked);
-      } else {
-        setGoogleAdsConnected(false);
-        setGoogleAdsAccountLinked(false);
-      }
-    } catch {
-      setGoogleAdsConnected(false);
-      setGoogleAdsAccountLinked(false);
-    } finally {
-      setGoogleAdsChecking(false);
+      await cargarHistorial(userId, silentLoad);
+      await verificarConexionGoogleAds(userId, silentLoad);
     }
   };
 
@@ -743,7 +910,7 @@ export function AuditorDashboard({
             reporte_json: parsedReporte, 
             nombre_cuenta: nombreCuenta || "Cuenta Prueba" 
         }]);
-        cargarHistorial();
+        await cargarHistorial(userId, silentLoad);
       }
 
       void cargarUsoMensual();
@@ -903,7 +1070,7 @@ export function AuditorDashboard({
       initialBusqueda={initialCampanasQuery?.q ?? ""}
       initialTag={(initialCampanasQuery?.tag as FiltroCampanaTag | undefined) ?? "todos"}
       initialCampanaId={initialCampanasQuery?.campanaId ?? ""}
-      onRefresh={() => cargarCampanas()}
+      onRefresh={() => void cargarCampanas(blockingLoad)}
       onSubVistaChange={v => actualizarUrlCampanas({ vista: v })}
       onAbrirDetalle={(h, tipo, reporte) => abrirDetalleHallazgo(h, tipo, reporte)}
       onAbrirGenerador={abrirGeneradorAnuncios}
@@ -913,9 +1080,21 @@ export function AuditorDashboard({
   );
 
   const t: any = {
-    es: { dashboard: "Dashboard", panelPrin: "Panel Principal", panelDesc: "Resumen del rendimiento global de tus cuentas.", saludG: "Salud Promedio", totAud: "Total Cuentas", fugasDet: "Fugas Críticas", oporMej: "Oportunidades", ultAud: "Últimas Auditorías", actRec: "Actividad Reciente", verTodas: "Ver todas →", generada: "Se auditó la cuenta", hace: "Hace", afectaA: "Afecta principalmente a", buscarGlobal: "Buscar cuenta por nombre...", nueva: "Auditor IA", clientes: "Panel de Clientes", reportes: "Reportes", feedback: "Sugerencias", configuracion: "Configuración", facturacion: "Facturación", salir: "Cerrar Sesión", placeholderNombre: "Nombre del Cliente o Cuenta", btnAnalizar: "Ejecutar Auditoría", btnAnalizando: "Analizando métricas...", exportar: "Exportar a PDF", score: "Score", problemas: "Problemas Graves", mejoras: "Áreas Débiles", aciertos: "Puntos Fuertes", login: "Iniciar sesión", tabDiag: "Diagnóstico IA", tabCheck: "Plan de Acción", tabAvanzado: "Análisis Avanzado", autoApply: "Corregir Ahora", msgAutoApply: "Disponible próximamente", pacingTit: "Pacing de Presupuesto", pacingDesc: "Ritmo de gasto proyectado", matrizTit: "Campaign Matrix", matrizDesc: "Distribución del gasto vs rendimiento", escalar: "ESTRELLAS (Escalar)", apagar: "BASURA (Apagar)", observar: "DUDOSOS (Observar)", potenciales: "POTENCIALES (Testear)", abrirAud: "Ver reporte", thCliente: "Cliente / Cuenta", thFecha: "Fecha", thEstado: "Estado", thAccion: "Acción", cuentaSinNombre: "Cuenta sin nombre", ingresos: "Ingresa los datos", buzonSug: "Buzón de sugerencias", facturacionTitulo: "Facturación y Planes", facturacionDesc: "Administrá tu suscripción", planActual: "Plan Actual", activa: "Active", gestionarSuscripcion: "Gestionar suscripción", pronto: "Pronto", ayudanos: "Ayudanos a mejorar", bug: "¿Encontraste un error?", escribiSug: "Escribí tu sugerencia aquí...", enviando: "Enviando...", enviarSug: "Enviar Sugerencia", persPdf: "Personalización de Marca Blanca", nomAgencia: "Nombre de Agencia", sitioWeb: "Sitio Web", logoPdf: "PDF Logo", subeLogo: "Subir", piePagina: "Pie de página legal", preferencias: "Preferencias Regionales", monedaDef: "Moneda Base", metricaDef: "Métrica Principal", guardando: "Guardando...", guardarAj: "Guardar Ajustes", puntajeBasado: "Puntaje en base a ineficiencias del presupuesto.", ingresaDatos: "Completá los datos de la campaña a auditar.", presupuestoObj: "Presupuesto Mensual", placeholderPres: "Ej: 1000", gastoAct: "Gasto actual", placeholderGasto: "Ej: 450", conversiones: "Conversiones", cparoas: "CPA / ROAS Actual", tipoCamp: "Campaign Type", contexto: "Context y Notas", placeholderConv: "Ej: 120", placeholderContexto: "Añadí contexto extra para la IA.", monitoreo: "Monitoreo", tenes: "Tenés", registradas: "cuentas registradas.", todos: "Todos", criticos: "Críticos", atencion: "Atención", optimos: "Óptimos", thTendencia: "Tendencia", volver: "Volver atrás", detalleCliente: "Detalle del Cliente" },
-    en: { dashboard: "Dashboard", panelPrin: "Main Dashboard", panelDesc: "Global overview of your accounts performance.", saludG: "Avg Health Score", totAud: "Total Accounts", fugasDet: "Critical Leaks", oporMej: "Opportunities", ultAud: "Recent Audits", actRec: "Recent Activity", verTodas: "View all →", generada: "Audit generated for", hace: "Ago", afectaA: "Mainly affecting", buscarGlobal: "Search account by name...", nueva: "AI Auditor", clientes: "Client Dashboard", reportes: "Reports", feedback: "Feedback", configuracion: "Settings", facturacion: "Billing", salir: "Sign Out", placeholderNombre: "Client or Account Name", btnAnalizar: "Run Audit", btnAnalizando: "Analyzing metrics...", exportar: "Export to PDF", score: "Score", problemas: "Critical Issues", mejoras: "Weak Areas", aciertos: "Strengths", login: "Log In", tabDiag: "AI Diagnosis", tabCheck: "Action Plan", tabAvanzado: "Advanced Analysis", autoApply: "Auto-Apply", msgAutoApply: "Coming soon", pacingTit: "Budget Pacing", pacingDesc: "Projected spend rhythm", matrizTit: "Campaign Matrix", matrizDesc: "Spend distribution vs performance", escalar: "STARS (Scale)", apagar: "TRASH (Pause)", observar: "DOUBTFUL (Observe)", potenciales: "POTENCIALES (Test)", abrirAud: "View report", thCliente: "Client / Account", thFecha: "Date", thEstado: "Status", thAccion: "Action", cuentaSinNombre: "Unnamed Account", ingresos: "Enter details", buzonSug: "Suggestion Box", facturacionTitulo: "Billing and Plans", facturacionDesc: "Manage your subscription", planActual: "Current Plan", activa: "Active", gestionarSuscripcion: "Manage subscription", pronto: "Soon", ayudanos: "Help us improve", bug: "Found a bug?", escribiSug: "Write your suggestion here...", enviando: "Sending...", enviarSug: "Send Suggestion", persPdf: "White Label Customization", nomAgencia: "Agency Name", sitioWeb: "Website", logoPdf: "PDF Logo", subeLogo: "Upload", piePagina: "Legal Footer", preferences: "Regional Preferences", monedaDef: "Base Currency", metricaDef: "Main Metric", guardando: "Saving...", guardarAj: "Save Settings", puntajeBasado: "Score based on budget inefficiencies.", ingresaDatos: "Fill in the details for the campaign audit.", presupuestoObj: "Monthly Budget", placeholderPres: "E.g. 1000", gastoAct: "Current Spend", placeholderGasto: "E.g. 450", conversiones: "Conversions", cparoas: "Current CPA / ROAS", tipoCamp: "Campaign Type", contexto: "Context & Notes", placeholderConv: "E.g. 120", placeholderContexto: "Add extra context for the AI.", monitoreo: "Monitoring", tenes: "You have", registradas: "accounts registered.", todos: "All", criticos: "Critical", atencion: "Warning", optimos: "Optimal", thTendencia: "Trend", volver: "Go Back", detalleCliente: "Client Details" }
+    es: { dashboard: "Dashboard", panelPrin: "Panel Principal", panelDesc: "Resumen del rendimiento global de tus cuentas.", saludG: "Salud Promedio", totAud: "Total Cuentas", fugasDet: "Fugas Críticas", oporMej: "Oportunidades", ultAud: "Últimas Auditorías", actRec: "Actividad Reciente", verTodas: "Ver todas →", generada: "Se auditó la cuenta", hace: "Hace", afectaA: "Afecta principalmente a", buscarGlobal: "Buscar cuenta por nombre...", nueva: "Auditor IA", clientes: "Panel de Clientes", reportes: "Reportes", feedback: "Sugerencias", configuracion: "Configuración", facturacion: "Facturación", salir: "Cerrar Sesión", placeholderNombre: "Nombre del Cliente o Cuenta", btnAnalizar: "Ejecutar Auditoría", btnAnalizando: "Analizando métricas...", exportar: "Exportar a PDF", score: "Score", problemas: "Problemas Graves", mejoras: "Áreas Débiles", aciertos: "Puntos Fuertes", login: "Iniciar sesión", tabDiag: "Diagnóstico IA", tabCheck: "Plan de Acción", tabAvanzado: "Análisis Avanzado", autoApply: "Corregir Ahora", msgAutoApply: "Disponible próximamente", pacingTit: "Pacing de Presupuesto", pacingDesc: "Ritmo de gasto proyectado", matrizTit: "Campaign Matrix", matrizDesc: "Distribución del gasto vs rendimiento", escalar: "ESTRELLAS (Escalar)", apagar: "BASURA (Apagar)", observar: "DUDOSOS (Observar)", potenciales: "POTENCIALES (Testear)", abrirAud: "Ver reporte", thCliente: "Cliente / Cuenta", thFecha: "Fecha", thEstado: "Estado", thAccion: "Acción", cuentaSinNombre: "Cuenta sin nombre", ingresos: "Ingresa los datos", buzonSug: "Buzón de sugerencias", facturacionTitulo: "Facturación y Planes", facturacionDesc: "Administrá tu suscripción", planActual: "Plan Actual", activa: "Active", gestionarSuscripcion: "Gestionar suscripción", checkoutSuccessTitulo: "¡Pago recibido!", checkoutSuccessDesc: "Estamos activando Mora Watchdog. Puede tardar unos segundos.", pronto: "Pronto", ayudanos: "Ayudanos a mejorar", bug: "¿Encontraste un error?", escribiSug: "Escribí tu sugerencia aquí...", enviando: "Enviando...", enviarSug: "Enviar Sugerencia", persPdf: "Personalización de Marca Blanca", nomAgencia: "Nombre de Agencia", sitioWeb: "Sitio Web", logoPdf: "PDF Logo", subeLogo: "Subir", piePagina: "Pie de página legal", preferencias: "Preferencias Regionales", monedaDef: "Moneda Base", metricaDef: "Métrica Principal", guardando: "Guardando...", guardarAj: "Guardar Ajustes", puntajeBasado: "Puntaje en base a ineficiencias del presupuesto.", ingresaDatos: "Completá los datos de la campaña a auditar.", presupuestoObj: "Presupuesto Mensual", placeholderPres: "Ej: 1000", gastoAct: "Gasto actual", placeholderGasto: "Ej: 450", conversiones: "Conversiones", cparoas: "CPA / ROAS Actual", tipoCamp: "Campaign Type", contexto: "Context y Notas", placeholderConv: "Ej: 120", placeholderContexto: "Añadí contexto extra para la IA.", monitoreo: "Monitoreo", tenes: "Tenés", registradas: "cuentas registradas.", todos: "Todos", criticos: "Críticos", atencion: "Atención", optimos: "Óptimos", thTendencia: "Tendencia", volver: "Volver atrás", detalleCliente: "Detalle del Cliente" },
+    en: { dashboard: "Dashboard", panelPrin: "Main Dashboard", panelDesc: "Global overview of your accounts performance.", saludG: "Avg Health Score", totAud: "Total Accounts", fugasDet: "Critical Leaks", oporMej: "Opportunities", ultAud: "Recent Audits", actRec: "Recent Activity", verTodas: "View all →", generada: "Audit generated for", hace: "Ago", afectaA: "Mainly affecting", buscarGlobal: "Search account by name...", nueva: "AI Auditor", clientes: "Client Dashboard", reportes: "Reports", feedback: "Feedback", configuracion: "Settings", facturacion: "Billing", salir: "Sign Out", placeholderNombre: "Client or Account Name", btnAnalizar: "Run Audit", btnAnalizando: "Analyzing metrics...", exportar: "Export to PDF", score: "Score", problemas: "Critical Issues", mejoras: "Weak Areas", aciertos: "Strengths", login: "Log In", tabDiag: "AI Diagnosis", tabCheck: "Action Plan", tabAvanzado: "Advanced Analysis", autoApply: "Auto-Apply", msgAutoApply: "Coming soon", pacingTit: "Budget Pacing", pacingDesc: "Projected spend rhythm", matrizTit: "Campaign Matrix", matrizDesc: "Spend distribution vs performance", escalar: "STARS (Scale)", apagar: "TRASH (Pause)", observar: "DOUBTFUL (Observe)", potenciales: "POTENCIALES (Test)", abrirAud: "View report", thCliente: "Client / Account", thFecha: "Date", thEstado: "Status", thAccion: "Action", cuentaSinNombre: "Unnamed Account", ingresos: "Enter details", buzonSug: "Suggestion Box", facturacionTitulo: "Billing and Plans", facturacionDesc: "Manage your subscription", planActual: "Current Plan", activa: "Active", gestionarSuscripcion: "Manage subscription", checkoutSuccessTitulo: "Payment received!", checkoutSuccessDesc: "We're activating Mora Watchdog. It may take a few seconds.", pronto: "Soon", ayudanos: "Help us improve", bug: "Found a bug?", escribiSug: "Write your suggestion here...", enviando: "Sending...", enviarSug: "Send Suggestion", persPdf: "White Label Customization", nomAgencia: "Agency Name", sitioWeb: "Website", logoPdf: "PDF Logo", subeLogo: "Upload", piePagina: "Legal Footer", preferences: "Regional Preferences", monedaDef: "Base Currency", metricaDef: "Main Metric", guardando: "Saving...", guardarAj: "Save Settings", puntajeBasado: "Score based on budget inefficiencies.", ingresaDatos: "Fill in the details for the campaign audit.", presupuestoObj: "Monthly Budget", placeholderPres: "E.g. 1000", gastoAct: "Current Spend", placeholderGasto: "E.g. 450", conversiones: "Conversions", cparoas: "Current CPA / ROAS", tipoCamp: "Campaign Type", contexto: "Context & Notes", placeholderConv: "E.g. 120", placeholderContexto: "Add extra context for the AI.", monitoreo: "Monitoring", tenes: "You have", registradas: "accounts registered.", todos: "All", criticos: "Critical", atencion: "Warning", optimos: "Optimal", thTendencia: "Trend", volver: "Go Back", detalleCliente: "Client Details" }
   };
+
+  useEffect(() => {
+    if (!billingToast.show) return;
+    if (billingToast.timeLeft <= 0) {
+      setBillingToast(prev => ({ ...prev, show: false }));
+      return;
+    }
+    const timer = setInterval(() => {
+      setBillingToast(prev => ({ ...prev, timeLeft: prev.timeLeft - 1 }));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [billingToast.show, billingToast.timeLeft]);
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -1007,7 +1186,7 @@ export function AuditorDashboard({
     try {
       const result = await postSafeApplyGoogle(safePlan, "apply");
       if (result.status === "aplicado" || result.status === "requiere_revision") {
-        await cargarCampanas();
+        await cargarCampanas(blockingLoad);
       }
       setSafeApplyAuditLog(prev => [result.audit, ...prev].slice(0, 20));
       setPacingUndo(result.status === "aplicado" ? safePlan : null);
@@ -1039,7 +1218,7 @@ export function AuditorDashboard({
     setPacingToast(prev => ({ ...prev, status: "undoing", message: "Deshaciendo cambio..." }));
     try {
       const result = await postSafeApplyGoogle(pacingUndo, "undo");
-      await cargarCampanas();
+      await cargarCampanas(silentLoad);
       setSafeApplyAuditLog(prev => [result.audit, ...prev].slice(0, 20));
       setPacingUndo(null);
       setPacingToast({ show: true, status: "reverted", timeLeft: 0, message: result.message });
@@ -1086,7 +1265,7 @@ export function AuditorDashboard({
     try {
       const result = await postSafeApplyGoogle(robinAccionPendiente, "apply");
       if (result.status === "aplicado" || result.status === "requiere_revision") {
-        await cargarCampanas();
+        await cargarCampanas(blockingLoad);
       }
       setSafeApplyAuditLog(prev => [result.audit, ...prev].slice(0, 20));
       setPacingUndo(result.status === "aplicado" ? robinAccionPendiente : null);
@@ -1113,32 +1292,6 @@ export function AuditorDashboard({
     }
   };
 
-  const obtenerPerfil = async () => {
-    const userId = session?.user?.id;
-    if (!userId) return;
-    const { data: userProfile } = await supabase.from('suscripciones').select('*').eq('user_id', userId).maybeSingle();
-    setPerfil(userProfile);
-    const { data: configAgencia } = await supabase.from('configuracion_agencia').select('*').eq('user_id', userId).maybeSingle();
-    if (configAgencia) {
-      if (configAgencia.agencia_nombre) setAgenciaNombre(configAgencia.agencia_nombre);
-      if (configAgencia.agencia_logo) setAgenciaLogo(configAgencia.agencia_logo);
-      if (configAgencia.agencia_web) setAgenciaWeb(configAgencia.agencia_web);
-      if (configAgencia.agencia_pie) setAgenciaPie(configAgencia.agencia_pie);
-    }
-  };
-  const cargarHistorial = async () => {
-    const userId = session?.user?.id;
-    if (!userId) return;
-    setCargandoHistorial(true);
-    const { data: registros, error } = await supabase
-      .from('historial_auditorias')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
-    if (!error && registros) setHistorial(registros);
-    setCargandoHistorial(false);
-  };
-
   const borrarAuditoria = async (id: number | string) => {
     if (!window.confirm("¿Seguro que querés eliminar esta auditoría? Esta acción no se puede deshacer.")) return;
     const { error } = await supabase.from('historial_auditorias').delete().eq('id', id);
@@ -1157,36 +1310,22 @@ export function AuditorDashboard({
     else { setTareasCompletadas([...tareasCompletadas, index]); }
   };
   
-  const cargarCampanas = async () => {
-    setCargandoCampanas(true);
-    setCampanasError(null);
-    try {
-      const datos = await extraerDatosGoogle();
-      setCampanas(datos);
-    } catch (error) {
-      console.error("Error al extraer los datos de Google Ads:", error);
-      setCampanas([]);
-      const mensaje =
-        error instanceof GoogleAdsDataError
-          ? error.message
-          : "No se pudieron cargar las campañas de Google Ads.";
-      setCampanasError(mensaje);
-    } finally {
-      setCargandoCampanas(false);
-    }
-  };
+  useEffect(() => {
+    const userId = session?.user?.id;
+    if (!userId || status !== "authenticated") return;
+    if (dashboardLoadedForUserRef.current === userId) return;
+
+    void bootstrapDashboard(userId, blockingLoad);
+  }, [session?.user?.id, status, bootstrapDashboard]);
 
   useEffect(() => {
-    if (session?.user?.id) {
-      obtenerPerfil();
-      cargarCampanas();
-      void verificarConexionGoogleAds(session.user.id);
-    }
-    if (vista === "historial" || vista === "dashboard" || vista === "reporte_lectura")
-      cargarHistorial();
-    if ((vista === "historial" || vista === "reporte_lectura") && session)
+    const userId = session?.user?.id;
+    if (!userId || !initialDashboardReady) return;
+    if (vista === "historial" || vista === "reporte_lectura") {
+      void cargarHistorial(userId, silentLoad);
       void cargarUsoMensual();
-  }, [vista, session]);
+    }
+  }, [vista, session?.user?.id, initialDashboardReady, cargarHistorial]);
 
   useEffect(() => {
     if (deepLinkAuditoriaHandled.current || cargandoHistorial || historial.length === 0)
@@ -1236,7 +1375,7 @@ export function AuditorDashboard({
       resumen_auto_abrir: resumenAutoAbrir,
     });
     if (error) throw error;
-    await obtenerPerfil();
+    await obtenerPerfil(userId);
     setLoading(false);
   };
 
@@ -1693,6 +1832,11 @@ export function AuditorDashboard({
     setToastState({ show: true, status: "success", timeLeft: 5 });
   };
 
+  const showDashboardBlockingLoader =
+    status === "authenticated" &&
+    !!session?.user?.id &&
+    !initialDashboardReady;
+
   if (status === "loading") return (
     <div className="h-screen w-full flex justify-center items-center bg-[#FDE8D3]">
       <div className="w-16 h-16 rounded-2xl flex items-center justify-center font-black text-[#0a0a0a] text-4xl shadow-lg bg-[#E0E7FF] animate-pulse">M</div>
@@ -1735,7 +1879,7 @@ export function AuditorDashboard({
         
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #44403C; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: #CFD6C4; border-radius: 10px; }
         ::-webkit-scrollbar-thumb:hover { background: #A8A29E; }
 
         @keyframes shrinkBar { from { width: '100%'; } to { width: '0%'; } }
@@ -1743,7 +1887,7 @@ export function AuditorDashboard({
 
       `}} />
 
-      <div style={{ zoom: 0.75 }} className={`flex h-[133.33vh] w-full font-sans overflow-hidden print-container relative ${!session ? "bg-[#FDE8D3] selection:bg-[#E0E7FF] selection:text-[#0a0a0a]" : "bg-[#0a0a0a] selection:bg-[#F3C3B2] selection:text-[#0a0a0a]"}`}>
+      <div style={{ zoom: 0.75 }} className={`flex h-[133.33vh] w-full font-sans overflow-hidden print-container relative ${!session ? "bg-[#FDE8D3] selection:bg-[#E0E7FF] selection:text-[#0a0a0a]" : "bg-[#fde8d3] selection:bg-[#F3C3B2] selection:text-[#0a0a0a]"}`}>
         
         {!session && <AuditWireframeBackground />}
 
@@ -2001,9 +2145,9 @@ export function AuditorDashboard({
             </footer>
           </div>
         ) : (
-          <>
-            {/* BARRA LATERAL OSCURA */}
-            <aside className="w-64 md:w-72 bg-[#0a0a0a] flex-shrink-0 flex flex-col py-8 relative z-20 text-[#E5E7EB] shadow-[10px_0_30px_rgba(0,0,0,0.1)]">
+          <div className="flex min-h-0 flex-1 gap-4 p-4 md:gap-5 md:p-5">
+            {/* BARRA LATERAL FLOTANTE */}
+            <aside className="flex h-[calc(133.33vh-2.5rem)] w-64 shrink-0 flex-col rounded-3xl bg-[#0a0a0a] py-8 text-[#E5E7EB] shadow-[0_12px_40px_rgba(0,0,0,0.12)] md:w-72">
               <div className="px-8 mb-8">
                 <h1 className="text-2xl font-black text-white tracking-tighter flex items-center gap-2">
                   <span className="bg-[#F3C3B2] text-[#0a0a0a] w-8 h-8 rounded-lg flex items-center justify-center text-lg shadow-sm">M</span>
@@ -2014,7 +2158,7 @@ export function AuditorDashboard({
               <nav className="flex-1 flex flex-col gap-2 relative px-4">
                 <button 
                   onClick={() => navegar("dashboard", "/dashboard")}
-                  className={`w-full text-left py-3.5 pr-4 flex items-center gap-3 font-bold transition-all duration-300 rounded-lg ${
+                  className={`w-full text-left py-3.5 pr-4 flex items-center gap-3 text-base font-bold transition-all duration-300 rounded-lg ${
                     vista === "dashboard" || vista === "detalle_hallazgo"
                     ? "bg-white/10 text-white border-l-4 border-[#F3C3B2] pl-5" 
                     : "text-[#8A968C] hover:bg-white/5 hover:text-white pl-6"
@@ -2026,7 +2170,7 @@ export function AuditorDashboard({
 
                 <button 
                   onClick={() => navegar("campañas", "/campanas")}
-                  className={`w-full text-left py-3.5 pr-4 flex items-center gap-3 font-bold transition-all duration-300 rounded-lg ${
+                  className={`w-full text-left py-3.5 pr-4 flex items-center gap-3 text-base font-bold transition-all duration-300 rounded-lg ${
                     vista === "campañas"
                     ? "bg-white/10 text-white border-l-4 border-[#F3C3B2] pl-5" 
                     : "text-[#8A968C] hover:bg-white/5 hover:text-white pl-6"
@@ -2038,7 +2182,7 @@ export function AuditorDashboard({
 
                 <button 
                   onClick={() => navegar("historial", "/reportes")}
-                  className={`w-full text-left py-3.5 pr-4 flex items-center gap-3 font-bold transition-all duration-300 rounded-lg ${
+                  className={`w-full text-left py-3.5 pr-4 flex items-center gap-3 text-base font-bold transition-all duration-300 rounded-lg ${
                     vista === "historial" || vista === "reporte_lectura"
                     ? "bg-white/10 text-white border-l-4 border-[#F3C3B2] pl-5" 
                     : "text-[#8A968C] hover:bg-white/5 hover:text-white pl-6"
@@ -2051,11 +2195,11 @@ export function AuditorDashboard({
               </nav>
             </aside>
 
-            {/* LIENZO PRINCIPAL */}
-            <main className="flex-1 bg-[#1C1917] rounded-[2.5rem] relative z-10 flex flex-col overflow-hidden text-[#F5F0EB] shadow-[inset_0_4px_20px_rgba(0,0,0,0.5)] border border-[#44403C]/50 my-4 mr-4 md:my-5 md:mr-5">
-              <header className="px-8 md:px-10 pt-8 pb-6 flex justify-between items-center shrink-0 w-full mx-auto relative z-50 border-b border-[#44403C]/30">
+            {/* CONTENIDO PRINCIPAL — sobre fondo durazno */}
+            <main className="relative z-10 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-transparent text-[#262B27]">
+              <header className="relative z-50 mx-auto flex w-full shrink-0 items-center justify-between border-b border-[#CFD6C4]/60 px-6 pb-6 pt-8 md:px-10">
                 <div>
-                  <p className="text-[#A8A29E] font-black tracking-widest text-[10px] uppercase mb-1">
+                  <p className="mb-1 text-sm font-black uppercase tracking-widest text-[#8A968C]">
                      {vista === 'dashboard' && "Vista General"}
                      {vista === 'nueva' && "Nueva Auditoría"}
                      {vista === 'historial' && "Historial de Análisis"}
@@ -2063,7 +2207,7 @@ export function AuditorDashboard({
                      {vista === 'perfil' && "Preferencias"}
                      {vista === 'facturacion' && "Suscripción"}
                   </p>
-                  <h1 className="text-3xl font-black tracking-tight text-[#F5F0EB]">
+                  <h1 className="font-serif text-3xl font-black tracking-tight text-[#262B27]">
                      {vista === 'dashboard' ? `¡Hola, ${session?.user?.name?.split(' ')[0] || 'Valeria'}!` : 
                       vista === 'nueva' ? 'Auditor IA' :
                       vista === 'historial' ? 'Mis Reportes' :
@@ -2077,9 +2221,9 @@ export function AuditorDashboard({
                 
                 <div className="flex items-center gap-6">
                   {vista === 'historial' && (
-                    <div className="hidden md:flex items-center bg-[#292524] border border-[#44403C] px-4 py-2.5 rounded-xl shadow-sm">
-                       <Search size={16} className="text-[#A8A29E] mr-2" />
-                       <input type="text" placeholder="Buscar cuenta..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} className="bg-transparent border-none outline-none text-sm text-[#F5F0EB] placeholder-[#A8A29E] w-48 font-bold" />
+                    <div className="hidden md:flex items-center rounded-xl border border-[#CFD6C4] bg-white/70 px-4 py-2.5 shadow-sm">
+                       <Search size={16} className="text-[#8A968C] mr-2" />
+                       <input type="text" placeholder="Buscar cuenta..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} className="w-48 border-none bg-transparent text-sm font-bold text-[#262B27] outline-none placeholder-[#8A968C]" />
                     </div>
                   )}
 
@@ -2094,20 +2238,20 @@ export function AuditorDashboard({
                     </button>
                   )}
 
-                  <div className="flex items-center gap-3 bg-[#292524] border border-[#44403C] p-1.5 pr-4 rounded-full shadow-lg relative group cursor-pointer hover:bg-[#44403C]/50 transition-colors">
-                    <div className="w-10 h-10 rounded-full bg-[#F3C3B2]/20 border border-[#F3C3B2]/40 text-[#F3C3B2] flex items-center justify-center text-lg font-black">
+                  <div className="group relative flex cursor-pointer items-center gap-3 rounded-full border border-[#CFD6C4] bg-white/80 p-1.5 pr-4 shadow-sm transition-colors hover:bg-white">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full border border-[#F3C3B2]/40 bg-[#F3C3B2]/20 text-lg font-black text-[#C4614A]">
                       {session?.user?.name?.charAt(0).toUpperCase() || 'V'}
                     </div>
                     <div className="flex flex-col">
-                      <span className="text-[#F5F0EB] font-bold text-sm leading-tight">{session?.user?.name?.split(' ')[0] || 'Valeria'}</span>
-                      <span className="text-[#A8A29E] text-[9px] font-black uppercase tracking-widest mt-0.5">Mora Pro</span>
+                      <span className="text-base font-bold leading-tight text-[#262B27]">{session?.user?.name?.split(' ')[0] || 'Valeria'}</span>
+                      <span className="mt-0.5 text-[11px] font-black uppercase tracking-widest text-[#8A968C]">Mora Watchdog</span>
                     </div>
-                    <ChevronDown size={14} className="text-[#A8A29E] ml-2 group-hover:rotate-180 transition-transform duration-300" />
+                    <ChevronDown size={14} className="ml-2 text-[#8A968C] transition-transform duration-300 group-hover:rotate-180" />
 
-                    <div className="absolute top-full right-0 mt-2 w-56 bg-[#292524] border border-[#44403C] rounded-2xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 overflow-hidden flex flex-col translate-y-2 group-hover:translate-y-0">
-                       <button onClick={() => navegar("perfil", "/configuracion")} className="flex items-center gap-3 px-5 py-3.5 text-sm font-bold text-[#A8A29E] hover:text-[#F5F0EB] hover:bg-[#44403C]/50 transition-colors text-left"><Settings size={16} /> Configuración</button>
-                       <button onClick={() => navegar("facturacion", "/facturacion")} className="flex items-center gap-3 px-5 py-3.5 text-sm font-bold text-[#A8A29E] hover:text-[#F5F0EB] hover:bg-[#44403C]/50 transition-colors text-left"><CreditCard size={16} /> Facturación</button>
-                       <div className="h-px bg-[#44403C] w-full"></div>
+                    <div className="invisible absolute right-0 top-full z-50 mt-2 flex w-56 translate-y-2 flex-col overflow-hidden rounded-2xl border border-[#CFD6C4] bg-white opacity-0 shadow-xl transition-all duration-200 group-hover:visible group-hover:translate-y-0 group-hover:opacity-100">
+                       <button onClick={() => navegar("perfil", "/configuracion")} className="flex items-center gap-3 px-5 py-3.5 text-left text-sm font-bold text-[#657166] transition-colors hover:bg-[#FDE8D3] hover:text-[#262B27]"><Settings size={16} /> Configuración</button>
+                       <button onClick={() => navegar("facturacion", "/facturacion")} className="flex items-center gap-3 px-5 py-3.5 text-left text-sm font-bold text-[#657166] transition-colors hover:bg-[#FDE8D3] hover:text-[#262B27]"><CreditCard size={16} /> Facturación</button>
+                       <div className="h-px w-full bg-[#CFD6C4]"></div>
                        <button type="button" onClick={cerrarSesion} className="flex items-center gap-3 px-5 py-3.5 text-sm font-bold text-[#E07070] hover:bg-[#E07070]/10 transition-colors text-left"><LogOut size={16} /> Cerrar sesión</button>
                     </div>
                   </div>
@@ -2130,11 +2274,11 @@ export function AuditorDashboard({
                   {errorAuditoria && (
                     <div
                       role="alert"
-                      className="mt-6 rounded-2xl border border-[#D4A843]/40 bg-[#D4A843]/10 p-5 flex flex-col sm:flex-row sm:items-center gap-4"
+                      className="mt-6 flex flex-col gap-4 rounded-2xl border border-[#E5C9A8]/45 bg-white/85 p-5 sm:flex-row sm:items-center"
                     >
                       <div className="flex items-start gap-3 flex-1 min-w-0">
                         <AlertTriangle size={22} className="text-[#D4A843] shrink-0 mt-0.5" />
-                        <p className="text-sm text-[#F5F0EB] font-medium leading-relaxed">
+                        <p className="text-base font-medium leading-relaxed text-[#262B27]">
                           {errorAuditoria}
                         </p>
                       </div>
@@ -2142,37 +2286,37 @@ export function AuditorDashboard({
                         type="button"
                         onClick={ejecutarAuditoriaConIA}
                         disabled={loading}
-                        className="shrink-0 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-[#F3C3B2] text-[#0a0a0a] hover:bg-[#eab3a1] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="shrink-0 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest bg-[#F3C3B2] text-[#0a0a0a] hover:bg-[#eab3a1] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {loading ? "Reintentando…" : "Reintentar"}
                       </button>
                     </div>
                   )}
                   {accountLinkNotice && vista === "dashboard" && (
-                    <div className="mt-6 flex items-start gap-3 rounded-2xl border border-[#7EB893]/40 bg-[#7EB893]/10 px-5 py-4">
+                    <div className="mt-6 flex items-start gap-3 rounded-2xl border border-[#5B9A8B]/30 bg-white/85 px-5 py-4">
                       <CheckCircle2 size={20} className="shrink-0 text-[#5B9A8B]" />
-                      <p className="text-sm font-bold leading-snug text-[#F5F0EB]">
+                      <p className="text-base font-bold leading-snug text-[#262B27]">
                         {accountLinkNotice}
                       </p>
                       <button
                         type="button"
                         onClick={() => setAccountLinkNotice(null)}
-                        className="ml-auto shrink-0 text-[#A8A29E] hover:text-[#F5F0EB]"
+                        className="ml-auto shrink-0 text-[#8A968C] hover:text-[#262B27]"
                         aria-label={locale === "en" ? "Dismiss" : "Cerrar"}
                       >
                         <X size={16} />
                       </button>
                     </div>
                   )}
-                  {cargandoHistorial || googleAdsChecking ? (
+                  {showDashboardBlockingLoader ? (
                     <div className="flex flex-col items-center justify-center py-32 gap-4 mt-6">
                       <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#F3C3B2]" />
-                      <p className="text-[#A8A29E] text-sm font-bold uppercase tracking-widest">
+                      <p className="text-base font-bold uppercase tracking-widest text-[#8A968C]">
                         {locale === "en" ? "Loading…" : "Cargando…"}
                       </p>
                     </div>
                   ) : !googleAdsConnected && !ultimaAuditoria ? (
-                    <div className="flex flex-col items-center justify-center text-center min-h-[min(70vh,640px)] px-8 py-20 mt-6 rounded-3xl border border-[#44403C] border-t-white/10 bg-gradient-to-b from-[#292524] to-[#1C1917] shadow-2xl">
+                    <div className="mt-6 flex min-h-[min(70vh,640px)] flex-col items-center justify-center rounded-3xl border border-[#CFD6C4] bg-white/70 px-8 py-20 text-center shadow-sm">
                       <GoogleAdsConnectBlock
                         locale={locale}
                         connected={false}
@@ -2182,18 +2326,18 @@ export function AuditorDashboard({
                       />
                     </div>
                   ) : !ultimaAuditoria ? (
-                    <div className="flex flex-col items-center justify-center text-center min-h-[min(70vh,640px)] px-8 py-20 mt-6 rounded-3xl border border-[#44403C] border-t-white/10 bg-gradient-to-b from-[#292524] to-[#1C1917] shadow-2xl">
+                    <div className="mt-6 flex min-h-[min(70vh,640px)] flex-col items-center justify-center rounded-3xl border border-[#CFD6C4] bg-white/70 px-8 py-20 text-center shadow-sm">
                       <div className="w-full max-w-lg space-y-8">
                         <div>
                           <div className="w-16 h-16 rounded-2xl bg-[#F3C3B2]/15 border border-[#F3C3B2]/30 flex items-center justify-center mx-auto">
                             <Activity size={28} className="text-[#F3C3B2]" />
                           </div>
-                          <h2 className="text-2xl md:text-3xl font-black text-[#F5F0EB] mt-8 max-w-xl tracking-tight mx-auto">
+                          <h2 className="mx-auto mt-8 max-w-xl font-serif text-2xl font-black tracking-tight text-[#262B27] md:text-3xl">
                             {locale === "en"
                               ? "Ready for your first audit"
                               : "Mora está lista para tu primera auditoría"}
                           </h2>
-                          <p className="text-[#A8A29E] text-sm md:text-base mt-4 max-w-lg font-medium leading-relaxed mx-auto">
+                          <p className="mx-auto mt-4 max-w-lg text-base font-medium leading-relaxed text-[#657166]">
                             {locale === "en"
                               ? "Google Ads is connected. Run an audit to see your account health and opportunities."
                               : "Google Ads está conectado. Ejecutá una auditoría para ver el estado de tus campañas y las oportunidades de mejora."}
@@ -2229,7 +2373,7 @@ export function AuditorDashboard({
                                 : "Elegí una cuenta de Google Ads primero"
                               : undefined
                           }
-                          className="w-full px-8 py-4 rounded-2xl text-sm uppercase tracking-widest font-black bg-[#F3C3B2] text-[#0a0a0a] hover:bg-[#eab3a1] transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="w-full px-8 py-4 rounded-2xl text-xs uppercase tracking-widest font-black bg-[#F3C3B2] text-[#0a0a0a] hover:bg-[#eab3a1] transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           {loading
                             ? locale === "en"
@@ -2289,10 +2433,7 @@ export function AuditorDashboard({
                     quickWins={quickWinsDelDia}
                     quickWinsCompletados={quickWinsCompletados}
                     razonesScore={razonesScore}
-                    onQuickWinDetalle={win =>
-                      abrirDetalleHallazgo(win, win.tipo, ultimaAuditoria?.reporte_json)
-                    }
-                    onQuickWinAccion={(win, winId) => {
+                    onQuickWinAccion={(win, _winId) => {
                       if (
                         win.id_rastreo === "GENERADOR_NEGATIVOS_URGENTE" &&
                         destripadorReporte
@@ -2312,19 +2453,17 @@ export function AuditorDashboard({
                         setPanelIntroResumen("dayparting");
                         setDaypartingAbierto(true);
                       } else {
-                        setQuickWinsCompletados(prev =>
-                          prev.includes(winId) ? prev : [...prev, winId]
+                        abrirDetalleHallazgo(
+                          win,
+                          win.tipo,
+                          ultimaAuditoria?.reporte_json
                         );
-                        setToastState({ show: true, status: "success", timeLeft: 5 });
                       }
                     }}
                     onVerCampanas={() => navegar("campañas", "/campanas")}
-                  />
-
-                  <PacingResumenCuenta
-                    evaluadas={campanasEvaluadas}
-                    cargando={cargandoCampanas}
-                    onVerTodas={() => navegar("campañas", "/campanas?vista=pacing")}
+                    campanasEvaluadas={campanasEvaluadas}
+                    cargandoCampanas={cargandoCampanas}
+                    onVerPacingTodas={() => navegar("campañas", "/campanas?vista=pacing")}
                   />
 
                   {/* PROBLEMAS Y OPORTUNIDADES DETALLADOS */}
@@ -2333,37 +2472,37 @@ export function AuditorDashboard({
                       {ultimaAuditoria.reporte_json?.hallazgos?.graves_rojo?.map((item: any, i: number) => (
                         <div
                           key={i}
-                          className="bg-[#292524] border border-[#44403C] shadow-lg rounded-3xl p-6 cursor-pointer hover:border-[#E07070]/50 hover:shadow-xl transition-all group relative overflow-hidden"
+                          className="group relative cursor-pointer overflow-hidden rounded-3xl border border-[#CFD6C4] bg-white/85 p-6 shadow-sm transition-all hover:border-[#E07070]/40 hover:shadow-md"
                           onClick={() => abrirDetalleHallazgo(item, "critico", ultimaAuditoria.reporte_json)}
                         >
                           <div className="absolute top-0 left-0 w-1 h-full bg-[#E07070]"></div>
                           <div className="flex justify-between items-start mb-3">
                             <div className="flex items-center gap-2">
                               <div className="w-6 h-6 rounded-md bg-[#E07070]/10 flex items-center justify-center"><AlertTriangle size={12} className="text-[#E07070]" /></div>
-                              <span className="text-[10px] font-black uppercase tracking-widest text-[#E07070]">Impacto Alto</span>
+                              <span className="text-[11px] font-black uppercase tracking-widest text-[#E07070]">Impacto Alto</span>
                             </div>
-                            <ChevronRight size={16} className="text-[#A8A29E] group-hover:text-[#F5F0EB] transition-colors" />
+                            <ChevronRight size={16} className="text-[#8A968C] transition-colors group-hover:text-[#262B27]" />
                           </div>
-                          <p className="text-lg font-black text-[#F5F0EB] mt-2">{item.titulo}</p>
-                          <p className="text-sm text-[#A8A29E] font-medium mt-2 leading-relaxed line-clamp-2">{textoHallazgoParaUsuario(item, true, { locale })}</p>
+                          <p className="mt-2 text-xl font-black text-[#262B27]">{item.titulo}</p>
+                          <p className="mt-2 line-clamp-2 text-base font-medium leading-relaxed text-[#657166]">{textoHallazgoParaUsuario(item, true, { locale })}</p>
                         </div>
                       ))}
                       {ultimaAuditoria.reporte_json?.hallazgos?.debiles_amarillo?.map((item: any, i: number) => (
                         <div
                           key={i}
-                          className="bg-[#292524] border border-[#44403C] shadow-lg rounded-3xl p-6 cursor-pointer hover:border-[#D4A843]/50 hover:shadow-xl transition-all group relative overflow-hidden"
+                          className="group relative cursor-pointer overflow-hidden rounded-3xl border border-[#CFD6C4] bg-white/85 p-6 shadow-sm transition-all hover:border-[#D4A843]/40 hover:shadow-md"
                           onClick={() => abrirDetalleHallazgo(item, "mejora", ultimaAuditoria.reporte_json)}
                         >
                           <div className="absolute top-0 left-0 w-1 h-full bg-[#D4A843]"></div>
                           <div className="flex justify-between items-start mb-3">
                             <div className="flex items-center gap-2">
                               <div className="w-6 h-6 rounded-md bg-[#D4A843]/10 flex items-center justify-center"><Zap size={12} className="text-[#D4A843]" /></div>
-                              <span className="text-[10px] font-black uppercase tracking-widest text-[#D4A843]">Mejora</span>
+                              <span className="text-[11px] font-black uppercase tracking-widest text-[#D4A843]">Mejora</span>
                             </div>
-                            <ChevronRight size={16} className="text-[#A8A29E] group-hover:text-[#F5F0EB] transition-colors" />
+                            <ChevronRight size={16} className="text-[#8A968C] transition-colors group-hover:text-[#262B27]" />
                           </div>
-                          <p className="text-lg font-black text-[#F5F0EB] mt-2">{item.titulo}</p>
-                          <p className="text-sm text-[#A8A29E] font-medium mt-2 leading-relaxed line-clamp-2">{textoHallazgoParaUsuario(item, true, { locale })}</p>
+                          <p className="mt-2 text-xl font-black text-[#262B27]">{item.titulo}</p>
+                          <p className="mt-2 line-clamp-2 text-base font-medium leading-relaxed text-[#657166]">{textoHallazgoParaUsuario(item, true, { locale })}</p>
                         </div>
                       ))}
                       {ultimaAuditoria.reporte_json?.hallazgos?.bien_verde?.map((item: any, i: number) => {
@@ -2378,19 +2517,19 @@ export function AuditorDashboard({
                         return (
                         <div
                           key={`verde-${i}`}
-                          className="bg-[#292524] border border-[#44403C] shadow-lg rounded-3xl p-6 relative overflow-hidden md:col-span-2"
+                          className="relative overflow-hidden rounded-3xl border border-[#CFD6C4] bg-white/85 p-6 shadow-sm md:col-span-2"
                         >
                           <div className="absolute top-0 left-0 w-1 h-full bg-[#10B981]"></div>
                           <div className="flex items-center gap-2 mb-3">
                             <div className="w-6 h-6 rounded-md bg-[#10B981]/10 flex items-center justify-center">
                               <CheckCircle2 size={12} className="text-[#10B981]" />
                             </div>
-                            <span className="text-[10px] font-black uppercase tracking-widest text-[#10B981]">
+                            <span className="text-[11px] font-black uppercase tracking-widest text-[#10B981]">
                               {etiquetaBadgeSalud(nivelVerde)}
                             </span>
                           </div>
-                          <p className="text-lg font-black text-[#F5F0EB]">{item.titulo}</p>
-                          <p className="text-sm text-[#A8A29E] font-medium mt-2 leading-relaxed">
+                          <p className="text-xl font-black text-[#262B27]">{item.titulo}</p>
+                          <p className="mt-2 text-base font-medium leading-relaxed text-[#657166]">
                             {textoHallazgoParaUsuario(item, true, { locale })}
                           </p>
                         </div>
@@ -2407,22 +2546,22 @@ export function AuditorDashboard({
                         className={`mb-4 rounded-3xl border px-5 py-4 ${
                           planRobin.aplica
                             ? "border-[#D4A843]/40 bg-[#D4A843]/5"
-                            : "border-[#44403C] bg-[#292524]"
+                            : "border-[#CFD6C4] bg-white/80"
                         }`}
                       >
                         <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-4">
                           <div className="min-w-0">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-[#D4A843] mb-1">Robin Hood seguro</p>
-                            <h4 className="text-lg font-black text-[#F5F0EB] leading-tight">
+                            <p className="text-sm font-black uppercase tracking-widest text-[#D4A843] mb-1">Robin Hood seguro</p>
+                            <h4 className="text-xl font-black leading-tight text-[#262B27]">
                               {planRobin.aplica ? "Reasignación lista para aplicar" : "Reasignación bloqueada por seguridad"}
                             </h4>
-                            <p className="text-sm text-[#A8A29E] font-medium leading-relaxed mt-1">{planRobin.justificacion}</p>
+                            <p className="mt-1 text-base font-medium leading-relaxed text-[#657166]">{planRobin.justificacion}</p>
                           </div>
                           <div className="flex flex-wrap gap-2 shrink-0">
-                            <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border border-[#44403C] text-[#F5F0EB] bg-[#1C1917]">
+                            <span className="rounded-lg border border-[#CFD6C4] bg-[#FDE8D3] px-2.5 py-1 text-[11px] font-black uppercase tracking-widest text-[#262B27]">
                               Confianza {planRobin.confianza}
                             </span>
-                            <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border border-[#10B981]/20 text-[#10B981] bg-[#10B981]/10">
+                            <span className="text-[11px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border border-[#10B981]/20 text-[#10B981] bg-[#10B981]/10">
                               Safe Apply
                             </span>
                           </div>
@@ -2431,16 +2570,16 @@ export function AuditorDashboard({
                           <>
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mt-4">
                               <div className="rounded-2xl border border-[#E07070]/20 bg-[#E07070]/5 p-3">
-                                <p className="text-[9px] font-black uppercase tracking-widest text-[#E07070] mb-2">Total a donar ahora</p>
-                                <p className="text-2xl font-black text-[#F5F0EB]">${planRobin.total_reasignado.toLocaleString()}/mes</p>
+                                <p className="text-[11px] font-black uppercase tracking-widest text-[#E07070] mb-2">Total a donar ahora</p>
+                                <p className="text-2xl font-black text-[#262B27]">${planRobin.total_reasignado.toLocaleString()}/mes</p>
                                 {planRobin.presupuesto_rescatable > planRobin.total_reasignado && (
-                                  <p className="text-[9px] text-[#A8A29E] font-bold mt-1 leading-snug">
+                                  <p className="mt-1 text-xs font-bold leading-snug text-[#657166]">
                                     Potencial hasta ${planRobin.presupuesto_rescatable.toLocaleString()} · Mora aplica ${planRobin.total_reasignado.toLocaleString()} por seguridad.
                                   </p>
                                 )}
                                 <div className="mt-2 space-y-1">
                                   {planRobin.origenes.map(origen => (
-                                    <div key={origen.campana_id} className="flex justify-between gap-2 text-[10px] font-bold text-[#A8A29E]">
+                                    <div key={origen.campana_id} className="flex justify-between gap-2 text-sm font-bold text-[#657166]">
                                       <span className="truncate" title={origen.nombre}>{origen.nombre}</span>
                                       <span className="text-[#E07070] shrink-0">recorte -${origen.monto_recortado.toLocaleString()}</span>
                                     </div>
@@ -2448,23 +2587,23 @@ export function AuditorDashboard({
                                 </div>
                               </div>
                               <div className="rounded-2xl border border-[#10B981]/20 bg-[#10B981]/5 p-3">
-                                <p className="text-[9px] font-black uppercase tracking-widest text-[#10B981] mb-2">Recibe la donación</p>
-                                <p className="text-sm font-black text-[#F5F0EB] truncate">{planRobin.destino.nombre}</p>
+                                <p className="text-[11px] font-black uppercase tracking-widest text-[#10B981] mb-2">Recibe la donación</p>
+                                <p className="truncate text-base font-black text-[#262B27]">{planRobin.destino.nombre}</p>
                                 <p className="text-2xl font-black text-[#10B981] mt-1">+${planRobin.destino.monto_incrementado.toLocaleString()}/mes</p>
-                                <p className="text-[10px] text-[#A8A29E] font-bold mt-1">
+                                <p className="mt-1 text-sm font-bold text-[#657166]">
                                   Margen escalable {planRobin.destino.margen_escalabilidad}% · Score {planRobin.destino.score_escalabilidad}
                                 </p>
                               </div>
                               <div className="rounded-2xl border border-[#D4A843]/20 bg-[#D4A843]/5 p-3">
-                                <p className="text-[9px] font-black uppercase tracking-widest text-[#D4A843] mb-2">Victoria estimada</p>
-                                <p className="text-2xl font-black text-[#F5F0EB] leading-tight">
+                                <p className="text-[11px] font-black uppercase tracking-widest text-[#D4A843] mb-2">Victoria estimada</p>
+                                <p className="text-2xl font-black leading-tight text-[#262B27]">
                                   +{planRobin.proyeccion.conversiones_extra_mensuales}
-                                  <span className="text-sm font-black text-[#A8A29E] ml-1">conversiones/mes</span>
+                                  <span className="ml-1 text-base font-black text-[#657166]">conversiones/mes</span>
                                 </p>
-                                <p className="text-[10px] text-[#A8A29E] font-bold mt-1">
+                                <p className="mt-1 text-sm font-bold text-[#657166]">
                                   CPA global estimado -{planRobin.proyeccion.reduccion_cpa_global_pct}%
                                 </p>
-                                <p className="text-[9px] text-[#A8A29E] mt-2 leading-snug">{planRobin.proyeccion.supuesto}</p>
+                                <p className="mt-2 text-xs leading-snug text-[#8A968C]">{planRobin.proyeccion.supuesto}</p>
                               </div>
                             </div>
                             <button
@@ -2473,14 +2612,14 @@ export function AuditorDashboard({
                                 const plan = crearPlanSeguroRobin(planRobin);
                                 if (plan) setRobinAccionPendiente(plan);
                               }}
-                              className="mt-4 w-full sm:w-auto text-[10px] font-black uppercase tracking-widest px-4 py-3 rounded-xl border border-[#D4A843]/30 bg-[#D4A843]/10 text-[#D4A843] hover:bg-[#D4A843] hover:text-[#0a0a0a] transition-colors"
+                              className="mt-4 w-full sm:w-auto text-xs font-black uppercase tracking-widest px-4 py-3 rounded-xl border border-[#D4A843]/30 bg-[#D4A843]/10 text-[#D4A843] hover:bg-[#D4A843] hover:text-[#0a0a0a] transition-colors"
                             >
                               Aplicar reasignación Robin Hood
                             </button>
                           </>
                         )}
                         {!planRobin.aplica && planRobin.bloqueos.length > 0 && (
-                          <p className="text-[10px] text-[#A8A29E] font-bold leading-relaxed mt-3">{planRobin.bloqueos[0]}</p>
+                          <p className="mt-3 text-sm font-bold leading-relaxed text-[#657166]">{planRobin.bloqueos[0]}</p>
                         )}
                       </div>
                     )}
@@ -2664,7 +2803,7 @@ export function AuditorDashboard({
                        <button
                          type="button"
                          onClick={() => { setVistaComparacion(false); setComparacionIds([]); }}
-                         className="px-6 py-3 rounded-xl bg-[#292524] border border-[#44403C] text-[#F5F0EB] font-black text-sm"
+                         className="rounded-xl border border-[#CFD6C4] bg-white/80 px-6 py-3 text-sm font-black text-[#262B27]"
                        >
                          Volver al historial
                        </button>
@@ -2686,14 +2825,14 @@ export function AuditorDashboard({
 
                  return (
                   <div className="animate-fade-custom print:hidden relative z-10 w-full max-w-[1400px] mx-auto flex flex-col gap-8">
-                    <div className="flex flex-wrap justify-between items-center gap-4 border-b border-[#44403C]/50 pb-6">
+                    <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#CFD6C4]/60 pb-6">
                       <div className="flex items-center gap-4">
-                        <button type="button" onClick={() => { setVistaComparacion(false); setComparacionIds([]); setHintComparacionMax(false); }} className="p-2.5 rounded-xl bg-[#292524] border border-[#44403C] text-[#A8A29E] hover:text-[#F5F0EB] transition-colors"><ArrowLeft size={18} /></button>
+                        <button type="button" onClick={() => { setVistaComparacion(false); setComparacionIds([]); setHintComparacionMax(false); }} className="rounded-xl border border-[#CFD6C4] bg-white/80 p-2.5 text-[#8A968C] transition-colors hover:text-[#262B27]"><ArrowLeft size={18} /></button>
                         <div>
-                          <h2 className="text-3xl font-black text-[#F5F0EB]">Rendición de Cuentas</h2>
-                          <p className="text-[#A8A29E] text-sm mt-1 font-medium uppercase tracking-widest text-[10px] font-black">{auditA.nombre_cuenta}</p>
+                          <h2 className="font-serif text-3xl font-black text-[#262B27]">Rendición de Cuentas</h2>
+                          <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-[#8A968C]">{auditA.nombre_cuenta}</p>
                           {pdfQuotaLabel && (
-                            <p className="text-[10px] font-bold text-[#A8A29E] mt-2 uppercase tracking-widest">{pdfQuotaLabel}</p>
+                            <p className="mt-2 text-[10px] font-bold uppercase tracking-widest text-[#8A968C]">{pdfQuotaLabel}</p>
                           )}
                         </div>
                       </div>
@@ -2707,7 +2846,7 @@ export function AuditorDashboard({
                         }
                         title={
                           comparacionProBloqueada
-                            ? "Comparación PDF disponible en Pro"
+                            ? "Comparación PDF disponible en Watchdog"
                             : pdfExportDisabled
                               ? "Límite de PDFs alcanzado"
                               : undefined
@@ -2725,25 +2864,25 @@ export function AuditorDashboard({
                     </div>
 
                     <div className="grid grid-cols-3 gap-6 items-stretch">
-                       <div className="bg-[#1C1917] border border-[#44403C] rounded-3xl p-8 opacity-60">
-                         <p className="text-[10px] font-black text-[#A8A29E] uppercase tracking-widest mb-6 bg-[#292524] w-max px-3 py-1.5 rounded-lg border border-[#44403C]">Foto Pasada ({parseDate(auditA.created_at)})</p>
+                       <div className="rounded-3xl border border-[#CFD6C4] bg-white/70 p-8 opacity-80">
+                         <p className="mb-6 w-max rounded-lg border border-[#CFD6C4] bg-[#FDE8D3] px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-[#8A968C]">Foto Pasada ({parseDate(auditA.created_at)})</p>
                          <div className="flex justify-between items-end">
-                           <div><p className="text-[10px] text-[#A8A29E] uppercase font-black tracking-widest">Score Antiguo</p><p className="text-5xl font-black text-[#F5F0EB]">{auditA.score}</p></div>
+                           <div><p className="text-[10px] font-black uppercase tracking-widest text-[#8A968C]">Score Antiguo</p><p className="text-5xl font-black text-[#262B27]">{auditA.score}</p></div>
                            <div className="text-right"><p className="text-[10px] text-[#A8A29E] uppercase font-black tracking-widest">Desperdicio</p><p className="text-2xl font-black text-[#E07070]">-${wasteA}</p></div>
                          </div>
                        </div>
 
-                       <div className="flex flex-col justify-center items-center bg-[#292524] border-2 border-[#44403C] rounded-3xl p-8 shadow-2xl relative">
-                          <p className="absolute top-[-12px] bg-[#1C1917] px-4 py-1 rounded-full text-[10px] font-black text-[#A8A29E] uppercase tracking-widest border border-[#44403C]">Impacto Generado</p>
+                       <div className="relative flex flex-col items-center justify-center rounded-3xl border-2 border-[#CFD6C4] bg-white/90 p-8 shadow-md">
+                          <p className="absolute top-[-12px] rounded-full border border-[#CFD6C4] bg-[#fde8d3] px-4 py-1 text-[10px] font-black uppercase tracking-widest text-[#8A968C]">Impacto Generado</p>
                           <div className="text-center mb-6 w-full">
-                            <p className="text-[10px] text-[#A8A29E] uppercase font-black tracking-widest mb-1">Evolución de Salud</p>
+                            <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-[#8A968C]">Evolución de Salud</p>
                             <span className={`text-6xl font-black tracking-tighter ${deltaScore >= 0 ? 'text-[#10B981]' : 'text-[#E07070]'}`}>
                               {deltaScore > 0 ? '+' : ''}{deltaScore} <span className="text-xl">pts</span>
                             </span>
                           </div>
-                          <div className="w-full h-px bg-[#44403C]/50 mb-6"></div>
+                          <div className="mb-6 h-px w-full bg-[#CFD6C4]/60"></div>
                           <div className="text-center w-full">
-                            <p className="text-[10px] text-[#A8A29E] uppercase font-black tracking-widest mb-1">Evolución de Presupuesto</p>
+                            <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-[#8A968C]">Evolución de Presupuesto</p>
                             <span className={`text-3xl font-black ${deltaWaste >= 0 ? 'text-[#10B981]' : 'text-[#E07070]'}`}>
                               {deltaWaste > 0 ? 'Se salvaron ' : 'Se perdieron extras '}
                               ${Math.abs(deltaWaste).toLocaleString()}
@@ -2751,18 +2890,18 @@ export function AuditorDashboard({
                           </div>
                        </div>
 
-                       <div className="bg-[#1C1917] border-2 border-[#F3C3B2]/30 shadow-[0_0_30px_rgba(243,195,178,0.05)] rounded-3xl p-8">
-                         <p className="text-[10px] font-black text-[#F3C3B2] uppercase tracking-widest mb-6 bg-[#F3C3B2]/10 w-max px-3 py-1.5 rounded-lg border border-[#F3C3B2]/20">Foto Actual ({parseDate(auditB.created_at)})</p>
+                       <div className="rounded-3xl border-2 border-[#F3C3B2]/40 bg-white p-8 shadow-sm">
+                         <p className="mb-6 w-max rounded-lg border border-[#F3C3B2]/30 bg-[#F3C3B2]/15 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-[#C4614A]">Foto Actual ({parseDate(auditB.created_at)})</p>
                          <div className="flex justify-between items-end">
-                           <div><p className="text-[10px] text-[#A8A29E] uppercase font-black tracking-widest">Score Actual</p><p className="text-5xl font-black text-[#F5F0EB]">{auditB.score}</p></div>
+                           <div><p className="text-[10px] font-black uppercase tracking-widest text-[#8A968C]">Score Actual</p><p className="text-5xl font-black text-[#262B27]">{auditB.score}</p></div>
                            <div className="text-right"><p className="text-[10px] text-[#A8A29E] uppercase font-black tracking-widest">Desperdicio</p><p className="text-2xl font-black text-[#E07070]">-${wasteB}</p></div>
                          </div>
                        </div>
                     </div>
 
                     <div className="mt-4">
-                      <h3 className="text-xl font-black text-[#F5F0EB] mb-2 flex items-center gap-3">
-                        <CheckSquare className="text-[#F3C3B2]" /> Evaluación de ejecución
+                      <h3 className="mb-2 flex items-center gap-3 text-xl font-black text-[#262B27]">
+                        <CheckSquare className="text-[#C4614A]" /> Evaluación de ejecución
                       </h3>
                       <ComparacionHallazgosBloque
                         tituloSeccion="Fugas críticas"
@@ -2870,7 +3009,7 @@ export function AuditorDashboard({
                     <button
                       type="button"
                       onClick={volverAlHistorialReportes}
-                      className="flex items-center gap-2 p-2.5 rounded-xl bg-[#292524] border border-[#44403C] text-[#A8A29E] hover:text-[#F5F0EB] font-bold transition-colors text-sm"
+                      className="flex items-center gap-2 rounded-xl border border-[#CFD6C4] bg-white/80 p-2.5 text-sm font-bold text-[#8A968C] transition-colors hover:text-[#262B27]"
                     >
                       <ArrowLeft size={18} />
                     </button>
@@ -2928,6 +3067,9 @@ export function AuditorDashboard({
                   onSubirLogo={subirLogo}
                   onGuardar={guardarAjustesAgencia}
                   onIrFacturacion={() => navegar("facturacion", "/facturacion")}
+                  onGestionarSuscripcion={() => void abrirPortalSuscripcion()}
+                  proActivo={proActivo}
+                  portalLoading={portalLoading}
                   currencyCodeLabel={currencyCodeActiva}
                   googleAdsConnected={googleAdsConnected}
                   googleAdsChecking={googleAdsChecking}
@@ -2951,7 +3093,7 @@ export function AuditorDashboard({
                       <p className="text-[10px] font-bold text-[#8A968C] uppercase tracking-widest mb-3">{t[idioma].planActual}</p>
                       <div className="flex items-center gap-4">
                         <span className="text-3xl font-black text-[#0a0a0a]">
-                          {proActivo ? "Mora Pro" : "Evaluación gratuita"}
+                          {proActivo ? "Mora Watchdog" : "Evaluación gratuita"}
                         </span>
                         <span className={`px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-widest shadow-sm border ${
                           proActivo
@@ -2986,12 +3128,17 @@ export function AuditorDashboard({
                       onClick={() => void iniciarCheckoutPro()}
                       className="w-full text-[#0a0a0a] bg-[#E0E7FF] hover:bg-[#eab3a1] px-6 py-4 rounded-xl text-sm font-black transition-colors flex justify-center items-center gap-2 shadow-sm uppercase tracking-widest"
                     >
-                      Activar Pro — $27/mes
+                      Activar Watchdog — $27/mes
                     </button>
                   ) : (
-                    <p className="text-sm text-[#4B5563] font-medium text-center">
-                      Gestioná tu suscripción desde el portal de Lemon Squeezy (email de confirmación de pago).
-                    </p>
+                    <button
+                      type="button"
+                      onClick={() => void abrirPortalSuscripcion()}
+                      disabled={portalLoading}
+                      className="w-full text-[#0a0a0a] bg-[#F4F4F5] hover:bg-[#E0E7FF] disabled:opacity-60 px-6 py-4 rounded-xl text-sm font-black transition-colors flex justify-center items-center gap-2 shadow-sm uppercase tracking-widest border border-[#E5E7EB]"
+                    >
+                      {portalLoading ? "Abriendo..." : t[idioma].gestionarSuscripcion}
+                    </button>
                   )}
                 </div>
               )}
@@ -3000,7 +3147,7 @@ export function AuditorDashboard({
 
               </div>
             </main>
-          </>
+          </div>
         )}
       </div>
 
@@ -3191,6 +3338,25 @@ export function AuditorDashboard({
               ></div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* TOAST CHECKOUT PRO */}
+      {billingToast.show && (
+        <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-[120] bg-[#FAFAF9] border border-[#10B981]/30 shadow-2xl rounded-2xl overflow-hidden flex flex-col w-96 animate-fade-custom">
+          <div className="p-5 flex items-center gap-3">
+            <CheckCircle2 className="text-[#10B981] shrink-0" size={24} />
+            <div>
+              <p className="text-sm font-black text-[#0a0a0a]">{t[idioma].checkoutSuccessTitulo}</p>
+              <p className="text-xs text-[#4B5563] font-medium mt-0.5">{t[idioma].checkoutSuccessDesc}</p>
+            </div>
+          </div>
+          <div className="w-full bg-[#F4F4F5] h-1.5 border-t border-[#E5E7EB]">
+            <div
+              className="bg-[#10B981] h-1.5 transition-all duration-1000 ease-linear"
+              style={{ width: `${(billingToast.timeLeft / 8) * 100}%` }}
+            ></div>
+          </div>
         </div>
       )}
 

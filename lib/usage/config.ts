@@ -11,7 +11,7 @@ export type TrialActionLimits = {
 
 export type TrialLimits = Record<UsageAction, TrialActionLimits>;
 
-/** Cupos mensuales Pro ($27/mes) */
+/** Cupos mensuales Mora Watchdog ($27/mes) */
 export type PaidActionLimits = {
   monthly: number;
   minIntervalSec: number;
@@ -37,7 +37,7 @@ export const LIMITS_TRIAL: TrialLimits = {
   pdf: { total: 1, minIntervalSec: 0, maxPerHour: 5 },
 };
 
-/** Plan Pro — Lemon Squeezy $27/mes */
+/** Mora Watchdog — Lemon Squeezy $27/mes */
 export const LIMITS_PAID: PaidLimits = {
   audit: { monthly: 30, minIntervalSec: 120, maxPerHour: 5 },
   anuncios: { monthly: 20, minIntervalSec: 60, maxPerHour: 15 },

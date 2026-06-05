@@ -19,7 +19,7 @@ export default function PreciosPage() {
           Planes Mora
         </h1>
         <p className="text-xl text-[#657166] mb-16 font-medium text-center max-w-2xl mx-auto">
-          14 días de evaluación sin tarjeta al conectar Google Ads. Pro para optimizar tu cuenta cada
+          14 días de evaluación sin tarjeta al conectar Google Ads. Watchdog para optimizar tu cuenta cada
           semana.
         </p>
 
@@ -33,7 +33,7 @@ export default function PreciosPage() {
                   <span className="text-[#CFD6C4] font-medium text-sm">$0 · 14 días</span>
                 </th>
                 <th className="p-6 text-center w-1/3 border-l border-white/10 bg-white/5">
-                  <p className="font-bold text-xl text-[#F3C3B2] mb-1">Pro</p>
+                  <p className="font-bold text-xl text-[#F3C3B2] mb-1">Watchdog</p>
                   <span className="text-[#CFD6C4] font-medium text-sm">$27/mes</span>
                 </th>
               </tr>
@@ -94,7 +94,7 @@ export default function PreciosPage() {
         </div>
 
         <p className="text-center text-sm text-[#657166] mt-10 font-medium">
-          Un trial por email. Después del día 14, lectura de la última auditoría hasta activar Pro.
+          Un trial por email. Después del día 14, lectura de la última auditoría hasta activar Watchdog.
         </p>
       </div>
     </div>

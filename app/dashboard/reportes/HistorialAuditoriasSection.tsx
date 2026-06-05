@@ -113,12 +113,12 @@ export default function HistorialAuditoriasSection({
     <div className="animate-fade-custom print:hidden relative z-10 w-full max-w-[1400px] mx-auto flex flex-col gap-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:justify-between lg:items-start mb-2">
         <div>
-          <h2 className="text-3xl font-black text-[#F5F0EB]">Historial de Auditorías</h2>
-          <p className="text-[#A8A29E] text-sm mt-1 font-medium">
+          <h2 className="text-3xl font-black text-[#262B27]">Historial de Auditorías</h2>
+          <p className="text-[#8A968C] text-sm mt-1 font-medium">
             Agrupado por cuenta. Compará dos auditorías de la misma cuenta.
           </p>
           {pdfQuotaLabel && (
-            <p className="text-[11px] font-bold text-[#A8A29E] mt-2 uppercase tracking-widest">
+            <p className="text-[11px] font-bold text-[#8A968C] mt-2 uppercase tracking-widest">
               {pdfQuotaLabel}
             </p>
           )}
@@ -157,26 +157,26 @@ export default function HistorialAuditoriasSection({
               className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-colors ${
                 filtroEstado === f.id
                   ? "bg-[#F3C3B2] text-[#0a0a0a] border-[#F3C3B2]"
-                  : "bg-[#292524] text-[#A8A29E] border-[#44403C] hover:border-[#A8A29E]"
+                  : "bg-white/80 text-[#8A968C] border-[#CFD6C4] hover:border-[#A8A29E]"
               }`}
             >
               {f.label}
             </button>
           ))}
         </div>
-        <div className="flex md:hidden items-center bg-[#292524] border border-[#44403C] px-4 py-2.5 rounded-xl shadow-sm w-full sm:max-w-xs">
+        <div className="flex md:hidden items-center bg-white/80 border border-[#CFD6C4] px-4 py-2.5 rounded-xl shadow-sm w-full sm:max-w-xs">
           <input
             type="text"
             placeholder="Buscar cuenta..."
             value={busqueda}
             onChange={(e) => onBusqueda(e.target.value)}
-            className="bg-transparent border-none outline-none text-sm text-[#F5F0EB] placeholder-[#A8A29E] w-full font-bold"
+            className="bg-transparent border-none outline-none text-sm text-[#262B27] placeholder-[#A8A29E] w-full font-bold"
           />
         </div>
       </div>
 
       {comparacionIds.length === 2 && comparacionMismaCuenta && (
-        <p className="text-[11px] font-bold text-[#A8A29E]">
+        <p className="text-[11px] font-bold text-[#8A968C]">
           2 auditorías seleccionadas. Usá «Comparar selección» o desmarcá una para cambiar.
         </p>
       )}
@@ -188,15 +188,15 @@ export default function HistorialAuditoriasSection({
 
       <div className="flex flex-col gap-4">
         {cargando ? (
-          <div className="bg-[#1C1917] border border-[#44403C] rounded-[2rem] p-16 flex flex-col items-center justify-center gap-4">
+          <div className="bg-white/85 border border-[#CFD6C4] rounded-[2rem] p-16 flex flex-col items-center justify-center gap-4">
             <Loader2 size={32} className="text-[#F3C3B2] animate-spin" />
-            <p className="text-[#A8A29E] text-sm font-bold uppercase tracking-widest">
+            <p className="text-[#8A968C] text-sm font-bold uppercase tracking-widest">
               Cargando historial…
             </p>
           </div>
         ) : totalHistorial === 0 ? (
-          <div className="bg-[#1C1917] border border-[#44403C] rounded-[2rem] p-16 text-center flex flex-col items-center gap-6">
-            <p className="text-[#A8A29E] text-base font-medium max-w-md">
+          <div className="bg-white/85 border border-[#CFD6C4] rounded-[2rem] p-16 text-center flex flex-col items-center gap-6">
+            <p className="text-[#8A968C] text-base font-medium max-w-md">
               Todavía no tenés auditorías guardadas. Ejecutá la primera desde el panel principal.
             </p>
             <button
@@ -208,7 +208,7 @@ export default function HistorialAuditoriasSection({
             </button>
           </div>
         ) : items.length === 0 ? (
-          <div className="bg-[#1C1917] border border-[#44403C] rounded-[2rem] p-16 text-center text-[#A8A29E] text-base font-medium">
+          <div className="bg-white/85 border border-[#CFD6C4] rounded-[2rem] p-16 text-center text-[#8A968C] text-base font-medium">
             No hay auditorías con estos filtros. Probá otro estado o búsqueda.
           </div>
         ) : (
@@ -221,18 +221,18 @@ export default function HistorialAuditoriasSection({
               return (
                 <div
                   key={grupo.cuenta}
-                  className="border border-[#44403C] rounded-[1.75rem] overflow-hidden bg-[#1C1917]/50"
+                  className="border border-[#CFD6C4] rounded-[1.75rem] overflow-hidden bg-white/85/50"
                 >
                   <button
                     type="button"
                     onClick={() => toggleGrupo(grupo.cuenta)}
-                    className="w-full flex items-center justify-between gap-4 px-5 py-4 bg-[#292524] hover:bg-[#44403C]/40 transition-colors text-left"
+                    className="w-full flex items-center justify-between gap-4 px-5 py-4 bg-white/80 hover:bg-[#FDE8D3] transition-colors text-left"
                   >
                     <div className="min-w-0 flex-1">
-                      <p className="font-black text-[#F5F0EB] text-lg truncate">
+                      <p className="font-black text-[#262B27] text-lg truncate">
                         {grupo.cuenta}
                       </p>
-                      <p className="text-[10px] font-bold text-[#A8A29E] uppercase tracking-widest mt-1">
+                      <p className="text-[10px] font-bold text-[#8A968C] uppercase tracking-widest mt-1">
                         {grupo.items.length}{" "}
                         {grupo.items.length === 1 ? "auditoría" : "auditorías"}
                       </p>
@@ -246,7 +246,7 @@ export default function HistorialAuditoriasSection({
                       </span>
                       <ChevronDown
                         size={20}
-                        className={`text-[#A8A29E] transition-transform ${
+                        className={`text-[#8A968C] transition-transform ${
                           isCollapsed ? "" : "rotate-180"
                         }`}
                       />
@@ -289,12 +289,12 @@ export default function HistorialAuditoriasSection({
                   onClick={() =>
                     setVisibleCount((n) => n + HISTORIAL_PAGE_SIZE)
                   }
-                  className="px-8 py-3.5 rounded-xl text-xs uppercase tracking-widest font-black bg-[#292524] border border-[#44403C] text-[#F5F0EB] hover:border-[#F3C3B2]/50 transition-colors"
+                  className="px-8 py-3.5 rounded-xl text-xs uppercase tracking-widest font-black bg-white/80 border border-[#CFD6C4] text-[#262B27] hover:border-[#F3C3B2]/50 transition-colors"
                 >
                   Cargar más ({Math.min(restantes, HISTORIAL_PAGE_SIZE)} de{" "}
                   {restantes})
                 </button>
-                <p className="text-[10px] font-bold text-[#A8A29E] uppercase tracking-widest">
+                <p className="text-[10px] font-bold text-[#8A968C] uppercase tracking-widest">
                   Mostrando {paginatedItems.length} de {items.length} con filtros
                 </p>
               </div>

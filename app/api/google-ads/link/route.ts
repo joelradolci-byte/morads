@@ -82,7 +82,7 @@ export async function POST(req: Request) {
           {
             error: "trial_already_used",
             message:
-              "Este email ya usó la evaluación gratuita. Activá Pro para seguir usando Mora.",
+              "Este email ya usó la evaluación gratuita. Activá Watchdog para seguir usando Mora.",
           },
           { status: 403 }
         );

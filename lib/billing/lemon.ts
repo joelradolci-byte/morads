@@ -116,3 +116,42 @@ export function parseLemonUserId(payload: LemonWebhookPayload): string | null {
   if (typeof fromMeta === "string" && fromMeta.length > 0) return fromMeta;
   return null;
 }
+
+function extractCustomerPortalUrl(json: unknown): string | null {
+  const url = (json as { data?: { attributes?: { urls?: { customer_portal?: string | null } } } })
+    ?.data?.attributes?.urls?.customer_portal;
+  return typeof url === "string" && url.length > 0 ? url : null;
+}
+
+export async function getCustomerPortalUrl(options: {
+  subscriptionId?: string | null;
+  customerId?: string | null;
+}): Promise<string | null> {
+  const { apiKey } = getLemonConfig();
+  if (!apiKey) {
+    throw new Error("Lemon Squeezy no configurado");
+  }
+
+  const headers = {
+    Accept: "application/vnd.api+json",
+    Authorization: `Bearer ${apiKey}`,
+  };
+
+  if (options.subscriptionId) {
+    const res = await fetch(`${LEMON_API}/subscriptions/${options.subscriptionId}`, { headers });
+    if (res.ok) {
+      const url = extractCustomerPortalUrl(await res.json());
+      if (url) return url;
+    }
+  }
+
+  if (options.customerId) {
+    const res = await fetch(`${LEMON_API}/customers/${options.customerId}`, { headers });
+    if (res.ok) {
+      const url = extractCustomerPortalUrl(await res.json());
+      if (url) return url;
+    }
+  }
+
+  return null;
+}

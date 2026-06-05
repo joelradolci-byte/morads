@@ -1,15 +1,23 @@
 export const KPI_WARM = {
-  border: "#CFD6C4",
-  surface: "rgba(255,255,255,0.9)",
+  border: "#E5C9A8",
+  borderSoft: "#CFD6C4",
+  surface: "rgba(255,255,255,0.85)",
   textPrimary: "#0a0a0a",
   textSecondary: "#657166",
-  textMuted: "#4B5563",
+  textMuted: "#8A968C",
   salmon: "#C4614A",
   red: "#E07070",
   gold: "#D4A843",
   olive: "#7EB893",
   aqua: "#5B9A8B",
 } as const;
+
+/** Superficie única para cards sobre fondo durazno (#FDE8D3). */
+export const KPI_CARD_SURFACE =
+  "relative overflow-hidden rounded-3xl border border-[#E5C9A8]/45 bg-white/85 shadow-[0_8px_24px_rgba(98,72,48,0.06)] transition-all duration-200 ease-in-out hover:shadow-[0_10px_28px_rgba(98,72,48,0.08)]";
+
+export const KPI_CARD_SURFACE_COMPACT =
+  "relative overflow-hidden rounded-2xl border border-[#E5C9A8]/45 bg-white/80 shadow-[0_4px_14px_rgba(98,72,48,0.05)] transition-colors duration-200";
 
 export type ScoreTierLabel = "critico" | "regular" | "bueno";
 
@@ -43,32 +51,13 @@ export function getFugasCardState(fugas: number): {
   return {
     mode: "buen_estado",
     badge: "BUEN ESTADO",
-    accent: KPI_WARM.olive,
+    accent: KPI_WARM.aqua,
     showCount: false,
     message: "¡No hay fugas, todo en buen estado!",
   };
 }
 
 export type KpiTintVariant = "salmon" | "gold" | "olive";
-
-/** Capa de tinte plano sobre fondo #FFFBF7 (25% reposo → 30% hover). */
-export const KPI_TINT_LAYER: Record<
-  KpiTintVariant,
-  { rest: string; hover: string }
-> = {
-  salmon: {
-    rest: "before:bg-[#C4614A]/[0.25]",
-    hover: "hover:before:bg-[#C4614A]/[0.30]",
-  },
-  gold: {
-    rest: "before:bg-[#D4A843]/[0.25]",
-    hover: "hover:before:bg-[#D4A843]/[0.30]",
-  },
-  olive: {
-    rest: "before:bg-[#7EB893]/[0.25]",
-    hover: "hover:before:bg-[#7EB893]/[0.30]",
-  },
-};
 
 export function tintVariantForScore(score: number): KpiTintVariant {
   const { label } = getScoreTier(score);
@@ -80,23 +69,22 @@ export function tintVariantForScore(score: number): KpiTintVariant {
 export function accentForTintVariant(variant: KpiTintVariant): string {
   if (variant === "salmon") return KPI_WARM.salmon;
   if (variant === "gold") return KPI_WARM.gold;
-  return KPI_WARM.olive;
+  return KPI_WARM.aqua;
 }
 
-const KPI_CARD_BASE =
-  "relative overflow-hidden rounded-3xl border border-[#CFD6C4]/60 bg-[#FFFBF7] shadow-[0_8px_24px_rgba(38,43,39,0.05)] transition-all duration-200 ease-in-out hover:shadow-md before:pointer-events-none before:absolute before:inset-0 before:rounded-3xl before:content-[''] before:transition-[background-color] before:duration-200 before:ease-in-out";
-
+/** Shell neutro; el color semántico va en badges, números e iconos. */
 export function kpiCardShellClasses(
-  tintVariant: KpiTintVariant,
+  _tintVariant?: KpiTintVariant,
   extra = ""
 ): string {
-  const layer = KPI_TINT_LAYER[tintVariant];
-  return [KPI_CARD_BASE, layer.rest, layer.hover, extra]
-    .filter(Boolean)
-    .join(" ");
+  return [KPI_CARD_SURFACE, extra].filter(Boolean).join(" ");
 }
 
-/** Fila inferior: bloques de color sólido 25% → 30% en hover (sin crema). */
+export function kpiNeutralShellClasses(extra = ""): string {
+  return [KPI_CARD_SURFACE, extra].filter(Boolean).join(" ");
+}
+
+/** Fila inferior: misma superficie neutra; acento solo en badge e icono. */
 export const METRIC_CARD_THEME: Record<
   KpiTintVariant,
   {
@@ -107,38 +95,33 @@ export const METRIC_CARD_THEME: Record<
   }
 > = {
   salmon: {
-    shell:
-      "bg-[#C4614A]/25 hover:bg-[#C4614A]/30 border border-[#C4614A]/10 shadow-[0_8px_24px_rgba(61,24,18,0.08)] hover:shadow-[0_12px_28px_rgba(61,24,18,0.1)]",
-    value: "text-[#3d1812]",
-    label: "text-[#4a2820]",
+    shell: KPI_CARD_SURFACE,
+    value: "text-[#C4614A]",
+    label: "text-[#657166]",
     badgeColor: KPI_WARM.salmon,
   },
   gold: {
-    shell:
-      "bg-amber-500/25 hover:bg-amber-500/30 border border-amber-600/10 shadow-[0_8px_24px_rgba(61,48,16,0.08)] hover:shadow-[0_12px_28px_rgba(61,48,16,0.1)]",
-    value: "text-[#3d2e10]",
-    label: "text-[#4a3d18]",
+    shell: KPI_CARD_SURFACE,
+    value: "text-[#D4A843]",
+    label: "text-[#657166]",
     badgeColor: KPI_WARM.gold,
   },
   olive: {
-    shell:
-      "bg-emerald-600/20 hover:bg-emerald-600/25 border border-emerald-700/10 shadow-[0_8px_24px_rgba(26,61,50,0.08)] hover:shadow-[0_12px_28px_rgba(26,61,50,0.1)]",
-    value: "text-[#1a3d32]",
-    label: "text-[#2a4d3d]",
+    shell: KPI_CARD_SURFACE,
+    value: "text-[#5B9A8B]",
+    label: "text-[#657166]",
     badgeColor: KPI_WARM.aqua,
   },
 };
 
 const METRIC_CARD_BASE =
-  "relative overflow-hidden rounded-3xl transition-[background-color,box-shadow] duration-200 ease-in-out";
+  "relative overflow-hidden rounded-3xl transition-[box-shadow] duration-200 ease-in-out";
 
 export function metricCardShellClasses(
-  tintVariant: KpiTintVariant,
+  _tintVariant: KpiTintVariant,
   extra = ""
 ): string {
-  return [METRIC_CARD_BASE, METRIC_CARD_THEME[tintVariant].shell, extra]
-    .filter(Boolean)
-    .join(" ");
+  return [METRIC_CARD_BASE, KPI_CARD_SURFACE, extra].filter(Boolean).join(" ");
 }
 
 export function metricThemeForVariant(variant: KpiTintVariant) {

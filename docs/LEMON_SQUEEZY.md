@@ -1,4 +1,4 @@
-# Lemon Squeezy — Guía de configuración (Mora Pro $27/mes)
+# Lemon Squeezy — Guía de configuración (Mora Watchdog $27/mes)
 
 ## 1. Cuenta y legal
 
@@ -13,7 +13,7 @@
 
 ## 2. Producto
 
-1. **Products → New** → nombre: `Mora Pro`
+1. **Products → New** → nombre: `Mora Watchdog`
 2. Crear **Variant** suscripción **$27 USD / month** (recurring)
 3. Copiar **Variant ID** y **Store ID**
 
@@ -47,13 +47,15 @@ NEXT_PUBLIC_APP_URL=https://tu-dominio.com
 
 ## 6. Customer portal
 
-En Lemon: habilitar **Customer portal** para que “Gestionar suscripción” en Mora abra el portal de Lemon (URL desde dashboard de Lemon o API).
+En Lemon: habilitar **Customer portal** para cancelar o actualizar el método de pago.
+
+En Mora, usuarios de Mora Watchdog pueden usar **Gestionar suscripción** (Facturación o Configuración). La app llama a `GET /api/billing/portal`, obtiene una URL firmada de Lemon (válida 24 h) y abre el portal en una pestaña nueva.
 
 ## 7. Pruebas
 
 1. Modo **Test** en Lemon
-2. Flujo: registro → conectar Ads → trial → **Activar Pro** → pagar → verificar `suscripciones.estado = activa`
-3. Cancelar en Lemon → webhook → usuario sin Pro (sin segundo trial)
+2. Flujo: registro → conectar Ads → trial → **Activar Watchdog** → pagar → verificar `suscripciones.estado = activa`
+3. Cancelar en Lemon → webhook → usuario sin Watchdog (sin segundo trial)
 
 ## 8. SQL previo
 

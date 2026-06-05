@@ -134,17 +134,17 @@ export default function GestorCampanasView({
     <div className="flex-1 p-8 overflow-y-auto animate-fade-in">
       <div className="flex justify-between items-end mb-6">
         <div>
-          <h2 className="text-[#F5F0EB] text-3xl font-black uppercase tracking-tight">Gestor de Campañas</h2>
-          <p className="text-[#A8A29E] text-sm mt-1 font-medium">
+          <h2 className="text-[#262B27] text-3xl font-black uppercase tracking-tight">Gestor de Campañas</h2>
+          <p className="text-[#8A968C] text-sm mt-1 font-medium">
             Detalle por línea de inversión · filtros y pacing accionable
           </p>
         </div>
         {subVista === "lista" && (
-          <div className="bg-[#1C1917] p-1 rounded-lg border border-[#44403C] flex gap-1">
+          <div className="bg-white/85 p-1 rounded-lg border border-[#CFD6C4] flex gap-1">
             <button
               type="button"
               onClick={() => setModoVista("grid")}
-              className={`p-2 rounded md transition-all ${modoVista === "grid" ? "bg-[#292524] text-[#E07070] shadow" : "text-[#A8A29E] hover:text-[#F5F0EB]"}`}
+              className={`p-2 rounded md transition-all ${modoVista === "grid" ? "bg-white/80 text-[#E07070] shadow" : "text-[#8A968C] hover:text-[#262B27]"}`}
               aria-label="Vista grid"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -157,7 +157,7 @@ export default function GestorCampanasView({
             <button
               type="button"
               onClick={() => setModoVista("list")}
-              className={`p-2 rounded md transition-all ${modoVista === "list" ? "bg-[#292524] text-[#E07070] shadow" : "text-[#A8A29E] hover:text-[#F5F0EB]"}`}
+              className={`p-2 rounded md transition-all ${modoVista === "list" ? "bg-white/80 text-[#E07070] shadow" : "text-[#8A968C] hover:text-[#262B27]"}`}
               aria-label="Vista lista"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -172,20 +172,20 @@ export default function GestorCampanasView({
 
       {!cargando && campanas.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-          <div className="bg-[#1C1917] border border-[#44403C] rounded-xl px-4 py-3">
-            <p className="text-[9px] font-black uppercase tracking-widest text-[#A8A29E]">Requieren acción</p>
+          <div className="bg-white/85 border border-[#CFD6C4] rounded-xl px-4 py-3">
+            <p className="text-[9px] font-black uppercase tracking-widest text-[#8A968C]">Requieren acción</p>
             <p className="text-2xl font-black text-[#E07070]">{resumen.accion}</p>
           </div>
-          <div className="bg-[#1C1917] border border-[#44403C] rounded-xl px-4 py-3">
-            <p className="text-[9px] font-black uppercase tracking-widest text-[#A8A29E]">En buen estado</p>
+          <div className="bg-white/85 border border-[#CFD6C4] rounded-xl px-4 py-3">
+            <p className="text-[9px] font-black uppercase tracking-widest text-[#8A968C]">En buen estado</p>
             <p className="text-2xl font-black text-[#10B981]">{resumen.optimas}</p>
           </div>
-          <div className="bg-[#1C1917] border border-[#44403C] rounded-xl px-4 py-3">
-            <p className="text-[9px] font-black uppercase tracking-widest text-[#A8A29E]">BASURA</p>
-            <p className="text-2xl font-black text-[#F5F0EB]">{resumen.basura}</p>
+          <div className="bg-white/85 border border-[#CFD6C4] rounded-xl px-4 py-3">
+            <p className="text-[9px] font-black uppercase tracking-widest text-[#8A968C]">BASURA</p>
+            <p className="text-2xl font-black text-[#262B27]">{resumen.basura}</p>
           </div>
-          <div className="bg-[#1C1917] border border-[#44403C] rounded-xl px-4 py-3">
-            <p className="text-[9px] font-black uppercase tracking-widest text-[#A8A29E]">Gasto en BASURA</p>
+          <div className="bg-white/85 border border-[#CFD6C4] rounded-xl px-4 py-3">
+            <p className="text-[9px] font-black uppercase tracking-widest text-[#8A968C]">Gasto en BASURA</p>
             <p className="text-xl font-black text-[#E07070]">${resumen.gastoBasura.toLocaleString()}</p>
           </div>
         </div>
@@ -217,10 +217,10 @@ export default function GestorCampanasView({
       )}
 
       {!cargando && error && (
-        <div className="bg-[#1C1917] border border-[#B91C1C]/40 rounded-2xl p-12 flex flex-col items-center justify-center text-center">
+        <div className="bg-white/85 border border-[#B91C1C]/40 rounded-2xl p-12 flex flex-col items-center justify-center text-center">
           <AlertCircle size={48} className="text-[#F87171] mb-4" />
-          <h3 className="text-xl font-bold text-[#F5F0EB]">No se pudieron cargar las campañas</h3>
-          <p className="text-[#A8A29E] mt-2 max-w-md">{error}</p>
+          <h3 className="text-xl font-bold text-[#262B27]">No se pudieron cargar las campañas</h3>
+          <p className="text-[#8A968C] mt-2 max-w-md">{error}</p>
           <Link
             href="/configuracion"
             className="mt-6 text-[10px] font-black uppercase tracking-widest text-[#F3C3B2] hover:underline"
@@ -231,10 +231,10 @@ export default function GestorCampanasView({
       )}
 
       {!cargando && !error && campanas.length === 0 && (
-        <div className="bg-[#1C1917] border border-[#44403C] rounded-2xl p-12 flex flex-col items-center justify-center text-center">
+        <div className="bg-white/85 border border-[#CFD6C4] rounded-2xl p-12 flex flex-col items-center justify-center text-center">
           <Folder size={48} className="text-[#44403C] mb-4" />
-          <h3 className="text-xl font-bold text-[#F5F0EB]">Sin campañas en la cuenta</h3>
-          <p className="text-[#A8A29E] mt-2 max-w-sm">
+          <h3 className="text-xl font-bold text-[#262B27]">Sin campañas en la cuenta</h3>
+          <p className="text-[#8A968C] mt-2 max-w-sm">
             No hay campañas activas con datos en los últimos 30 días. Si acabás de crear campañas, puede
             tardar hasta que Google Ads registre métricas.
           </p>
@@ -242,8 +242,8 @@ export default function GestorCampanasView({
       )}
 
       {!cargando && campanas.length > 0 && filtradas.length === 0 && (
-        <div className="bg-[#1C1917] border border-[#44403C] rounded-2xl p-10 text-center">
-          <p className="text-[#F5F0EB] font-bold">Ninguna campaña coincide con tu búsqueda</p>
+        <div className="bg-white/85 border border-[#CFD6C4] rounded-2xl p-10 text-center">
+          <p className="text-[#262B27] font-bold">Ninguna campaña coincide con tu búsqueda</p>
           <button
             type="button"
             onClick={limpiarFiltros}
@@ -281,11 +281,11 @@ export default function GestorCampanasView({
               <div
                 key={campana.id}
                 onClick={() => abrirCampana(campana)}
-                className={`bg-[#292524] border border-[#44403C] rounded-xl p-5 transition-colors relative group cursor-pointer ${colorClasses.border}`}
+                className={`bg-white/80 border border-[#CFD6C4] rounded-xl p-5 transition-colors relative group cursor-pointer ${colorClasses.border}`}
               >
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex flex-col gap-1.5 max-w-[75%]">
-                    <h3 className="text-[#F5F0EB] font-bold text-sm truncate" title={campana.nombre}>
+                    <h3 className="text-[#262B27] font-bold text-sm truncate" title={campana.nombre}>
                       {campana.nombre}
                     </h3>
                     <div className="flex flex-wrap gap-1">
@@ -293,12 +293,12 @@ export default function GestorCampanasView({
                         className={`text-[9px] uppercase tracking-widest font-black px-2 py-0.5 rounded w-max border ${
                           campana.estado === "ENABLED"
                             ? "bg-[#10B981]/10 text-[#10B981] border-[#10B981]/20"
-                            : "bg-[#78716c]/10 text-[#A8A29E] border-[#78716c]/30"
+                            : "bg-[#78716c]/10 text-[#8A968C] border-[#78716c]/30"
                         }`}
                       >
                         {campana.estado === "ENABLED" ? "Activa" : "Pausada"}
                       </span>
-                      <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded border border-[#44403C] text-[#A8A29E]">
+                      <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded border border-[#CFD6C4] text-[#8A968C]">
                         {sinDatos ? "Sin datos suficientes" : etiquetaBadgeSalud(nivelSalud)}
                       </span>
                     </div>
@@ -324,7 +324,7 @@ export default function GestorCampanasView({
                       </svg>
                     )}
                     <span
-                      className={`absolute text-[10px] font-black ${sinDatos ? "text-[#78716C]" : "text-[#F5F0EB]"}`}
+                      className={`absolute text-[10px] font-black ${sinDatos ? "text-[#78716C]" : "text-[#262B27]"}`}
                     >
                       {scoreLabel}
                     </span>
@@ -334,18 +334,18 @@ export default function GestorCampanasView({
                 <div className="space-y-4">
                   <div>
                     <div className="flex justify-between text-xs mb-1">
-                      <span className="text-[#A8A29E]">Gasto</span>
-                      <span className="text-[#F5F0EB] font-mono">
+                      <span className="text-[#8A968C]">Gasto</span>
+                      <span className="text-[#262B27] font-mono">
                         ${gasto.toLocaleString()} / ${presupuesto.toLocaleString()}
                       </span>
                     </div>
-                    <div className="w-full h-1 bg-[#1C1917] rounded-full overflow-hidden">
+                    <div className="w-full h-1 bg-white/85 rounded-full overflow-hidden">
                       <div className="h-full bg-[#A8A29E]" style={{ width: `${Math.min((gasto / presupuesto) * 100, 100)}%` }} />
                     </div>
                   </div>
-                  <div className="flex justify-between items-end border-t border-[#44403C] pt-4">
+                  <div className="flex justify-between items-end border-t border-[#CFD6C4] pt-4">
                     <div>
-                      <p className="text-[#A8A29E] text-[10px] uppercase tracking-wider mb-1">CPA Actual</p>
+                      <p className="text-[#8A968C] text-[10px] uppercase tracking-wider mb-1">CPA Actual</p>
                       <p
                         className={`font-mono text-lg font-black ${
                           sinDatos || cpaActual == null
@@ -402,9 +402,9 @@ export default function GestorCampanasView({
       )}
 
       {!cargando && filtradas.length > 0 && subVista === "lista" && modoVista === "list" && (
-        <div className="bg-[#292524] border border-[#44403C] rounded-xl overflow-hidden">
+        <div className="bg-white/80 border border-[#CFD6C4] rounded-xl overflow-hidden">
           <table className="w-full text-left">
-            <thead className="bg-[#1C1917] border-b border-[#44403C] text-[#A8A29E] text-[10px] uppercase tracking-widest">
+            <thead className="bg-white/85 border-b border-[#CFD6C4] text-[#8A968C] text-[10px] uppercase tracking-widest">
               <tr>
                 <th className="p-4 font-black">Campaña & Salud</th>
                 <th className="p-4 font-black">Gasto Mensual</th>
@@ -424,20 +424,20 @@ export default function GestorCampanasView({
                 return (
                   <tr
                     key={campana.id}
-                    className="hover:bg-[#1C1917]/50 transition-colors cursor-pointer"
+                    className="hover:bg-white/85/50 transition-colors cursor-pointer"
                     onClick={() => abrirCampana(campana)}
                   >
                     <td className="p-4">
                       <div className="flex items-center gap-3">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <p className="text-[#F5F0EB] font-bold text-sm">{campana.nombre}</p>
-                            <span className="text-[8px] uppercase tracking-widest font-black px-1.5 py-0.5 rounded border border-[#44403C] text-[#A8A29E]">
+                            <p className="text-[#262B27] font-bold text-sm">{campana.nombre}</p>
+                            <span className="text-[8px] uppercase tracking-widest font-black px-1.5 py-0.5 rounded border border-[#CFD6C4] text-[#8A968C]">
                               {sinDatos ? "Sin datos suficientes" : etiquetaBadgeSalud(nivelSalud)}
                             </span>
                           </div>
                           {!sinDatos && (
-                            <div className="w-48 h-1 bg-[#1C1917] mt-1.5 rounded-full overflow-hidden relative">
+                            <div className="w-48 h-1 bg-white/85 mt-1.5 rounded-full overflow-hidden relative">
                               <div
                                 className={`h-full ${colorClasses.bar}`}
                                 style={{ width: `${score ?? 0}%` }}
@@ -445,18 +445,18 @@ export default function GestorCampanasView({
                             </div>
                           )}
                         </div>
-                        <span className={`text-xs font-black w-6 ${sinDatos ? "text-[#78716C]" : "text-[#A8A29E]"}`}>
+                        <span className={`text-xs font-black w-6 ${sinDatos ? "text-[#78716C]" : "text-[#8A968C]"}`}>
                           {scoreLabel}
                         </span>
                       </div>
                     </td>
-                    <td className="p-4 text-[#A8A29E] font-mono text-sm">${gasto.toLocaleString()}</td>
+                    <td className="p-4 text-[#8A968C] font-mono text-sm">${gasto.toLocaleString()}</td>
                     <td className={`p-4 font-mono font-bold text-sm ${sinDatos ? "text-[#78716C]" : ""}`}>
                       <span className={sinDatos ? "" : colorClasses.text}>
                         {formatearCpaCampana(cpaActual)}
                       </span>
                     </td>
-                    <td className="p-4 text-[#A8A29E] font-mono text-sm">
+                    <td className="p-4 text-[#8A968C] font-mono text-sm">
                       {formatearCpaCampana(cpaObjetivo)}
                     </td>
                     <td className="p-4 text-right">

@@ -60,12 +60,12 @@ export default function FeedbackFab({ active }: Props) {
         aria-label="Abrir encuesta de sugerencias"
       >
         <MessageSquare size={20} strokeWidth={2.5} className="shrink-0" />
-        <span className="text-sm font-black whitespace-nowrap">Sugerencias</span>
+        <span className="text-base font-black whitespace-nowrap">Sugerencias</span>
       </button>
 
       {thanksFlash && (
         <div
-          className="fixed z-[91] bottom-[4.5rem] right-6 md:right-8 max-w-[220px] bg-[#0a0a0a] text-white text-xs font-bold px-4 py-3 rounded-xl shadow-xl border border-[#44403C] print:hidden"
+          className="fixed z-[91] bottom-[4.5rem] right-6 md:right-8 max-w-[220px] bg-[#0a0a0a] text-white text-sm font-bold px-4 py-3 rounded-xl shadow-xl border border-[#44403C] print:hidden"
           role="status"
         >
           ¡Gracias! Tu opinión nos ayuda un montón.

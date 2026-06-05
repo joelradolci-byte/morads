@@ -20,7 +20,7 @@ export default function FugasKpiCard({ fugasCount }: FugasKpiCardProps) {
       accentColor={state.accent}
       badge={state.badge}
     >
-      <p className="text-[10px] font-black uppercase tracking-widest text-[#262B27]">
+      <p className="text-sm font-black uppercase tracking-widest text-[#262B27]">
         Fugas
       </p>
 
@@ -37,7 +37,7 @@ export default function FugasKpiCard({ fugasCount }: FugasKpiCardProps) {
           <span className="text-5xl font-black leading-none tracking-tighter text-[#C4614A]">
             {fugasCount}
           </span>
-          <span className="text-xs font-black uppercase tracking-widest text-[#657166]">
+          <span className="text-sm font-black uppercase tracking-widest text-[#657166]">
             Fugas críticas
           </span>
         </div>

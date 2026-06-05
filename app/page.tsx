@@ -537,7 +537,7 @@ export default function LandingPage() {
                   <p className="inline-block px-3 py-1.5 rounded-md text-[10px] font-bold tracking-widest uppercase text-[#0a0a0a] bg-[#DAEBE3] mb-4">Precios Simples</p>
                   <h2 className="text-4xl md:text-5xl font-serif font-black text-[#0a0a0a] mb-4">Elegí tu camino.</h2>
                   <p className="text-[#4B5563] font-medium">
-                    Evaluación de 14 días sin tarjeta al conectar Google Ads. Pro $27/mes para gestionar tu cuenta en serio.
+                    Evaluación de 14 días sin tarjeta al conectar Google Ads. Watchdog $27/mes para gestionar tu cuenta en serio.
                   </p>
                 </div>
                 
@@ -561,7 +561,7 @@ export default function LandingPage() {
                   <TiltWrapper>
                     <div className="bg-white/60 backdrop-blur-sm border-2 border-[#10B981]/40 p-10 rounded-[2rem] flex flex-col justify-between hover:bg-white transition-colors shadow-sm h-full">
                       <div>
-                        <h3 className="text-xl font-bold text-[#0a0a0a] mb-2">Pro</h3>
+                        <h3 className="text-xl font-bold text-[#0a0a0a] mb-2">Watchdog</h3>
                         <p className="text-[#4B5563] mb-8 text-sm font-medium">Para auditar y optimizar cada semana.</p>
                         <div className="text-5xl font-black text-[#0a0a0a] mb-8">$27<span className="text-lg text-[#4B5563] font-medium">/mes</span></div>
                         <ul className="space-y-4 mb-10 text-sm font-medium text-[#0a0a0a]">

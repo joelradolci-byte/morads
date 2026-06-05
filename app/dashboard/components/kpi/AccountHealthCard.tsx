@@ -14,8 +14,7 @@ import {
 } from "./accountHealthMetrics";
 import {
   getScoreTier,
-  kpiCardShellClasses,
-  tintVariantForScore,
+  kpiNeutralShellClasses,
 } from "./dashboardKpiTheme";
 
 type BadgeAuditoria = "recomendado" | "desactualizada" | null;
@@ -57,8 +56,8 @@ function StatusBadges({
   compact?: boolean;
 }) {
   const pill = compact
-    ? "rounded-lg border px-2.5 py-1 text-[9px] font-black uppercase tracking-widest"
-    : "rounded-lg border px-3 py-1 text-[9px] font-black uppercase tracking-widest";
+    ? "rounded-lg border px-2.5 py-1 text-[11px] font-black uppercase tracking-widest"
+    : "rounded-lg border px-3 py-1 text-[11px] font-black uppercase tracking-widest";
 
   return (
     <div className="flex flex-wrap gap-2">
@@ -107,7 +106,6 @@ export default function AccountHealthCard({
   compact = false,
 }: AccountHealthCardProps) {
   const tier = getScoreTier(score);
-  const tintVariant = tintVariantForScore(score);
   const showChart = scoreHistorico.length >= 2;
   const ringSize = compact ? 128 : 140;
 
@@ -158,7 +156,7 @@ export default function AccountHealthCard({
     },
   ];
 
-  const shellClass = `${kpiCardShellClasses(tintVariant)} flex min-h-0 min-w-0 flex-col ${
+  const shellClass = `${kpiNeutralShellClasses()} flex min-h-0 min-w-0 flex-col ${
     compact ? "h-full gap-3 p-5" : "gap-5 p-6"
   }`;
 
@@ -170,12 +168,12 @@ export default function AccountHealthCard({
           style={{ backgroundColor: tier.color }}
           aria-hidden
         />
-        <span className="text-[10px] font-black uppercase tracking-widest text-[#262B27]">
+        <span className="text-sm font-black uppercase tracking-widest text-[#262B27]">
           Salud de la cuenta
         </span>
       </div>
       <span
-        className="shrink-0 rounded-md px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-white"
+        className="shrink-0 rounded-md px-2.5 py-1 text-[11px] font-black uppercase tracking-widest text-white"
         style={{ backgroundColor: tier.color }}
       >
         {TIER_BADGE[tier.label]}
@@ -187,20 +185,20 @@ export default function AccountHealthCard({
     <div className="min-w-0 flex-1 space-y-2">
       <p
         className={`font-black leading-tight tracking-tight text-[#0a0a0a] ${
-          compact ? "text-base" : "text-lg md:text-xl"
+          compact ? "text-lg" : "text-lg md:text-xl"
         }`}
       >
         {headline}
       </p>
       {textoUltimaAuditoria && (
-        <p className="text-[10px] font-bold uppercase tracking-widest text-[#657166]">
+        <p className="text-sm font-bold uppercase tracking-widest text-[#657166]">
           Última auditoría:{" "}
           <span className="text-[#0a0a0a]">{textoUltimaAuditoria}</span>
         </p>
       )}
       {deltaVsAnterior != null && (
         <span
-          className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-[10px] font-black uppercase tracking-widest ${
+          className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-black uppercase tracking-widest ${
             deltaVsAnterior >= 0
               ? "bg-[#7EB893]/15 text-[#5B9A8B]"
               : "bg-[#E07070]/15 text-[#C4614A]"
@@ -219,9 +217,9 @@ export default function AccountHealthCard({
   );
 
   const chartBlock = showChart ? (
-    <div className="relative z-10 w-full shrink-0 border-t border-[#CFD6C4]/50 pt-3">
+    <div className="relative z-10 w-full shrink-0 border-t border-[#E5C9A8]/40 pt-3">
       {!compact && (
-        <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-[#262B27]">
+        <p className="mb-2 text-sm font-black uppercase tracking-widest text-[#262B27]">
           Evolución del score
         </p>
       )}
@@ -239,7 +237,7 @@ export default function AccountHealthCard({
 
   const miniStatsGrid = (
     <div
-      className={`relative z-10 grid w-full shrink-0 grid-cols-3 border-t border-[#CFD6C4]/50 ${
+      className={`relative z-10 grid w-full shrink-0 grid-cols-3 border-t border-[#E5C9A8]/40 ${
         compact ? "min-h-0 flex-1 gap-2 pt-3" : "gap-3 pt-4"
       }`}
     >
@@ -269,10 +267,10 @@ export default function AccountHealthCard({
         type="button"
         onClick={onVerResumenSimple}
         disabled={!tieneAuditoria}
-        className={`flex items-center justify-center gap-2 rounded-xl border border-[#CFD6C4] bg-[#0a0a0a] font-black uppercase tracking-widest text-[#FDE8D3] transition-colors hover:bg-[#262B27] disabled:cursor-not-allowed disabled:opacity-50 ${
+        className={`flex items-center justify-center gap-2 rounded-xl border border-[#E5C9A8]/50 bg-[#0a0a0a] font-black uppercase tracking-widest text-[#FDE8D3] transition-colors hover:bg-[#262B27] disabled:cursor-not-allowed disabled:opacity-50 ${
           compact
-            ? "min-w-0 flex-1 px-4 py-2.5 text-[10px]"
-            : "flex-1 px-5 py-3 text-[10px]"
+            ? "min-w-0 flex-1 px-4 py-2.5 text-xs"
+            : "flex-1 px-5 py-3 text-xs"
         }`}
       >
         <BookOpen size={compact ? 13 : 14} strokeWidth={2.5} />
@@ -281,10 +279,10 @@ export default function AccountHealthCard({
       <button
         type="button"
         onClick={onHistorial}
-        className={`flex items-center justify-center gap-2 rounded-xl border border-[#CFD6C4] bg-[#F4F1EC] font-black uppercase tracking-widest text-[#262B27] transition-colors hover:bg-[#E8ECE4] ${
+        className={`flex items-center justify-center gap-2 rounded-xl border border-[#E5C9A8]/50 bg-[#F4F1EC] font-black uppercase tracking-widest text-[#262B27] transition-colors hover:bg-[#E8ECE4] ${
           compact
-            ? "shrink-0 px-4 py-2.5 text-[10px]"
-            : "px-5 py-3 text-[10px] sm:shrink-0"
+            ? "shrink-0 px-4 py-2.5 text-xs"
+            : "px-5 py-3 text-xs sm:shrink-0"
         }`}
       >
         <History size={compact ? 13 : 14} strokeWidth={2.5} />
@@ -304,7 +302,7 @@ export default function AccountHealthCard({
           {heroText}
         </div>
         {chartBlock}
-        <div className="relative z-10 grid grid-cols-1 gap-3 border-t border-[#CFD6C4]/50 pt-4 sm:grid-cols-3">
+        <div className="relative z-10 grid grid-cols-1 gap-3 border-t border-[#E5C9A8]/40 pt-4 sm:grid-cols-3">
           {miniStatProps.map(stat => (
             <AccountHealthMiniStat
               key={stat.label}

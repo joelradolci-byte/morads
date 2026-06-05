@@ -41,7 +41,7 @@ export function pdfQuotaLabel(snapshot: UsageSnapshot): string {
     const used = snapshot.trialUsage.pdf;
     return `PDF de prueba: ${used}/${snapshot.trialLimits.pdf.total} (con marca Mora)`;
   }
-  return "PDF disponible en Pro";
+  return "PDF disponible en Watchdog";
 }
 
 export function isAuditBlocked(snapshot: UsageSnapshot | null): boolean {

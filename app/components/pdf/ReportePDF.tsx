@@ -414,7 +414,7 @@ function TrialWatermark() {
   return (
     <View style={styles.watermarkWrap} fixed>
       <Text style={styles.watermarkText}>EVALUACIÓN MORA</Text>
-      <Text style={styles.watermarkSub}>Activá Pro para exportar sin marca</Text>
+      <Text style={styles.watermarkSub}>Activá Watchdog para exportar sin marca</Text>
     </View>
   );
 }

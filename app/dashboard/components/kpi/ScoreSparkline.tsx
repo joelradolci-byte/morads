@@ -31,17 +31,17 @@ const DARK_THEME = {
 };
 
 const LIGHT_THEME = {
-  grid: "#E8ECE4",
+  grid: "#E5C9A8",
   stroke: KPI_WARM.red,
   pointFill: KPI_WARM.red,
-  pointStroke: "#FFFBF7",
+  pointStroke: "#FFFFFF",
   label: "#657166",
   labelHover: "#0a0a0a",
   tooltipBg: "#0a0a0a",
-  tooltipBorder: "#CFD6C4",
-  tooltipText: "#FFFBF7",
+  tooltipBorder: "#E5C9A8",
+  tooltipText: "#FDE8D3",
   tooltipSub: "#CFD6C4",
-  gradOpacity: 0.15,
+  gradOpacity: 0.12,
 };
 
 function formatFechaShort(dateStr: string): string {
@@ -112,7 +112,7 @@ export default function ScoreSparkline({
       <div className="relative w-full overflow-visible" style={{ height: `${svgH}px` }}>
         {hoveredPoint && (
           <div
-            className="pointer-events-none absolute z-20 whitespace-nowrap rounded-md border px-2.5 py-1 text-[11px] font-bold leading-none shadow-md"
+            className="pointer-events-none absolute z-20 whitespace-nowrap rounded-md border px-2.5 py-1 text-xs font-bold leading-none shadow-md"
             style={{
               left: `${(hoveredPoint.x / w) * 100}%`,
               top: `${(hoveredPoint.y / h) * 100}%`,
@@ -199,7 +199,7 @@ export default function ScoreSparkline({
         {plotFechas.map((f, i) => (
           <span
             key={i}
-            className={`text-[10px] font-bold transition-colors ${
+            className={`text-xs font-bold transition-colors ${
               hovered === i ? "" : ""
             }`}
             style={{ color: hovered === i ? theme.labelHover : theme.label }}

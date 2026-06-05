@@ -3,9 +3,14 @@
 import { Target, Folder, ArrowRight } from "lucide-react";
 import {
   campanasPacingAlerta,
-  etiquetaScoreCampana,
+  ordenarPacingDashboard,
   type CampanaEvaluada,
 } from "../../../lib/campanasEvaluacion";
+import PacingDashboardMiniCard from "./PacingDashboardMiniCard";
+import {
+  buildDevPacingPreviewMocks,
+  DEV_MOCK_PACING_PREVIEW,
+} from "./pacingResumenDevMocks";
 
 type Props = {
   evaluadas: CampanaEvaluada[];
@@ -14,18 +19,33 @@ type Props = {
 };
 
 export default function PacingResumenCuenta({ evaluadas, cargando, onVerTodas }: Props) {
-  const alertas = campanasPacingAlerta(evaluadas);
-  const top = alertas.slice(0, 3);
-  const activas = evaluadas.filter(e => e.campana.estado === "ENABLED").length;
+  const useMocks = DEV_MOCK_PACING_PREVIEW;
+  const alertas = useMocks
+    ? buildDevPacingPreviewMocks()
+    : campanasPacingAlerta(evaluadas);
+  const top = ordenarPacingDashboard(alertas).slice(0, 3);
+  const activas = useMocks
+    ? evaluadas.filter(e => e.campana.estado === "ENABLED").length || alertas.length
+    : evaluadas.filter(e => e.campana.estado === "ENABLED").length;
+  const showCargando = cargando && !useMocks;
+  const showVacio = evaluadas.length === 0 && !useMocks;
 
   return (
-    <div className="bg-[#292524] border border-[#44403C] shadow-lg rounded-3xl p-6 w-full">
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4">
+    <section className="w-full">
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h3 className="text-base font-black text-[#F5F0EB] flex items-center gap-2">
-            <Target className="text-[#F3C3B2]" size={20} /> Pacing de Presupuesto
-          </h3>
-          <p className="text-[11px] text-[#A8A29E] mt-1 font-bold uppercase tracking-widest">
+          <div className="flex items-center gap-2.5">
+            <span
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#FFF5EB]"
+              aria-hidden
+            >
+              <Target className="text-[#5B9A8B]" size={18} />
+            </span>
+            <h3 className="text-sm font-black uppercase tracking-widest text-[#262B27]">
+              Pacing de presupuesto
+            </h3>
+          </div>
+          <p className="mt-2 pl-[2.75rem] text-[11px] font-bold uppercase tracking-wide text-[#8A968C]">
             Resumen · Gestioná el detalle en Campañas
           </p>
         </div>
@@ -33,51 +53,40 @@ export default function PacingResumenCuenta({ evaluadas, cargando, onVerTodas }:
           <button
             type="button"
             onClick={onVerTodas}
-            className="text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl border border-[#F3C3B2]/30 text-[#F3C3B2] hover:bg-[#F3C3B2]/10 flex items-center gap-2 shrink-0"
+            className="flex shrink-0 items-center gap-2 rounded-xl border border-[#E5C9A8]/45 bg-white/85 px-4 py-2 text-xs font-black uppercase tracking-widest text-[#262B27] transition-colors hover:border-[#5B9A8B]/35 hover:bg-white"
           >
-            Ver pacing de todas ({activas}) <ArrowRight size={14} />
+            Ver pacing de todas ({activas}) <ArrowRight size={15} />
           </button>
         )}
       </div>
 
-      {cargando ? (
+      {showCargando ? (
         <div className="flex justify-center py-10">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#F3C3B2]" />
+          <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-[#5B9A8B]" />
         </div>
-      ) : evaluadas.length === 0 ? (
+      ) : showVacio ? (
         <div className="flex flex-col items-center py-8 text-center">
-          <Folder className="w-10 h-10 text-[#44403C] mb-2" />
-          <p className="text-[#A8A29E] text-sm">Sin datos de presupuesto</p>
+          <Folder className="mb-2 h-10 w-10 text-[#CFD6C4]" />
+          <p className="text-base font-bold text-[#657166]">Sin datos de presupuesto</p>
         </div>
       ) : alertas.length === 0 ? (
-        <p className="text-sm text-[#10B981] font-bold py-4">
+        <p className="py-4 text-base font-bold text-[#5B9A8B]">
           Todas las campañas activas van en ritmo adecuado este mes.
         </p>
       ) : (
-        <div className="space-y-3">
-          {top.map(({ campana, pacing, evaluacion }) => (
-            <div
-              key={campana.id}
-              className={`flex items-center justify-between gap-3 rounded-xl border ${pacing.border} bg-[#1C1917] px-4 py-3`}
-            >
-              <div className="min-w-0">
-                <p className="text-sm font-bold text-[#F5F0EB] truncate">{campana.nombre}</p>
-                <p className="text-[10px] text-[#A8A29E] font-bold mt-0.5">
-                  {pacing.estado} · {Math.round(pacing.porcentajeGasto)}% del presupuesto
-                </p>
-              </div>
-              <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded shrink-0 ${pacing.bg} ${pacing.color}`}>
-                Score {etiquetaScoreCampana(evaluacion)}
-              </span>
-            </div>
-          ))}
+        <>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            {top.map(item => (
+              <PacingDashboardMiniCard key={item.campana.id} item={item} />
+            ))}
+          </div>
           {alertas.length > 3 && (
-            <p className="text-[10px] text-[#A8A29E] font-bold text-center">
+            <p className="mt-4 text-center text-sm font-bold text-[#657166]">
               +{alertas.length - 3} campañas más requieren revisión de pacing
             </p>
           )}
-        </div>
+        </>
       )}
-    </div>
+    </section>
   );
 }

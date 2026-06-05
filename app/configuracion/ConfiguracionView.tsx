@@ -33,6 +33,9 @@ export interface ConfiguracionViewProps {
   onSubirLogo: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onGuardar: () => Promise<void>;
   onIrFacturacion: () => void;
+  onGestionarSuscripcion?: () => void;
+  proActivo?: boolean;
+  portalLoading?: boolean;
   currencyCodeLabel?: string | null;
   googleAdsConnected: boolean;
   googleAdsChecking: boolean;
@@ -56,6 +59,9 @@ export default function ConfiguracionView({
   onSubirLogo,
   onGuardar,
   onIrFacturacion,
+  onGestionarSuscripcion,
+  proActivo = false,
+  portalLoading = false,
   currencyCodeLabel,
   googleAdsConnected,
   googleAdsChecking,
@@ -151,15 +157,32 @@ export default function ConfiguracionView({
             <div>
               <p className="text-[10px] font-bold text-[#8A968C] uppercase tracking-widest mb-2">Plan</p>
               <p className="text-xl font-black text-[#0a0a0a]">
-                {perfil?.plan === "pro" ? "Mora Pro" : "Mora Free"}
+                {perfil?.plan === "pro" ? "Mora Watchdog" : "Mora Free"}
               </p>
             </div>
             <button
               type="button"
-              onClick={onIrFacturacion}
-              className="text-[10px] font-black uppercase tracking-widest px-4 py-3 rounded-xl border border-[#E5E7EB] hover:bg-[#F4F4F5]"
+              onClick={() => {
+                if (proActivo && onGestionarSuscripcion) {
+                  onGestionarSuscripcion();
+                  return;
+                }
+                onIrFacturacion();
+              }}
+              disabled={proActivo && portalLoading}
+              className="text-[10px] font-black uppercase tracking-widest px-4 py-3 rounded-xl border border-[#E5E7EB] hover:bg-[#F4F4F5] disabled:opacity-60"
             >
-              {locale === "en" ? "Manage billing" : "Gestionar facturación"}
+              {proActivo
+                ? portalLoading
+                  ? locale === "en"
+                    ? "Opening..."
+                    : "Abriendo..."
+                  : locale === "en"
+                    ? "Manage subscription"
+                    : "Gestionar suscripción"
+                : locale === "en"
+                  ? "Manage billing"
+                  : "Gestionar facturación"}
             </button>
           </div>
         </div>
@@ -203,7 +226,7 @@ export default function ConfiguracionView({
         <div className="space-y-6 max-w-xl">
           <p className="text-sm text-[#4B5563] font-medium">{s.businessNameHint}</p>
           <p className="text-xs text-[#8A968C] font-medium border border-[#E5E7EB] rounded-xl p-3 bg-[#F4F4F5]">
-            En evaluación gratuita el PDF lleva marca Mora. Con Pro, los reportes usan tu nombre y logo (si lo cargás) sin watermark.
+            En evaluación gratuita el PDF lleva marca Mora. Con Mora Watchdog, los reportes usan tu nombre y logo (si lo cargás) sin watermark.
           </p>
           <div>
             <label className="block text-[10px] font-bold text-[#8A968C] mb-2 uppercase tracking-widest">

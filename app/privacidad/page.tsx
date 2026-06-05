@@ -35,7 +35,7 @@ export default function PrivacidadPage() {
           <section>
             <h2 className="text-2xl font-bold text-[#262B27] mb-4" style={{ fontFamily: "'Playfair Display', serif" }}>3. Cláusula de Copiloto y Ejecución de Cambios</h2>
             <p>De acuerdo con nuestra filosofía de &quot;Copiloto&quot;, los algoritmos de Mora Analytics acceden a la información principalmente para análisis y diagnóstico. Por defecto no modificamos tu cuenta de Google Ads.</p>
-            <p className="mt-4">En el <strong>plan Pro</strong>, la función <strong>Safe Apply</strong> puede aplicar cambios en Google Ads únicamente después de tu <strong>confirmación explícita</strong> en la interfaz. Sin esa confirmación no se ejecutan ajustes automatizados en presupuesto, palabras clave, estructura de campañas ni configuraciones equivalentes.</p>
+            <p className="mt-4">En <strong>Mora Watchdog</strong>, la función <strong>Safe Apply</strong> puede aplicar cambios en Google Ads únicamente después de tu <strong>confirmación explícita</strong> en la interfaz. Sin esa confirmación no se ejecutan ajustes automatizados en presupuesto, palabras clave, estructura de campañas ni configuraciones equivalentes.</p>
           </section>
 
           <section>
@@ -55,7 +55,7 @@ export default function PrivacidadPage() {
 
           <section>
             <h2 className="text-2xl font-bold text-[#262B27] mb-4" style={{ fontFamily: "'Playfair Display', serif" }}>7. Pagos y Facturación (Lemon Squeezy)</h2>
-            <p>Las suscripciones del plan Pro se procesan mediante <strong>Lemon Squeezy</strong>. Recibimos de Lemon la información necesaria para gestionar tu suscripción (por ejemplo: email de compra, estado de pago, identificadores de cliente y suscripción). <strong>No almacenamos números completos de tarjeta de crédito</strong>; el procesamiento de pagos lo realiza Lemon Squeezy.</p>
+            <p>Las suscripciones de <strong>Mora Watchdog</strong> se procesan mediante <strong>Lemon Squeezy</strong>. Recibimos de Lemon la información necesaria para gestionar tu suscripción (por ejemplo: email de compra, estado de pago, identificadores de cliente y suscripción). <strong>No almacenamos números completos de tarjeta de crédito</strong>; el procesamiento de pagos lo realiza Lemon Squeezy.</p>
             <p className="mt-4">
               Consultá la política de privacidad de Lemon Squeezy en{" "}
               <a href="https://www.lemonsqueezy.com/privacy" target="_blank" rel="noopener noreferrer" className="underline hover:text-[#262B27] text-[#99CDD8]">

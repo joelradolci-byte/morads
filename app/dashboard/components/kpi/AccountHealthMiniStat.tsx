@@ -41,11 +41,11 @@ export default function AccountHealthMiniStat({
 
   return (
     <div
-      className={`flex min-w-0 flex-col rounded-xl border border-[#E8ECE4] bg-white shadow-[0_2px_8px_rgba(38,43,39,0.04)] ${
+      className={`flex min-w-0 flex-col rounded-xl border border-[#E5C9A8]/40 bg-white/90 shadow-[0_2px_8px_rgba(98,72,48,0.04)] ${
         fill ? "h-full w-full" : ""
       } ${compact ? "justify-between px-2.5 py-2" : "px-4 py-3"}`}
     >
-      <p className="text-[10px] font-black uppercase tracking-widest text-[#262B27]">
+      <p className="text-sm font-black uppercase tracking-widest text-[#262B27]">
         {label}
       </p>
       <div className="mt-0.5 flex min-w-0 items-center gap-1">
@@ -68,8 +68,8 @@ export default function AccountHealthMiniStat({
       <p
         className={`font-bold uppercase tracking-widest text-[#657166] ${
           compact
-            ? "mt-1 line-clamp-2 text-[9px] leading-snug"
-            : "mt-2 text-[10px]"
+            ? "mt-1 line-clamp-2 text-xs leading-snug"
+            : "mt-2 text-sm"
         }`}
       >
         {subtitle}

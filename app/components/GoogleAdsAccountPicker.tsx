@@ -327,8 +327,8 @@ export default function GoogleAdsAccountPicker({
     ? "text-lg font-black text-[#F5F0EB]"
     : "text-lg font-black text-[#0a0a0a]";
   const hintClass = isDark
-    ? "text-sm text-[#A8A29E] font-medium"
-    : "text-sm text-[#4B5563] font-medium";
+    ? "text-base text-[#A8A29E] font-medium"
+    : "text-base text-[#4B5563] font-medium";
   const selectClass = isDark
     ? "bg-[#292524] border border-[#44403C] text-[#F5F0EB]"
     : "bg-[#F4F4F5] border border-[#E5E7EB] text-[#0a0a0a]";
@@ -372,7 +372,7 @@ export default function GoogleAdsAccountPicker({
 
       {linked && !editing && (
         <div className="mb-4 space-y-3">
-          <p className="text-xs font-bold text-[#10B981]">
+          <p className="text-sm font-bold text-[#10B981]">
             {c.active(linked.customerId, linked.loginCustomerId)}
           </p>
           <button
@@ -381,7 +381,7 @@ export default function GoogleAdsAccountPicker({
               setEditing(true);
               resetWizard();
             }}
-            className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl ${btnSecondary}`}
+            className={`text-xs font-black uppercase tracking-widest px-4 py-2 rounded-xl ${btnSecondary}`}
           >
             {c.change}
           </button>
@@ -391,7 +391,7 @@ export default function GoogleAdsAccountPicker({
       {showWizard && (
         <>
           {step === "drilldown" && breadcrumb.length > 0 && (
-            <nav className="flex flex-wrap items-center gap-1 mb-4 text-[10px] font-bold uppercase tracking-widest">
+            <nav className="flex flex-wrap items-center gap-1 mb-4 text-sm font-bold uppercase tracking-widest">
               <button
                 type="button"
                 onClick={() => {
@@ -425,7 +425,7 @@ export default function GoogleAdsAccountPicker({
           )}
 
           {loading && (
-            <div className={`flex items-center gap-2 text-sm font-medium ${hintClass}`}>
+            <div className={`flex items-center gap-2 text-base font-medium ${hintClass}`}>
               <Loader2 size={16} className="animate-spin shrink-0" />
               {step === "drilldown" ? c.loadingChildren : c.loading}
             </div>
@@ -433,7 +433,7 @@ export default function GoogleAdsAccountPicker({
 
           {!loading && error && (
             <p
-              className={`text-sm font-medium flex gap-2 mb-4 ${
+              className={`text-base font-medium flex gap-2 mb-4 ${
                 isDark ? "text-[#FCA5A5]" : "text-[#DC2626]"
               }`}
             >
@@ -451,7 +451,7 @@ export default function GoogleAdsAccountPicker({
           {!loading && currentList.length > 0 && (
             <div className="space-y-4">
               <select
-                className={`w-full p-4 rounded-xl font-bold text-sm appearance-none cursor-pointer ${selectClass}`}
+                className={`w-full p-4 rounded-xl font-bold text-base appearance-none cursor-pointer ${selectClass}`}
                 value={selectedId}
                 onChange={(e) => setSelectedId(e.target.value)}
                 disabled={saving}
@@ -475,7 +475,7 @@ export default function GoogleAdsAccountPicker({
                     type="button"
                     onClick={() => void handleBack()}
                     disabled={saving || loading}
-                    className={`flex-1 text-[10px] font-black uppercase tracking-widest px-4 py-3 rounded-xl transition-colors disabled:opacity-50 ${btnSecondary}`}
+                    className={`flex-1 text-xs font-black uppercase tracking-widest px-4 py-3 rounded-xl transition-colors disabled:opacity-50 ${btnSecondary}`}
                   >
                     {c.back}
                   </button>
@@ -484,7 +484,7 @@ export default function GoogleAdsAccountPicker({
                   type="button"
                   onClick={() => void handlePrimaryAction()}
                   disabled={!selectedId || saving || loading}
-                  className={`flex-1 text-[10px] font-black uppercase tracking-widest px-4 py-3 rounded-xl transition-colors disabled:opacity-50 ${btnPrimary}`}
+                  className={`flex-1 text-xs font-black uppercase tracking-widest px-4 py-3 rounded-xl transition-colors disabled:opacity-50 ${btnPrimary}`}
                 >
                   {primaryLabel}
                 </button>
